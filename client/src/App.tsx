@@ -11,6 +11,7 @@ import Projects from "@/pages/projects";
 import Notes from "@/pages/notes";
 import Documents from "@/pages/documents";
 import Init from "@/pages/init";
+import Setup from "@/pages/setup";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
 import Marketing from "@/pages/marketing";
@@ -25,6 +26,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/init" component={Init} />
+      <Route path="/setup" component={Setup} />
       <Route path="/" component={Dashboard} />
       <Route path="/crm" component={CRM} />
       <Route path="/projects" component={Projects} />

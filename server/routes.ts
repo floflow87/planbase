@@ -475,6 +475,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // DEBUG: Connection info
+  // ============================================
+  
+  app.get("/api/debug/connection", (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL || "NOT_SET";
+    const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+    const hasPassword = !!process.env.SUPABASE_DB_PASSWORD;
+    
+    res.json({
+      supabaseUrl,
+      projectRef,
+      hasPassword,
+      requiredConnectionString: `postgresql://postgres.${projectRef}:[YOUR_DB_PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`,
+      instructions: [
+        "1. Allez dans Supabase Dashboard → Settings → Database",
+        "2. Section 'Connection Pooling' → Mode 'Transaction'",
+        "3. Copiez le mot de passe database",
+        "4. Mettez-le dans le secret SUPABASE_DB_PASSWORD"
+      ]
+    });
+  });
+
+  // ============================================
   // SEED DATA (Development only)
   // ============================================
 

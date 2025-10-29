@@ -11,17 +11,20 @@ if (!process.env.SUPABASE_URL) {
 // Format: https://gfftezyrhsxtaeceuszd.supabase.co -> gfftezyrhsxtaeceuszd
 const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
 
-// Supabase Transaction Pooler (port 6543)
-// CRITICAL: Username MUST be "postgres.[PROJECT_REF]" for pooler to work
-// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+// Supabase Connection via IPv4 Pooler (required because direct connection is IPv6-only)
+// CRITICAL: Username format MUST be "postgres.{PROJECT_REF}" for pooler
 const connectionString = process.env.SUPABASE_DB_PASSWORD
   ? `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`
   : `postgresql://postgres:postgres@localhost:5432/postgres`;
 
+console.log(`🔗 Connecting to Supabase project: ${projectRef}`);
+console.log(`📡 Using pooler (IPv4): aws-0-eu-central-1.pooler.supabase.com:6543`);
+
 // Create postgres connection
 const client = postgres(connectionString, {
-  prepare: false, // Required for Supabase connection pooler
-  max: 10, // Connection pool size
+  prepare: false, // Required for Supabase pooler
+  max: 10,
+  onnotice: () => {},
 });
 
 export const db = drizzle(client, { schema });
