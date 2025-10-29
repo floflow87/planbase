@@ -22,7 +22,7 @@ create or replace function current_account_id() returns uuid
 language sql stable as
 $$ select coalesce( (auth.jwt() ->> 'account_id')::uuid, '00000000-0000-0000-0000-000000000000'::uuid ) $$;
 
-create or replace function current_role() returns text
+create or replace function current_user_role() returns text
 language sql stable as
 $$ select coalesce( auth.jwt() ->> 'role', 'anonymous' ) $$;
 
@@ -504,7 +504,7 @@ for select using ( account_id = current_account_id() );
 create policy p_select_same_account_notes on notes
 for select using (
   account_id = current_account_id()
-  or (visibility = 'client_ro' and current_role() = 'client_viewer')
+  or (visibility = 'client_ro' and current_user_role() = 'client_viewer')
 );
 
 create policy p_select_same_account_folders on folders
@@ -533,35 +533,35 @@ for select using ( account_id = current_account_id() );
 
 -- WRITE policies (insert/update/delete) - owner & collaborator only
 create policy p_write_clients on clients
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_projects on projects
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_deals on deals
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_notes on notes
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_folders on folders
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_files on files
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_tags on tags
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 create policy p_write_mail on mail_accounts
-for all using ( account_id = current_account_id() and current_role() in ('owner','collaborator') )
+for all using ( account_id = current_account_id() and current_user_role() in ('owner','collaborator') )
 with check ( account_id = current_account_id() );
 
 -- 11) Additional search indexes (trigram for fuzzy search)

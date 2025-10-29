@@ -63,14 +63,14 @@ Multi-tenant architecture with comprehensive data models in `shared/schema.ts` a
 ### Row Level Security (RLS)
 All tables have RLS enabled with policies:
 - **SELECT**: `account_id = current_account_id()`
-- **WRITE**: `current_role() in ('owner','collaborator')`
+- **WRITE**: `current_user_role() in ('owner','collaborator')`
 - **Shared content**: Special policies for notes/files with visibility controls
 
 ### Helper Functions
 ```sql
-current_account_id() -- Returns UUID from JWT claim
-current_role()       -- Returns 'owner'|'collaborator'|'client_viewer'
-set_updated_at()     -- Trigger function for updated_at timestamps
+current_account_id()   -- Returns UUID from JWT claim
+current_user_role()    -- Returns 'owner'|'collaborator'|'client_viewer'
+set_updated_at()       -- Trigger function for updated_at timestamps
 ```
 
 ### Extensions Enabled
