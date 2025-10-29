@@ -217,6 +217,8 @@ See complete guide: `DNS-CONFIGURATION-OVH.md`
 - ✅ **Authentication middleware** (`server/middleware/auth.ts`) - ⚠️ DEVELOPMENT ONLY
 - ✅ **Storage layer extended** for deals, products, features, roadmaps, roadmap_items
 - ✅ **API routes secured** with auth middleware for all entities
+- ✅ **User profile system** with dedicated columns (first_name, last_name, gender, position) instead of JSONB
+- ✅ **Profile page** (/profile) with centered layout and responsive grid
 - ✅ OpenAI integration ready
 - ✅ Buddy design system implemented
 - ✅ DNS deployment guide created

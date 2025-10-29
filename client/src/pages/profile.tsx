@@ -93,8 +93,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="mb-6">
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="mb-6 text-center">
         <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
         <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>
       </div>
@@ -213,7 +213,7 @@ export default function Profile() {
                   control={form.control}
                   name="position"
                   render={({ field }) => (
-                    <FormItem className="md:col-span-2">
+                    <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <Briefcase className="w-4 h-4" />
                         Poste
