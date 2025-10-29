@@ -21,7 +21,12 @@ export const appUsers = pgTable("app_users", {
   id: uuid("id").primaryKey(), // = auth.users.id
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  gender: text("gender"), // 'male', 'female', 'other'
+  position: text("position"), // Job title/position
   role: text("role").notNull(), // 'owner', 'collaborator', 'client_viewer'
+  avatarUrl: text("avatar_url"),
   profile: jsonb("profile").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
