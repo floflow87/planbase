@@ -408,6 +408,17 @@ export const roadmapItems = pgTable("roadmap_items", {
 // Insert schemas
 export const insertAccountSchema = createInsertSchema(accounts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAppUserSchema = createInsertSchema(appUsers).omit({ createdAt: true, updatedAt: true });
+
+// Schema for updating user profile (only safe fields that users can modify themselves)
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  position: z.string().optional(),
+  avatarUrl: z.string().url().optional().or(z.literal("")),
+});
+
 export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });

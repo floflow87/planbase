@@ -175,9 +175,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertAppUser>): Promise<AppUser | undefined> {
+    // Security: Strip out protected fields that users shouldn't modify themselves
+    const { id: _id, accountId: _accountId, role: _role, createdAt: _createdAt, ...safeUpdates } = updates;
+    
     const [user] = await db
       .update(appUsers)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...safeUpdates, updatedAt: new Date() })
       .where(eq(appUsers.id, id))
       .returning();
     return user;

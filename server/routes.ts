@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import {
   insertAccountSchema,
   insertAppUserSchema,
+  updateProfileSchema,
   insertClientSchema,
   insertProjectSchema,
   insertNoteSchema,
@@ -97,19 +98,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update current user profile
   app.patch("/api/me", requireAuth, async (req, res) => {
     try {
-      const { firstName, lastName, gender, position, email } = req.body;
+      // Validate request body with strict schema (only safe fields)
+      const validatedData = updateProfileSchema.parse(req.body);
       
-      // Update user profile
-      const updatedUser = await storage.updateUser(req.userId!, {
-        firstName,
-        lastName,
-        gender,
-        position,
-        email,
-      });
+      // Update user profile (only validated fields)
+      const updatedUser = await storage.updateUser(req.userId!, validatedData);
       
       res.json(updatedUser);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid profile data", details: error.errors });
+      }
       res.status(400).json({ error: error.message });
     }
   });
