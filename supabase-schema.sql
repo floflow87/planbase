@@ -482,6 +482,14 @@ alter table roadmaps          enable row level security;
 alter table roadmap_items     enable row level security;
 
 -- 10) RLS Policies - Basic multi-tenant policies
+
+-- DEVELOPMENT: Allow public insert for seeding (REMOVE IN PRODUCTION!)
+create policy p_insert_accounts_dev on accounts
+for insert with check ( true );
+
+create policy p_insert_app_users_dev on app_users
+for insert with check ( true );
+
 -- SELECT policies (read access)
 create policy p_select_same_account on accounts
 for select using ( id = current_account_id() );

@@ -96,10 +96,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create activity
       await storage.createActivity({
         accountId: data.accountId,
-        type: "client_onboarded",
-        description: `New client onboarded: ${data.name}`,
-        userId: data.createdBy || undefined,
-        metadata: { clientId: client.id },
+        subjectType: "client",
+        subjectId: client.id,
+        kind: "note",
+        payload: { description: `New client onboarded: ${data.name}` },
+        createdBy: data.createdBy || null,
       });
 
       res.json(client);
@@ -152,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Client not found" });
       }
       
-      const history = `Client: ${client.name}, Status: ${client.status}, Budget: ${client.budget}, Sector: ${client.sector}`;
+      const history = `Client: ${client.name}, Type: ${client.type}, Status: ${client.status}, Budget: ${client.budget}`;
       const suggestions = await suggestNextActions(history);
       
       res.json({ suggestions });
@@ -206,10 +207,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create activity
       await storage.createActivity({
         accountId: project.accountId,
-        type: "business_plan_updated",
-        description: `Project updated: ${project.name}`,
-        userId: req.body.userId,
-        metadata: { projectId: project.id },
+        subjectType: "project",
+        subjectId: project.id,
+        kind: "note",
+        payload: { description: `Project updated: ${project.name}` },
+        createdBy: req.body.userId || null,
       });
 
       res.json(project);
@@ -458,8 +460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getActivitiesByAccountId(req.params.accountId, 10),
       ]);
 
-      const activeProjects = projects.filter(p => p.status === 'active');
-      const totalRevenue = clients.reduce((sum, c) => sum + (c.budget || 0), 0);
+      const activeProjects = projects.filter(p => p.stage !== 'done' && p.stage !== 'cancelled');
+      const totalRevenue = clients.reduce((sum, c) => sum + (parseFloat(c.budget || '0')), 0);
 
       res.json({
         clientsCount: clients.length,

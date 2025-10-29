@@ -1,305 +1,235 @@
+// Seed database with demo data for Supabase
 import { storage } from "../storage";
+import type { Account, AppUser, Client, Project } from "@shared/schema";
 
 export async function seedDatabase() {
-  // Create account
+  console.log("🌱 Seeding Supabase database...");
+
+  // 1. Create demo account
   const account = await storage.createAccount({
-    name: "Planbase Demo",
-    ownerEmail: "alex@planbase.com",
+    name: "Demo Startup",
+    plan: "pro",
+    settings: {
+      theme: "dark",
+      notifications: true,
+    },
   });
+  console.log(`✅ Account created: ${account.id}`);
 
-  // Create users
+  // 2. Create owner user
   const owner = await storage.createUser({
+    id: crypto.randomUUID(),
     accountId: account.id,
-    email: "alex@planbase.com",
-    name: "Alex Johnson",
+    email: "owner@demo.com",
     role: "owner",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex",
+    profile: {
+      firstName: "Jean",
+      lastName: "Dupont",
+      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jean",
+    },
   });
+  console.log(`✅ Owner created: ${owner.id}`);
 
-  const member1 = await storage.createUser({
+  // 3. Create collaborator
+  const collaborator = await storage.createUser({
+    id: crypto.randomUUID(),
     accountId: account.id,
-    email: "marie@planbase.com",
-    name: "Marie Dubois",
-    role: "member",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie",
+    email: "collaborator@demo.com",
+    role: "collaborator",
+    profile: {
+      firstName: "Marie",
+      lastName: "Martin",
+      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie",
+    },
   });
+  console.log(`✅ Collaborator created: ${collaborator.id}`);
 
-  const member2 = await storage.createUser({
-    accountId: account.id,
-    email: "pierre@planbase.com",
-    name: "Pierre Martin",
-    role: "member",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Pierre",
-  });
+  // 4. Create demo clients
+  const clients: Client[] = [];
+  
+  const clientsData = [
+    {
+      name: "TechCorp Solutions",
+      type: "company" as const,
+      status: "active",
+      budget: "50000.00",
+      contacts: [
+        { name: "Pierre Laurent", email: "pierre@techcorp.com", phone: "+33612345678", role: "CEO" }
+      ],
+      tags: ["tech", "b2b", "saas"],
+      notes: "Client premium avec fort potentiel de croissance",
+    },
+    {
+      name: "Sophie Bernard",
+      type: "person" as const,
+      status: "prospecting",
+      budget: "15000.00",
+      contacts: [
+        { name: "Sophie Bernard", email: "sophie.bernard@email.com", phone: "+33698765432", role: "Freelance Designer" }
+      ],
+      tags: ["design", "freelance"],
+      notes: "Recherche refonte site web + identité visuelle",
+    },
+    {
+      name: "Green Energy Partners",
+      type: "company" as const,
+      status: "negotiating",
+      budget: "120000.00",
+      contacts: [
+        { name: "Marc Dubois", email: "marc@greenenergy.fr", phone: "+33687654321", role: "CTO" }
+      ],
+      tags: ["greentech", "b2b", "enterprise"],
+      notes: "Opportunité de partenariat stratégique",
+    },
+  ];
 
-  // Create clients
-  const client1 = await storage.createClient({
+  for (const clientData of clientsData) {
+    const client = await storage.createClient({
+      accountId: account.id,
+      createdBy: owner.id,
+      ...clientData,
+    });
+    clients.push(client);
+    console.log(`✅ Client created: ${client.name}`);
+  }
+
+  // 5. Create demo projects
+  const projects: Project[] = [];
+
+  const projectsData = [
+    {
+      name: "Refonte Site Web TechCorp",
+      clientId: clients[0].id,
+      stage: "in_progress",
+      budget: "25000.00",
+      tags: ["web", "design", "dev"],
+      meta: {
+        deadline: "2025-03-31",
+        team: ["owner", "collaborator"],
+        tech: ["React", "TypeScript", "Tailwind"],
+      },
+    },
+    {
+      name: "Branding Sophie Bernard",
+      clientId: clients[1].id,
+      stage: "discovery",
+      budget: "8000.00",
+      tags: ["branding", "design"],
+      meta: {
+        deadline: "2025-02-15",
+        deliverables: ["Logo", "Charte graphique", "Templates"],
+      },
+    },
+    {
+      name: "Plateforme IoT Green Energy",
+      clientId: clients[2].id,
+      stage: "planning",
+      budget: "95000.00",
+      tags: ["iot", "backend", "frontend"],
+      meta: {
+        deadline: "2025-06-30",
+        complexity: "high",
+        team: ["owner", "collaborator", "external-devs"],
+      },
+    },
+  ];
+
+  for (const projectData of projectsData) {
+    const project = await storage.createProject({
+      accountId: account.id,
+      createdBy: owner.id,
+      ...projectData,
+    });
+    projects.push(project);
+    console.log(`✅ Project created: ${project.name}`);
+  }
+
+  // 6. Create activities
+  const activitiesData = [
+    {
+      subjectType: "client" as const,
+      subjectId: clients[0].id,
+      kind: "email" as const,
+      payload: {
+        subject: "Réunion kick-off planifiée",
+        snippet: "Rendez-vous confirmé pour le 15 novembre",
+      },
+    },
+    {
+      subjectType: "project" as const,
+      subjectId: projects[0].id,
+      kind: "meeting" as const,
+      payload: {
+        title: "Sprint Planning #1",
+        duration: "2h",
+        participants: ["owner", "collaborator"],
+      },
+    },
+    {
+      subjectType: "client" as const,
+      subjectId: clients[1].id,
+      kind: "call" as const,
+      payload: {
+        duration: "30min",
+        notes: "Discussion sur les attentes et le budget",
+      },
+    },
+  ];
+
+  for (const activityData of activitiesData) {
+    await storage.createActivity({
+      accountId: account.id,
+      createdBy: owner.id,
+      ...activityData,
+    });
+  }
+  console.log(`✅ Activities created`);
+
+  // 7. Create demo notes
+  const note1 = await storage.createNote({
     accountId: account.id,
-    name: "Marie Dubois",
-    type: "individual",
-    email: "marie@techstartup.com",
-    company: "TechStartup SAS",
-    position: "CEO & Founder",
-    sector: "Technology",
-    status: "in_progress",
-    budget: 25000,
-    tags: ["B2B", "SaaS"],
     createdBy: owner.id,
-  });
-
-  const client2 = await storage.createClient({
-    accountId: account.id,
-    name: "Pierre Martin",
-    type: "individual",
-    email: "p.martin@innovcorp.fr",
-    company: "InnovCorp",
-    position: "Directeur Innovation",
-    sector: "Technology",
-    status: "prospect",
-    budget: 15000,
-    tags: ["B2B"],
-    createdBy: owner.id,
-  });
-
-  const client3 = await storage.createClient({
-    accountId: account.id,
-    name: "Sophie Laurent",
-    type: "individual",
-    email: "s.laurent@greentech.io",
-    company: "GreenTech Solutions",
-    position: "CMO",
-    sector: "Sustainability",
-    status: "signed",
-    budget: 35000,
-    tags: ["B2B", "Green Tech"],
-    createdBy: owner.id,
-  });
-
-  // Create projects
-  const project1 = await storage.createProject({
-    accountId: account.id,
-    name: "FinTech Startup MVP",
-    description: "Business Plan & Legal Setup",
-    clientId: client1.id,
+    title: "Stratégie Q1 2025",
+    content: [
+      { type: "heading", content: "Objectifs principaux" },
+      { type: "paragraph", content: "1. Augmenter le CA de 40%" },
+      { type: "paragraph", content: "2. Recruter 2 développeurs seniors" },
+      { type: "paragraph", content: "3. Lancer la nouvelle offre SaaS" },
+    ],
+    plainText: "Stratégie Q1 2025\nObjectifs principaux\n1. Augmenter le CA de 40%\n2. Recruter 2 développeurs seniors\n3. Lancer la nouvelle offre SaaS",
     status: "active",
-    progress: 75,
-    color: "#7C3AED",
-    createdBy: owner.id,
+    visibility: "account",
   });
+  console.log(`✅ Note created: ${note1.title}`);
 
-  const project2 = await storage.createProject({
-    accountId: account.id,
-    name: "E-commerce Platform",
-    description: "Product Development & Marketing",
-    clientId: client2.id,
-    status: "active",
-    progress: 45,
-    color: "#3B82F6",
-    createdBy: owner.id,
-  });
-
-  const project3 = await storage.createProject({
-    accountId: account.id,
-    name: "GreenTech Solution",
-    description: "Roadmap & Finance Planning",
-    clientId: client3.id,
-    status: "active",
-    progress: 90,
-    color: "#10B981",
-    createdBy: owner.id,
-  });
-
-  // Create tasks for project 1
-  await storage.createTask({
-    accountId: account.id,
-    projectId: project1.id,
-    title: "MVP Product Design",
-    description: "Créer les maquettes et prototypes pour la version beta",
-    status: "todo",
-    priority: "high",
-    assignees: [member1.id, member2.id],
-    order: 1,
-    createdBy: owner.id,
-  });
-
-  await storage.createTask({
-    accountId: account.id,
-    projectId: project1.id,
-    title: "Market Research",
-    description: "Analyser la concurrence et les tendances du marché",
-    status: "todo",
-    priority: "medium",
-    assignees: [member1.id],
-    order: 2,
-    createdBy: owner.id,
-  });
-
-  await storage.createTask({
-    accountId: account.id,
-    projectId: project1.id,
-    title: "Business Plan Rédaction",
-    description: "Finaliser le business plan pour la levée de fonds",
-    status: "in_progress",
-    priority: "high",
-    progress: 65,
-    assignees: [member1.id],
-    order: 3,
-    createdBy: owner.id,
-  });
-
-  await storage.createTask({
-    accountId: account.id,
-    projectId: project1.id,
-    title: "Wireframes Mobile",
-    description: "Validation des maquettes par l'équipe produit",
-    status: "review",
-    priority: "medium",
-    assignees: [member2.id],
-    order: 4,
-    createdBy: owner.id,
-  });
-
-  await storage.createTask({
-    accountId: account.id,
-    projectId: project1.id,
-    title: "Logo Design",
-    description: "Identité visuelle complète",
-    status: "done",
-    priority: "low",
-    assignees: [member1.id],
-    order: 5,
-    createdBy: owner.id,
-  });
-
-  // Create notes
-  await storage.createNote({
-    accountId: account.id,
-    title: "Stratégie de lancement produit Q1 2024",
-    content: { blocks: [{ type: "paragraph", content: "Analyse des tendances marché et définition de la stratégie de positionnement pour le lancement du nouveau produit SaaS. Focus sur l'acquisition client B2B..." }] },
-    category: "marketing",
-    tags: ["TechCorp", "SaaS Launch"],
-    clientId: client1.id,
-    projectId: project1.id,
-    attachments: [{ name: "market-analysis.pdf" }, { name: "positioning.doc" }, { name: "budget.xlsx" }],
-    createdBy: owner.id,
-  });
-
-  await storage.createNote({
-    accountId: account.id,
-    title: "Feedback utilisateurs - Dashboard V2",
-    content: { blocks: [{ type: "paragraph", content: "Compilation des retours utilisateurs sur la nouvelle interface dashboard. Points d'amélioration identifiés : navigation, filtres avancés, performance mobile..." }] },
-    category: "product",
-    tags: [],
-    projectId: project2.id,
-    attachments: [],
-    createdBy: owner.id,
-  });
-
-  await storage.createNote({
-    accountId: account.id,
-    title: "Prévisions budget 2024 - Startup",
-    content: { blocks: [{ type: "paragraph", content: "Projection financière détaillée pour 2024 incluant les coûts d'acquisition client, salaires équipe, infrastructure cloud et marketing digital..." }] },
-    category: "finance",
-    tags: ["StartupCo", "Budget 2024"],
-    attachments: [{ name: "budget-2024.xlsx" }, { name: "projections.pdf" }],
-    createdBy: owner.id,
-  });
-
-  await storage.createNote({
-    accountId: account.id,
-    title: "Contrat partenariat - TechVenture",
-    content: { blocks: [{ type: "paragraph", content: "Points clés du contrat de partenariat stratégique avec TechVenture. Clauses de propriété intellectuelle, revenus partagés et exclusivité territoriale..." }] },
-    category: "legal",
-    tags: ["TechVenture"],
-    attachments: [{ name: "contract.pdf" }, { name: "amendments.doc" }],
-    createdBy: owner.id,
-  });
-
-  // Create folders
+  // 8. Create folder structure
   const rootFolder = await storage.createFolder({
     accountId: account.id,
-    name: "Documentation",
-    path: "/Documentation",
     createdBy: owner.id,
+    name: "Documents",
+    scope: "generic",
   });
 
-  const productFolder = await storage.createFolder({
+  const clientsFolder = await storage.createFolder({
     accountId: account.id,
-    name: "Produit",
+    createdBy: owner.id,
     parentId: rootFolder.id,
-    path: "/Documentation/Produit",
-    createdBy: owner.id,
+    name: "Clients",
+    scope: "client",
   });
+  console.log(`✅ Folders created`);
 
-  // Create documents
-  await storage.createDocument({
-    accountId: account.id,
-    folderId: productFolder.id,
-    name: "Product_Specs_v3.pdf",
-    type: "pdf",
-    url: "/docs/product-specs.pdf",
-    size: 2457600, // 2.4 MB
-    category: "product",
-    projectId: project1.id,
-    version: 3,
-    createdBy: owner.id,
-  });
+  console.log("\n🎉 Seeding completed successfully!");
+  console.log(`\n📊 Demo Account ID: ${account.id}`);
+  console.log(`👤 Owner Email: ${owner.email}`);
+  console.log(`👥 Collaborator Email: ${collaborator.email}`);
+  console.log(`\n💡 Tip: Save this account ID in localStorage: localStorage.setItem("demo_account_id", "${account.id}")`);
 
-  await storage.createDocument({
-    accountId: account.id,
-    folderId: productFolder.id,
-    name: "MP_Requirements.doc",
-    type: "word",
-    url: "/docs/requirements.doc",
-    size: 1258291, // 1.2 MB
-    category: "product",
-    createdBy: owner.id,
-  });
-
-  await storage.createDocument({
-    accountId: account.id,
-    folderId: productFolder.id,
-    name: "Roadmap.xlsx",
-    type: "excel",
-    url: "/docs/roadmap.xlsx",
-    size: 876544, // 856 KB
-    category: "product",
-    projectId: project1.id,
-    createdBy: owner.id,
-  });
-
-  // Create activities
-  await storage.createActivity({
-    accountId: account.id,
-    type: "client_onboarded",
-    description: "New client onboarded",
-    userId: owner.id,
-    metadata: { clientId: client1.id },
-  });
-
-  await storage.createActivity({
-    accountId: account.id,
-    type: "document_signed",
-    description: "Legal documents signed",
-    userId: owner.id,
-    metadata: { documentId: "doc-1" },
-  });
-
-  await storage.createActivity({
-    accountId: account.id,
-    type: "business_plan_updated",
-    description: "Business plan updated",
-    userId: owner.id,
-    metadata: { projectId: project1.id },
-  });
-
-  await storage.createActivity({
-    accountId: account.id,
-    type: "campaign_launched",
-    description: "Marketing campaign launched",
-    userId: owner.id,
-    metadata: {},
-  });
-
-  return { account, owner };
+  return {
+    account,
+    owner,
+    collaborator,
+    clients,
+    projects,
+  };
 }

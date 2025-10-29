@@ -18,6 +18,7 @@ export interface IStorage {
   // Accounts
   getAccount(id: string): Promise<Account | undefined>;
   createAccount(account: InsertAccount): Promise<Account>;
+  updateAccount(id: string, account: Partial<InsertAccount>): Promise<Account | undefined>;
 
   // Users (now appUsers)
   getUser(id: string): Promise<AppUser | undefined>;
@@ -88,6 +89,15 @@ export class DatabaseStorage implements IStorage {
       .values(insertAccount)
       .returning();
     return account;
+  }
+
+  async updateAccount(id: string, updateData: Partial<InsertAccount>): Promise<Account | undefined> {
+    const [account] = await db
+      .update(accounts)
+      .set(updateData)
+      .where(eq(accounts.id, id))
+      .returning();
+    return account || undefined;
   }
 
   // Users (appUsers)
