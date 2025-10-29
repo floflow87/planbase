@@ -343,11 +343,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new task
   app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      // Verify project exists and belongs to account
+      const project = await storage.getProject(req.body.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this project" });
+      }
+
       const { insertTaskSchema } = await import("@shared/schema");
       const data = insertTaskSchema.parse({
         ...req.body,
         accountId: req.accountId!,
-        createdBy: req.userId || req.body.createdBy,
+        createdBy: req.userId!,
       });
       const task = await storage.createTask(data);
       res.json(task);

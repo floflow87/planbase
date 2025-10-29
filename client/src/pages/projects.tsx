@@ -14,11 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Project } from "@shared/schema";
-
-// TODO: Tasks will be reimplemented in new schema
-type Task = any;
-type InsertTask = any;
+import { type Project, type Task, type InsertTask, insertTaskSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -60,13 +56,16 @@ export default function Projects() {
 
   // Create task mutation
   const createTaskMutation = useMutation({
-    mutationFn: async (data: InsertTask) => {
+    mutationFn: async (data: Partial<InsertTask>) => {
       const response = await fetch("/api/tasks", {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" },
       });
-      if (!response.ok) throw new Error("Failed to create task");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create task");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -75,15 +74,18 @@ export default function Projects() {
       form.reset();
       toast({ title: "Tâche créée avec succès" });
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ 
+        title: "Erreur lors de la création", 
+        description: error.message,
+        variant: "destructive" 
+      });
     },
   });
 
   // Form for creating tasks
-  const form = useForm<InsertTask>({
+  const form = useForm<Partial<InsertTask>>({
     defaultValues: {
-      accountId: accountId || "",
       projectId: selectedProjectId,
       title: "",
       description: "",
@@ -100,8 +102,8 @@ export default function Projects() {
     form.setValue("projectId", selectedProjectId);
   }, [selectedProjectId, form]);
 
-  const onSubmit = (data: InsertTask) => {
-    createTaskMutation.mutate(data);
+  const onSubmit = (data: Partial<InsertTask>) => {
+    createTaskMutation.mutate(data as InsertTask);
   };
 
   // Group tasks by status
