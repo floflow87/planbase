@@ -17,7 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { type Project, type Task, type InsertTask, insertTaskSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 export default function Projects() {
   const [, setLocation] = useLocation();
@@ -57,15 +57,7 @@ export default function Projects() {
   // Create task mutation
   const createTaskMutation = useMutation({
     mutationFn: async (data: Partial<InsertTask>) => {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create task");
-      }
+      const response = await apiRequest("POST", "/api/tasks", data);
       return response.json();
     },
     onSuccess: () => {
