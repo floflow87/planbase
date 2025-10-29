@@ -318,6 +318,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // TASKS - Protected Routes
+  // ============================================
+
+  // Get all tasks by project
+  app.get("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
+    try {
+      // First verify the project exists and user has access
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const tasks = await storage.getTasksByProjectId(req.params.projectId);
+      res.json(tasks);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new task
+  app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { insertTaskSchema } = await import("@shared/schema");
+      const data = insertTaskSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const task = await storage.createTask(data);
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get a specific task
+  app.get("/api/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const task = await storage.getTask(req.params.id);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      if (task.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a task
+  app.patch("/api/tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const task = await storage.updateTask(req.params.id, req.body);
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a task
+  app.delete("/api/tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteTask(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TASKS - TODO: Implement with new schema
   // ============================================
   // Note: Tasks table removed in new Supabase schema

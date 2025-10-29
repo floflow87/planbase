@@ -80,6 +80,25 @@ export const projects = pgTable("projects", {
   accountClientIdx: index().on(table.accountId, table.clientId),
 }));
 
+export const tasks = pgTable("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("todo"), // 'todo', 'in_progress', 'review', 'done'
+  priority: text("priority").notNull().default("medium"), // 'low', 'medium', 'high'
+  assignees: text("assignees").array().notNull().default(sql`ARRAY[]::text[]`), // Array of user IDs
+  progress: integer("progress").notNull().default(0), // 0-100
+  order: integer("order").notNull().default(0), // For ordering within columns
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectStatusIdx: index().on(table.accountId, table.projectId, table.status),
+}));
+
 export const deals = pgTable("deals", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
@@ -387,6 +406,7 @@ export const insertAppUserSchema = createInsertSchema(appUsers).omit({ createdAt
 export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
@@ -406,6 +426,7 @@ export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
@@ -425,6 +446,7 @@ export type AppUser = typeof appUsers.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Project = typeof projects.$inferSelect;
+export type Task = typeof tasks.$inferSelect;
 export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Note = typeof notes.$inferSelect;

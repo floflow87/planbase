@@ -4,6 +4,7 @@ import {
   type AppUser, type InsertAppUser,
   type Client, type InsertClient,
   type Project, type InsertProject,
+  type Task, type InsertTask,
   type Note, type InsertNote,
   type Folder, type InsertFolder,
   type File, type InsertFile,
@@ -13,7 +14,7 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
-  accounts, appUsers, clients, projects, notes, folders, files, activities,
+  accounts, appUsers, clients, projects, tasks, notes, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -45,6 +46,14 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+
+  // Tasks
+  getTask(id: string): Promise<Task | undefined>;
+  getTasksByProjectId(projectId: string): Promise<Task[]>;
+  getTasksByAccountId(accountId: string): Promise<Task[]>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<boolean>;
 
   // Notes
   getNote(id: string): Promise<Note | undefined>;
@@ -225,6 +234,47 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
+    return result.length > 0;
+  }
+
+  // Tasks
+  async getTask(id: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async getTasksByProjectId(projectId: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId))
+      .orderBy(tasks.order);
+  }
+
+  async getTasksByAccountId(accountId: string): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.accountId, accountId))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async createTask(taskData: InsertTask): Promise<Task> {
+    const [task] = await db.insert(tasks).values(taskData).returning();
+    return task;
+  }
+
+  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+    const [task] = await db
+      .update(tasks)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(tasks.id, id))
+      .returning();
+    return task || undefined;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id));
     return result.length > 0;
   }
 
