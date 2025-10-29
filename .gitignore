@@ -1,6 +1,38 @@
+# Dependencies
 node_modules
+
+# Build outputs
 dist
-.DS_Store
 server/public
-vite.config.ts.*
+
+# Environment variables & secrets
+.env
+.env.local
+.env.production
+.replit
+.replitrc
+.replit_history
+
+# OS files
+.DS_Store
 *.tar.gz
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+logs
+/tmp
+
+# Vite
+vite.config.ts.*
+
+# Database
+migrations/*.sql
+drizzle
+
+# Temporary files
+*.tmp
+*.swp
