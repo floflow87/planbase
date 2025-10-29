@@ -8,7 +8,13 @@ import {
   type Folder, type InsertFolder,
   type File, type InsertFile,
   type Activity, type InsertActivity,
+  type Deal, type InsertDeal,
+  type Product, type InsertProduct,
+  type Feature, type InsertFeature,
+  type Roadmap, type InsertRoadmap,
+  type RoadmapItem, type InsertRoadmapItem,
   accounts, appUsers, clients, projects, notes, folders, files, activities,
+  deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
@@ -65,6 +71,41 @@ export interface IStorage {
   // Activities
   getActivitiesByAccountId(accountId: string, limit?: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
+
+  // Deals (Sales Pipeline)
+  getDeal(id: string): Promise<Deal | undefined>;
+  getDealsByAccountId(accountId: string): Promise<Deal[]>;
+  createDeal(deal: InsertDeal): Promise<Deal>;
+  updateDeal(id: string, deal: Partial<InsertDeal>): Promise<Deal | undefined>;
+  deleteDeal(id: string): Promise<boolean>;
+
+  // Products
+  getProduct(id: string): Promise<Product | undefined>;
+  getProductsByAccountId(accountId: string): Promise<Product[]>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+
+  // Features
+  getFeature(id: string): Promise<Feature | undefined>;
+  getFeaturesByAccountId(accountId: string): Promise<Feature[]>;
+  createFeature(feature: InsertFeature): Promise<Feature>;
+  updateFeature(id: string, feature: Partial<InsertFeature>): Promise<Feature | undefined>;
+  deleteFeature(id: string): Promise<boolean>;
+
+  // Roadmaps
+  getRoadmap(id: string): Promise<Roadmap | undefined>;
+  getRoadmapsByAccountId(accountId: string): Promise<Roadmap[]>;
+  createRoadmap(roadmap: InsertRoadmap): Promise<Roadmap>;
+  updateRoadmap(id: string, roadmap: Partial<InsertRoadmap>): Promise<Roadmap | undefined>;
+  deleteRoadmap(id: string): Promise<boolean>;
+
+  // Roadmap Items
+  getRoadmapItem(id: string): Promise<RoadmapItem | undefined>;
+  getRoadmapItemsByRoadmapId(roadmapId: string): Promise<RoadmapItem[]>;
+  createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem>;
+  updateRoadmapItem(id: string, item: Partial<InsertRoadmapItem>): Promise<RoadmapItem | undefined>;
+  deleteRoadmapItem(id: string): Promise<boolean>;
 
   // Search
   searchAll(accountId: string, query: string): Promise<{
@@ -303,6 +344,136 @@ export class DatabaseStorage implements IStorage {
       .values(insertActivity)
       .returning();
     return activity;
+  }
+
+  // Deals (Sales Pipeline)
+  async getDeal(id: string): Promise<Deal | undefined> {
+    const [deal] = await db.select().from(deals).where(eq(deals.id, id));
+    return deal || undefined;
+  }
+
+  async getDealsByAccountId(accountId: string): Promise<Deal[]> {
+    return await db.select().from(deals).where(eq(deals.accountId, accountId))
+      .orderBy(desc(deals.createdAt));
+  }
+
+  async createDeal(insertDeal: InsertDeal): Promise<Deal> {
+    const [deal] = await db.insert(deals).values(insertDeal).returning();
+    return deal;
+  }
+
+  async updateDeal(id: string, updateData: Partial<InsertDeal>): Promise<Deal | undefined> {
+    const [deal] = await db.update(deals).set(updateData).where(eq(deals.id, id)).returning();
+    return deal || undefined;
+  }
+
+  async deleteDeal(id: string): Promise<boolean> {
+    const result = await db.delete(deals).where(eq(deals.id, id));
+    return result.length > 0;
+  }
+
+  // Products
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async getProductsByAccountId(accountId: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.accountId, accountId))
+      .orderBy(desc(products.createdAt));
+  }
+
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    const [product] = await db.insert(products).values(insertProduct).returning();
+    return product;
+  }
+
+  async updateProduct(id: string, updateData: Partial<InsertProduct>): Promise<Product | undefined> {
+    const [product] = await db.update(products).set(updateData).where(eq(products.id, id)).returning();
+    return product || undefined;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await db.delete(products).where(eq(products.id, id));
+    return result.length > 0;
+  }
+
+  // Features
+  async getFeature(id: string): Promise<Feature | undefined> {
+    const [feature] = await db.select().from(features).where(eq(features.id, id));
+    return feature || undefined;
+  }
+
+  async getFeaturesByAccountId(accountId: string): Promise<Feature[]> {
+    return await db.select().from(features).where(eq(features.accountId, accountId))
+      .orderBy(desc(features.createdAt));
+  }
+
+  async createFeature(insertFeature: InsertFeature): Promise<Feature> {
+    const [feature] = await db.insert(features).values(insertFeature).returning();
+    return feature;
+  }
+
+  async updateFeature(id: string, updateData: Partial<InsertFeature>): Promise<Feature | undefined> {
+    const [feature] = await db.update(features).set(updateData).where(eq(features.id, id)).returning();
+    return feature || undefined;
+  }
+
+  async deleteFeature(id: string): Promise<boolean> {
+    const result = await db.delete(features).where(eq(features.id, id));
+    return result.length > 0;
+  }
+
+  // Roadmaps
+  async getRoadmap(id: string): Promise<Roadmap | undefined> {
+    const [roadmap] = await db.select().from(roadmaps).where(eq(roadmaps.id, id));
+    return roadmap || undefined;
+  }
+
+  async getRoadmapsByAccountId(accountId: string): Promise<Roadmap[]> {
+    return await db.select().from(roadmaps).where(eq(roadmaps.accountId, accountId))
+      .orderBy(desc(roadmaps.createdAt));
+  }
+
+  async createRoadmap(insertRoadmap: InsertRoadmap): Promise<Roadmap> {
+    const [roadmap] = await db.insert(roadmaps).values(insertRoadmap).returning();
+    return roadmap;
+  }
+
+  async updateRoadmap(id: string, updateData: Partial<InsertRoadmap>): Promise<Roadmap | undefined> {
+    const [roadmap] = await db.update(roadmaps).set(updateData).where(eq(roadmaps.id, id)).returning();
+    return roadmap || undefined;
+  }
+
+  async deleteRoadmap(id: string): Promise<boolean> {
+    const result = await db.delete(roadmaps).where(eq(roadmaps.id, id));
+    return result.length > 0;
+  }
+
+  // Roadmap Items
+  async getRoadmapItem(id: string): Promise<RoadmapItem | undefined> {
+    const [item] = await db.select().from(roadmapItems).where(eq(roadmapItems.id, id));
+    return item || undefined;
+  }
+
+  async getRoadmapItemsByRoadmapId(roadmapId: string): Promise<RoadmapItem[]> {
+    return await db.select().from(roadmapItems).where(eq(roadmapItems.roadmapId, roadmapId))
+      .orderBy(desc(roadmapItems.createdAt));
+  }
+
+  async createRoadmapItem(insertItem: InsertRoadmapItem): Promise<RoadmapItem> {
+    const [item] = await db.insert(roadmapItems).values(insertItem).returning();
+    return item;
+  }
+
+  async updateRoadmapItem(id: string, updateData: Partial<InsertRoadmapItem>): Promise<RoadmapItem | undefined> {
+    const [item] = await db.update(roadmapItems).set(updateData).where(eq(roadmapItems.id, id)).returning();
+    return item || undefined;
+  }
+
+  async deleteRoadmapItem(id: string): Promise<boolean> {
+    const result = await db.delete(roadmapItems).where(eq(roadmapItems.id, id));
+    return result.length > 0;
   }
 
   // Search

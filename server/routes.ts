@@ -10,10 +10,47 @@ import {
   insertFolderSchema,
   insertFileSchema,
   insertActivitySchema,
+  insertDealSchema,
+  insertProductSchema,
+  insertFeatureSchema,
+  insertRoadmapSchema,
+  insertRoadmapItemSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
+import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
+import { getDemoCredentials } from "./middleware/demo-helper";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // ============================================
+  // DEMO & AUTH HELPERS (Development Only)
+  // ============================================
+  
+  /**
+   * ⚠️ SECURITY: This endpoint exposes real account and user IDs
+   * Only enable in development/staging environments
+   */
+  app.get("/api/demo/credentials", async (req, res) => {
+    // Only allow in development
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    try {
+      const credentials = await getDemoCredentials();
+      if (!credentials) {
+        return res.status(404).json({ error: "Demo account not found. Run /api/seed first." });
+      }
+      res.json({
+        warning: "⚠️ Development Only - Do not use in production",
+        message: "Use these credentials to test the API",
+        usage: "Include 'x-account-id' and 'x-user-id' headers in your requests",
+        credentials,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
   // ============================================
   // ACCOUNTS
   // ============================================
@@ -76,31 +113,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // CLIENTS (CRM)
+  // CLIENTS (CRM) - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/clients", async (req, res) => {
+  app.get("/api/clients", requireAuth, async (req, res) => {
     try {
-      const clients = await storage.getClientsByAccountId(req.params.accountId);
+      const clients = await storage.getClientsByAccountId(req.accountId!);
       res.json(clients);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/clients", async (req, res) => {
+  app.post("/api/clients", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const data = insertClientSchema.parse(req.body);
+      const data = insertClientSchema.parse({
+        ...req.body,
+        accountId: req.accountId!, // Force accountId from auth context
+        createdBy: req.userId || req.body.createdBy,
+      });
       const client = await storage.createClient(data);
       
       // Create activity
       await storage.createActivity({
-        accountId: data.accountId,
+        accountId: req.accountId!,
         subjectType: "client",
         subjectId: client.id,
         kind: "note",
         payload: { description: `New client onboarded: ${data.name}` },
-        createdBy: data.createdBy || null,
+        createdBy: req.userId || null,
       });
 
       res.json(client);
@@ -109,36 +150,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:id", async (req, res) => {
+  app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
       const client = await storage.getClient(req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
+      // Verify client belongs to user's account
+      if (client.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
       res.json(client);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.patch("/api/clients/:id", async (req, res) => {
+  app.patch("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      // First verify client belongs to user's account
+      const existing = await storage.getClient(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
       const client = await storage.updateClient(req.params.id, req.body);
-      if (!client) {
-        return res.status(404).json({ error: "Client not found" });
-      }
       res.json(client);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.delete("/api/clients/:id", async (req, res) => {
+  app.delete("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const success = await storage.deleteClient(req.params.id);
-      if (!success) {
+      // First verify client belongs to user's account
+      const existing = await storage.getClient(req.params.id);
+      if (!existing) {
         return res.status(404).json({ error: "Client not found" });
       }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteClient(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -163,55 +220,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // PROJECTS
+  // PROJECTS - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/projects", async (req, res) => {
+  app.get("/api/projects", requireAuth, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByAccountId(req.params.accountId);
+      const projects = await storage.getProjectsByAccountId(req.accountId!);
       res.json(projects);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/projects", async (req, res) => {
+  app.post("/api/projects", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const data = insertProjectSchema.parse(req.body);
+      const data = insertProjectSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
       const project = await storage.createProject(data);
-      res.json(project);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/projects/:id", async (req, res) => {
-    try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-      res.json(project);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.patch("/api/projects/:id", async (req, res) => {
-    try {
-      const project = await storage.updateProject(req.params.id, req.body);
-      if (!project) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-
+      
       // Create activity
       await storage.createActivity({
-        accountId: project.accountId,
+        accountId: req.accountId!,
         subjectType: "project",
         subjectId: project.id,
         kind: "note",
-        payload: { description: `Project updated: ${project.name}` },
-        createdBy: req.body.userId || null,
+        payload: { description: `Project created: ${project.name}` },
+        createdBy: req.userId || null,
       });
 
       res.json(project);
@@ -220,12 +257,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", async (req, res) => {
+  app.get("/api/projects/:id", requireAuth, async (req, res) => {
     try {
-      const success = await storage.deleteProject(req.params.id);
-      if (!success) {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(project);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const project = await storage.updateProject(req.params.id, req.body);
+
+      // Create activity
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "project",
+        subjectId: project!.id,
+        kind: "note",
+        payload: { description: `Project updated: ${project!.name}` },
+        createdBy: req.userId || null,
+      });
+
+      res.json(project);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/projects/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteProject(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -239,21 +324,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tasks will be implemented differently in the new architecture
 
   // ============================================
-  // NOTES
+  // NOTES - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/notes", async (req, res) => {
+  app.get("/api/notes", requireAuth, async (req, res) => {
     try {
-      const notes = await storage.getNotesByAccountId(req.params.accountId);
+      const notes = await storage.getNotesByAccountId(req.accountId!);
       res.json(notes);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/notes", async (req, res) => {
+  app.post("/api/notes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const data = insertNoteSchema.parse(req.body);
+      const data = insertNoteSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
       const note = await storage.createNote(data);
       res.json(note);
     } catch (error: any) {
@@ -261,48 +350,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notes/:id", async (req, res) => {
+  app.get("/api/notes/:id", requireAuth, async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
         return res.status(404).json({ error: "Note not found" });
       }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.patch("/api/notes/:id", async (req, res) => {
+  app.patch("/api/notes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
       const note = await storage.updateNote(req.params.id, req.body);
-      if (!note) {
-        return res.status(404).json({ error: "Note not found" });
-      }
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.delete("/api/notes/:id", async (req, res) => {
+  app.delete("/api/notes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const success = await storage.deleteNote(req.params.id);
-      if (!success) {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing) {
         return res.status(404).json({ error: "Note not found" });
       }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteNote(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  // AI operations on notes
-  app.post("/api/notes/:id/summarize", async (req, res) => {
+  // AI operations on notes (Protected)
+  app.post("/api/notes/:id/summarize", requireAuth, async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
         return res.status(404).json({ error: "Note not found" });
+      }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
       }
 
       const text = typeof note.content === 'string' ? note.content : JSON.stringify(note.content);
@@ -314,11 +419,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes/:id/extract-actions", async (req, res) => {
+  app.post("/api/notes/:id/extract-actions", requireAuth, async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
         return res.status(404).json({ error: "Note not found" });
+      }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
       }
 
       const text = typeof note.content === 'string' ? note.content : JSON.stringify(note.content);
@@ -331,21 +439,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // FOLDERS & DOCUMENTS
+  // FOLDERS & FILES - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/folders", async (req, res) => {
+  app.get("/api/folders", requireAuth, async (req, res) => {
     try {
-      const folders = await storage.getFoldersByAccountId(req.params.accountId);
+      const folders = await storage.getFoldersByAccountId(req.accountId!);
       res.json(folders);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/folders", async (req, res) => {
+  app.post("/api/folders", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const data = insertFolderSchema.parse(req.body);
+      const data = insertFolderSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
       const folder = await storage.createFolder(data);
       res.json(folder);
     } catch (error: any) {
@@ -353,16 +465,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/accounts/:accountId/files", async (req, res) => {
+  app.get("/api/files", requireAuth, async (req, res) => {
     try {
-      const files = await storage.getFilesByAccountId(req.params.accountId);
+      const files = await storage.getFilesByAccountId(req.accountId!);
       res.json(files);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.get("/api/folders/:folderId/files", async (req, res) => {
+  app.get("/api/folders/:folderId/files", requireAuth, async (req, res) => {
     try {
       const files = await storage.getFilesByFolderId(req.params.folderId);
       res.json(files);
@@ -371,19 +483,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/files", async (req, res) => {
+  app.post("/api/files", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const data = insertFileSchema.parse(req.body);
+      const data = insertFileSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
       const file = await storage.createFile(data);
 
       // Create activity
       await storage.createActivity({
-        accountId: data.accountId,
+        accountId: req.accountId!,
         subjectType: "project",
-        subjectId: data.accountId,
+        subjectId: req.accountId!,
         kind: "file",
         payload: { fileName: data.name, fileId: file.id },
-        createdBy: data.createdBy || undefined,
+        createdBy: req.userId || undefined,
       });
 
       res.json(file);
@@ -392,24 +508,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/files/:id", async (req, res) => {
+  app.patch("/api/files/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const file = await storage.updateFile(req.params.id, req.body);
-      if (!file) {
+      const existing = await storage.getFile(req.params.id);
+      if (!existing) {
         return res.status(404).json({ error: "File not found" });
       }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const file = await storage.updateFile(req.params.id, req.body);
       res.json(file);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.delete("/api/files/:id", async (req, res) => {
+  app.delete("/api/files/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const success = await storage.deleteFile(req.params.id);
-      if (!success) {
+      const existing = await storage.getFile(req.params.id);
+      if (!existing) {
         return res.status(404).json({ error: "File not found" });
       }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteFile(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -417,13 +543,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // ACTIVITIES
+  // ACTIVITIES - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/activities", async (req, res) => {
+  app.get("/api/activities", requireAuth, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const activities = await storage.getActivitiesByAccountId(req.params.accountId, limit);
+      const activities = await storage.getActivitiesByAccountId(req.accountId!, limit);
       res.json(activities);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -431,17 +557,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // SEARCH
+  // SEARCH - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/search", async (req, res) => {
+  app.get("/api/search", requireAuth, async (req, res) => {
     try {
       const query = req.query.q as string;
       if (!query) {
         return res.status(400).json({ error: "Query parameter 'q' is required" });
       }
 
-      const results = await storage.searchAll(req.params.accountId, query);
+      const results = await storage.searchAll(req.accountId!, query);
       res.json(results);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -449,15 +575,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // DASHBOARD STATS
+  // DASHBOARD STATS - Protected Routes
   // ============================================
 
-  app.get("/api/accounts/:accountId/stats", async (req, res) => {
+  app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       const [clients, projects, activities] = await Promise.all([
-        storage.getClientsByAccountId(req.params.accountId),
-        storage.getProjectsByAccountId(req.params.accountId),
-        storage.getActivitiesByAccountId(req.params.accountId, 10),
+        storage.getClientsByAccountId(req.accountId!),
+        storage.getProjectsByAccountId(req.accountId!),
+        storage.getActivitiesByAccountId(req.accountId!, 10),
       ]);
 
       const activeProjects = projects.filter(p => p.stage !== 'done' && p.stage !== 'cancelled');
@@ -469,6 +595,356 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRevenue,
         recentActivities: activities,
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // DEALS (Sales Pipeline) - Protected Routes
+  // ============================================
+
+  app.get("/api/deals", requireAuth, async (req, res) => {
+    try {
+      const deals = await storage.getDealsByAccountId(req.accountId!);
+      res.json(deals);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/deals", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertDealSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const deal = await storage.createDeal(data);
+      res.json(deal);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/deals/:id", requireAuth, async (req, res) => {
+    try {
+      const deal = await storage.getDeal(req.params.id);
+      if (!deal) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      if (deal.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(deal);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/deals/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDeal(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const deal = await storage.updateDeal(req.params.id, req.body);
+      res.json(deal);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/deals/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDeal(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Deal not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteDeal(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // PRODUCTS - Protected Routes
+  // ============================================
+
+  app.get("/api/products", requireAuth, async (req, res) => {
+    try {
+      const products = await storage.getProductsByAccountId(req.accountId!);
+      res.json(products);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/products", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertProductSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const product = await storage.createProduct(data);
+      res.json(product);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (product.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/products/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getProduct(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const product = await storage.updateProduct(req.params.id, req.body);
+      res.json(product);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/products/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getProduct(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteProduct(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // FEATURES - Protected Routes
+  // ============================================
+
+  app.get("/api/features", requireAuth, async (req, res) => {
+    try {
+      const features = await storage.getFeaturesByAccountId(req.accountId!);
+      res.json(features);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/features", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertFeatureSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const feature = await storage.createFeature(data);
+      res.json(feature);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/features/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getFeature(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Feature not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const feature = await storage.updateFeature(req.params.id, req.body);
+      res.json(feature);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/features/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getFeature(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Feature not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteFeature(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ROADMAPS - Protected Routes
+  // ============================================
+
+  app.get("/api/roadmaps", requireAuth, async (req, res) => {
+    try {
+      const roadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
+      res.json(roadmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/roadmaps", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertRoadmapSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const roadmap = await storage.createRoadmap(data);
+      res.json(roadmap);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/roadmaps/:id", requireAuth, async (req, res) => {
+    try {
+      const roadmap = await storage.getRoadmap(req.params.id);
+      if (!roadmap) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(roadmap);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/roadmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmap(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const roadmap = await storage.updateRoadmap(req.params.id, req.body);
+      res.json(roadmap);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/roadmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmap(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteRoadmap(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ROADMAP ITEMS - Protected Routes
+  // ============================================
+
+  app.get("/api/roadmaps/:roadmapId/items", requireAuth, async (req, res) => {
+    try {
+      const items = await storage.getRoadmapItemsByRoadmapId(req.params.roadmapId);
+      res.json(items);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/roadmap-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertRoadmapItemSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const item = await storage.createRoadmapItem(data);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmapItem(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const item = await storage.updateRoadmapItem(req.params.id, req.body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmapItem(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteRoadmapItem(req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

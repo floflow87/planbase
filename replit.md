@@ -214,24 +214,45 @@ See complete guide: `DNS-CONFIGURATION-OVH.md`
 - ✅ **Complete schema deployed** (28 tables with RLS, triggers, pgvector)
 - ✅ **Demo data seeded** (Demo Startup account, 2 users, 3 clients, 3 projects)
 - ✅ **Script created**: `scripts/push-to-supabase.ts` for schema deployment
+- ✅ **Authentication middleware** (`server/middleware/auth.ts`) - ⚠️ DEVELOPMENT ONLY
+- ✅ **Storage layer extended** for deals, products, features, roadmaps, roadmap_items
+- ✅ **API routes secured** with auth middleware for all entities
 - ✅ OpenAI integration ready
 - ✅ Buddy design system implemented
 - ✅ DNS deployment guide created
 
+### ⚠️ CRITICAL SECURITY LIMITATIONS (Development Only)
+
+**Current authentication is NOT production-ready:**
+- ❌ Header-based auth without JWT validation
+- ❌ No signature verification or session management
+- ❌ Anyone with an accountId can access that account's data
+- ❌ Vulnerable to replay attacks
+
+**Required for Production:**
+1. ✅ Integrate Supabase Auth JWT verification
+2. ✅ Validate JWT signatures and extract accountId/userId/role from claims
+3. ✅ Implement session management with expiration
+4. ✅ Add refresh token rotation
+5. ✅ Implement rate limiting per user/IP
+6. ✅ Add audit logging for all authentication attempts
+7. ✅ Remove or gate `/api/demo/credentials` endpoint (currently disabled in production)
+
+See `server/middleware/auth.ts` for detailed security requirements.
+
 ### ⚠️ In Progress
-- Update storage layer (`server/storage.ts`) to use new Supabase schema
-- Update API routes (`server/routes.ts`) for all tables
-- Migrate frontend pages to fetch from new API endpoints
-- Implement Supabase Auth integration
+- Migrate frontend pages to use new authenticated API endpoints
+- Implement proper Supabase Auth integration
 - Create embeddings for semantic search (pgvector ready)
 
 ### 🔜 Planned
-- Authentication with Supabase Auth
+- Production-ready authentication with Supabase Auth JWT
 - File upload to Supabase Storage
 - Real-time collaboration (Supabase Realtime)
 - Email sync with Gmail API
 - Advanced semantic search with pgvector
-- Roadmap and product management features
+- Rate limiting and audit logging
+- API routes for remaining tables (emails, mail_accounts, file_shares, note meta tables)
 
 ## Development Commands
 
