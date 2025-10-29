@@ -1,15 +1,14 @@
-// Reference: blueprint:javascript_database
+// Supabase Storage Layer - Updated for new schema
 import {
   type Account, type InsertAccount,
-  type User, type InsertUser,
+  type AppUser, type InsertAppUser,
   type Client, type InsertClient,
   type Project, type InsertProject,
-  type Task, type InsertTask,
   type Note, type InsertNote,
   type Folder, type InsertFolder,
-  type Document, type InsertDocument,
+  type File, type InsertFile,
   type Activity, type InsertActivity,
-  accounts, users, clients, projects, tasks, notes, folders, documents, activities,
+  accounts, appUsers, clients, projects, notes, folders, files, activities,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
@@ -20,11 +19,11 @@ export interface IStorage {
   getAccount(id: string): Promise<Account | undefined>;
   createAccount(account: InsertAccount): Promise<Account>;
 
-  // Users
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getUsersByAccountId(accountId: string): Promise<User[]>;
-  createUser(user: InsertUser): Promise<User>;
+  // Users (now appUsers)
+  getUser(id: string): Promise<AppUser | undefined>;
+  getUserByEmail(email: string): Promise<AppUser | undefined>;
+  getUsersByAccountId(accountId: string): Promise<AppUser[]>;
+  createUser(user: InsertAppUser): Promise<AppUser>;
 
   // Clients
   getClient(id: string): Promise<Client | undefined>;
@@ -40,13 +39,6 @@ export interface IStorage {
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
 
-  // Tasks
-  getTask(id: string): Promise<Task | undefined>;
-  getTasksByProjectId(projectId: string): Promise<Task[]>;
-  createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
-  deleteTask(id: string): Promise<boolean>;
-
   // Notes
   getNote(id: string): Promise<Note | undefined>;
   getNotesByAccountId(accountId: string): Promise<Note[]>;
@@ -61,13 +53,13 @@ export interface IStorage {
   updateFolder(id: string, folder: Partial<InsertFolder>): Promise<Folder | undefined>;
   deleteFolder(id: string): Promise<boolean>;
 
-  // Documents
-  getDocument(id: string): Promise<Document | undefined>;
-  getDocumentsByAccountId(accountId: string): Promise<Document[]>;
-  getDocumentsByFolderId(folderId: string): Promise<Document[]>;
-  createDocument(document: InsertDocument): Promise<Document>;
-  updateDocument(id: string, document: Partial<InsertDocument>): Promise<Document | undefined>;
-  deleteDocument(id: string): Promise<boolean>;
+  // Files (was Documents)
+  getFile(id: string): Promise<File | undefined>;
+  getFilesByAccountId(accountId: string): Promise<File[]>;
+  getFilesByFolderId(folderId: string): Promise<File[]>;
+  createFile(file: InsertFile): Promise<File>;
+  updateFile(id: string, file: Partial<InsertFile>): Promise<File | undefined>;
+  deleteFile(id: string): Promise<boolean>;
 
   // Activities
   getActivitiesByAccountId(accountId: string, limit?: number): Promise<Activity[]>;
@@ -78,11 +70,11 @@ export interface IStorage {
     clients: Client[];
     projects: Project[];
     notes: Note[];
-    documents: Document[];
+    files: File[];
   }>;
 }
 
-// PostgreSQL implementation using Drizzle ORM
+// Supabase PostgreSQL implementation using Drizzle ORM
 export class DatabaseStorage implements IStorage {
   // Accounts
   async getAccount(id: string): Promise<Account | undefined> {
@@ -98,24 +90,24 @@ export class DatabaseStorage implements IStorage {
     return account;
   }
 
-  // Users
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+  // Users (appUsers)
+  async getUser(id: string): Promise<AppUser | undefined> {
+    const [user] = await db.select().from(appUsers).where(eq(appUsers.id, id));
     return user || undefined;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+  async getUserByEmail(email: string): Promise<AppUser | undefined> {
+    const [user] = await db.select().from(appUsers).where(eq(appUsers.email, email));
     return user || undefined;
   }
 
-  async getUsersByAccountId(accountId: string): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.accountId, accountId));
+  async getUsersByAccountId(accountId: string): Promise<AppUser[]> {
+    return await db.select().from(appUsers).where(eq(appUsers.accountId, accountId));
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertAppUser): Promise<AppUser> {
     const [user] = await db
-      .insert(users)
+      .insert(appUsers)
       .values(insertUser)
       .returning();
     return user;
@@ -150,7 +142,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClient(id: string): Promise<boolean> {
     const result = await db.delete(clients).where(eq(clients.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return result.length > 0;
   }
 
   // Projects
@@ -182,39 +174,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  // Tasks
-  async getTask(id: string): Promise<Task | undefined> {
-    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
-    return task || undefined;
-  }
-
-  async getTasksByProjectId(projectId: string): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.projectId, projectId));
-  }
-
-  async createTask(insertTask: InsertTask): Promise<Task> {
-    const [task] = await db
-      .insert(tasks)
-      .values(insertTask)
-      .returning();
-    return task;
-  }
-
-  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
-    const [task] = await db
-      .update(tasks)
-      .set(updateData)
-      .where(eq(tasks.id, id))
-      .returning();
-    return task || undefined;
-  }
-
-  async deleteTask(id: string): Promise<boolean> {
-    const result = await db.delete(tasks).where(eq(tasks.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return result.length > 0;
   }
 
   // Notes
@@ -246,7 +206,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNote(id: string): Promise<boolean> {
     const result = await db.delete(notes).where(eq(notes.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return result.length > 0;
   }
 
   // Folders
@@ -278,43 +238,43 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFolder(id: string): Promise<boolean> {
     const result = await db.delete(folders).where(eq(folders.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return result.length > 0;
   }
 
-  // Documents
-  async getDocument(id: string): Promise<Document | undefined> {
-    const [document] = await db.select().from(documents).where(eq(documents.id, id));
-    return document || undefined;
+  // Files (was Documents)
+  async getFile(id: string): Promise<File | undefined> {
+    const [file] = await db.select().from(files).where(eq(files.id, id));
+    return file || undefined;
   }
 
-  async getDocumentsByAccountId(accountId: string): Promise<Document[]> {
-    return await db.select().from(documents).where(eq(documents.accountId, accountId));
+  async getFilesByAccountId(accountId: string): Promise<File[]> {
+    return await db.select().from(files).where(eq(files.accountId, accountId));
   }
 
-  async getDocumentsByFolderId(folderId: string): Promise<Document[]> {
-    return await db.select().from(documents).where(eq(documents.folderId, folderId));
+  async getFilesByFolderId(folderId: string): Promise<File[]> {
+    return await db.select().from(files).where(eq(files.folderId, folderId));
   }
 
-  async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const [document] = await db
-      .insert(documents)
-      .values(insertDocument)
+  async createFile(insertFile: InsertFile): Promise<File> {
+    const [file] = await db
+      .insert(files)
+      .values(insertFile)
       .returning();
-    return document;
+    return file;
   }
 
-  async updateDocument(id: string, updateData: Partial<InsertDocument>): Promise<Document | undefined> {
-    const [document] = await db
-      .update(documents)
+  async updateFile(id: string, updateData: Partial<InsertFile>): Promise<File | undefined> {
+    const [file] = await db
+      .update(files)
       .set(updateData)
-      .where(eq(documents.id, id))
+      .where(eq(files.id, id))
       .returning();
-    return document || undefined;
+    return file || undefined;
   }
 
-  async deleteDocument(id: string): Promise<boolean> {
-    const result = await db.delete(documents).where(eq(documents.id, id));
-    return (result.rowCount ?? 0) > 0;
+  async deleteFile(id: string): Promise<boolean> {
+    const result = await db.delete(files).where(eq(files.id, id));
+    return result.length > 0;
   }
 
   // Activities
@@ -340,28 +300,21 @@ export class DatabaseStorage implements IStorage {
     clients: Client[];
     projects: Project[];
     notes: Note[];
-    documents: Document[];
+    files: File[];
   }> {
     const searchPattern = `%${query}%`;
 
-    const [clientResults, projectResults, noteResults, documentResults] = await Promise.all([
+    const [clientResults, projectResults, noteResults, fileResults] = await Promise.all([
       db.select().from(clients).where(
         and(
           eq(clients.accountId, accountId),
-          or(
-            like(clients.name, searchPattern),
-            like(clients.email, searchPattern),
-            like(clients.company, searchPattern)
-          )
+          like(clients.name, searchPattern)
         )
       ),
       db.select().from(projects).where(
         and(
           eq(projects.accountId, accountId),
-          or(
-            like(projects.name, searchPattern),
-            like(projects.description, searchPattern)
-          )
+          like(projects.name, searchPattern)
         )
       ),
       db.select().from(notes).where(
@@ -370,10 +323,10 @@ export class DatabaseStorage implements IStorage {
           like(notes.title, searchPattern)
         )
       ),
-      db.select().from(documents).where(
+      db.select().from(files).where(
         and(
-          eq(documents.accountId, accountId),
-          like(documents.name, searchPattern)
+          eq(files.accountId, accountId),
+          like(files.name, searchPattern)
         )
       ),
     ]);
@@ -382,7 +335,7 @@ export class DatabaseStorage implements IStorage {
       clients: clientResults,
       projects: projectResults,
       notes: noteResults,
-      documents: documentResults,
+      files: fileResults,
     };
   }
 }

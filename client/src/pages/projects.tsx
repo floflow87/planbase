@@ -14,7 +14,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertTaskSchema, type InsertTask, type Task, type Project } from "@shared/schema";
+import { type Project } from "@shared/schema";
+
+// TODO: Tasks will be reimplemented in new schema
+type Task = any;
+type InsertTask = any;
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -78,7 +82,6 @@ export default function Projects() {
 
   // Form for creating tasks
   const form = useForm<InsertTask>({
-    resolver: zodResolver(insertTaskSchema),
     defaultValues: {
       accountId: accountId || "",
       projectId: selectedProjectId,

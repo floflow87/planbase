@@ -1,196 +1,439 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, date, check, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // ============================================
-// ACCOUNTS & USERS
+// ACCOUNTS & USERS (Multi-tenant)
 // ============================================
 
 export const accounts = pgTable("accounts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  ownerEmail: text("owner_email").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  ownerUserId: uuid("owner_user_id"), // auth.users.id from Supabase Auth
+  plan: text("plan").default("starter"),
+  settings: jsonb("settings").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  role: text("role").notNull().default("member"), // owner, member, guest
-  avatar: text("avatar"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const appUsers = pgTable("app_users", {
+  id: uuid("id").primaryKey(), // = auth.users.id
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull(), // 'owner', 'collaborator', 'client_viewer'
+  profile: jsonb("profile").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdIdx: index().on(table.accountId),
+}));
+
+export const invitations = pgTable("invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull(), // 'collaborator', 'client_viewer'
+  status: text("status").notNull().default("pending"), // 'pending', 'accepted', 'revoked', 'expired'
+  token: text("token").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountStatusIdx: index().on(table.accountId, table.status),
+}));
 
 // ============================================
-// CRM
+// CRM & PIPELINE
 // ============================================
 
 export const clients = pgTable("clients", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("company"), // 'company', 'person'
   name: text("name").notNull(),
-  type: text("type").notNull(), // company, individual
-  email: text("email"),
-  phone: text("phone"),
-  company: text("company"),
-  position: text("position"),
-  sector: text("sector"),
-  status: text("status").notNull().default("prospect"), // prospect, in_progress, signed, inactive
-  budget: integer("budget"),
-  tags: jsonb("tags").default([]),
-  customFields: jsonb("custom_fields").default({}),
-  lastContactedAt: timestamp("last_contacted_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-});
-
-// ============================================
-// PROJECTS & TASKS
-// ============================================
+  contacts: jsonb("contacts").notNull().default([]), // [{name,email,phone,role}]
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
+  status: text("status").notNull().default("prospecting"),
+  budget: numeric("budget", { precision: 14, scale: 2 }),
+  notes: text("notes"),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountNameIdx: index().on(table.accountId, table.name),
+}));
 
 export const projects = pgTable("projects", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   name: text("name").notNull(),
-  description: text("description"),
-  clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
-  status: text("status").notNull().default("active"), // active, completed, archived
-  progress: integer("progress").default(0), // 0-100
-  color: text("color").default("#7C3AED"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-});
+  stage: text("stage").default("discovery"),
+  budget: numeric("budget", { precision: 14, scale: 2 }),
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
+  meta: jsonb("meta").notNull().default({}),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountClientIdx: index().on(table.accountId, table.clientId),
+}));
 
-export const tasks = pgTable("tasks", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+export const deals = pgTable("deals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   title: text("title").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("todo"), // todo, in_progress, review, done
-  priority: text("priority").notNull().default("medium"), // low, medium, high
-  assignees: jsonb("assignees").default([]), // array of user IDs
-  dueDate: timestamp("due_date"),
-  progress: integer("progress").default(0), // 0-100
-  order: integer("order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-});
+  value: numeric("value", { precision: 14, scale: 2 }),
+  stage: text("stage").notNull().default("lead"), // 'lead', 'qualified', 'proposal', 'won', 'lost'
+  probability: integer("probability"),
+  closeDate: date("close_date"),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountStageIdx: index().on(table.accountId, table.stage),
+}));
+
+export const activities = pgTable("activities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  subjectType: text("subject_type").notNull(), // 'client', 'deal', 'project'
+  subjectId: uuid("subject_id").notNull(),
+  kind: text("kind").notNull(), // 'email', 'call', 'meeting', 'note', 'task', 'file'
+  payload: jsonb("payload").notNull().default({}),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountSubjectIdx: index().on(table.accountId, table.subjectType, table.subjectId),
+}));
 
 // ============================================
-// NOTES
+// NOTES (Notion-like editor) + AI
 // ============================================
 
 export const notes = pgTable("notes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  content: jsonb("content").default({}), // Rich text editor content (blocks)
-  category: text("category"), // marketing, product, finance, legal
-  tags: jsonb("tags").default([]),
-  clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
-  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
-  isShared: boolean("is_shared").default(false),
-  attachments: jsonb("attachments").default([]), // array of file references
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-});
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  title: text("title").notNull().default(""),
+  content: jsonb("content").notNull().default([]), // blocks
+  plainText: text("plain_text"), // for FTS
+  summary: text("summary"),
+  status: text("status").notNull().default("active"), // 'draft', 'active', 'archived'
+  visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountVisibilityIdx: index().on(table.accountId, table.visibility),
+}));
+
+export const noteLinks = pgTable("note_links", {
+  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  targetType: text("target_type").notNull(), // 'project', 'task', 'meeting', 'file', 'client'
+  targetId: uuid("target_id").notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.noteId, table.targetType, table.targetId] }),
+  targetIdx: index().on(table.targetType, table.targetId),
+}));
+
+export const tags = pgTable("tags", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  color: text("color"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountLabelIdx: index().on(table.accountId, table.label),
+}));
+
+export const noteTags = pgTable("note_tags", {
+  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  tagId: uuid("tag_id").references(() => tags.id, { onDelete: "cascade" }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.noteId, table.tagId] }),
+}));
+
+export const noteVersions = pgTable("note_versions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  versionNo: integer("version_no").notNull(),
+  title: text("title"),
+  content: jsonb("content"),
+  summary: text("summary"),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  noteVersionIdx: index().on(table.noteId, table.versionNo),
+}));
+
+export const noteShares = pgTable("note_shares", {
+  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  subjectType: text("subject_type").notNull(), // 'user', 'client', 'role'
+  subjectId: uuid("subject_id"),
+  permission: text("permission").notNull(), // 'read', 'comment', 'edit'
+}, (table) => ({
+  pk: primaryKey({ columns: [table.noteId, table.subjectType, table.subjectId] }),
+}));
+
+export const noteFiles = pgTable("note_files", {
+  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  fileId: uuid("file_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.noteId, table.fileId] }),
+}));
+
+// Note: pgvector embeddings will be created manually via SQL
+// export const noteEmbeddings = pgTable("note_embeddings", {
+//   noteId: uuid("note_id").primaryKey().references(() => notes.id, { onDelete: "cascade" }),
+//   embedding: vector("embedding", { dimensions: 1536 }),
+// });
 
 // ============================================
-// DOCUMENTS
+// FOLDERS / DOCUMENTATION (File Explorer)
 // ============================================
 
 export const folders = pgTable("folders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references((): any => folders.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  parentId: varchar("parent_id").references((): any => folders.id, { onDelete: "cascade" }),
-  path: text("path").notNull(), // Full path for easy navigation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
-});
+  scope: text("scope").notNull().default("generic"), // 'client', 'project', 'generic', 'fundraising', 'product', 'tech', 'team'
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountParentIdx: index().on(table.accountId, table.parentId),
+}));
 
-export const documents = pgTable("documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  folderId: varchar("folder_id").references(() => folders.id, { onDelete: "cascade" }),
+export const files = pgTable("files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  folderId: uuid("folder_id").references(() => folders.id, { onDelete: "set null" }),
+  kind: text("kind").notNull(), // 'upload', 'link', 'doc_internal', 'note_ref'
   name: text("name").notNull(),
-  type: text("type").notNull(), // pdf, image, excel, word, link, note, audio, zip
-  url: text("url"), // Supabase Storage URL or external link
-  size: integer("size"), // File size in bytes
-  category: text("category"), // legal, product, finance, technique
-  clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
-  projectId: varchar("project_id").references(() => projects.id, { onDelete: "set null" }),
-  version: integer("version").default(1),
-  metadata: jsonb("metadata").default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  createdBy: varchar("created_by").references(() => users.id),
+  ext: text("ext"),
+  size: integer("size"),
+  mime: text("mime"),
+  storagePath: text("storage_path"), // Supabase Storage key or URL
+  externalUrl: text("external_url"), // for kind='link'
+  meta: jsonb("meta").notNull().default({}),
+  currentVersionId: uuid("current_version_id"),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountFolderKindIdx: index().on(table.accountId, table.folderId, table.kind),
+}));
+
+export const fileVersions = pgTable("file_versions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
+  versionNo: integer("version_no").notNull(),
+  storagePath: text("storage_path"),
+  externalUrl: text("external_url"),
+  checksum: text("checksum"),
+  authorId: uuid("author_id").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  fileVersionIdx: index().on(table.fileId, table.versionNo),
+}));
+
+export const fileShares = pgTable("file_shares", {
+  fileId: uuid("file_id").references(() => files.id, { onDelete: "cascade" }),
+  subjectType: text("subject_type").notNull(), // 'user', 'client', 'role'
+  subjectId: uuid("subject_id"),
+  permission: text("permission").notNull(), // 'read', 'comment', 'edit', 'download'
+}, (table) => ({
+  pk: primaryKey({ columns: [table.fileId, table.subjectType, table.subjectId] }),
+}));
+
+// ============================================
+// EMAILS (Gmail Integration)
+// ============================================
+
+export const mailAccounts = pgTable("mail_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull().default("gmail"), // 'gmail'
+  emailAddress: text("email_address").notNull(),
+  oauthTokens: jsonb("oauth_tokens").notNull().default({}), // access/refresh + expiry
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProviderEmailIdx: index().on(table.accountId, table.provider, table.emailAddress),
+}));
+
+export const emails = pgTable("emails", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  mailAccountId: uuid("mail_account_id").notNull().references(() => mailAccounts.id, { onDelete: "cascade" }),
+  threadId: text("thread_id"),
+  messageId: text("message_id"),
+  direction: text("direction").notNull(), // 'in', 'out'
+  subject: text("subject"),
+  snippet: text("snippet"),
+  bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
+  headers: jsonb("headers").notNull().default({}),
+  from: text("from"),
+  to: text("to").array(),
+  cc: text("cc").array(),
+  bcc: text("bcc").array(),
+  date: timestamp("date", { withTimezone: true }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountMailDateIdx: index().on(table.accountId, table.mailAccountId, table.date),
+}));
+
+export const emailAttachments = pgTable("email_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  emailId: uuid("email_id").notNull().references(() => emails.id, { onDelete: "cascade" }),
+  fileId: uuid("file_id").references(() => files.id, { onDelete: "set null" }),
+  filename: text("filename"),
+  size: integer("size"),
+  mime: text("mime"),
 });
 
 // ============================================
-// ACTIVITY FEED
+// PRODUCT & ROADMAP
 // ============================================
 
-export const activities = pgTable("activities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  accountId: varchar("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // client_onboarded, document_signed, business_plan_updated, campaign_launched
-  description: text("description").notNull(),
-  userId: varchar("user_id").references(() => users.id),
-  metadata: jsonb("metadata").default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const products = pgTable("products", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'physical', 'digital'
+  name: text("name").notNull(),
+  sku: text("sku"),
+  cost: numeric("cost", { precision: 14, scale: 2 }),
+  meta: jsonb("meta").notNull().default({}),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountTypeNameIdx: index().on(table.accountId, table.type, table.name),
+}));
+
+export const productIntegrations = pgTable("product_integrations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // 'shopify', 'woocommerce'
+  creds: jsonb("creds").notNull().default({}), // encrypted on app side
+  status: text("status").notNull().default("inactive"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProviderIdx: index().on(table.accountId, table.provider),
+}));
+
+export const features = pgTable("features", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("backlog"), // 'backlog', 'planned', 'in_progress', 'done', 'cancelled'
+  priority: integer("priority"),
+  effort: integer("effort"),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectStatusIdx: index().on(table.accountId, table.projectId, table.status),
+}));
+
+export const roadmaps = pgTable("roadmaps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  horizon: text("horizon"), // e.g., '2025-Q1'
+  strategy: jsonb("strategy").notNull().default({}),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountHorizonIdx: index().on(table.accountId, table.horizon),
+}));
+
+export const roadmapItems = pgTable("roadmap_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  roadmapId: uuid("roadmap_id").notNull().references(() => roadmaps.id, { onDelete: "cascade" }),
+  featureId: uuid("feature_id").references(() => features.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  status: text("status").notNull().default("planned"), // 'planned', 'in_progress', 'done', 'blocked'
+  rice: jsonb("rice").notNull().default({}), // {reach,impact,confidence,effort}
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  roadmapStatusIdx: index().on(table.roadmapId, table.status),
+}));
 
 // ============================================
-// ZOD SCHEMAS & TYPES
+// TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
 
-// Accounts
-export const insertAccountSchema = createInsertSchema(accounts).omit({ id: true, createdAt: true });
-export type InsertAccount = z.infer<typeof insertAccountSchema>;
-export type Account = typeof accounts.$inferSelect;
-
-// Users
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-// Clients
-export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
-export type InsertClient = z.infer<typeof insertClientSchema>;
-export type Client = typeof clients.$inferSelect;
-
-// Projects
-export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true });
-export type InsertProject = z.infer<typeof insertProjectSchema>;
-export type Project = typeof projects.$inferSelect;
-
-// Tasks
-export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true });
-export type InsertTask = z.infer<typeof insertTaskSchema>;
-export type Task = typeof tasks.$inferSelect;
-
-// Notes
-export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertNote = z.infer<typeof insertNoteSchema>;
-export type Note = typeof notes.$inferSelect;
-
-// Folders
-export const insertFolderSchema = createInsertSchema(folders).omit({ id: true, createdAt: true });
-export type InsertFolder = z.infer<typeof insertFolderSchema>;
-export type Folder = typeof folders.$inferSelect;
-
-// Documents
-export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
-
-// Activities
+// Insert schemas
+export const insertAccountSchema = createInsertSchema(accounts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAppUserSchema = createInsertSchema(appUsers).omit({ createdAt: true, updatedAt: true });
+export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
+export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFolderSchema = createInsertSchema(folders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFileSchema = createInsertSchema(files).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertMailAccountSchema = createInsertSchema(mailAccounts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEmailSchema = createInsertSchema(emails).omit({ id: true, createdAt: true });
+export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFeatureSchema = createInsertSchema(features).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
+
+// Insert types
+export type InsertAccount = z.infer<typeof insertAccountSchema>;
+export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
+export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
+export type InsertClient = z.infer<typeof insertClientSchema>;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type InsertFolder = z.infer<typeof insertFolderSchema>;
+export type InsertFile = z.infer<typeof insertFileSchema>;
+export type InsertMailAccount = z.infer<typeof insertMailAccountSchema>;
+export type InsertEmail = z.infer<typeof insertEmailSchema>;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type InsertFeature = z.infer<typeof insertFeatureSchema>;
+export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
+export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+
+// Select types
+export type Account = typeof accounts.$inferSelect;
+export type AppUser = typeof appUsers.$inferSelect;
+export type Invitation = typeof invitations.$inferSelect;
+export type Client = typeof clients.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
+export type Note = typeof notes.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type Folder = typeof folders.$inferSelect;
+export type File = typeof files.$inferSelect;
+export type MailAccount = typeof mailAccounts.$inferSelect;
+export type Email = typeof emails.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type Feature = typeof features.$inferSelect;
+export type Roadmap = typeof roadmaps.$inferSelect;
+export type RoadmapItem = typeof roadmapItems.$inferSelect;

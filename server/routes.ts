@@ -3,13 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
   insertAccountSchema,
-  insertUserSchema,
+  insertAppUserSchema,
   insertClientSchema,
   insertProjectSchema,
-  insertTaskSchema,
   insertNoteSchema,
   insertFolderSchema,
-  insertDocumentSchema,
+  insertFileSchema,
   insertActivitySchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
@@ -47,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", async (req, res) => {
     try {
-      const data = insertUserSchema.parse(req.body);
+      const data = insertAppUserSchema.parse(req.body);
       const user = await storage.createUser(data);
       res.json(user);
     } catch (error: any) {
@@ -232,51 +231,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // TASKS
+  // TASKS - TODO: Implement with new schema
   // ============================================
-
-  app.get("/api/projects/:projectId/tasks", async (req, res) => {
-    try {
-      const tasks = await storage.getTasksByProjectId(req.params.projectId);
-      res.json(tasks);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/tasks", async (req, res) => {
-    try {
-      const data = insertTaskSchema.parse(req.body);
-      const task = await storage.createTask(data);
-      res.json(task);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.patch("/api/tasks/:id", async (req, res) => {
-    try {
-      const task = await storage.updateTask(req.params.id, req.body);
-      if (!task) {
-        return res.status(404).json({ error: "Task not found" });
-      }
-      res.json(task);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/tasks/:id", async (req, res) => {
-    try {
-      const success = await storage.deleteTask(req.params.id);
-      if (!success) {
-        return res.status(404).json({ error: "Task not found" });
-      }
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  // Note: Tasks table removed in new Supabase schema
+  // Tasks will be implemented differently in the new architecture
 
   // ============================================
   // NOTES
@@ -393,61 +351,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/accounts/:accountId/documents", async (req, res) => {
+  app.get("/api/accounts/:accountId/files", async (req, res) => {
     try {
-      const documents = await storage.getDocumentsByAccountId(req.params.accountId);
-      res.json(documents);
+      const files = await storage.getFilesByAccountId(req.params.accountId);
+      res.json(files);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.get("/api/folders/:folderId/documents", async (req, res) => {
+  app.get("/api/folders/:folderId/files", async (req, res) => {
     try {
-      const documents = await storage.getDocumentsByFolderId(req.params.folderId);
-      res.json(documents);
+      const files = await storage.getFilesByFolderId(req.params.folderId);
+      res.json(files);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/api/documents", async (req, res) => {
+  app.post("/api/files", async (req, res) => {
     try {
-      const data = insertDocumentSchema.parse(req.body);
-      const document = await storage.createDocument(data);
+      const data = insertFileSchema.parse(req.body);
+      const file = await storage.createFile(data);
 
       // Create activity
       await storage.createActivity({
         accountId: data.accountId,
-        type: "document_signed",
-        description: `Document uploaded: ${data.name}`,
-        userId: data.createdBy || undefined,
-        metadata: { documentId: document.id },
+        subjectType: "project",
+        subjectId: data.accountId,
+        kind: "file",
+        payload: { fileName: data.name, fileId: file.id },
+        createdBy: data.createdBy || undefined,
       });
 
-      res.json(document);
+      res.json(file);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.patch("/api/documents/:id", async (req, res) => {
+  app.patch("/api/files/:id", async (req, res) => {
     try {
-      const document = await storage.updateDocument(req.params.id, req.body);
-      if (!document) {
-        return res.status(404).json({ error: "Document not found" });
+      const file = await storage.updateFile(req.params.id, req.body);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
       }
-      res.json(document);
+      res.json(file);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.delete("/api/documents/:id", async (req, res) => {
+  app.delete("/api/files/:id", async (req, res) => {
     try {
-      const success = await storage.deleteDocument(req.params.id);
+      const success = await storage.deleteFile(req.params.id);
       if (!success) {
-        return res.status(404).json({ error: "Document not found" });
+        return res.status(404).json({ error: "File not found" });
       }
       res.json({ success: true });
     } catch (error: any) {
