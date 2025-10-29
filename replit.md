@@ -12,10 +12,12 @@ Planbase is a comprehensive modular SaaS platform for freelancers and startup cr
 
 ## Database Architecture (Supabase)
 
-### Migration from Neon to Supabase ✅
+### Migration from Neon to Supabase ✅ COMPLETED
 - **CRITICAL**: This project now uses **Supabase exclusively** - no more Neon
-- Connection via `postgres-js` library (removed `@neondatabase/serverless`)
-- Connection string format: `postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`
+- Connection via `postgres-js` library
+- Session pooler: `postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-eu-north-1.pooler.supabase.com:5432/postgres`
+- **28 tables created successfully** with complete schema (accounts, CRM, notes, files, emails, products, roadmaps)
+- **Demo data seeded** successfully with account, users, clients, projects, notes
 
 ### Complete Schema (542 lines SQL)
 Multi-tenant architecture with comprehensive data models in `shared/schema.ts` and `supabase-schema.sql`:
@@ -205,26 +207,23 @@ See complete guide: `DNS-CONFIGURATION-OVH.md`
 - `DNS-CONFIGURATION-OVH.md` - DNS setup guide
 - `attached_assets/Pasted--0-Extensions--1761733668714_1761733668714.txt` - Original SQL schema
 
-## Current State
+## Current State (Oct 29, 2025)
 
 ### ✅ Completed
-- Supabase database connection configured
-- Complete schema defined (Drizzle + SQL)
-- RLS policies ready
-- pgvector extension for semantic search
-- OpenAI integration working
-- Dashboard with live data
-- CRM fully integrated
-- Buddy design system implemented
-- DNS deployment guide created
+- ✅ **Supabase database fully configured** (Session pooler IPv4: aws-1-eu-north-1)
+- ✅ **Complete schema deployed** (28 tables with RLS, triggers, pgvector)
+- ✅ **Demo data seeded** (Demo Startup account, 2 users, 3 clients, 3 projects)
+- ✅ **Script created**: `scripts/push-to-supabase.ts` for schema deployment
+- ✅ OpenAI integration ready
+- ✅ Buddy design system implemented
+- ✅ DNS deployment guide created
 
 ### ⚠️ In Progress
-- Migrate storage layer to new Supabase schema
-- Update API routes for new tables
-- Migrate frontend pages to new data models
+- Update storage layer (`server/storage.ts`) to use new Supabase schema
+- Update API routes (`server/routes.ts`) for all tables
+- Migrate frontend pages to fetch from new API endpoints
 - Implement Supabase Auth integration
-- Create embeddings for semantic search
-- Gmail OAuth integration
+- Create embeddings for semantic search (pgvector ready)
 
 ### 🔜 Planned
 - Authentication with Supabase Auth
