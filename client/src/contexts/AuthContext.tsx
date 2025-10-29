@@ -5,9 +5,9 @@ import { supabase } from '@/lib/supabase';
 interface UserProfile {
   firstName?: string;
   lastName?: string;
-  displayName?: string;
-  jobTitle?: string;
   gender?: string;
+  position?: string;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -37,9 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile({
         firstName: metadata.firstName,
         lastName: metadata.lastName,
-        displayName: metadata.displayName,
-        jobTitle: metadata.jobTitle,
         gender: metadata.gender,
+        position: metadata.position,
+        avatarUrl: metadata.avatarUrl,
       });
     } else {
       setAccountId(null);
