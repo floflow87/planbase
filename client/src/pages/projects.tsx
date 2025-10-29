@@ -95,6 +95,16 @@ export default function Projects() {
   }, [selectedProjectId, form]);
 
   const onSubmit = (data: Partial<InsertTask>) => {
+    // Validate that we have a selected project before creating task
+    if (!selectedProjectId) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Aucun projet sélectionné. Veuillez sélectionner un projet d'abord.",
+      });
+      return;
+    }
+    
     // Ensure projectId is included
     createTaskMutation.mutate({
       ...data,

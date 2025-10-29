@@ -32,19 +32,31 @@ export default function Login() {
       } else {
         // Fetch user data to get accountId
         try {
+          // Wait a bit to ensure Supabase session is established
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           const response = await apiRequest("GET", "/api/me");
           const userData = await response.json();
           localStorage.setItem("demo_account_id", userData.accountId);
           localStorage.setItem("demo_user_id", userData.userId);
+          
+          toast({
+            title: "Connexion réussie",
+            description: "Bienvenue sur Planbase !",
+          });
+          setLocation("/");
         } catch (err) {
           console.error("Failed to fetch user data:", err);
+          // Don't redirect if we can't get user data - show error instead
+          toast({
+            variant: "destructive",
+            title: "Erreur de chargement",
+            description: "Impossible de charger votre profil. Veuillez réessayer.",
+          });
+          // Log out the user to reset state
+          setLoading(false);
+          return;
         }
-        
-        toast({
-          title: "Connexion réussie",
-          description: "Bienvenue sur Planbase !",
-        });
-        setLocation("/");
       }
     } catch (error: any) {
       toast({

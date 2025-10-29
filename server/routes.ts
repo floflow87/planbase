@@ -362,12 +362,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new task
   app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log('POST /api/tasks - body:', JSON.stringify(req.body));
+      console.log('POST /api/tasks - accountId:', req.accountId);
+      console.log('POST /api/tasks - userId:', req.userId);
+      
       // Verify project exists and belongs to account
       const project = await storage.getProject(req.body.projectId);
       if (!project) {
+        console.error('Project not found:', req.body.projectId);
         return res.status(404).json({ error: "Project not found" });
       }
       if (project.accountId !== req.accountId) {
+        console.error('Project access denied. Project accountId:', project.accountId, 'User accountId:', req.accountId);
         return res.status(403).json({ error: "Access denied to this project" });
       }
 
@@ -378,8 +384,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.userId!,
       });
       const task = await storage.createTask(data);
+      console.log('Task created successfully:', task.id);
       res.json(task);
     } catch (error: any) {
+      console.error('Error creating task:', error.message);
       res.status(400).json({ error: error.message });
     }
   });
