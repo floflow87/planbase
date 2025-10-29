@@ -1,203 +1,194 @@
-import { useState } from "react";
-import { Search, Filter, Settings as SettingsIcon, LayoutGrid, List, Table2, Plus, MoreVertical, GripVertical } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, Settings as SettingsIcon, LayoutGrid, List, Table2, Plus, MoreVertical, GripVertical, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertTaskSchema, type InsertTask, type Task, type Project } from "@shared/schema";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Projects() {
+  const [, setLocation] = useLocation();
+  const accountId = localStorage.getItem("demo_account_id");
+  const { toast } = useToast();
+  
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "table">("kanban");
-  const [selectedProject, setSelectedProject] = useState("fintech-mvp");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  // Mock data
-  const projects = [
-    { id: "fintech-mvp", name: "FinTech Startup MVP", progress: 68 },
-    { id: "ecommerce", name: "E-commerce Platform", progress: 45 },
-    { id: "greentech", name: "GreenTech Solution", progress: 90 },
-  ];
+  // Redirect if no account
+  useEffect(() => {
+    if (!accountId) {
+      setLocation("/init");
+    }
+  }, [accountId, setLocation]);
+
+  // Fetch projects
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+    queryKey: ["/api/accounts", accountId, "projects"],
+    enabled: !!accountId,
+  });
+
+  // Set first project as selected by default
+  useEffect(() => {
+    if (projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
+  // Fetch tasks for selected project
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
+    queryKey: ["/api/projects", selectedProjectId, "tasks"],
+    enabled: !!selectedProjectId,
+  });
+
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: InsertTask) => {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to create task");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      setIsCreateDialogOpen(false);
+      form.reset();
+      toast({ title: "Tâche créée avec succès" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  // Form for creating tasks
+  const form = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema),
+    defaultValues: {
+      accountId: accountId || "",
+      projectId: selectedProjectId,
+      title: "",
+      description: "",
+      status: "todo",
+      priority: "medium",
+      assignees: [],
+      progress: 0,
+      order: 0,
+    },
+  });
+
+  // Update form when selected project changes
+  useEffect(() => {
+    form.setValue("projectId", selectedProjectId);
+  }, [selectedProjectId, form]);
+
+  const onSubmit = (data: InsertTask) => {
+    createTaskMutation.mutate(data);
+  };
+
+  // Group tasks by status
+  const tasksByStatus = {
+    todo: tasks.filter(t => t.status === "todo"),
+    in_progress: tasks.filter(t => t.status === "in_progress"),
+    review: tasks.filter(t => t.status === "review"),
+    done: tasks.filter(t => t.status === "done"),
+  };
 
   const columns = [
-    {
-      id: "todo",
-      title: "À faire",
-      count: 5,
-      tasks: [
-        {
-          id: "1",
-          title: "MVP Product Design",
-          description: "Créer les maquettes et prototypes pour la version beta",
-          priority: "urgent",
-          assignees: [
-            { name: "Marie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie" },
-            { name: "Pierre", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Pierre" },
-          ],
-          dueDate: "Due: 2 jours",
-        },
-        {
-          id: "2",
-          title: "Market Research",
-          description: "Analyser la concurrence et les tendances du marché",
-          priority: "medium",
-          assignees: [
-            { name: "Sophie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie" },
-          ],
-          dueDate: "Due: 1 semaine",
-        },
-        {
-          id: "3",
-          title: "User Stories",
-          description: "Définir les parcours utilisateurs principaux",
-          priority: "low",
-          assignees: [
-            { name: "Alex", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" },
-          ],
-          dueDate: "Due: 2 semaines",
-        },
-      ],
-    },
-    {
-      id: "in-progress",
-      title: "En cours",
-      count: 3,
-      tasks: [
-        {
-          id: "4",
-          title: "Business Plan Rédaction",
-          description: "Finaliser le business plan pour la levée de fonds",
-          priority: "urgent",
-          assignees: [
-            { name: "Marie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie" },
-          ],
-          dueDate: "65% terminé",
-          progress: 65,
-        },
-        {
-          id: "5",
-          title: "Développement Backend",
-          description: "API REST et base de données",
-          priority: "medium",
-          assignees: [
-            { name: "Pierre", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Pierre" },
-            { name: "Alex", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" },
-          ],
-          dueDate: "40% terminé",
-          progress: 40,
-        },
-      ],
-    },
-    {
-      id: "review",
-      title: "En revue",
-      count: 2,
-      tasks: [
-        {
-          id: "6",
-          title: "Wireframes Mobile",
-          description: "Validation des maquettes par l'équipe produit",
-          priority: "review",
-          assignees: [
-            { name: "Sophie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie" },
-          ],
-          dueDate: "En attente",
-        },
-      ],
-    },
-    {
-      id: "done",
-      title: "Terminé",
-      count: 8,
-      tasks: [
-        {
-          id: "7",
-          title: "Logo Design",
-          description: "Identité visuelle complète",
-          priority: "done",
-          assignees: [
-            { name: "Marie", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie" },
-          ],
-          dueDate: "Terminé",
-        },
-      ],
-    },
+    { id: "todo", title: "À faire", tasks: tasksByStatus.todo },
+    { id: "in_progress", title: "En cours", tasks: tasksByStatus.in_progress },
+    { id: "review", title: "En revue", tasks: tasksByStatus.review },
+    { id: "done", title: "Terminé", tasks: tasksByStatus.done },
   ];
 
-  const getPriorityBadge = (priority: string) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "urgent":
-        return <Badge className="bg-red-100 text-red-700 border-red-200 border">Urgent</Badge>;
+      case "high":
+        return "text-red-600 bg-red-100";
       case "medium":
-        return <Badge className="bg-orange-100 text-orange-700 border-orange-200 border">Moyen</Badge>;
+        return "text-yellow-600 bg-yellow-100";
       case "low":
-        return <Badge className="bg-green-100 text-green-700 border-green-200 border">Faible</Badge>;
-      case "review":
-        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 border">Revue</Badge>;
-      case "done":
-        return <Badge className="bg-green-100 text-green-700 border-green-200 border">Terminé</Badge>;
+        return "text-green-600 bg-green-100";
       default:
-        return null;
+        return "text-gray-600 bg-gray-100";
     }
   };
 
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "Urgent";
+      case "medium":
+        return "Moyen";
+      case "low":
+        return "Faible";
+      default:
+        return priority;
+    }
+  };
+
+  if (!accountId) {
+    return null;
+  }
+
+  if (projectsLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
+
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
   return (
-    <div className="flex-1 overflow-auto bg-background" data-testid="page-projects">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-heading font-semibold text-foreground" data-testid="text-page-title">
-            To-Do & Project Management
-          </h1>
-          <Button className="gap-2" data-testid="button-nouvelle-tache">
-            <Plus className="w-4 h-4" />
-            Nouvelle Tâche
-          </Button>
-        </div>
-
-        {/* Project Selector & Filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Project:</span>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-64" data-testid="select-project">
+          <div className="flex items-center gap-4 flex-1">
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-foreground">To-Do & Projects</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Gestion des tâches en mode Kanban
+              </p>
+            </div>
+            {projects.length > 0 && (
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-[280px]" data-testid="select-project">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.name}
+                      {project.name} - {project.progress}%
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            )}
           </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher..."
-                className="pl-9 w-48"
-                data-testid="input-rechercher"
-              />
-            </div>
-            <Button variant="outline" size="sm" className="gap-2" data-testid="button-filtres">
-              <Filter className="w-4 h-4" />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" data-testid="button-filters">
+              <Filter className="w-4 h-4 mr-2" />
               Filtres
             </Button>
-            <Button variant="ghost" size="sm" data-testid="button-settings">
-              <SettingsIcon className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-1 border border-border rounded-md p-1">
+            <div className="flex border rounded-md">
               <Button
                 variant={viewMode === "kanban" ? "secondary" : "ghost"}
                 size="sm"
@@ -210,7 +201,7 @@ export default function Projects() {
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("list")}
-                data-testid="button-view-liste"
+                data-testid="button-view-list"
               >
                 <List className="w-4 h-4" />
               </Button>
@@ -218,111 +209,248 @@ export default function Projects() {
                 variant={viewMode === "table" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("table")}
-                data-testid="button-view-tableau"
+                data-testid="button-view-table"
               >
                 <Table2 className="w-4 h-4" />
               </Button>
             </div>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-new-task">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle Tâche
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Nouvelle tâche</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Titre *</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-task-title" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              rows={3}
+                              data-testid="input-task-description"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Statut</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-task-status">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="todo">À faire</SelectItem>
+                                <SelectItem value="in_progress">En cours</SelectItem>
+                                <SelectItem value="review">En revue</SelectItem>
+                                <SelectItem value="done">Terminé</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="priority"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Priorité</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-task-priority">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="low">Faible</SelectItem>
+                                <SelectItem value="medium">Moyen</SelectItem>
+                                <SelectItem value="high">Urgent</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="progress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Progression (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={field.value || 0}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                              disabled={field.disabled}
+                              data-testid="input-task-progress"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        data-testid="button-cancel"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={createTaskMutation.isPending}
+                        data-testid="button-submit-task"
+                      >
+                        Créer
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">Progression du projet: 68%</span>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-muted" />
-                  <span>À faire: 5</span>
+        {/* Project Progress */}
+        {selectedProject && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-foreground">
+                      Progression du projet
+                    </h3>
+                    <span className="text-sm font-semibold text-foreground">
+                      {selectedProject.progress}%
+                    </span>
+                  </div>
+                  <Progress value={selectedProject.progress} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span>En cours: 3</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <span>En revue: 2</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span>Terminé: 8</span>
+                <div className="text-right text-sm text-muted-foreground">
+                  <div>{tasks.length} tâches</div>
+                  <div>{tasksByStatus.done.length} terminées</div>
                 </div>
               </div>
-            </div>
-            <Progress value={68} className="h-2" indicatorClassName="bg-violet-600" />
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Kanban Board */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {columns.map((column) => (
-            <div key={column.id} className="space-y-3" data-testid={`column-${column.id}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${
-                    column.id === "todo" ? "bg-muted" :
-                    column.id === "in-progress" ? "bg-blue-500" :
-                    column.id === "review" ? "bg-yellow-500" :
-                    "bg-green-500"
-                  }`} />
-                  <h3 className="font-semibold text-foreground">{column.title}</h3>
-                  <Badge variant="secondary" className="text-xs">{column.count}</Badge>
-                </div>
-                <Button variant="ghost" size="sm" data-testid={`button-add-${column.id}`}>
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {column.tasks.map((task) => (
-                  <Card key={task.id} className="hover-elevate cursor-move" data-testid={`card-task-${task.id}`}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-foreground text-sm mb-1">{task.title}</h4>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center -space-x-2">
-                          {task.assignees.map((assignee, idx) => (
-                            <Avatar key={idx} className="w-6 h-6 border-2 border-background">
-                              <AvatarImage src={assignee.avatar} />
-                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                {assignee.name[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                        </div>
-                        {getPriorityBadge(task.priority)}
-                      </div>
-
-                      {task.progress !== undefined && (
-                        <div className="space-y-1">
-                          <Progress value={task.progress} className="h-1.5" indicatorClassName="bg-blue-600" />
-                        </div>
-                      )}
-
-                      <p className="text-xs text-muted-foreground">{task.dueDate}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                <button
-                  className="w-full p-3 border-2 border-dashed border-border rounded-lg text-sm text-muted-foreground hover-elevate transition-colors"
-                  data-testid={`button-ajouter-tache-${column.id}`}
-                >
-                  + Ajouter une tâche
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {tasksLoading ? (
+          <div className="text-center py-12 text-muted-foreground">
+            Chargement des tâches...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {columns.map((column) => (
+              <Card key={column.id} className="flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-heading font-semibold">
+                      {column.title}
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                      {column.tasks.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-2">
+                  {column.tasks.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      Aucune tâche
+                    </div>
+                  ) : (
+                    column.tasks.map((task) => (
+                      <Card
+                        key={task.id}
+                        className="hover-elevate active-elevate-2 cursor-pointer"
+                        data-testid={`task-card-${task.id}`}
+                      >
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-sm font-medium text-foreground flex-1">
+                              {task.title}
+                            </h4>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {task.description}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <Badge
+                              variant="secondary"
+                              className={`text-xs ${getPriorityColor(task.priority)}`}
+                            >
+                              {getPriorityLabel(task.priority)}
+                            </Badge>
+                            {task.progress !== null && task.progress > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {task.progress}%
+                              </span>
+                            )}
+                          </div>
+                          {task.dueDate && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

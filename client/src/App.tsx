@@ -11,6 +11,12 @@ import Projects from "@/pages/projects";
 import Notes from "@/pages/notes";
 import Documents from "@/pages/documents";
 import Init from "@/pages/init";
+import Roadmap from "@/pages/roadmap";
+import Product from "@/pages/product";
+import Marketing from "@/pages/marketing";
+import Finance from "@/pages/finance";
+import Commercial from "@/pages/commercial";
+import Legal from "@/pages/legal";
 import NotFound from "@/pages/not-found";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +30,12 @@ function Router() {
       <Route path="/projects" component={Projects} />
       <Route path="/notes" component={Notes} />
       <Route path="/documents" component={Documents} />
+      <Route path="/roadmap" component={Roadmap} />
+      <Route path="/product" component={Product} />
+      <Route path="/marketing" component={Marketing} />
+      <Route path="/finance" component={Finance} />
+      <Route path="/commercial" component={Commercial} />
+      <Route path="/legal" component={Legal} />
       <Route component={NotFound} />
     </Switch>
   );
