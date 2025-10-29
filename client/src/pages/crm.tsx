@@ -1,32 +1,176 @@
-import { useState } from "react";
-import { Search, Filter, Download, LayoutGrid, List, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, Download, LayoutGrid, List, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertClientSchema, type InsertClient, type Client } from "@shared/schema";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function CRM() {
+  const [, setLocation] = useLocation();
+  const accountId = localStorage.getItem("demo_account_id");
+  const { toast } = useToast();
+  
   const [viewMode, setViewMode] = useState<"table" | "kanban" | "list">("table");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  // Mock data
+  // Redirect if no account
+  useEffect(() => {
+    if (!accountId) {
+      setLocation("/init");
+    }
+  }, [accountId, setLocation]);
+
+  // Fetch clients
+  const { data: clients = [], isLoading } = useQuery<Client[]>({
+    queryKey: ["/api/accounts", accountId, "clients"],
+    enabled: !!accountId,
+  });
+
+  // Create client mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: InsertClient) => {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to create client");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      setIsCreateDialogOpen(false);
+      toast({ title: "Client créé avec succès" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  // Update client mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClient> }) => {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to update client");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      setEditingClient(null);
+      toast({ title: "Client mis à jour" });
+    },
+  });
+
+  // Delete client mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete client");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      toast({ title: "Client supprimé" });
+    },
+  });
+
+  // Form for create/edit
+  const form = useForm<InsertClient>({
+    resolver: zodResolver(insertClientSchema),
+    defaultValues: {
+      accountId: accountId || "",
+      name: "",
+      type: "individual",
+      email: "",
+      company: "",
+      position: "",
+      sector: "",
+      status: "prospect",
+      budget: 0,
+      tags: [],
+    },
+  });
+
+  // Update form when editing
+  useEffect(() => {
+    if (editingClient) {
+      form.reset({
+        accountId: editingClient.accountId,
+        name: editingClient.name,
+        type: editingClient.type,
+        email: editingClient.email || "",
+        company: editingClient.company || "",
+        position: editingClient.position || "",
+        sector: editingClient.sector || "",
+        status: editingClient.status,
+        budget: editingClient.budget || 0,
+        tags: editingClient.tags as string[] || [],
+      });
+    } else {
+      form.reset({
+        accountId: accountId || "",
+        name: "",
+        type: "individual",
+        email: "",
+        company: "",
+        position: "",
+        sector: "",
+        status: "prospect",
+        budget: 0,
+        tags: [],
+      });
+    }
+  }, [editingClient, accountId, form]);
+
+  const onSubmit = (data: InsertClient) => {
+    if (editingClient) {
+      updateMutation.mutate({ id: editingClient.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  // Filter and search clients
+  const filteredClients = clients.filter((client) => {
+    const matchesStatus = filterStatus === "all" || client.status === filterStatus;
+    const matchesSearch = searchQuery === "" || 
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.company?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  // Calculate KPIs
+  const totalContacts = clients.length;
+  const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
+  const wonClients = clients.filter(c => c.status === "signed").length;
+  const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
+  const totalOpportunities = clients.reduce((sum, c) => sum + (c.budget || 0), 0);
+
   const kpis = [
     {
       title: "Total Contacts",
-      value: "156",
+      value: totalContacts.toString(),
       change: "+12",
       changeLabel: "ce mois",
       icon: UsersIcon,
@@ -35,7 +179,7 @@ export default function CRM() {
     },
     {
       title: "Prospects Actifs",
-      value: "42",
+      value: activeProspects.toString(),
       change: "+8",
       changeLabel: "ce mois",
       icon: Target,
@@ -44,7 +188,7 @@ export default function CRM() {
     },
     {
       title: "Taux de Conversion",
-      value: "68%",
+      value: `${conversionRate}%`,
       change: "+5%",
       changeLabel: "ce mois",
       icon: TrendingUp,
@@ -53,7 +197,7 @@ export default function CRM() {
     },
     {
       title: "Opportunités",
-      value: "€185K",
+      value: `€${totalOpportunities.toLocaleString()}`,
       change: "+15K",
       changeLabel: "ce mois",
       icon: Euro,
@@ -62,129 +206,282 @@ export default function CRM() {
     },
   ];
 
-  const contacts = [
-    {
-      id: "1",
-      name: "Marie Dubois",
-      email: "marie@techstartup.com",
-      company: "TechStartup SAS",
-      position: "CEO & Founder",
-      status: "negotiation",
-      statusLabel: "En négociation",
-      budget: "€25,000",
-      lastActivity: "Il y a 2 heures",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie",
-    },
-    {
-      id: "2",
-      name: "Pierre Martin",
-      email: "p.martin@innovcorp.fr",
-      company: "InnovCorp",
-      position: "Directeur Innovation",
-      status: "prospect",
-      statusLabel: "Prospect",
-      budget: "€15,000",
-      lastActivity: "Il y a 1 jour",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Pierre",
-    },
-    {
-      id: "3",
-      name: "Sophie Laurent",
-      email: "s.laurent@greentech.io",
-      company: "GreenTech Solutions",
-      position: "CMO",
-      status: "won",
-      statusLabel: "Gagné",
-      budget: "€35,000",
-      lastActivity: "Il y a 3 jours",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie",
-    },
-  ];
-
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "negotiation":
+      case "in_progress":
         return "default";
       case "prospect":
         return "secondary";
-      case "won":
-        return "default";
+      case "signed":
+        return "outline";
+      case "inactive":
+        return "destructive";
       default:
         return "secondary";
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
-      case "negotiation":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      case "in_progress":
+        return "En négociation";
       case "prospect":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "won":
-        return "bg-green-100 text-green-700 border-green-200";
+        return "Prospect";
+      case "signed":
+        return "Gagné";
+      case "inactive":
+        return "Inactif";
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+        return status;
     }
   };
+
+  if (!accountId) {
+    return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 overflow-auto bg-background" data-testid="page-crm">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-heading font-semibold text-foreground" data-testid="text-page-title">
-            CRM - Gestion Clients
-          </h1>
-          <Button className="gap-2" data-testid="button-nouveau-client">
-            <Plus className="w-4 h-4" />
-            Nouveau client
-          </Button>
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-foreground">CRM</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gestion des clients et prospects
+            </p>
+          </div>
+          <Dialog open={isCreateDialogOpen || !!editingClient} onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateDialogOpen(false);
+              setEditingClient(null);
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouveau Client
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingClient ? "Modifier le client" : "Nouveau client"}</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nom *</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-client-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} type="email" data-testid="input-client-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="company"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Entreprise</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} data-testid="input-client-company" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="position"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Poste</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} data-testid="input-client-position" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="sector"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Secteur</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} data-testid="input-client-sector" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Statut</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-client-status">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="prospect">Prospect</SelectItem>
+                              <SelectItem value="in_progress">En négociation</SelectItem>
+                              <SelectItem value="signed">Gagné</SelectItem>
+                              <SelectItem value="inactive">Inactif</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="budget"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Budget (€)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            value={field.value || 0}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                            disabled={field.disabled}
+                            data-testid="input-client-budget"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreateDialogOpen(false);
+                        setEditingClient(null);
+                      }}
+                      data-testid="button-cancel"
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-client">
+                      {editingClient ? "Mettre à jour" : "Créer"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* KPI Cards */}
+        {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map((kpi, index) => (
-            <Card key={index} className="hover-elevate transition-shadow" data-testid={`card-kpi-${index}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-                <div className={`w-10 h-10 rounded-full ${kpi.iconBg} flex items-center justify-center`}>
-                  <kpi.icon className={`w-5 h-5 ${kpi.iconColor}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-heading font-bold text-foreground">{kpi.value}</div>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="text-sm font-medium text-green-600">{kpi.change}</span>
-                  <span className="text-sm text-muted-foreground">{kpi.changeLabel}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {kpis.map((kpi, index) => {
+            const Icon = kpi.icon;
+            return (
+              <Card key={index} data-testid={`card-kpi-${index}`}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">{kpi.title}</p>
+                      <h3 className="text-2xl font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-xs text-green-600 mt-2">
+                        {kpi.change} {kpi.changeLabel}
+                      </p>
+                    </div>
+                    <div className={`${kpi.iconBg} p-3 rounded-md`}>
+                      <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* Filters & View Controls */}
+        {/* Filters and Actions */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="text-xl font-heading font-semibold">Contacts & Prospects</CardTitle>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher..."
-                    className="pl-9 w-64"
-                    data-testid="input-search"
+                    placeholder="Rechercher un contact..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    data-testid="input-search-clients"
                   />
                 </div>
-                <Button variant="outline" size="sm" className="gap-2" data-testid="button-filters">
-                  <Filter className="w-4 h-4" />
-                  Filtres
-                </Button>
-                <Button variant="outline" size="sm" className="gap-2" data-testid="button-exporter">
-                  <Download className="w-4 h-4" />
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-filter-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="in_progress">En négociation</SelectItem>
+                    <SelectItem value="signed">Gagné</SelectItem>
+                    <SelectItem value="inactive">Inactif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" data-testid="button-export">
+                  <Download className="w-4 h-4 mr-2" />
                   Exporter
                 </Button>
-                <div className="flex items-center gap-1 border border-border rounded-md p-1">
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={viewMode === "table" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("table")}
+                    data-testid="button-view-table"
+                  >
+                    <Table2 className="w-4 h-4" />
+                  </Button>
                   <Button
                     variant={viewMode === "kanban" ? "secondary" : "ghost"}
                     size="sm"
@@ -197,117 +494,101 @@ export default function CRM() {
                     variant={viewMode === "list" ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setViewMode("list")}
-                    data-testid="button-view-liste"
+                    data-testid="button-view-list"
                   >
                     <List className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "table" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("table")}
-                    data-testid="button-view-tableau"
-                  >
-                    <Table2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             </div>
           </CardHeader>
-
           <CardContent>
-            {/* Table View */}
-            <div className="rounded-md border border-border overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      <input type="checkbox" className="rounded" data-testid="checkbox-select-all" />
-                    </th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Contact</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Entreprise</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Budget</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Dernière activité</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contacts.map((contact, index) => (
-                    <tr
-                      key={contact.id}
-                      className="border-t border-border hover-elevate cursor-pointer"
-                      data-testid={`row-contact-${contact.id}`}
-                    >
-                      <td className="p-4">
-                        <input type="checkbox" className="rounded" />
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={contact.avatar} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                              {contact.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">{contact.name}</p>
-                            <p className="text-sm text-muted-foreground">{contact.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div>
-                          <p className="font-medium text-foreground">{contact.company}</p>
-                          <p className="text-sm text-muted-foreground">{contact.position}</p>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <Badge className={`border ${getStatusColor(contact.status)}`} variant="outline">
-                          {contact.statusLabel}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <span className="font-medium text-foreground">{contact.budget}</span>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-sm text-muted-foreground">{contact.lastActivity}</span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" data-testid={`button-edit-${contact.id}`}>
-                            <Edit className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="sm" data-testid={`button-chat-${contact.id}`}>
-                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="sm" data-testid={`button-delete-${contact.id}`}>
-                            <Trash2 className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Affichage de <span className="font-medium">1-3</span> sur <span className="font-medium">156</span> contacts
-              </p>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled data-testid="button-precedent">
-                  Précédent
-                </Button>
-                <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">1</Button>
-                <Button variant="outline" size="sm">2</Button>
-                <Button variant="outline" size="sm">3</Button>
-                <Button variant="outline" size="sm" data-testid="button-suivant">
-                  Suivant
-                </Button>
+            {filteredClients.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                Aucun client trouvé
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Table Header */}
+                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                  <div className="col-span-3">Contact</div>
+                  <div className="col-span-2">Entreprise</div>
+                  <div className="col-span-2">Statut</div>
+                  <div className="col-span-2">Budget</div>
+                  <div className="col-span-2">Secteur</div>
+                  <div className="col-span-1">Actions</div>
+                </div>
+                {/* Table Rows */}
+                {filteredClients.map((client) => (
+                  <div
+                    key={client.id}
+                    className="grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border"
+                    data-testid={`row-client-${client.id}`}
+                  >
+                    <div className="col-span-3 flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
+                        <AvatarFallback>{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{client.name}</p>
+                        <p className="text-xs text-muted-foreground">{client.email}</p>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center">
+                      <div>
+                        <p className="text-sm text-foreground">{client.company}</p>
+                        <p className="text-xs text-muted-foreground">{client.position}</p>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center">
+                      <Badge variant={getStatusBadgeVariant(client.status)}>
+                        {getStatusLabel(client.status)}
+                      </Badge>
+                    </div>
+                    <div className="col-span-2 flex items-center">
+                      <p className="text-sm font-medium text-foreground">
+                        €{client.budget?.toLocaleString() || "0"}
+                      </p>
+                    </div>
+                    <div className="col-span-2 flex items-center">
+                      <p className="text-sm text-foreground">{client.sector}</p>
+                    </div>
+                    <div className="col-span-1 flex items-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem data-testid={`button-message-${client.id}`}>
+                            <MessageSquare className="w-4 h-4 mr-2" />
+                            Message
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => {
+                              if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
+                                deleteMutation.mutate(client.id);
+                              }
+                            }}
+                            data-testid={`button-delete-${client.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
