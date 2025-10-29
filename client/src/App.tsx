@@ -21,6 +21,7 @@ import Marketing from "@/pages/marketing";
 import Finance from "@/pages/finance";
 import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import { Bell, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,9 @@ function Router() {
       </Route>
       <Route path="/legal">
         <ProtectedRoute><Legal /></ProtectedRoute>
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute><Profile /></ProtectedRoute>
       </Route>
       <Route component={NotFound} />
     </Switch>

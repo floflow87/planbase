@@ -41,7 +41,7 @@ export default function Profile() {
       firstName: userProfile?.firstName || "",
       lastName: userProfile?.lastName || "",
       email: userProfile?.email || "",
-      gender: userProfile?.gender || undefined,
+      gender: (userProfile?.gender as "male" | "female" | "other") || undefined,
       position: userProfile?.position || "",
     },
   });

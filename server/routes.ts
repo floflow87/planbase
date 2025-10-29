@@ -88,13 +88,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      res.json({
-        userId: user.id,
-        accountId: user.accountId,
-        email: user.email,
-        role: user.role,
-        profile: user.profile,
+      res.json(user);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update current user profile
+  app.patch("/api/me", requireAuth, async (req, res) => {
+    try {
+      const { firstName, lastName, gender, position, email } = req.body;
+      
+      // Update user profile
+      const updatedUser = await storage.updateUser(req.userId!, {
+        firstName,
+        lastName,
+        gender,
+        position,
+        email,
       });
+      
+      res.json(updatedUser);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
