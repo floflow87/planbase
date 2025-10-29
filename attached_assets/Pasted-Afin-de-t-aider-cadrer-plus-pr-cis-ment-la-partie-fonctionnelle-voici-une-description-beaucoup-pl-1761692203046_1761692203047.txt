@@ -1,0 +1,117 @@
+Afin de t’aider à cadrer plus précisément la partie fonctionnelle, voici une description beaucoup plus détaillée des modules clés de Planbase, avec leurs cas d’usage, vues, logiques métier et interactions.
+L’idée est de pouvoir concevoir le MVP avec une structure modulaire claire, fidèle à la vision du produit.
+
+⸻
+
+🔐 Authentification & Comptes
+
+Objectif : gérer un système multi-compte (freelances, startups, collaborateurs, clients) avec rôles, permissions et partage.
+
+Fonctionnalités :
+	•	Création de compte maître (owner) : configuration du compte Planbase (nom, activité, branding, etc.)
+	•	Invitations collaborateurs (collaborator) avec gestion fine des permissions (par module ou projet)
+	•	Création de clients externes (client_viewer) avec accès lecture seule à certains éléments partagés (notes, dossiers, tableaux d’avancement)
+	•	Tableau de bord des utilisateurs : affichage des rôles, statut d’invitation, activité récente
+	•	RLS Supabase : chaque donnée est strictement liée à un account_id
+
+⸻
+
+📇 Module CRM
+
+Objectif : centraliser les clients, partenaires, prospects et contacts.
+
+Fonctionnalités :
+	•	Fiches clients (entreprise ou particulier)
+	•	Nom, type, secteur, email, téléphone, tags personnalisés
+	•	Champs personnalisables (budget, typologie, priorités)
+	•	Historique des interactions : emails, notes, tâches, réunions
+	•	Vue “par statut” : prospect, en cours, signé, inactif
+	•	Association à des projets, dossiers et notes
+	•	Import/export CSV ou synchronisation via Google Contacts
+	•	Suivi des échanges Gmail (email associé au client)
+	•	Filtres : par secteur, par date de contact, par taille de budget
+	•	Actions IA :
+	•	Résumé des échanges clients
+	•	Suggestions de prochaines actions (“relancer avant vendredi”, “préparer un deck de suivi”)
+
+⸻
+
+💼 Module Pipeline Commercial
+
+Objectif : suivre les opportunités et le cycle de vente de chaque client.
+
+Fonctionnalités :
+	•	Vue Kanban drag & drop : étapes personnalisables (lead, contacté, négociation, signé)
+	•	Lien avec le CRM (chaque deal rattaché à un client et projet)
+	•	Estimation financière + probabilité de closing
+	•	Suivi chronologique (créé le, modifié le, commentaire)
+	•	Vue “tableau” + graphique (valeur pipeline totale, taux de conversion)
+	•	Raccourci vers les documents liés (devis, contrats, notes)
+	•	Action IA : résumé automatique des deals et suggestions de priorités commerciales
+
+⸻
+
+🧠 Module Notes (type Notion)
+
+Objectif : capturer, structurer et relier toutes les informations (idées, meetings, tâches, feedbacks).
+
+Fonctionnalités principales :
+	•	Éditeur de blocs (texte, checklist, quote, code, images, embeds)
+	•	Commandes / (ajout de titres, templates, listes de tâches, insertion IA)
+	•	Liaison à :
+	•	Clients
+	•	Projets
+	•	Fichiers ou documents
+	•	Résumé automatique via GPT (synthèse, décisions, tâches extraites)
+	•	Transcription audio via Whisper (bloc “transcription” auto-injecté)
+	•	Recherche sémantique (pgvector)
+	•	Organisation par tags / thèmes
+	•	Versioning automatique + restauration
+	•	Partage client lecture seule
+	•	Templates intégrés :
+	•	Note de réunion
+	•	Compte rendu client
+	•	Discovery produit
+	•	CR de call
+	•	Actions IA contextuelles :
+	•	/summary → résumé
+	•	/actions → liste de tâches
+	•	/insights → analyse sémantique (points clés)
+	•	/record → enregistrement audio + transcription
+	•	/link client → association automatique si un nom de client est détecté
+
+⸻
+
+📁 Module Dossiers / Documentation
+
+Objectif : gérer tous les fichiers, ressources et documents liés à un projet, un client ou une levée de fonds.
+
+Fonctionnalités principales :
+	•	Explorateur de dossiers à la Google Drive / Notion :
+	•	Navigation arborescente (Clients, Projets, Dossiers internes)
+	•	Dossiers & sous-dossiers illimités (drag & drop)
+	•	Types de contenu :
+	•	Upload fichiers (PDF, images, Excel, DOCX, etc.)
+	•	Liens externes (Notion, Figma, Google Drive)
+	•	Documents internes (notes, exports Planbase)
+	•	Métadonnées automatiques :
+	•	Catégorie (Légal, Produit, Finance…)
+	•	Auteur, version, date, client/projet associé
+	•	Gestion des versions :
+	•	Historique complet + restauration
+	•	Comparaison IA de versions (“v2 vs v3 : +3 changements sur la section Finance”)
+	•	Partage sécurisé :
+	•	Permissions par fichier ou dossier (lecture / commentaire / édition)
+	•	Liens temporaires protégés par mot de passe
+	•	Suivi des consultations
+	•	Actions IA :
+	•	/summarize → résumé d’un PDF
+	•	/extract data → extraction automatique de montants / dates / contacts
+	•	/classify → classement automatique du document
+	•	Recherche universelle (FTS + embeddings) : trouve un document par son contenu, même scanné (OCR)
+
+⸻
+
+✉️ Module Gmail / Communication
+
+Objectif : centraliser la communication client directement dans Planbase.
