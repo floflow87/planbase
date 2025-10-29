@@ -480,19 +480,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/debug/connection", (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL || "NOT_SET";
+    const supabasePassword = process.env.SUPABASE_DB_PASSWORD || "";
     const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
-    const hasPassword = !!process.env.SUPABASE_DB_PASSWORD;
+    const hasPassword = !!supabasePassword;
+    const passwordLength = supabasePassword.length;
+    const passwordPreview = supabasePassword ? supabasePassword.substring(0, 3) + "***" : "NOT_SET";
     
     res.json({
       supabaseUrl,
       projectRef,
       hasPassword,
-      requiredConnectionString: `postgresql://postgres.${projectRef}:[YOUR_DB_PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`,
+      passwordLength,
+      passwordPreview,
+      connectionFormat: `postgres.${projectRef}:***@aws-0-eu-central-1.pooler.supabase.com:6543`,
       instructions: [
         "1. Allez dans Supabase Dashboard → Settings → Database",
-        "2. Section 'Connection Pooling' → Mode 'Transaction'",
-        "3. Copiez le mot de passe database",
-        "4. Mettez-le dans le secret SUPABASE_DB_PASSWORD"
+        "2. Section 'Database password' (en haut de page)",
+        "3. Cliquez sur 'Reset database password'",
+        "4. Copiez le nouveau mot de passe",
+        "5. Ajoutez-le dans le secret SUPABASE_DB_PASSWORD sur Replit"
       ]
     });
   });
