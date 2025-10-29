@@ -1,5 +1,6 @@
-// Authentication & Multi-tenant middleware
+// Authentication & Multi-tenant middleware with Supabase JWT validation
 import type { Request, Response, NextFunction } from "express";
+import { supabaseAdmin } from "../lib/supabase";
 import { storage } from "../storage";
 
 // Extend Express Request to include authenticated user context
@@ -14,40 +15,51 @@ declare global {
 }
 
 /**
- * ⚠️ CRITICAL SECURITY WARNING - DEVELOPMENT ONLY ⚠️
+ * Production-ready authentication middleware using Supabase JWT validation
  * 
- * This header-based authentication is NOT production-ready and has critical vulnerabilities:
- * 
- * SECURITY RISKS:
- * - No JWT validation or signature verification
- * - Anyone who knows an accountId can access all account data
- * - No session management or expiration
- * - Vulnerable to replay attacks
- * 
- * REQUIRED FOR PRODUCTION:
- * 1. Integrate Supabase Auth with JWT verification
- * 2. Validate JWT signatures and extract claims (accountId, userId, role)
- * 3. Implement session management with expiration
- * 4. Add refresh token rotation
- * 5. Implement rate limiting per user/IP
- * 6. Add audit logging for all authentication attempts
- * 
- * CURRENT IMPLEMENTATION (Development/Testing Only):
- * Accepts x-account-id and x-user-id headers for convenience in testing
+ * This middleware:
+ * 1. Extracts JWT from Authorization header
+ * 2. Validates JWT signature using Supabase
+ * 3. Extracts accountId, userId, and role from user metadata
+ * 4. Verifies the user exists in the database
+ * 5. Attaches auth context to req object for downstream use
  * 
  * Usage in client:
- * headers: { "x-account-id": "account-uuid", "x-user-id": "user-uuid" }
+ * headers: { "Authorization": "Bearer <supabase-jwt-token>" }
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
-    // Extract account_id and user_id from headers
-    const accountId = req.headers["x-account-id"] as string;
-    const userId = req.headers["x-user-id"] as string;
+    // Extract JWT from Authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        error: "Unauthorized - Missing or invalid Authorization header",
+        hint: "Include 'Authorization: Bearer <token>' header" 
+      });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Verify JWT with Supabase
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !user) {
+      console.error("JWT validation error:", error?.message);
+      return res.status(401).json({ 
+        error: "Unauthorized - Invalid or expired token",
+        hint: "Please log in again" 
+      });
+    }
+
+    // Extract accountId from user metadata
+    const accountId = user.user_metadata?.account_id;
+    const role = user.user_metadata?.role;
 
     if (!accountId) {
-      return res.status(401).json({ 
-        error: "Unauthorized - Missing account_id",
-        hint: "Include 'x-account-id' header with your account UUID" 
+      return res.status(403).json({ 
+        error: "Forbidden - Missing account_id in user metadata",
+        hint: "User account not properly configured" 
       });
     }
 
@@ -55,32 +67,27 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const account = await storage.getAccount(accountId);
     if (!account) {
       return res.status(403).json({ 
-        error: "Forbidden - Invalid account_id",
-        hint: "The provided account does not exist" 
+        error: "Forbidden - Account not found",
+        hint: "The account associated with this user does not exist" 
       });
     }
 
-    // If userId provided, verify it belongs to the account
-    if (userId) {
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(403).json({ 
-          error: "Forbidden - Invalid user_id" 
-        });
-      }
-      
-      if (user.accountId !== accountId) {
-        return res.status(403).json({ 
-          error: "Forbidden - User does not belong to this account" 
-        });
-      }
+    // Find the corresponding app_user in the database
+    const dbUsers = await storage.getUsersByAccountId(accountId);
+    const dbUser = dbUsers.find((u: any) => u.email === user.email);
 
-      req.userId = userId;
-      req.userRole = user.role as "owner" | "collaborator" | "client_viewer";
+    if (!dbUser) {
+      console.error(`Database user not found for email: ${user.email}`);
+      return res.status(403).json({ 
+        error: "Forbidden - User not found in database",
+        hint: "User account not properly synchronized" 
+      });
     }
 
-    // Attach account context to request
+    // Attach authentication context to request
     req.accountId = accountId;
+    req.userId = dbUser.id;
+    req.userRole = (role || dbUser.role) as "owner" | "collaborator" | "client_viewer";
 
     next();
   } catch (error: any) {
