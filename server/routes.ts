@@ -409,12 +409,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // TASKS - TODO: Implement with new schema
-  // ============================================
-  // Note: Tasks table removed in new Supabase schema
-  // Tasks will be implemented differently in the new architecture
-
-  // ============================================
   // NOTES - Protected Routes
   // ============================================
 
