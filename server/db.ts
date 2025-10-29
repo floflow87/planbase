@@ -11,11 +11,12 @@ if (!process.env.SUPABASE_URL) {
 // Format: https://gfftezyrhsxtaeceuszd.supabase.co -> gfftezyrhsxtaeceuszd
 const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
 
-// Supabase Connection Pooler (Transaction Mode)
-// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+// Supabase Transaction Pooler (port 6543)
+// CRITICAL: Username MUST be "postgres.[PROJECT_REF]" for pooler to work
+// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
 const connectionString = process.env.SUPABASE_DB_PASSWORD
-  ? `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`
-  : `postgresql://postgres:postgres@db.${projectRef}.supabase.co:5432/postgres`;
+  ? `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`
+  : `postgresql://postgres:postgres@localhost:5432/postgres`;
 
 // Create postgres connection
 const client = postgres(connectionString, {
