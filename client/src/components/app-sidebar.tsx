@@ -1,5 +1,6 @@
 import { Home, FolderKanban, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Briefcase, Scale, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { userProfile, user } = useAuth();
 
   const mainNav = [
     { title: "Tableau de bord", url: "/", icon: Home },
@@ -133,12 +135,23 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
           <Avatar className="w-8 h-8">
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" />
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">AJ</AvatarFallback>
+            {userProfile?.gender === 'male' ? (
+              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Florent" />
+            ) : (
+              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" />
+            )}
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+              {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
+              {userProfile?.lastName?.[0] || ''}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">Alex Johnson</p>
-            <Badge variant="secondary" className="text-xs mt-0.5">Founder</Badge>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {userProfile?.displayName || user?.email || 'Utilisateur'}
+            </p>
+            <Badge variant="secondary" className="text-xs mt-0.5">
+              {userProfile?.jobTitle || 'Membre'}
+            </Badge>
           </div>
           <Settings className="w-4 h-4 text-muted-foreground" />
         </div>

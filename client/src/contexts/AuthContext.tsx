@@ -2,11 +2,20 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
+interface UserProfile {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  jobTitle?: string;
+  gender?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   accountId: string | null;
+  userProfile: UserProfile | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -18,18 +27,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const extractUserData = (session: Session | null) => {
+    const metadata = session?.user?.user_metadata;
+    
+    if (metadata) {
+      setAccountId(metadata.account_id || null);
+      setUserProfile({
+        firstName: metadata.firstName,
+        lastName: metadata.lastName,
+        displayName: metadata.displayName,
+        jobTitle: metadata.jobTitle,
+        gender: metadata.gender,
+      });
+    } else {
+      setAccountId(null);
+      setUserProfile(null);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // Extract accountId from user metadata
-      if (session?.user?.user_metadata?.account_id) {
-        setAccountId(session.user.user_metadata.account_id);
-      }
-      
+      extractUserData(session);
       setLoading(false);
     });
 
@@ -39,14 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // Extract accountId from user metadata
-      if (session?.user?.user_metadata?.account_id) {
-        setAccountId(session.user.user_metadata.account_id);
-      } else {
-        setAccountId(null);
-      }
-      
+      extractUserData(session);
       setLoading(false);
     });
 
@@ -71,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     accountId,
+    userProfile,
     signIn,
     signOut,
   };
