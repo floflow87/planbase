@@ -17,6 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [user, loading, setLocation]);
 
+  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -28,8 +29,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  // CRITICAL: Don't render children if user is not authenticated
+  // This prevents flash of protected content before redirect
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto mb-4" />
+          <p className="text-gray-600">Redirection...</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
