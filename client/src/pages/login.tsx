@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Loader2, User, Lock, Monitor } from "lucide-react";
 
 export default function Login() {
@@ -29,6 +30,16 @@ export default function Login() {
           description: error.message || "Email ou mot de passe incorrect",
         });
       } else {
+        // Fetch user data to get accountId
+        try {
+          const response = await apiRequest("GET", "/api/me");
+          const userData = await response.json();
+          localStorage.setItem("demo_account_id", userData.accountId);
+          localStorage.setItem("demo_user_id", userData.userId);
+        } catch (err) {
+          console.error("Failed to fetch user data:", err);
+        }
+        
         toast({
           title: "Connexion réussie",
           description: "Bienvenue sur Planbase !",

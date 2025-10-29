@@ -95,7 +95,11 @@ export default function Projects() {
   }, [selectedProjectId, form]);
 
   const onSubmit = (data: Partial<InsertTask>) => {
-    createTaskMutation.mutate(data as InsertTask);
+    // Ensure projectId is included
+    createTaskMutation.mutate({
+      ...data,
+      projectId: selectedProjectId,
+    } as InsertTask);
   };
 
   // Group tasks by status

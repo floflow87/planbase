@@ -81,6 +81,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // USERS
   // ============================================
 
+  // Get current user info from JWT
+  app.get("/api/me", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        userId: user.id,
+        accountId: user.accountId,
+        email: user.email,
+        role: user.role,
+        profile: user.profile,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post("/api/users", async (req, res) => {
     try {
       const data = insertAppUserSchema.parse(req.body);

@@ -68,11 +68,10 @@ async function seed() {
     });
 
     console.log('✅ Database seeded successfully!');
+    process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding database:', error);
-    throw error;
-  } finally {
-    process.exit(0);
+    process.exit(1);
   }
 }
 
