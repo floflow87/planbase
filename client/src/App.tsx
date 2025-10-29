@@ -100,7 +100,6 @@ function UserMenu() {
           {userInitials}
         </AvatarFallback>
       </Avatar>
-      <span className="text-sm text-gray-700 hidden md:block">{user.email}</span>
       <Button
         variant="ghost"
         size="sm"
