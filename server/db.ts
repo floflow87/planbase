@@ -1,16 +1,26 @@
-// Reference: blueprint:javascript_database
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+// Supabase PostgreSQL connection with Drizzle ORM
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+if (!process.env.SUPABASE_URL) {
+  throw new Error("SUPABASE_URL must be set");
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Extract project reference from Supabase URL
+// Format: https://gfftezyrhsxtaeceuszd.supabase.co -> gfftezyrhsxtaeceuszd
+const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
+
+// Supabase Connection Pooler (Transaction Mode)
+// Format: postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+const connectionString = process.env.SUPABASE_DB_PASSWORD
+  ? `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`
+  : `postgresql://postgres:postgres@db.${projectRef}.supabase.co:5432/postgres`;
+
+// Create postgres connection
+const client = postgres(connectionString, {
+  prepare: false, // Required for Supabase connection pooler
+  max: 10, // Connection pool size
+});
+
+export const db = drizzle(client, { schema });
