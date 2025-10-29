@@ -37,8 +37,7 @@ export default function Projects() {
 
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ["/api/accounts", accountId, "projects"],
-    enabled: !!accountId,
+    queryKey: ["/api/projects"],
   });
 
   // Set first project as selected by default
