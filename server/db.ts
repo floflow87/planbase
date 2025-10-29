@@ -14,11 +14,11 @@ if (!supabaseUrl || !supabasePassword) {
 
 const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
-// Use Supabase pooler (IPv4 compatible) with correct username format
+// Use Supabase pooler - CRITICAL: username must be "postgres.[project-ref]" format
 const connectionString = `postgresql://postgres.${projectRef}:${supabasePassword}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`;
 
 console.log(`🔗 Connecting to Supabase project: ${projectRef}`);
-console.log(`📡 Using Supabase pooler (IPv4): aws-0-eu-central-1.pooler.supabase.com:6543`);
+console.log(`📡 Using Supabase pooler: aws-0-eu-central-1.pooler.supabase.com:6543`);
 
 // Create postgres connection
 const client = postgres(connectionString, {
