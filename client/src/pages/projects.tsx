@@ -53,7 +53,7 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
@@ -308,46 +308,51 @@ function SortableColumn({
             </div>
           </div>
         </CardHeader>
-        <CardContent 
-          ref={setDroppableRef} 
-          className={`flex-1 space-y-2 overflow-auto transition-all ${
-            isOver ? 'border-2 border-dashed border-primary' : ''
-          }`}
-        >
-          <SortableContext
-            items={sortedTasks.map((t) => t.id)}
-            strategy={verticalListSortingStrategy}
+        <CardContent className="flex-1 overflow-auto p-0">
+          <div
+            ref={setDroppableRef}
+            className={`min-h-full p-4 transition-all ${
+              isOver ? 'border-2 border-dashed border-primary bg-primary/5' : ''
+            }`}
+            style={{ minHeight: '400px' }}
           >
-            {sortedTasks.length === 0 ? (
-              <div className="text-center py-8 text-sm text-muted-foreground">
-                Aucune tâche
-              </div>
-            ) : (
-              sortedTasks.map((task) => (
-                <SortableTaskCard
-                  key={task.id}
-                  task={task}
-                  users={users}
-                  onDuplicate={onDuplicate}
-                  onEdit={onEditTask}
-                  onDelete={onDeleteTask}
-                  onAssign={onAssign}
-                  onMarkComplete={onMarkComplete}
-                  onClick={onTaskClick}
-                />
-              ))
-            )}
-          </SortableContext>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => onAddTask(column.id)}
-            data-testid={`button-add-task-${column.id}`}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Ajouter une tâche
-          </Button>
+            <div className="space-y-2">
+              <SortableContext
+                items={sortedTasks.map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {sortedTasks.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Aucune tâche
+                  </div>
+                ) : (
+                  sortedTasks.map((task) => (
+                    <SortableTaskCard
+                      key={task.id}
+                      task={task}
+                      users={users}
+                      onDuplicate={onDuplicate}
+                      onEdit={onEditTask}
+                      onDelete={onDeleteTask}
+                      onAssign={onAssign}
+                      onMarkComplete={onMarkComplete}
+                      onClick={onTaskClick}
+                    />
+                  ))
+                )}
+              </SortableContext>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => onAddTask(column.id)}
+                data-testid={`button-add-task-${column.id}`}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter une tâche
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -435,11 +440,13 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   const handleSort = (column: string) => {
     // Don't sort actions column
     if (column === 'actions') return;
-
+    
     setSortConfig((current) => {
       if (current?.column === column) {
         // Toggle direction or clear
-        if (current.direction === 'asc') return { column, direction: 'desc' };
+        if (current.direction === 'asc') {
+          return { column, direction: 'desc' };
+        }
         return null; // Clear sort
       }
       return { column, direction: 'asc' };
@@ -1450,7 +1457,7 @@ export default function Projects() {
         ) : viewMode === "kanban" ? (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
