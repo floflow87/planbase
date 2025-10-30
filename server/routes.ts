@@ -457,6 +457,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Duplicate a task
+  app.post("/api/tasks/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const duplicated = await storage.duplicateTask(req.params.id);
+      res.json(duplicated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Move task to a different column
+  app.patch("/api/tasks/:id/move", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { columnId, position } = req.body;
+      const task = await storage.moveTaskToColumn(req.params.id, columnId, position);
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Bulk update task positions (for drag & drop)
+  app.patch("/api/tasks/bulk-update-positions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { updates } = req.body;
+      
+      // Verify all tasks belong to user's account
+      for (const update of updates) {
+        const task = await storage.getTask(update.id);
+        if (!task || task.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+
+      await storage.bulkUpdateTaskPositions(updates);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TASK COLUMNS - Protected Routes
+  // ============================================
+
+  // Get all task columns for a project
+  app.get("/api/projects/:projectId/task-columns", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const columns = await storage.getTaskColumnsByProjectId(req.params.projectId);
+      res.json(columns);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new task column
+  app.post("/api/task-columns", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { insertTaskColumnSchema } = await import("@shared/schema");
+      
+      // Verify project exists and belongs to account
+      const project = await storage.getProject(req.body.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const data = insertTaskColumnSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+      });
+      const column = await storage.createTaskColumn(data);
+      res.json(column);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a task column
+  app.patch("/api/task-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTaskColumn(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task column not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Prevent modification of locked columns
+      if (existing.isLocked && (req.body.name || req.body.isLocked !== undefined)) {
+        return res.status(400).json({ error: "Cannot rename or unlock a locked column" });
+      }
+
+      const column = await storage.updateTaskColumn(req.params.id, req.body);
+      res.json(column);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a task column
+  app.delete("/api/task-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTaskColumn(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Task column not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Prevent deletion of locked columns
+      if (existing.isLocked) {
+        return res.status(400).json({ error: "Cannot delete a locked column" });
+      }
+
+      const success = await storage.deleteTaskColumn(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reorder task columns
+  app.patch("/api/projects/:projectId/task-columns/reorder", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { columnOrders } = req.body;
+      await storage.reorderTaskColumns(req.params.projectId, columnOrders);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // NOTES - Protected Routes
   // ============================================
