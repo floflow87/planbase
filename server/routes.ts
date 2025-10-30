@@ -390,9 +390,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied to this project" });
       }
 
+      // Convert dueDate string to Date if present
+      const bodyWithDate = { ...req.body };
+      if (bodyWithDate.dueDate && typeof bodyWithDate.dueDate === 'string') {
+        bodyWithDate.dueDate = new Date(bodyWithDate.dueDate);
+      }
+
       const { insertTaskSchema } = await import("@shared/schema");
       const data = insertTaskSchema.parse({
-        ...req.body,
+        ...bodyWithDate,
         accountId: req.accountId!,
         createdBy: req.userId!,
       });
@@ -432,7 +438,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const task = await storage.updateTask(req.params.id, req.body);
+      // Convert dueDate string to Date if present
+      const bodyWithDate = { ...req.body };
+      if (bodyWithDate.dueDate && typeof bodyWithDate.dueDate === 'string') {
+        bodyWithDate.dueDate = new Date(bodyWithDate.dueDate);
+      }
+
+      const task = await storage.updateTask(req.params.id, bodyWithDate);
       res.json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
