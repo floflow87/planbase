@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +64,7 @@ import {
   DragStartEvent,
   DragOverlay,
   pointerWithin,
+  closestCorners,
   PointerSensor,
   useSensor,
   useSensors,
@@ -371,6 +382,7 @@ interface ListViewProps {
 
 function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
   const [columnOrder, setColumnOrder] = useState([
+    'checkbox',
     'title',
     'assignedTo',
     'status',
@@ -380,6 +392,8 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   ]);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -499,6 +513,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   };
 
   const columnHeaders = {
+    checkbox: { label: '', id: 'checkbox' },
     title: { label: 'Tâche', id: 'title' },
     assignedTo: { label: 'Assigné à', id: 'assignedTo' },
     status: { label: 'Statut', id: 'status' },
@@ -507,7 +522,64 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
     actions: { label: 'Actions', id: 'actions' },
   };
 
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllTasks = () => {
+    if (selectedTasks.size === tasks.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(tasks.map(t => t.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: 'complete' | 'urgent') => {
+    const completedColumn = [...columns]
+      .filter(c => c.isLocked)
+      .sort((a, b) => b.order - a.order)[0];
+    
+    for (const taskId of selectedTasks) {
+      if (action === 'complete' && completedColumn) {
+        onUpdateTask(taskId, { columnId: completedColumn.id });
+      } else if (action === 'urgent') {
+        onUpdateTask(taskId, { priority: 'high' });
+      }
+    }
+    setSelectedTasks(new Set());
+  };
+
+  const handleBulkAssign = async (userId: string) => {
+    for (const taskId of selectedTasks) {
+      onUpdateTask(taskId, { assignedToId: userId });
+    }
+    setSelectedTasks(new Set());
+  };
+
   const SortableTableHeader = ({ columnId }: { columnId: string }) => {
+    // Special handling for checkbox column
+    if (columnId === 'checkbox') {
+      return (
+        <TableHead className="w-12">
+          <input
+            type="checkbox"
+            checked={selectedTasks.size === tasks.length && tasks.length > 0}
+            onChange={toggleAllTasks}
+            className="cursor-pointer"
+            data-testid="checkbox-select-all"
+          />
+        </TableHead>
+      );
+    }
+
     const {
       attributes,
       listeners,
@@ -524,7 +596,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
     };
 
     const header = columnHeaders[columnId as keyof typeof columnHeaders];
-    const isSortable = columnId !== 'actions';
+    const isSortable = columnId !== 'actions' && columnId !== 'checkbox';
     const isSorted = sortConfig?.column === columnId;
 
     return (
@@ -565,14 +637,67 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   };
 
   return (
-    <div className="overflow-x-auto">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <Table>
+    <div className="space-y-4">
+      {selectedTasks.size > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-accent rounded-md">
+          <span className="text-sm font-medium">
+            {selectedTasks.size} tâche{selectedTasks.size > 1 ? 's' : ''} sélectionnée{selectedTasks.size > 1 ? 's' : ''}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" data-testid="button-bulk-actions">
+                Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleBulkAction('complete')}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Marquer comme terminé
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkAction('urgent')}>
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Marquer comme urgent
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Changer l'assignation
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {users.map(user => (
+                    <DropdownMenuItem 
+                      key={user.id}
+                      onClick={() => handleBulkAssign(user.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={user.avatarUrl || ""} />
+                          <AvatarFallback className="text-xs">
+                            {user.firstName?.[0]}{user.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">
+                          {user.firstName} {user.lastName}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+      
+      <div className="overflow-x-auto">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <Table>
           <TableHeader>
             <TableRow>
               <SortableContext items={columnOrder}>
@@ -592,14 +717,33 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
             ) : (
               getSortedTasks().map((task) => {
                 const assignedUser = users.find((u) => u.id === task.assignedToId);
+                const taskColumn = columns.find(c => c.id === task.columnId);
+                const isEditing = editingCell?.taskId === task.id;
                 
                 return (
                   <TableRow key={task.id} data-testid={`table-row-${task.id}`}>
                     {columnOrder.map((columnId) => {
                       switch (columnId) {
+                        case 'checkbox':
+                          return (
+                            <TableCell key={columnId} className="w-12">
+                              <input
+                                type="checkbox"
+                                checked={selectedTasks.has(task.id)}
+                                onChange={() => toggleTaskSelection(task.id)}
+                                className="cursor-pointer"
+                                data-testid={`checkbox-task-${task.id}`}
+                              />
+                            </TableCell>
+                          );
                         case 'title':
                           return (
-                            <TableCell key={columnId} className="font-medium">
+                            <TableCell 
+                              key={columnId} 
+                              className="font-medium cursor-pointer hover:text-primary"
+                              onClick={() => onEditTask(task)}
+                              data-testid={`cell-title-${task.id}`}
+                            >
                               {task.title}
                             </TableCell>
                           );
@@ -627,77 +771,140 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
                         case 'status':
                           return (
                             <TableCell key={columnId}>
-                              {(() => {
-                                const column = columns.find(c => c.id === task.columnId);
-                                const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
-                                
-                                return (
-                                  <div className="flex items-center gap-2">
-                                    <Badge 
-                                      style={{ backgroundColor: column?.color || 'transparent' }}
-                                      className="text-foreground text-xs min-w-[80px]"
-                                    >
-                                      {column?.name || '—'}
-                                    </Badge>
-                                    <select
-                                      value={task.columnId || ''}
-                                      onChange={(e) => {
-                                        const newColumnId = e.target.value;
-                                        const newColumn = columns.find(c => c.id === newColumnId);
-                                        const tasksInNewColumn = tasks.filter(t => t.columnId === newColumnId);
-                                        const maxPosition = tasksInNewColumn.length > 0
-                                          ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
-                                          : -1;
-                                        
-                                        onUpdateTask(task.id, {
-                                          columnId: newColumnId,
-                                          positionInColumn: maxPosition + 1,
-                                        });
-                                      }}
-                                      className="text-xs border rounded px-2 py-1 bg-background text-foreground cursor-pointer hover-elevate"
-                                      data-testid={`select-status-${task.id}`}
-                                    >
-                                      {sortedColumns.map(col => (
-                                        <option key={col.id} value={col.id}>
-                                          {col.name}
-                                        </option>
-                                      ))}
-                                    </select>
+                              <Popover
+                                open={isEditing && editingCell.field === 'status'}
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setEditingCell({ taskId: task.id, field: 'status' });
+                                  } else {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Badge 
+                                    style={{ backgroundColor: taskColumn?.color || 'transparent' }}
+                                    className="text-foreground text-xs min-w-[80px] cursor-pointer hover-elevate"
+                                    data-testid={`badge-status-${task.id}`}
+                                  >
+                                    {taskColumn?.name || '—'}
+                                  </Badge>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2">
+                                  <div className="space-y-1">
+                                    {[...columns].sort((a, b) => a.order - b.order).map(col => (
+                                      <button
+                                        key={col.id}
+                                        onClick={() => {
+                                          const tasksInNewColumn = tasks.filter(t => t.columnId === col.id);
+                                          const maxPosition = tasksInNewColumn.length > 0
+                                            ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
+                                            : -1;
+                                          onUpdateTask(task.id, {
+                                            columnId: col.id,
+                                            positionInColumn: maxPosition + 1,
+                                          });
+                                          setEditingCell(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
+                                      >
+                                        <div
+                                          className="w-3 h-3 rounded-full"
+                                          style={{ backgroundColor: col.color }}
+                                        />
+                                        <span className="text-sm">{col.name}</span>
+                                      </button>
+                                    ))}
                                   </div>
-                                );
-                              })()}
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           );
                         case 'priority':
                           return (
                             <TableCell key={columnId}>
-                              <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
-                                {getPriorityLabel(task.priority)}
-                              </Badge>
+                              <Popover
+                                open={isEditing && editingCell.field === 'priority'}
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setEditingCell({ taskId: task.id, field: 'priority' });
+                                  } else {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Badge 
+                                    className={`text-xs cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                                    data-testid={`badge-priority-${task.id}`}
+                                  >
+                                    {getPriorityLabel(task.priority)}
+                                  </Badge>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-40 p-2">
+                                  <div className="space-y-1">
+                                    {[
+                                      { value: 'high', label: 'Urgent', color: 'bg-red-100 text-red-700' },
+                                      { value: 'medium', label: 'Moyen', color: 'bg-yellow-100 text-yellow-700' },
+                                      { value: 'low', label: 'Faible', color: 'bg-green-100 text-green-700' },
+                                    ].map(priority => (
+                                      <button
+                                        key={priority.value}
+                                        onClick={() => {
+                                          onUpdateTask(task.id, { priority: priority.value });
+                                          setEditingCell(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 rounded hover-elevate"
+                                      >
+                                        <Badge className={`text-xs ${priority.color}`}>
+                                          {priority.label}
+                                        </Badge>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           );
                         case 'dueDate':
                           return (
                             <TableCell key={columnId}>
-                              <div className="flex items-center gap-2">
-                                {task.dueDate ? (
-                                  <span className="text-sm min-w-[100px]">
-                                    {formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })}
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground min-w-[100px]">—</span>
-                                )}
-                                <input
-                                  type="date"
-                                  value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
-                                  onChange={(e) => {
-                                    const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
-                                    onUpdateTask(task.id, { dueDate: newDate as any });
-                                  }}
-                                  className="text-xs border rounded px-2 py-1 bg-background text-foreground cursor-pointer hover-elevate"
-                                  data-testid={`input-due-date-${task.id}`}
-                                />
-                              </div>
+                              <Popover
+                                open={isEditing && editingCell.field === 'dueDate'}
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setEditingCell({ taskId: task.id, field: 'dueDate' });
+                                  } else {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs cursor-pointer hover-elevate min-w-[100px]"
+                                    data-testid={`badge-due-date-${task.id}`}
+                                  >
+                                    {task.dueDate 
+                                      ? formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })
+                                      : '—'
+                                    }
+                                  </Badge>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={task.dueDate ? new Date(task.dueDate) : undefined}
+                                    onSelect={(date) => {
+                                      onUpdateTask(task.id, { 
+                                        dueDate: date ? date.toISOString() : null 
+                                      } as any);
+                                      setEditingCell(null);
+                                    }}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                           );
                         case 'actions':
@@ -736,6 +943,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
           </TableBody>
         </Table>
       </DndContext>
+      </div>
     </div>
   );
 }
@@ -750,6 +958,7 @@ export default function Projects() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ columnId: string; position: 'before' | 'after' } | null>(null);
 
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
   const [createTaskColumnId, setCreateTaskColumnId] = useState<string | null>(null);
@@ -922,6 +1131,11 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      toast({
+        title: "Tâche déplacée",
+        description: "La position de la tâche a été mise à jour avec succès.",
+        className: "bg-green-50 border-green-200",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -1028,29 +1242,45 @@ export default function Projects() {
     }
   };
 
+  const handleDragOver = (event: any) => {
+    const { active, over } = event;
+    
+    // Only show indicators when dragging columns, not tasks
+    if (!activeColumnId || !over) {
+      setDropIndicator(null);
+      return;
+    }
+
+    // Check if over a column
+    const overColumn = taskColumns.find(c => c.id === over.id);
+    if (!overColumn || overColumn.id === active.id) {
+      setDropIndicator(null);
+      return;
+    }
+
+    // Determine if we should show indicator before or after
+    const columns = [...taskColumns].sort((a, b) => a.order - b.order);
+    const activeIndex = columns.findIndex(c => c.id === active.id);
+    const overIndex = columns.findIndex(c => c.id === over.id);
+    
+    setDropIndicator({
+      columnId: over.id,
+      position: activeIndex < overIndex ? 'after' : 'before'
+    });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTaskId(null);
     setActiveColumnId(null);
-
-    console.log("[DRAG] handleDragEnd called", { 
-      activeId: active.id, 
-      overId: over?.id,
-      hasOver: !!over 
-    });
+    setDropIndicator(null);
 
     if (!over) {
-      console.log("[DRAG] No over target, aborting");
       return;
     }
 
     const draggedTask = tasks.find((t) => t.id === active.id);
     const draggedColumn = taskColumns.find((c) => c.id === active.id);
-
-    console.log("[DRAG] Dragged entities:", {
-      isDraggedTask: !!draggedTask,
-      isDraggedColumn: !!draggedColumn
-    });
 
     if (draggedTask) {
       // Check if dropped on a droppable column zone
@@ -1059,14 +1289,6 @@ export default function Projects() {
         ? taskColumns.find((c) => `droppable-${c.id}` === over.id)
         : taskColumns.find((c) => c.id === over.id);
       const overTask = tasks.find((t) => t.id === over.id);
-      
-      console.log("[DRAG] Drop targets:", {
-        isDroppableZone,
-        isOverColumn: !!overColumn,
-        isOverTask: !!overTask,
-        overId: over.id,
-        overData: over.data
-      });
 
       let targetColumnId: string;
       let targetPosition: number;
@@ -1075,13 +1297,10 @@ export default function Projects() {
         targetColumnId = overColumn.id;
         const tasksInColumn = tasks.filter((t) => t.columnId === targetColumnId);
         targetPosition = tasksInColumn.length;
-        console.log("[DRAG] Dropped on column", { targetColumnId, targetPosition });
       } else if (overTask) {
         targetColumnId = overTask.columnId!;
         targetPosition = overTask.positionInColumn;
-        console.log("[DRAG] Dropped on task", { targetColumnId, targetPosition });
       } else {
-        console.log("[DRAG] No valid drop target found, aborting");
         return;
       }
 
@@ -1133,19 +1352,10 @@ export default function Projects() {
         });
       }
 
-      console.log("[DRAG] Updates calculated:", { 
-        updatesCount: updates.length,
-        updates: updates 
-      });
-
       if (updates.length > 0) {
-        console.log("[DRAG] Calling bulkUpdatePositionsMutation...");
         bulkUpdatePositionsMutation.mutate(updates);
-      } else {
-        console.log("[DRAG] No updates to perform");
       }
     } else if (draggedColumn && active.id !== over.id) {
-      console.log("[DRAG] Reordering column");
       const oldIndex = sortedColumns.findIndex((c) => c.id === active.id);
       const newIndex = sortedColumns.findIndex((c) => c.id === over.id);
 
@@ -1459,6 +1669,7 @@ export default function Projects() {
             sensors={sensors}
             collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <div className="flex gap-4 overflow-x-auto pb-4">
@@ -1468,23 +1679,34 @@ export default function Projects() {
               >
                 {sortedColumns.map((column) => {
                   const columnTasks = tasks.filter((t) => t.columnId === column.id);
+                  const showBeforeIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'before';
+                  const showAfterIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'after';
+                  
                   return (
-                    <div key={column.id} className="min-w-[320px]">
-                      <SortableColumn
-                        column={column}
-                        tasks={columnTasks}
-                        users={users}
-                        onRename={handleRenameColumn}
-                        onChangeColor={handleChangeColor}
-                        onDelete={handleDeleteColumn}
-                        onAddTask={handleAddTask}
-                        onDuplicate={handleDuplicateTask}
-                        onEditTask={handleEditTask}
-                        onDeleteTask={handleDeleteTask}
-                        onAssign={handleAssignTask}
-                        onMarkComplete={handleMarkComplete}
-                        onTaskClick={handleTaskClick}
-                      />
+                    <div key={column.id} className="flex items-stretch">
+                      {showBeforeIndicator && (
+                        <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
+                      )}
+                      <div className="min-w-[320px]">
+                        <SortableColumn
+                          column={column}
+                          tasks={columnTasks}
+                          users={users}
+                          onRename={handleRenameColumn}
+                          onChangeColor={handleChangeColor}
+                          onDelete={handleDeleteColumn}
+                          onAddTask={handleAddTask}
+                          onDuplicate={handleDuplicateTask}
+                          onEditTask={handleEditTask}
+                          onDeleteTask={handleDeleteTask}
+                          onAssign={handleAssignTask}
+                          onMarkComplete={handleMarkComplete}
+                          onTaskClick={handleTaskClick}
+                        />
+                      </div>
+                      {showAfterIndicator && (
+                        <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
+                      )}
                     </div>
                   );
                 })}
