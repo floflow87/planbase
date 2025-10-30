@@ -85,23 +85,41 @@ export const projects = pgTable("projects", {
   accountClientIdx: index().on(table.accountId, table.clientId),
 }));
 
+// Task Columns (for Kanban board customization)
+export const taskColumns = pgTable("task_columns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#e5e7eb"), // Pastel color hex code
+  order: integer("order").notNull().default(0), // For ordering columns
+  isLocked: integer("is_locked").notNull().default(0), // 0 = false, 1 = true (for "À faire" and "Terminé")
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+}));
+
 export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  columnId: uuid("column_id").references(() => taskColumns.id, { onDelete: "set null" }), // Link to task column
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("todo"), // 'todo', 'in_progress', 'review', 'done'
   priority: text("priority").notNull().default("medium"), // 'low', 'medium', 'high'
-  assignees: text("assignees").array().notNull().default(sql`ARRAY[]::text[]`), // Array of user IDs
+  assignedToId: uuid("assigned_to_id").references(() => appUsers.id, { onDelete: "set null" }), // Single assignee
+  assignees: text("assignees").array().notNull().default(sql`ARRAY[]::text[]`), // Array of user IDs (legacy support)
   progress: integer("progress").notNull().default(0), // 0-100
-  order: integer("order").notNull().default(0), // For ordering within columns
+  positionInColumn: integer("position_in_column").notNull().default(0), // For ordering within columns
+  order: integer("order").notNull().default(0), // For ordering within columns (legacy)
   dueDate: timestamp("due_date", { withTimezone: true }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  accountProjectStatusIdx: index().on(table.accountId, table.projectId, table.status),
+  accountProjectColumnIdx: index().on(table.accountId, table.projectId, table.columnId),
 }));
 
 export const deals = pgTable("deals", {
@@ -422,6 +440,7 @@ export const updateProfileSchema = z.object({
 export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
@@ -442,6 +461,7 @@ export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
@@ -462,6 +482,7 @@ export type AppUser = typeof appUsers.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Project = typeof projects.$inferSelect;
+export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
