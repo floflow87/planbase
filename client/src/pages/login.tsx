@@ -43,6 +43,7 @@ export default function Login() {
           toast({
             title: "Connexion réussie",
             description: "Bienvenue sur Planbase !",
+            variant: "success",
           });
           setLocation("/");
         } catch (err) {

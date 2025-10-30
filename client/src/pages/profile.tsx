@@ -69,6 +69,7 @@ export default function Profile() {
       toast({
         title: "Profil mis à jour",
         description: "Vos informations ont été enregistrées avec succès",
+        variant: "success",
       });
     },
     onError: (error: Error) => {
