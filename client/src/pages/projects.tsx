@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -181,9 +182,17 @@ function SortableTaskCard({
             </p>
           )}
           <div className="flex items-center justify-between gap-2 ml-6">
-            <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
-              {getPriorityLabel(task.priority)}
-            </Badge>
+            <div className="flex items-center gap-2 flex-1">
+              <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
+                {getPriorityLabel(task.priority)}
+              </Badge>
+              {task.dueDate && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <CalendarLucide className="h-3 w-3" />
+                  {formatDate(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
+                </div>
+              )}
+            </div>
             {assignedUser && (
               <TooltipProvider>
                 <Tooltip>
@@ -249,6 +258,12 @@ function SortableColumn({
     isDragging,
   } = useSortable({ id: column.id });
 
+  // Make the column droppable for tasks
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: `droppable-${column.id}`,
+    data: { type: 'column', columnId: column.id }
+  });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -285,7 +300,7 @@ function SortableColumn({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 space-y-2 overflow-auto">
+        <CardContent ref={setDroppableRef} className="flex-1 space-y-2 overflow-auto">
           <SortableContext
             items={sortedTasks.map((t) => t.id)}
             strategy={verticalListSortingStrategy}
@@ -839,15 +854,41 @@ export default function Projects() {
     setActiveTaskId(null);
     setActiveColumnId(null);
 
-    if (!over) return;
+    console.log("[DRAG] handleDragEnd called", { 
+      activeId: active.id, 
+      overId: over?.id,
+      hasOver: !!over 
+    });
+
+    if (!over) {
+      console.log("[DRAG] No over target, aborting");
+      return;
+    }
 
     const draggedTask = tasks.find((t) => t.id === active.id);
     const draggedColumn = taskColumns.find((c) => c.id === active.id);
 
+    console.log("[DRAG] Dragged entities:", {
+      isDraggedTask: !!draggedTask,
+      isDraggedColumn: !!draggedColumn
+    });
+
     if (draggedTask) {
-      const overColumn = taskColumns.find((c) => c.id === over.id);
+      // Check if dropped on a droppable column zone
+      const isDroppableZone = over.id.toString().startsWith('droppable-');
+      const overColumn = isDroppableZone 
+        ? taskColumns.find((c) => `droppable-${c.id}` === over.id)
+        : taskColumns.find((c) => c.id === over.id);
       const overTask = tasks.find((t) => t.id === over.id);
       
+      console.log("[DRAG] Drop targets:", {
+        isDroppableZone,
+        isOverColumn: !!overColumn,
+        isOverTask: !!overTask,
+        overId: over.id,
+        overData: over.data
+      });
+
       let targetColumnId: string;
       let targetPosition: number;
 
@@ -855,10 +896,13 @@ export default function Projects() {
         targetColumnId = overColumn.id;
         const tasksInColumn = tasks.filter((t) => t.columnId === targetColumnId);
         targetPosition = tasksInColumn.length;
+        console.log("[DRAG] Dropped on column", { targetColumnId, targetPosition });
       } else if (overTask) {
         targetColumnId = overTask.columnId!;
         targetPosition = overTask.positionInColumn;
+        console.log("[DRAG] Dropped on task", { targetColumnId, targetPosition });
       } else {
+        console.log("[DRAG] No valid drop target found, aborting");
         return;
       }
 
@@ -910,10 +954,19 @@ export default function Projects() {
         });
       }
 
+      console.log("[DRAG] Updates calculated:", { 
+        updatesCount: updates.length,
+        updates: updates 
+      });
+
       if (updates.length > 0) {
+        console.log("[DRAG] Calling bulkUpdatePositionsMutation...");
         bulkUpdatePositionsMutation.mutate(updates);
+      } else {
+        console.log("[DRAG] No updates to perform");
       }
     } else if (draggedColumn && active.id !== over.id) {
+      console.log("[DRAG] Reordering column");
       const oldIndex = sortedColumns.findIndex((c) => c.id === active.id);
       const newIndex = sortedColumns.findIndex((c) => c.id === over.id);
 
@@ -1525,6 +1578,7 @@ export default function Projects() {
       <TaskDetailModal
         task={selectedTask}
         users={users}
+        projects={projects}
         isOpen={isTaskDetailOpen}
         onClose={() => {
           setIsTaskDetailOpen(false);

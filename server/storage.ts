@@ -66,7 +66,7 @@ export interface IStorage {
   deleteTask(id: string): Promise<boolean>;
   duplicateTask(id: string): Promise<Task | undefined>;
   moveTaskToColumn(taskId: string, columnId: string, position: number): Promise<Task | undefined>;
-  bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId?: string }[]): Promise<void>;
+  bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId: string }[]): Promise<void>;
 
   // Notes
   getNote(id: string): Promise<Note | undefined>;
@@ -373,18 +373,15 @@ export class DatabaseStorage implements IStorage {
     return task || undefined;
   }
 
-  async bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId?: string }[]): Promise<void> {
+  async bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId: string }[]): Promise<void> {
     for (const update of updates) {
-      const setData: any = { 
-        positionInColumn: update.positionInColumn,
-        updatedAt: new Date() 
-      };
-      if (update.columnId) {
-        setData.columnId = update.columnId;
-      }
       await db
         .update(tasks)
-        .set(setData)
+        .set({ 
+          columnId: update.columnId,
+          positionInColumn: update.positionInColumn,
+          updatedAt: new Date() 
+        })
         .where(eq(tasks.id, update.id));
     }
   }

@@ -25,11 +25,12 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Task, AppUser } from "@shared/schema";
+import type { Task, AppUser, Project } from "@shared/schema";
 
 interface TaskDetailModalProps {
   task: Task | null;
   users: AppUser[];
+  projects: Project[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
@@ -38,6 +39,7 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({
   task,
   users,
+  projects,
   isOpen,
   onClose,
   onSave,
@@ -47,6 +49,8 @@ export function TaskDetailModal({
   const [priority, setPriority] = useState("medium");
   const [assignedToId, setAssignedToId] = useState<string | undefined>();
   const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [status, setStatus] = useState("todo");
+  const [projectId, setProjectId] = useState<string | undefined>();
 
   useEffect(() => {
     if (task) {
@@ -55,6 +59,8 @@ export function TaskDetailModal({
       setPriority(task.priority);
       setAssignedToId(task.assignedToId || undefined);
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+      setStatus(task.status || "todo");
+      setProjectId(task.projectId || undefined);
     }
   }, [task]);
 
@@ -68,6 +74,8 @@ export function TaskDetailModal({
       priority,
       assignedToId: assignedToId || null,
       dueDate: dueDate || null,
+      status,
+      projectId: projectId || task.projectId,
     });
     onClose();
   };
@@ -119,6 +127,23 @@ export function TaskDetailModal({
             </div>
 
             <div className="grid gap-2">
+              <Label htmlFor="status">Statut</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status" data-testid="select-task-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">À faire</SelectItem>
+                  <SelectItem value="in_progress">En cours</SelectItem>
+                  <SelectItem value="review">En révision</SelectItem>
+                  <SelectItem value="done">Terminé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label htmlFor="assignedTo">Assigné à</Label>
               <Select 
                 value={assignedToId || "unassigned"} 
@@ -132,6 +157,26 @@ export function TaskDetailModal({
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="project">Projet</Label>
+              <Select 
+                value={projectId || "no-project"} 
+                onValueChange={(value) => setProjectId(value === "no-project" ? undefined : value)}
+              >
+                <SelectTrigger id="project" data-testid="select-task-project">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-project">Aucun projet</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

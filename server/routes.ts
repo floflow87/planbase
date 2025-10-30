@@ -411,6 +411,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update task positions (for drag & drop) - MUST be before /:id routes
+  app.patch("/api/tasks/bulk-update-positions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { z } = await import("zod");
+      
+      // Validation schema for bulk updates
+      const bulkUpdateSchema = z.object({
+        updates: z.array(z.object({
+          id: z.string().uuid(),
+          columnId: z.string().uuid(),
+          positionInColumn: z.number().int().min(0)
+        }))
+      });
+      
+      const validatedData = bulkUpdateSchema.parse(req.body);
+      const { updates } = validatedData;
+      
+      console.log("[BULK UPDATE] Received request:", { 
+        updateCount: updates.length,
+        updates: JSON.stringify(updates, null, 2)
+      });
+      
+      // Verify all tasks belong to user's account
+      for (const update of updates) {
+        const task = await storage.getTask(update.id);
+        if (!task || task.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+
+      await storage.bulkUpdateTaskPositions(updates);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Bulk update positions error:", error);
+      res.status(400).json({ error: error.message || "Invalid input data" });
+    }
+  });
+
   // Get a specific task
   app.get("/api/tasks/:id", requireAuth, async (req, res) => {
     try {
@@ -501,26 +539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { columnId, position } = req.body;
       const task = await storage.moveTaskToColumn(req.params.id, columnId, position);
       res.json(task);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  // Bulk update task positions (for drag & drop)
-  app.patch("/api/tasks/bulk-update-positions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
-    try {
-      const { updates } = req.body;
-      
-      // Verify all tasks belong to user's account
-      for (const update of updates) {
-        const task = await storage.getTask(update.id);
-        if (!task || task.accountId !== req.accountId) {
-          return res.status(403).json({ error: "Access denied" });
-        }
-      }
-
-      await storage.bulkUpdateTaskPositions(updates);
-      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
