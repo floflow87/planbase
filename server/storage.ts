@@ -4,6 +4,7 @@ import {
   type AppUser, type InsertAppUser,
   type Client, type InsertClient,
   type Project, type InsertProject,
+  type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
   type Folder, type InsertFolder,
@@ -14,7 +15,7 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
-  accounts, appUsers, clients, projects, tasks, notes, folders, files, activities,
+  accounts, appUsers, clients, projects, taskColumns, tasks, notes, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -48,6 +49,14 @@ export interface IStorage {
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
 
+  // Task Columns
+  getTaskColumn(id: string): Promise<TaskColumn | undefined>;
+  getTaskColumnsByProjectId(projectId: string): Promise<TaskColumn[]>;
+  createTaskColumn(column: InsertTaskColumn): Promise<TaskColumn>;
+  updateTaskColumn(id: string, column: Partial<InsertTaskColumn>): Promise<TaskColumn | undefined>;
+  deleteTaskColumn(id: string): Promise<boolean>;
+  reorderTaskColumns(projectId: string, columnOrders: { id: string; order: number }[]): Promise<void>;
+
   // Tasks
   getTask(id: string): Promise<Task | undefined>;
   getTasksByProjectId(projectId: string): Promise<Task[]>;
@@ -55,6 +64,9 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
+  duplicateTask(id: string): Promise<Task | undefined>;
+  moveTaskToColumn(taskId: string, columnId: string, position: number): Promise<Task | undefined>;
+  bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId?: string }[]): Promise<void>;
 
   // Notes
   getNote(id: string): Promise<Note | undefined>;
@@ -250,6 +262,48 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  // Task Columns
+  async getTaskColumn(id: string): Promise<TaskColumn | undefined> {
+    const [column] = await db.select().from(taskColumns).where(eq(taskColumns.id, id));
+    return column || undefined;
+  }
+
+  async getTaskColumnsByProjectId(projectId: string): Promise<TaskColumn[]> {
+    return await db
+      .select()
+      .from(taskColumns)
+      .where(eq(taskColumns.projectId, projectId))
+      .orderBy(taskColumns.order);
+  }
+
+  async createTaskColumn(columnData: InsertTaskColumn): Promise<TaskColumn> {
+    const [column] = await db.insert(taskColumns).values(columnData).returning();
+    return column;
+  }
+
+  async updateTaskColumn(id: string, updateData: Partial<InsertTaskColumn>): Promise<TaskColumn | undefined> {
+    const [column] = await db
+      .update(taskColumns)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(taskColumns.id, id))
+      .returning();
+    return column || undefined;
+  }
+
+  async deleteTaskColumn(id: string): Promise<boolean> {
+    const result = await db.delete(taskColumns).where(eq(taskColumns.id, id));
+    return result.length > 0;
+  }
+
+  async reorderTaskColumns(projectId: string, columnOrders: { id: string; order: number }[]): Promise<void> {
+    for (const { id, order } of columnOrders) {
+      await db
+        .update(taskColumns)
+        .set({ order, updatedAt: new Date() })
+        .where(and(eq(taskColumns.id, id), eq(taskColumns.projectId, projectId)));
+    }
+  }
+
   // Tasks
   async getTask(id: string): Promise<Task | undefined> {
     const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
@@ -261,7 +315,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(tasks)
       .where(eq(tasks.projectId, projectId))
-      .orderBy(tasks.order);
+      .orderBy(tasks.positionInColumn);
   }
 
   async getTasksByAccountId(accountId: string): Promise<Task[]> {
@@ -289,6 +343,50 @@ export class DatabaseStorage implements IStorage {
   async deleteTask(id: string): Promise<boolean> {
     const result = await db.delete(tasks).where(eq(tasks.id, id));
     return result.length > 0;
+  }
+
+  async duplicateTask(id: string): Promise<Task | undefined> {
+    const original = await this.getTask(id);
+    if (!original) return undefined;
+
+    const { id: _, createdAt: __, updatedAt: ___, ...taskData } = original;
+    
+    const [duplicated] = await db.insert(tasks).values({
+      ...taskData,
+      title: `${taskData.title} (copie)`,
+      positionInColumn: (original.positionInColumn || 0) + 1,
+    }).returning();
+    
+    return duplicated;
+  }
+
+  async moveTaskToColumn(taskId: string, columnId: string, position: number): Promise<Task | undefined> {
+    const [task] = await db
+      .update(tasks)
+      .set({ 
+        columnId, 
+        positionInColumn: position,
+        updatedAt: new Date() 
+      })
+      .where(eq(tasks.id, taskId))
+      .returning();
+    return task || undefined;
+  }
+
+  async bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId?: string }[]): Promise<void> {
+    for (const update of updates) {
+      const setData: any = { 
+        positionInColumn: update.positionInColumn,
+        updatedAt: new Date() 
+      };
+      if (update.columnId) {
+        setData.columnId = update.columnId;
+      }
+      await db
+        .update(tasks)
+        .set(setData)
+        .where(eq(tasks.id, update.id));
+    }
   }
 
   // Notes
