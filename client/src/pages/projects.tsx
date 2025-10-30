@@ -1266,36 +1266,40 @@ export default function Projects() {
           </div>
         </div>
 
-        {selectedProject && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-foreground">
-                      Progression du projet
-                    </h3>
-                    <span className="text-sm font-semibold text-foreground">
-                      {Math.round(
-                        (tasks.filter((t) => t.status === "done").length / Math.max(tasks.length, 1)) * 100
-                      )}
-                      %
-                    </span>
+        {selectedProject && (() => {
+          // Find the "Terminé" column (last locked column with highest order)
+          const completedColumn = taskColumns
+            .filter(c => c.isLocked)
+            .sort((a, b) => b.order - a.order)[0];
+          const completedTasks = completedColumn 
+            ? tasks.filter((t) => t.columnId === completedColumn.id).length 
+            : 0;
+          const progressPercentage = Math.round((completedTasks / Math.max(tasks.length, 1)) * 100);
+
+          return (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Progression du projet
+                      </h3>
+                      <span className="text-sm font-semibold text-foreground">
+                        {progressPercentage}%
+                      </span>
+                    </div>
+                    <Progress value={progressPercentage} />
                   </div>
-                  <Progress
-                    value={
-                      (tasks.filter((t) => t.status === "done").length / Math.max(tasks.length, 1)) * 100
-                    }
-                  />
+                  <div className="text-right text-sm text-muted-foreground">
+                    <div>{tasks.length} tâches</div>
+                    <div>{completedTasks} terminées</div>
+                  </div>
                 </div>
-                <div className="text-right text-sm text-muted-foreground">
-                  <div>{tasks.length} tâches</div>
-                  <div>{tasks.filter((t) => t.status === "done").length} terminées</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {tasksLoading ? (
           <div className="text-center py-12 text-muted-foreground">
