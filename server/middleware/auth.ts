@@ -53,35 +53,76 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     // Extract accountId from user metadata
-    const accountId = user.user_metadata?.account_id;
+    let accountId = user.user_metadata?.account_id;
     const role = user.user_metadata?.role;
+    let dbUser: any;
 
+    // Auto-provision: Create account and/or user if they don't exist
+    const userEmail = user.email || `user-${user.id}@planbase.local`;
+    
     if (!accountId) {
-      return res.status(403).json({ 
-        error: "Forbidden - Missing account_id in user metadata",
-        hint: "User account not properly configured" 
+      // No account_id in metadata - create a new account for this user
+      console.log(`Creating new account for first-time user: ${userEmail}`);
+      const newAccount = await storage.createAccount({
+        name: userEmail.split('@')[0] + "'s Account",
+        ownerUserId: user.id, // Supabase Auth user ID
+      });
+      accountId = newAccount.id;
+
+      // Update Supabase user metadata with the new account_id
+      await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          account_id: accountId,
+          role: 'owner',
+        },
       });
     }
 
-    // Verify account exists
-    const account = await storage.getAccount(accountId);
+    // Verify/create account
+    let account = await storage.getAccount(accountId);
     if (!account) {
-      return res.status(403).json({ 
-        error: "Forbidden - Account not found",
-        hint: "The account associated with this user does not exist" 
+      console.log(`Account ${accountId} not found, creating it...`);
+      account = await storage.createAccount({
+        name: userEmail.split('@')[0] + "'s Account",
+        ownerUserId: user.id,
+      });
+      
+      // Update local variable and Supabase metadata with the new account ID
+      accountId = account.id;
+      await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          account_id: accountId,
+          role: role || 'owner',
+        },
       });
     }
 
-    // Find the corresponding app_user in the database
+    // Find or create the corresponding app_user in the database
     const dbUsers = await storage.getUsersByAccountId(accountId);
-    const dbUser = dbUsers.find((u: any) => u.email === user.email);
+    dbUser = dbUsers.find((u: any) => u.email === userEmail);
 
     if (!dbUser) {
-      console.error(`Database user not found for email: ${user.email}`);
-      return res.status(403).json({ 
-        error: "Forbidden - User not found in database",
-        hint: "User account not properly synchronized" 
+      console.log(`Creating app_user record for: ${userEmail}`);
+      // Generate a new UUID for the app_user
+      const { randomUUID } = await import('crypto');
+      dbUser = await storage.createUser({
+        id: randomUUID(),
+        accountId: accountId,
+        email: userEmail,
+        firstName: user.user_metadata?.firstName || userEmail.split('@')[0],
+        lastName: user.user_metadata?.lastName || '',
+        role: role || 'owner',
+        gender: user.user_metadata?.gender || null,
+        position: user.user_metadata?.position || null,
+        avatarUrl: user.user_metadata?.avatarUrl || null,
       });
+
+      // Update account ownerUserId with the app_user ID if this is the owner
+      if (role === 'owner' || !role) {
+        await storage.updateAccount(accountId, { ownerUserId: dbUser.id });
+      }
     }
 
     // Attach authentication context to request
