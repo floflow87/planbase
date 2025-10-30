@@ -55,6 +55,22 @@ Multi-tenant architecture with comprehensive data models in `shared/schema.ts` a
 - **emails** - Full email storage (thread_id, headers, body_text/html, attachments)
 - **email_attachments** - File references for email attachments
 
+#### Tasks & Projects (Kanban System) ✅ FULLY IMPLEMENTED
+- **tasks** - Task management with rich metadata (title, description, status, priority, assignedToId, dueDate, columnId, positionInColumn, progress)
+- **task_columns** - Configurable Kanban columns (name, color, order, isLocked) for custom workflows
+  - Default columns: "À faire" (gray, locked), "En cours" (blue), "En révision" (yellow), "Terminé" (green, locked)
+  - Custom columns: Users can add unlimited columns with personalized names and colors
+  - Drag & drop: Full support for reordering columns and moving tasks between columns
+- **Features**:
+  - ✅ Drag & drop cards between columns with @dnd-kit
+  - ✅ Drag & drop columns to reorder them
+  - ✅ Task card menu (duplicate, edit, delete, assign to user, mark complete)
+  - ✅ Column header menu (rename, change color, delete - disabled for locked columns)
+  - ✅ Task detail modal with full editing (title, description, priority, assignee, due date)
+  - ✅ Color picker with 10 pastel color presets
+  - ✅ Real-time position updates via bulk API
+  - ✅ Locked columns ("À faire", "Terminé") cannot be renamed/deleted
+
 #### Product & Roadmap
 - **products** - Product catalog (physical/digital, SKU, cost)
 - **product_integrations** - Shopify/WooCommerce integrations
