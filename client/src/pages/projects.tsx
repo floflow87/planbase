@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -267,7 +267,7 @@ function SortableColumn({
   } = useSortable({ id: column.id });
 
   // Make the column droppable for tasks
-  const { setNodeRef: setDroppableRef } = useDroppable({
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `droppable-${column.id}`,
     data: { type: 'column', columnId: column.id }
   });
@@ -308,7 +308,12 @@ function SortableColumn({
             </div>
           </div>
         </CardHeader>
-        <CardContent ref={setDroppableRef} className="flex-1 space-y-2 overflow-auto">
+        <CardContent 
+          ref={setDroppableRef} 
+          className={`flex-1 space-y-2 overflow-auto transition-all ${
+            isOver ? 'border-2 border-dashed border-primary' : ''
+          }`}
+        >
           <SortableContext
             items={sortedTasks.map((t) => t.id)}
             strategy={verticalListSortingStrategy}
@@ -356,9 +361,10 @@ interface ListViewProps {
   users: AppUser[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
+  onUpdateTask: (taskId: string, data: Partial<Task>) => void;
 }
 
-function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewProps) {
+function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
   const [columnOrder, setColumnOrder] = useState([
     'title',
     'assignedTo',
@@ -368,6 +374,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
     'actions'
   ]);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -425,6 +432,65 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
     return column?.name || "—";
   };
 
+  const handleSort = (column: string) => {
+    // Don't sort actions column
+    if (column === 'actions') return;
+
+    setSortConfig((current) => {
+      if (current?.column === column) {
+        // Toggle direction or clear
+        if (current.direction === 'asc') return { column, direction: 'desc' };
+        return null; // Clear sort
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const getSortedTasks = () => {
+    if (!sortConfig) return tasks;
+
+    const sorted = [...tasks].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortConfig.column) {
+        case 'title':
+          aValue = a.title?.toLowerCase() || '';
+          bValue = b.title?.toLowerCase() || '';
+          break;
+        case 'assignedTo':
+          const userA = users.find(u => u.id === a.assignedToId);
+          const userB = users.find(u => u.id === b.assignedToId);
+          aValue = userA ? `${userA.firstName} ${userA.lastName}`.toLowerCase() : 'zzz'; // Non assigné à la fin
+          bValue = userB ? `${userB.firstName} ${userB.lastName}`.toLowerCase() : 'zzz';
+          break;
+        case 'status':
+          const colA = columns.find(c => c.id === a.columnId);
+          const colB = columns.find(c => c.id === b.columnId);
+          aValue = colA?.name?.toLowerCase() || '';
+          bValue = colB?.name?.toLowerCase() || '';
+          break;
+        case 'priority':
+          const priorityOrder = { high: 1, medium: 2, low: 3 };
+          aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 999;
+          bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 999;
+          break;
+        case 'dueDate':
+          aValue = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+          bValue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  };
+
   const columnHeaders = {
     title: { label: 'Tâche', id: 'title' },
     assignedTo: { label: 'Assigné à', id: 'assignedTo' },
@@ -448,21 +514,45 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging ? 0.5 : 1,
-      cursor: isDragging ? 'grabbing' : 'grab',
     };
 
     const header = columnHeaders[columnId as keyof typeof columnHeaders];
+    const isSortable = columnId !== 'actions';
+    const isSorted = sortConfig?.column === columnId;
 
     return (
       <TableHead
         ref={setNodeRef}
         style={style}
         {...attributes}
-        {...listeners}
         className="font-semibold"
         data-testid={`table-header-${columnId}`}
       >
-        {header.label}
+        <div className="flex items-center gap-2">
+          {/* Drag handle - only this part is draggable */}
+          <button
+            {...listeners}
+            className="cursor-grab hover:bg-accent p-1 rounded"
+            title="Glisser pour réorganiser"
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </button>
+          
+          {/* Sortable label - clickable for sorting */}
+          <div 
+            className={`flex items-center gap-1 flex-1 ${isSortable ? 'cursor-pointer' : ''}`}
+            onClick={() => isSortable && handleSort(columnId)}
+          >
+            {header.label}
+            {isSortable && (
+              <span className="ml-1">
+                {!isSorted && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+                {isSorted && sortConfig.direction === 'asc' && <ArrowUp className="h-3 w-3 text-foreground" />}
+                {isSorted && sortConfig.direction === 'desc' && <ArrowDown className="h-3 w-3 text-foreground" />}
+              </span>
+            )}
+          </div>
+        </div>
       </TableHead>
     );
   };
@@ -493,7 +583,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
                 </TableCell>
               </TableRow>
             ) : (
-              tasks.map((task) => {
+              getSortedTasks().map((task) => {
                 const assignedUser = users.find((u) => u.id === task.assignedToId);
                 
                 return (
@@ -530,7 +620,45 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
                         case 'status':
                           return (
                             <TableCell key={columnId}>
-                              <Badge variant="secondary">{getColumnName(task)}</Badge>
+                              {(() => {
+                                const column = columns.find(c => c.id === task.columnId);
+                                const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+                                
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <Badge 
+                                      style={{ backgroundColor: column?.color || 'transparent' }}
+                                      className="text-foreground text-xs min-w-[80px]"
+                                    >
+                                      {column?.name || '—'}
+                                    </Badge>
+                                    <select
+                                      value={task.columnId || ''}
+                                      onChange={(e) => {
+                                        const newColumnId = e.target.value;
+                                        const newColumn = columns.find(c => c.id === newColumnId);
+                                        const tasksInNewColumn = tasks.filter(t => t.columnId === newColumnId);
+                                        const maxPosition = tasksInNewColumn.length > 0
+                                          ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
+                                          : -1;
+                                        
+                                        onUpdateTask(task.id, {
+                                          columnId: newColumnId,
+                                          positionInColumn: maxPosition + 1,
+                                        });
+                                      }}
+                                      className="text-xs border rounded px-2 py-1 bg-background text-foreground cursor-pointer hover-elevate"
+                                      data-testid={`select-status-${task.id}`}
+                                    >
+                                      {sortedColumns.map(col => (
+                                        <option key={col.id} value={col.id}>
+                                          {col.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                           );
                         case 'priority':
@@ -544,13 +672,25 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewP
                         case 'dueDate':
                           return (
                             <TableCell key={columnId}>
-                              {task.dueDate ? (
-                                <span className="text-sm">
-                                  {formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">—</span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {task.dueDate ? (
+                                  <span className="text-sm min-w-[100px]">
+                                    {formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground min-w-[100px]">—</span>
+                                )}
+                                <input
+                                  type="date"
+                                  value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+                                  onChange={(e) => {
+                                    const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
+                                    onUpdateTask(task.id, { dueDate: newDate as any });
+                                  }}
+                                  className="text-xs border rounded px-2 py-1 bg-background text-foreground cursor-pointer hover-elevate"
+                                  data-testid={`input-due-date-${task.id}`}
+                                />
+                              </div>
                             </TableCell>
                           );
                         case 'actions':
@@ -848,10 +988,12 @@ export default function Projects() {
 
   const reorderColumnsMutation = useMutation({
     mutationFn: async (columnIds: string[]) => {
+      // Map columnIds to { id, order } format expected by backend
+      const columnOrders = columnIds.map((id, index) => ({ id, order: index }));
       const response = await apiRequest(
         "PATCH",
         `/api/projects/${selectedProjectId}/task-columns/reorder`,
-        { columnIds }
+        { columnOrders }
       );
       return response.json();
     },
@@ -1370,6 +1512,9 @@ export default function Projects() {
             users={users}
             onEditTask={handleEditTask}
             onDeleteTask={handleDeleteTask}
+            onUpdateTask={(taskId, data) => {
+              updateTaskMutation.mutate({ id: taskId, data });
+            }}
           />
         )}
       </div>
