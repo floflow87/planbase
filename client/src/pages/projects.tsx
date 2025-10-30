@@ -1081,6 +1081,15 @@ export default function Projects() {
       updatedData.dueDate = (updatedData.dueDate as Date).toISOString() as any;
     }
     
+    // If columnId changed, calculate new position at end of target column
+    if (updatedData.columnId && updatedData.columnId !== selectedTask.columnId) {
+      const tasksInTargetColumn = tasks.filter((t) => t.columnId === updatedData.columnId);
+      const maxPosition = tasksInTargetColumn.length > 0
+        ? Math.max(...tasksInTargetColumn.map((t) => t.positionInColumn))
+        : -1;
+      updatedData.positionInColumn = maxPosition + 1;
+    }
+    
     updateTaskMutation.mutate({
       id: selectedTask.id,
       data: updatedData,
@@ -1579,6 +1588,7 @@ export default function Projects() {
         task={selectedTask}
         users={users}
         projects={projects}
+        columns={sortedColumns}
         isOpen={isTaskDetailOpen}
         onClose={() => {
           setIsTaskDetailOpen(false);

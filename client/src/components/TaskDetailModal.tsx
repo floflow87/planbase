@@ -25,12 +25,13 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Task, AppUser, Project } from "@shared/schema";
+import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
 
 interface TaskDetailModalProps {
   task: Task | null;
   users: AppUser[];
   projects: Project[];
+  columns: TaskColumn[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
@@ -40,6 +41,7 @@ export function TaskDetailModal({
   task,
   users,
   projects,
+  columns,
   isOpen,
   onClose,
   onSave,
@@ -67,7 +69,8 @@ export function TaskDetailModal({
   const handleSave = () => {
     if (!task) return;
 
-    onSave({
+    // Build the update object
+    const updates: Partial<Task> = {
       id: task.id,
       title,
       description,
@@ -76,7 +79,34 @@ export function TaskDetailModal({
       dueDate: dueDate || null,
       status,
       projectId: projectId || task.projectId,
-    });
+    };
+
+    // Only sync columnId if status changed
+    if (status !== task.status) {
+      // Try to find column by status field first (future-proof)
+      let targetColumn = columns.find(c => c.status === status);
+      
+      // Fallback: Try by order (assumes standard order: 0=todo, 1=in_progress, 2=review, 3=done)
+      if (!targetColumn) {
+        const statusToOrder: Record<string, number> = {
+          'todo': 0,
+          'in_progress': 1,
+          'review': 2,
+          'done': 3
+        };
+        const targetOrder = statusToOrder[status];
+        const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+        targetColumn = sortedColumns[targetOrder];
+      }
+      
+      // If we found a matching column, update columnId
+      if (targetColumn) {
+        updates.columnId = targetColumn.id;
+      }
+      // Otherwise, keep current columnId (no sync)
+    }
+
+    onSave(updates);
     onClose();
   };
 

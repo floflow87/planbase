@@ -382,7 +382,8 @@ export class DatabaseStorage implements IStorage {
           positionInColumn: update.positionInColumn,
           updatedAt: new Date() 
         })
-        .where(eq(tasks.id, update.id));
+        .where(eq(tasks.id, update.id))
+        .execute();
     }
   }
 
