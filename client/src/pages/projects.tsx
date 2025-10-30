@@ -1057,7 +1057,7 @@ export default function Projects() {
       setNewTaskDueDate(undefined);
       setNewTaskProjectId("");
       setCreateTaskColumnId(null);
-      toast({ title: "Tâche créée avec succès" });
+      toast({ title: "Tâche créée avec succès", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1075,7 +1075,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
-      toast({ title: "Tâche mise à jour" });
+      toast({ title: "Tâche mise à jour", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1093,7 +1093,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
-      toast({ title: "Tâche dupliquée avec succès" });
+      toast({ title: "Tâche dupliquée avec succès", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1113,7 +1113,7 @@ export default function Projects() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
       setIsDeleteTaskDialogOpen(false);
       setSelectedTask(null);
-      toast({ title: "Tâche supprimée" });
+      toast({ title: "Tâche supprimée", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1134,7 +1134,7 @@ export default function Projects() {
       toast({
         title: "Tâche déplacée",
         description: "La position de la tâche a été mise à jour avec succès.",
-        className: "bg-green-50 border-green-200",
+        variant: "success",
       });
     },
     onError: (error: Error) => {
@@ -1155,7 +1155,7 @@ export default function Projects() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsCreateColumnDialogOpen(false);
       setNewColumnName("");
-      toast({ title: "Colonne créée avec succès" });
+      toast({ title: "Colonne créée avec succès", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1176,7 +1176,7 @@ export default function Projects() {
       setIsRenameColumnDialogOpen(false);
       setIsColorColumnDialogOpen(false);
       setSelectedColumn(null);
-      toast({ title: "Colonne mise à jour" });
+      toast({ title: "Colonne mise à jour", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
@@ -1196,7 +1196,7 @@ export default function Projects() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsDeleteColumnDialogOpen(false);
       setSelectedColumn(null);
-      toast({ title: "Colonne supprimée" });
+      toast({ title: "Colonne supprimée", variant: "success" });
     },
     onError: (error: Error) => {
       toast({
