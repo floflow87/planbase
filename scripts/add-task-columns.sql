@@ -70,7 +70,7 @@ SELECT
   p.account_id,
   p.id,
   'Terminé',
-  '#bbf7d0', -- Light green
+  '#d1fae5', -- Ultra-light pastel green
   3,
   1 -- Locked
 FROM projects p
