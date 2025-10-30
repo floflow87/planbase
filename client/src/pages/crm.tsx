@@ -56,7 +56,7 @@ export default function CRM() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setIsCreateDialogOpen(false);
-      toast({ title: "Client créé avec succès" });
+      toast({ title: "Client créé avec succès", variant: "success" });
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
@@ -77,7 +77,7 @@ export default function CRM() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setEditingClient(null);
-      toast({ title: "Client mis à jour" });
+      toast({ title: "Client mis à jour", variant: "success" });
     },
   });
 
@@ -90,7 +90,7 @@ export default function CRM() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
-      toast({ title: "Client supprimé" });
+      toast({ title: "Client supprimé", variant: "success" });
     },
   });
 
