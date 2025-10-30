@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -612,6 +620,8 @@ export default function Projects() {
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>();
   const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
+  const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
+  const [projectComboboxOpen, setProjectComboboxOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("rgba(229, 231, 235, 0.4)");
@@ -650,6 +660,20 @@ export default function Projects() {
     enabled: !!selectedProjectId,
   });
 
+  // Fetch columns for the project selected in task creation form
+  const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/projects", newTaskProjectId, "task-columns"],
+    enabled: !!newTaskProjectId && isCreateTaskDialogOpen,
+  });
+
+  // Auto-select first column when project changes in task creation form
+  useEffect(() => {
+    if (newTaskProjectId && newTaskProjectColumns.length > 0) {
+      const sortedColumns = [...newTaskProjectColumns].sort((a, b) => a.order - b.order);
+      setCreateTaskColumnId(sortedColumns[0].id);
+    }
+  }, [newTaskProjectId, newTaskProjectColumns]);
+
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/projects", selectedProjectId, "tasks"],
     enabled: !!selectedProjectId,
@@ -662,14 +686,20 @@ export default function Projects() {
       const response = await apiRequest("POST", "/api/tasks", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+    onSuccess: (_data, variables) => {
+      // Invalidate tasks for the project where the task was created
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", variables.projectId, "tasks"] });
+      // Also invalidate current project if different
+      if (variables.projectId !== selectedProjectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      }
       setIsCreateTaskDialogOpen(false);
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskPriority("medium");
       setNewTaskAssignedTo(undefined);
       setNewTaskDueDate(undefined);
+      setNewTaskProjectId("");
       setCreateTaskColumnId(null);
       toast({ title: "Tâche créée avec succès" });
     },
@@ -979,17 +1009,34 @@ export default function Projects() {
   };
 
   const handleCreateTask = () => {
-    if (!newTaskTitle.trim() || !createTaskColumnId || !accountId || !userId) return;
+    if (!newTaskTitle.trim() || !accountId || !userId) return;
 
-    const tasksInColumn = tasks.filter((t) => t.columnId === createTaskColumnId);
+    // Determine which columns to use (from selected project in form or current project)
+    const targetColumns = newTaskProjectId && newTaskProjectId !== selectedProjectId 
+      ? newTaskProjectColumns 
+      : taskColumns;
+    
+    // Use createTaskColumnId if set, otherwise use first column (sorted by order)
+    const sortedTargetColumns = [...targetColumns].sort((a, b) => a.order - b.order);
+    const targetColumnId = createTaskColumnId || sortedTargetColumns[0]?.id;
+    
+    if (!targetColumnId) {
+      toast({ title: "Erreur: Aucune colonne trouvée", variant: "destructive" });
+      return;
+    }
+
+    // Calculate position - fetch tasks from the target project if different
+    const targetProjectId = newTaskProjectId || selectedProjectId;
+    const tasksInColumn = tasks
+      .filter((t) => t.columnId === targetColumnId && t.projectId === targetProjectId);
     const maxPosition = tasksInColumn.length > 0
       ? Math.max(...tasksInColumn.map((t) => t.positionInColumn))
       : -1;
 
     createTaskMutation.mutate({
       accountId,
-      projectId: selectedProjectId,
-      columnId: createTaskColumnId,
+      projectId: targetProjectId,
+      columnId: targetColumnId,
       title: newTaskTitle,
       description: newTaskDescription || null,
       priority: newTaskPriority,
@@ -1023,6 +1070,7 @@ export default function Projects() {
 
   const handleAddTask = (columnId: string) => {
     setCreateTaskColumnId(columnId);
+    setNewTaskProjectId(selectedProjectId); // Default to current project
     setIsCreateTaskDialogOpen(true);
   };
 
@@ -1329,6 +1377,55 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>Projet *</Label>
+              <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={projectComboboxOpen}
+                    className="w-full justify-between"
+                    data-testid="button-select-project"
+                  >
+                    {newTaskProjectId
+                      ? projects.find((p) => p.id === newTaskProjectId)?.name
+                      : "Sélectionner un projet..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un projet..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {projects.map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.name}
+                            onSelect={() => {
+                              setNewTaskProjectId(project.id);
+                              setProjectComboboxOpen(false);
+                              // Reset columnId when project changes - will be set to first column of new project
+                              setCreateTaskColumnId(null);
+                            }}
+                            data-testid={`project-option-${project.id}`}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                newTaskProjectId === project.id ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
               <Label htmlFor="task-title">Titre *</Label>
               <Input
                 id="task-title"
@@ -1422,6 +1519,7 @@ export default function Projects() {
                 setNewTaskPriority("medium");
                 setNewTaskAssignedTo(undefined);
                 setNewTaskDueDate(undefined);
+                setNewTaskProjectId("");
               }}
               data-testid="button-cancel-create-task"
             >
