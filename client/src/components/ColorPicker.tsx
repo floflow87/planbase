@@ -7,16 +7,16 @@ import {
 import { Check } from "lucide-react";
 
 const PASTEL_COLORS = [
-  { name: "Gris clair", value: "#e5e7eb" },
-  { name: "Rose", value: "#fecdd3" },
-  { name: "Orange", value: "#fed7aa" },
-  { name: "Jaune", value: "#fde68a" },
-  { name: "Vert clair", value: "#bbf7d0" },
-  { name: "Turquoise", value: "#a5f3fc" },
-  { name: "Bleu clair", value: "#bfdbfe" },
-  { name: "Violet", value: "#ddd6fe" },
-  { name: "Lavande", value: "#e9d5ff" },
-  { name: "Pêche", value: "#fecaca" },
+  { name: "Gris clair", value: "rgba(229, 231, 235, 0.4)" },
+  { name: "Rose", value: "rgba(254, 205, 211, 0.4)" },
+  { name: "Orange", value: "rgba(254, 215, 170, 0.4)" },
+  { name: "Jaune", value: "rgba(253, 230, 138, 0.4)" },
+  { name: "Vert clair", value: "rgba(187, 247, 208, 0.4)" },
+  { name: "Turquoise", value: "rgba(165, 243, 252, 0.4)" },
+  { name: "Bleu clair", value: "rgba(191, 219, 254, 0.4)" },
+  { name: "Violet", value: "rgba(221, 214, 254, 0.4)" },
+  { name: "Lavande", value: "rgba(233, 213, 255, 0.4)" },
+  { name: "Pêche", value: "rgba(254, 202, 202, 0.4)" },
 ];
 
 interface ColorPickerProps {

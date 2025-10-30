@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, Table2 } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -50,8 +55,11 @@ import {
   horizontalListSortingStrategy,
   verticalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
 import type {
   Task,
   TaskColumn,
@@ -99,6 +107,7 @@ function SortableTaskCard({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
   const getPriorityColor = (priority: string) => {
@@ -133,19 +142,27 @@ function SortableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       data-testid={`task-card-${task.id}`}
     >
-      <Card
-        className="hover-elevate active-elevate-2 cursor-pointer mb-2"
-        onClick={() => onClick(task)}
-      >
+      <Card className="hover-elevate active-elevate-2 mb-2">
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <h4 className="text-sm font-medium text-foreground flex-1">
-              {task.title}
-            </h4>
+            <div className="flex items-start gap-2 flex-1">
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing mt-0.5"
+                data-testid={`drag-handle-${task.id}`}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h4
+                className="text-sm font-medium text-foreground flex-1 cursor-pointer"
+                onClick={() => onClick(task)}
+              >
+                {task.title}
+              </h4>
+            </div>
             <div onClick={(e) => e.stopPropagation()}>
               <TaskCardMenu
                 task={task}
@@ -159,22 +176,31 @@ function SortableTaskCard({
             </div>
           </div>
           {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">
+            <p className="text-xs text-muted-foreground line-clamp-2 ml-6">
               {task.description}
             </p>
           )}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 ml-6">
             <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
               {getPriorityLabel(task.priority)}
             </Badge>
             {assignedUser && (
-              <Avatar className="h-5 w-5">
-                <AvatarImage src={assignedUser.avatarUrl || ""} />
-                <AvatarFallback className="text-xs">
-                  {assignedUser.firstName?.[0]}
-                  {assignedUser.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Avatar className="h-6 w-6 cursor-pointer">
+                      <AvatarImage src={assignedUser.avatarUrl || ""} />
+                      <AvatarFallback className="text-xs">
+                        {assignedUser.firstName?.[0]}
+                        {assignedUser.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{assignedUser.firstName} {assignedUser.lastName}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </CardContent>
@@ -227,6 +253,7 @@ function SortableColumn({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
 
   const sortedTasks = [...tasks].sort(
@@ -299,13 +326,257 @@ function SortableColumn({
   );
 }
 
+// List View Component
+interface ListViewProps {
+  tasks: Task[];
+  columns: TaskColumn[];
+  users: AppUser[];
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+}
+
+function ListView({ tasks, columns, users, onEditTask, onDeleteTask }: ListViewProps) {
+  const [columnOrder, setColumnOrder] = useState([
+    'title',
+    'assignedTo',
+    'status',
+    'priority',
+    'dueDate',
+    'actions'
+  ]);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveColumnId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveColumnId(null);
+
+    if (!over || active.id === over.id) return;
+
+    setColumnOrder((items) => {
+      const oldIndex = items.indexOf(active.id as string);
+      const newIndex = items.indexOf(over.id as string);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "bg-red-100 text-red-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "low":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "Urgent";
+      case "medium":
+        return "Moyen";
+      case "low":
+        return "Faible";
+      default:
+        return priority;
+    }
+  };
+
+  const getColumnName = (task: Task) => {
+    const column = columns.find(c => c.id === task.columnId);
+    return column?.name || "—";
+  };
+
+  const columnHeaders = {
+    title: { label: 'Tâche', id: 'title' },
+    assignedTo: { label: 'Assigné à', id: 'assignedTo' },
+    status: { label: 'Statut', id: 'status' },
+    priority: { label: 'Priorité', id: 'priority' },
+    dueDate: { label: 'Échéance', id: 'dueDate' },
+    actions: { label: 'Actions', id: 'actions' },
+  };
+
+  const SortableTableHeader = ({ columnId }: { columnId: string }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: columnId });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+      cursor: isDragging ? 'grabbing' : 'grab',
+    };
+
+    const header = columnHeaders[columnId as keyof typeof columnHeaders];
+
+    return (
+      <TableHead
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className="font-semibold"
+        data-testid={`table-header-${columnId}`}
+      >
+        {header.label}
+      </TableHead>
+    );
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortableContext items={columnOrder}>
+                {columnOrder.map((columnId) => (
+                  <SortableTableHeader key={columnId} columnId={columnId} />
+                ))}
+              </SortableContext>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Aucune tâche
+                </TableCell>
+              </TableRow>
+            ) : (
+              tasks.map((task) => {
+                const assignedUser = users.find((u) => u.id === task.assignedToId);
+                
+                return (
+                  <TableRow key={task.id} data-testid={`table-row-${task.id}`}>
+                    {columnOrder.map((columnId) => {
+                      switch (columnId) {
+                        case 'title':
+                          return (
+                            <TableCell key={columnId} className="font-medium">
+                              {task.title}
+                            </TableCell>
+                          );
+                        case 'assignedTo':
+                          return (
+                            <TableCell key={columnId}>
+                              {assignedUser ? (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={assignedUser.avatarUrl || ""} />
+                                    <AvatarFallback className="text-xs">
+                                      {assignedUser.firstName?.[0]}
+                                      {assignedUser.lastName?.[0]}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm">
+                                    {assignedUser.firstName} {assignedUser.lastName}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Non assigné</span>
+                              )}
+                            </TableCell>
+                          );
+                        case 'status':
+                          return (
+                            <TableCell key={columnId}>
+                              <Badge variant="secondary">{getColumnName(task)}</Badge>
+                            </TableCell>
+                          );
+                        case 'priority':
+                          return (
+                            <TableCell key={columnId}>
+                              <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
+                                {getPriorityLabel(task.priority)}
+                              </Badge>
+                            </TableCell>
+                          );
+                        case 'dueDate':
+                          return (
+                            <TableCell key={columnId}>
+                              {task.dueDate ? (
+                                <span className="text-sm">
+                                  {formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        case 'actions':
+                          return (
+                            <TableCell key={columnId}>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => onEditTask(task)}
+                                  data-testid={`button-edit-task-${task.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => onDeleteTask(task)}
+                                  data-testid={`button-delete-task-${task.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </DndContext>
+    </div>
+  );
+}
+
 export default function Projects() {
   const [, setLocation] = useLocation();
   const accountId = localStorage.getItem("demo_account_id");
   const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
 
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "table">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
@@ -324,9 +595,11 @@ export default function Projects() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>();
+  const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
   const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
-  const [columnColor, setColumnColor] = useState("#e5e7eb");
+  const [columnColor, setColumnColor] = useState("rgba(229, 231, 235, 0.4)");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -380,6 +653,8 @@ export default function Projects() {
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskPriority("medium");
+      setNewTaskAssignedTo(undefined);
+      setNewTaskDueDate(undefined);
       setCreateTaskColumnId(null);
       toast({ title: "Tâche créée avec succès" });
     },
@@ -663,13 +938,15 @@ export default function Projects() {
       projectId: selectedProjectId,
       columnId: createTaskColumnId,
       title: newTaskTitle,
-      description: newTaskDescription,
+      description: newTaskDescription || null,
       priority: newTaskPriority,
       status: "todo",
+      assignedToId: newTaskAssignedTo || null,
       assignees: [],
       progress: 0,
       positionInColumn: maxPosition + 1,
       order: 0,
+      dueDate: (newTaskDueDate ? newTaskDueDate.toISOString() : null) as any,
       createdBy: userId,
     });
   };
@@ -685,7 +962,7 @@ export default function Projects() {
       accountId,
       projectId: selectedProjectId,
       name: newColumnName,
-      color: "#e5e7eb",
+      color: "rgba(229, 231, 235, 0.4)",
       order: maxOrder + 1,
       isLocked: 0,
     });
@@ -744,9 +1021,16 @@ export default function Projects() {
 
   const handleSaveTaskDetail = (data: Partial<Task>) => {
     if (!selectedTask) return;
+    
+    // Fix date format if dueDate is provided
+    const updatedData = { ...data };
+    if (updatedData.dueDate && typeof updatedData.dueDate !== 'string') {
+      updatedData.dueDate = (updatedData.dueDate as Date).toISOString() as any;
+    }
+    
     updateTaskMutation.mutate({
       id: selectedTask.id,
-      data,
+      data: updatedData,
     });
     setIsTaskDetailOpen(false);
     setSelectedTask(null);
@@ -819,7 +1103,7 @@ export default function Projects() {
                 To-Do & Projects
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Gestion des tâches en mode Kanban
+                Gestion des tâches en mode Kanban et Liste
               </p>
             </div>
             {projects.length > 0 && (
@@ -849,7 +1133,8 @@ export default function Projects() {
                 onClick={() => setViewMode("kanban")}
                 data-testid="button-view-kanban"
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                Kanban
               </Button>
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -857,15 +1142,8 @@ export default function Projects() {
                 onClick={() => setViewMode("list")}
                 data-testid="button-view-list"
               >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("table")}
-                data-testid="button-view-table"
-              >
-                <Table2 className="w-4 h-4" />
+                <List className="w-4 h-4 mr-2" />
+                Liste
               </Button>
             </div>
             <Button
@@ -913,7 +1191,7 @@ export default function Projects() {
           <div className="text-center py-12 text-muted-foreground">
             Chargement des tâches...
           </div>
-        ) : (
+        ) : viewMode === "kanban" ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}
@@ -971,6 +1249,14 @@ export default function Projects() {
               ) : null}
             </DragOverlay>
           </DndContext>
+        ) : (
+          <ListView
+            tasks={tasks}
+            columns={taskColumns}
+            users={users}
+            onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
+          />
         )}
       </div>
 
@@ -991,34 +1277,90 @@ export default function Projects() {
             </div>
             <div>
               <Label htmlFor="task-description">Description</Label>
-              <Input
+              <Textarea
                 id="task-description"
                 value={newTaskDescription}
                 onChange={(e) => setNewTaskDescription(e.target.value)}
-                data-testid="input-new-task-description"
+                rows={3}
+                data-testid="textarea-new-task-description"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="task-priority">Priorité</Label>
+                <Select
+                  value={newTaskPriority}
+                  onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
+                >
+                  <SelectTrigger id="task-priority" data-testid="select-new-task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Basse</SelectItem>
+                    <SelectItem value="medium">Moyenne</SelectItem>
+                    <SelectItem value="high">Haute</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="task-assigned">Assigné à</Label>
+                <Select
+                  value={newTaskAssignedTo || "unassigned"}
+                  onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
+                >
+                  <SelectTrigger id="task-assigned" data-testid="select-new-task-assigned">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Non assigné</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div>
-              <Label htmlFor="task-priority">Priorité</Label>
-              <Select
-                value={newTaskPriority}
-                onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
-              >
-                <SelectTrigger id="task-priority" data-testid="select-new-task-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Faible</SelectItem>
-                  <SelectItem value="medium">Moyen</SelectItem>
-                  <SelectItem value="high">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Date d'échéance</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    data-testid="button-new-task-due-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newTaskDueDate ? (
+                      formatDate(newTaskDueDate, "PPP", { locale: fr })
+                    ) : (
+                      <span>Choisir une date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={newTaskDueDate}
+                    onSelect={setNewTaskDueDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsCreateTaskDialogOpen(false)}
+              onClick={() => {
+                setIsCreateTaskDialogOpen(false);
+                setNewTaskTitle("");
+                setNewTaskDescription("");
+                setNewTaskPriority("medium");
+                setNewTaskAssignedTo(undefined);
+                setNewTaskDueDate(undefined);
+              }}
               data-testid="button-cancel-create-task"
             >
               Annuler
