@@ -2031,10 +2031,6 @@ export default function Projects() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem data-testid={`button-view-project-${project.id}`}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Voir les détails
-                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 data-testid={`button-edit-project-${project.id}`}
                                 onClick={() => {
