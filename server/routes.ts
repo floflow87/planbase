@@ -275,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create default task columns for new project
       const defaultColumns = [
-        { name: "À faire", color: "rgba(255, 240, 245, 0.9)", order: 0, isLocked: 1 },  // Rose pastel très doux
+        { name: "À faire", color: "rgba(240, 240, 242, 0.9)", order: 0, isLocked: 1 },  // Gris clair
         { name: "En cours", color: "rgba(240, 248, 255, 0.9)", order: 1, isLocked: 0 }, // Bleu pastel très doux
         { name: "Terminé", color: "rgba(240, 255, 245, 0.9)", order: 2, isLocked: 1 },  // Vert pastel très doux
       ];

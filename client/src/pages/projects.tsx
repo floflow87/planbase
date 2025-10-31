@@ -2819,6 +2819,26 @@ export default function Projects() {
               </div>
             </div>
             <div>
+              <Label htmlFor="task-column">Colonne *</Label>
+              <Select
+                value={createTaskColumnId || undefined}
+                onValueChange={(value) => setCreateTaskColumnId(value)}
+              >
+                <SelectTrigger id="task-column" data-testid="select-new-task-column">
+                  <SelectValue placeholder="Sélectionner une colonne" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(newTaskProjectId ? newTaskProjectColumns : taskColumns)
+                    .sort((a, b) => a.order - b.order)
+                    .map((column) => (
+                      <SelectItem key={column.id} value={column.id}>
+                        {column.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Date d'échéance</Label>
               <Popover>
                 <PopoverTrigger asChild>

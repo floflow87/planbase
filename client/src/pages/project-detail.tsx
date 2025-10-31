@@ -30,6 +30,8 @@ export default function ProjectDetail() {
   const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -351,7 +353,11 @@ export default function ProjectDetail() {
                           return (
                             <div 
                               key={task.id}
-                              className="p-3 border rounded-md hover-elevate"
+                              className="p-3 border rounded-md hover-elevate cursor-pointer"
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setIsTaskDetailDialogOpen(true);
+                              }}
                               data-testid={`task-${task.id}`}
                             >
                               <div className="flex items-start justify-between gap-3">
@@ -535,6 +541,98 @@ export default function ProjectDetail() {
               data-testid="button-confirm-delete"
             >
               Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
+        <DialogContent className="max-w-2xl" data-testid="dialog-task-detail">
+          <DialogHeader>
+            <DialogTitle>{selectedTask?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-4">
+              {selectedTask.description && (
+                <div>
+                  <Label className="text-sm font-medium">Description</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedTask.description}</p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Priorité</Label>
+                  <div className="mt-1">
+                    <Badge variant={
+                      selectedTask.priority === "high" ? "destructive" :
+                      selectedTask.priority === "medium" ? "default" :
+                      "secondary"
+                    }>
+                      {selectedTask.priority === "high" ? "Haute" :
+                       selectedTask.priority === "medium" ? "Moyenne" :
+                       "Basse"}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {selectedTask.assignedToId && (
+                  <div>
+                    <Label className="text-sm font-medium">Assigné à</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {users.find(u => u.id === selectedTask.assignedToId) && (
+                        <>
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                              {users.find(u => u.id === selectedTask.assignedToId)?.firstName?.[0]}
+                              {users.find(u => u.id === selectedTask.assignedToId)?.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">
+                            {users.find(u => u.id === selectedTask.assignedToId)?.firstName}{' '}
+                            {users.find(u => u.id === selectedTask.assignedToId)?.lastName}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {selectedTask.dueDate && (
+                <div>
+                  <Label className="text-sm font-medium">Date d'échéance</Label>
+                  <div className="flex items-center gap-2 mt-1 text-sm">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    {format(new Date(selectedTask.dueDate), "dd MMMM yyyy", { locale: fr })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-sm font-medium">Statut</Label>
+                <div className="mt-1">
+                  {columns.find(c => c.id === selectedTask.columnId) && (
+                    <Badge 
+                      variant="outline"
+                      style={{
+                        backgroundColor: columns.find(c => c.id === selectedTask.columnId)?.color,
+                      }}
+                    >
+                      {columns.find(c => c.id === selectedTask.columnId)?.name}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsTaskDetailDialogOpen(false)}
+              data-testid="button-close-task-detail"
+            >
+              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
