@@ -14,8 +14,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient } from "@shared/schema";
-import { insertClientSchema } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect } from "react";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
@@ -98,6 +98,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
+  const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -129,7 +130,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       setIsCreateClientDialogOpen(false);
-      form.reset();
+      clientForm.reset();
       toast({ title: "Client créé avec succès", variant: "success" });
     },
     onError: () => {
@@ -137,8 +138,24 @@ export default function Dashboard() {
     },
   });
 
+  // Create project mutation
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: InsertProject) => {
+      return await apiRequest("POST", "/api/projects", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setIsCreateProjectDialogOpen(false);
+      projectForm.reset();
+      toast({ title: "Projet créé avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
   // Form for client creation
-  const form = useForm<InsertClient>({
+  const clientForm = useForm<InsertClient>({
     resolver: zodResolver(insertClientSchema),
     defaultValues: {
       accountId: accountId || "",
@@ -153,10 +170,26 @@ export default function Dashboard() {
     },
   });
 
+  // Form for project creation
+  const projectForm = useForm<InsertProject>({
+    resolver: zodResolver(insertProjectSchema),
+    defaultValues: {
+      accountId: accountId || "",
+      name: "",
+      description: "",
+      stage: "prospection",
+      category: "",
+      budget: "0",
+      tags: [],
+      meta: {},
+      createdBy: currentUser?.id || "",
+    },
+  });
+
   // Update form default values when accountId and currentUser become available
   useEffect(() => {
     if (accountId && currentUser) {
-      form.reset({
+      clientForm.reset({
         accountId: accountId,
         name: "",
         type: "company",
@@ -167,11 +200,26 @@ export default function Dashboard() {
         notes: "",
         createdBy: currentUser.id,
       });
+      projectForm.reset({
+        accountId: accountId,
+        name: "",
+        description: "",
+        stage: "prospection",
+        category: "",
+        budget: "0",
+        tags: [],
+        meta: {},
+        createdBy: currentUser.id,
+      });
     }
-  }, [accountId, currentUser, form]);
+  }, [accountId, currentUser, clientForm, projectForm]);
 
-  const onSubmit = (data: InsertClient) => {
+  const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
+  };
+
+  const onProjectSubmit = (data: InsertProject) => {
+    createProjectMutation.mutate(data);
   };
 
   if (!accountId || projectsLoading || clientsLoading || activitiesLoading) {
@@ -264,10 +312,10 @@ export default function Dashboard() {
             <DialogHeader>
               <DialogTitle>Créer un nouveau client</DialogTitle>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Form {...clientForm}>
+              <form onSubmit={clientForm.handleSubmit(onClientSubmit)} className="space-y-4">
                 <FormField
-                  control={form.control}
+                  control={clientForm.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -281,7 +329,7 @@ export default function Dashboard() {
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    control={form.control}
+                    control={clientForm.control}
                     name="type"
                     render={({ field }) => (
                       <FormItem>
@@ -302,7 +350,7 @@ export default function Dashboard() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={clientForm.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
@@ -327,7 +375,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <FormField
-                  control={form.control}
+                  control={clientForm.control}
                   name="budget"
                   render={({ field }) => (
                     <FormItem>
@@ -366,6 +414,118 @@ export default function Dashboard() {
           </DialogContent>
         </Dialog>
 
+        {/* Create Project Dialog */}
+        <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
+          <DialogContent data-testid="dialog-create-project">
+            <DialogHeader>
+              <DialogTitle>Créer un nouveau projet</DialogTitle>
+            </DialogHeader>
+            <Form {...projectForm}>
+              <form onSubmit={projectForm.handleSubmit(onProjectSubmit)} className="space-y-4">
+                <FormField
+                  control={projectForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom du projet</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-project-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={projectForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} data-testid="input-project-description" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={projectForm.control}
+                    name="stage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Étape</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "prospection"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-project-stage">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="prospection">Prospection</SelectItem>
+                            <SelectItem value="en_cours">En cours</SelectItem>
+                            <SelectItem value="termine">Terminé</SelectItem>
+                            <SelectItem value="signe">Signé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={projectForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Catégorie</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} data-testid="input-project-category" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={projectForm.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget (€)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value || 0}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          disabled={field.disabled}
+                          data-testid="input-project-budget"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateProjectDialogOpen(false)}
+                    data-testid="button-cancel-project"
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={createProjectMutation.isPending} data-testid="button-submit-project">
+                    Créer
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -386,7 +546,7 @@ export default function Dashboard() {
             </Button>
             <Button 
               size="sm" 
-              onClick={() => setLocation("/projects")}
+              onClick={() => setIsCreateProjectDialogOpen(true)}
               data-testid="button-new-project"
             >
               <Plus className="w-4 h-4 mr-2" />

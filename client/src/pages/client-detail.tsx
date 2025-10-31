@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project } from "@shared/schema";
+import type { Client, Contact, Project, AppUser } from "@shared/schema";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,6 @@ export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const accountId = localStorage.getItem("demo_account_id");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -33,18 +32,28 @@ export default function ClientDetail() {
     position: "",
   });
 
+  // Fetch current user to get accountId
+  const { data: currentUser } = useQuery<AppUser>({
+    queryKey: ["/api/me"],
+  });
+
+  const accountId = currentUser?.accountId;
+
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
-    queryKey: ['/api/accounts', accountId, 'clients', id],
+    queryKey: ['/api/clients', id],
+    enabled: !!accountId && !!id,
   });
 
   const { data: contacts = [] } = useQuery<Contact[]>({
-    queryKey: ['/api/accounts', accountId, 'contacts'],
+    queryKey: ['/api/contacts'],
     select: (data) => data.filter((c: Contact) => c.clientId === id),
+    enabled: !!accountId,
   });
 
   const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ['/api/accounts', accountId, 'projects'],
+    queryKey: ['/api/projects'],
     select: (data) => data.filter((p: Project) => p.clientId === id),
+    enabled: !!accountId,
   });
 
   const deleteClientMutation = useMutation({
@@ -52,7 +61,7 @@ export default function ClientDetail() {
       await apiRequest("DELETE", `/api/clients/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({ title: "Client supprimé avec succès" });
       setLocation("/crm");
     },
@@ -66,7 +75,7 @@ export default function ClientDetail() {
       return await apiRequest("POST", "/api/contacts", { ...data, clientId: id });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
       toast({ title: "Contact créé avec succès" });
@@ -81,7 +90,7 @@ export default function ClientDetail() {
       return await apiRequest("PATCH", `/api/contacts/${contactId}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setEditingContact(null);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
@@ -94,7 +103,7 @@ export default function ClientDetail() {
       await apiRequest("DELETE", `/api/contacts/${contactId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountId, 'contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       toast({ title: "Contact supprimé" });
     },
   });
