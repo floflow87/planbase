@@ -1041,6 +1041,7 @@ export default function Projects() {
   const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
   const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
   const [projectComboboxOpen, setProjectComboboxOpen] = useState(false);
+  const [columnComboboxOpen, setColumnComboboxOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("rgba(229, 231, 235, 0.4)");
@@ -2887,24 +2888,54 @@ export default function Projects() {
               </div>
             </div>
             <div>
-              <Label htmlFor="task-column">Colonne *</Label>
-              <Select
-                value={createTaskColumnId || undefined}
-                onValueChange={(value) => setCreateTaskColumnId(value)}
-              >
-                <SelectTrigger id="task-column" data-testid="select-new-task-column">
-                  <SelectValue placeholder="Sélectionner une colonne" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(newTaskProjectId ? newTaskProjectColumns : taskColumns)
-                    .sort((a, b) => a.order - b.order)
-                    .map((column) => (
-                      <SelectItem key={column.id} value={column.id}>
-                        {column.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Label>Colonne *</Label>
+              <Popover open={columnComboboxOpen} onOpenChange={setColumnComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={columnComboboxOpen}
+                    className="w-full justify-between"
+                    data-testid="button-select-column"
+                  >
+                    {createTaskColumnId
+                      ? (newTaskProjectId ? newTaskProjectColumns : taskColumns)
+                          .find((c) => c.id === createTaskColumnId)?.name
+                      : "Sélectionner une colonne..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher une colonne..." />
+                    <CommandList>
+                      <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
+                      <CommandGroup>
+                        {(newTaskProjectId ? newTaskProjectColumns : taskColumns)
+                          .sort((a, b) => a.order - b.order)
+                          .map((column) => (
+                            <CommandItem
+                              key={column.id}
+                              value={column.name}
+                              onSelect={() => {
+                                setCreateTaskColumnId(column.id);
+                                setColumnComboboxOpen(false);
+                              }}
+                              data-testid={`column-option-${column.id}`}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              {column.name}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <Label>Date d'échéance</Label>
