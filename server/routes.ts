@@ -1255,7 +1255,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ error: "Roadmap item not found" });
       }
-      if (existing.accountId !== req.accountId) {
+      
+      // Verify access through roadmap
+      const roadmap = await storage.getRoadmap(existing.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -1272,7 +1275,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         return res.status(404).json({ error: "Roadmap item not found" });
       }
-      if (existing.accountId !== req.accountId) {
+      
+      // Verify access through roadmap
+      const roadmap = await storage.getRoadmap(existing.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
       }
 

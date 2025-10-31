@@ -549,7 +549,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
       .filter(c => c.isLocked)
       .sort((a, b) => b.order - a.order)[0];
     
-    for (const taskId of selectedTasks) {
+    for (const taskId of Array.from(selectedTasks)) {
       if (action === 'complete' && completedColumn) {
         onUpdateTask(taskId, { columnId: completedColumn.id });
       } else if (action === 'urgent') {
@@ -560,7 +560,7 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   };
 
   const handleBulkAssign = async (userId: string) => {
-    for (const taskId of selectedTasks) {
+    for (const taskId of Array.from(selectedTasks)) {
       onUpdateTask(taskId, { assignedToId: userId });
     }
     setSelectedTasks(new Set());
@@ -1880,11 +1880,12 @@ export default function Projects() {
               <div className="flex items-center gap-2">
                 <Select value={projectStageFilter} onValueChange={setProjectStageFilter}>
                   <SelectTrigger className="w-[180px]" data-testid="select-project-stage-filter">
-                    <SelectValue placeholder="Tous les stages" />
+                    <SelectValue placeholder="Toutes les étapes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les stages</SelectItem>
+                    <SelectItem value="all">Toutes les étapes</SelectItem>
                     <SelectItem value="prospection">Prospection</SelectItem>
+                    <SelectItem value="signe">Signé</SelectItem>
                     <SelectItem value="en_cours">En cours</SelectItem>
                     <SelectItem value="termine">Terminé</SelectItem>
                   </SelectContent>
@@ -1969,6 +1970,8 @@ export default function Projects() {
                     switch (stage) {
                       case "prospection":
                         return "bg-yellow-100 text-yellow-700 border-yellow-200";
+                      case "signe":
+                        return "bg-purple-100 text-purple-700 border-purple-200";
                       case "en_cours":
                         return "bg-blue-100 text-blue-700 border-blue-200";
                       case "termine":
@@ -1982,6 +1985,8 @@ export default function Projects() {
                     switch (stage) {
                       case "prospection":
                         return "Prospection";
+                      case "signe":
+                        return "Signé";
                       case "en_cours":
                         return "En cours";
                       case "termine":
@@ -2165,7 +2170,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="project-stage">Stage</Label>
+                <Label htmlFor="project-stage">Étape</Label>
                 <Select
                   value={projectFormData.stage}
                   onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
@@ -2175,6 +2180,7 @@ export default function Projects() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="prospection">Prospection</SelectItem>
+                    <SelectItem value="signe">Signé</SelectItem>
                     <SelectItem value="en_cours">En cours</SelectItem>
                     <SelectItem value="termine">Terminé</SelectItem>
                   </SelectContent>
@@ -2344,7 +2350,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-project-stage">Stage</Label>
+                <Label htmlFor="edit-project-stage">Étape</Label>
                 <Select
                   value={projectFormData.stage}
                   onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
@@ -2354,6 +2360,7 @@ export default function Projects() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="prospection">Prospection</SelectItem>
+                    <SelectItem value="signe">Signé</SelectItem>
                     <SelectItem value="en_cours">En cours</SelectItem>
                     <SelectItem value="termine">Terminé</SelectItem>
                   </SelectContent>
