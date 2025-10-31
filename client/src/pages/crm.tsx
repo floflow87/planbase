@@ -87,6 +87,9 @@ export default function CRM() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
@@ -562,11 +565,7 @@ export default function CRM() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => {
-                            if (confirm(`Supprimer ${selectedClients.size} client(s) ?`)) {
-                              bulkDeleteMutation.mutate(Array.from(selectedClients));
-                            }
-                          }}
+                          onClick={() => setIsBulkDeleteDialogOpen(true)}
                           className="text-red-600"
                           data-testid="button-bulk-delete"
                         >
@@ -778,9 +777,8 @@ export default function CRM() {
                                 className="text-red-600"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
-                                    deleteMutation.mutate(client.id);
-                                  }
+                                  setClientToDelete(client.id);
+                                  setIsDeleteDialogOpen(true);
                                 }}
                                 data-testid={`button-delete-${client.id}`}
                               >
@@ -851,9 +849,8 @@ export default function CRM() {
                               className="text-red-600"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
-                                  deleteMutation.mutate(client.id);
-                                }
+                                setClientToDelete(client.id);
+                                setIsDeleteDialogOpen(true);
                               }}
                               data-testid={`button-card-delete-${client.id}`}
                             >
@@ -898,6 +895,75 @@ export default function CRM() {
             )}
           </CardContent>
         </Card>
+
+        {/* Delete Single Client Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) setClientToDelete(null);
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+            </DialogHeader>
+            <p>Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteDialogOpen(false);
+                  setClientToDelete(null);
+                }}
+                data-testid="button-cancel-delete"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (clientToDelete) {
+                    deleteMutation.mutate(clientToDelete);
+                    setIsDeleteDialogOpen(false);
+                    setClientToDelete(null);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                Supprimer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Delete Dialog */}
+        <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+            </DialogHeader>
+            <p>Êtes-vous sûr de vouloir supprimer {selectedClients.size} client(s) ? Cette action est irréversible.</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsBulkDeleteDialogOpen(false)}
+                data-testid="button-cancel-bulk-delete"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  bulkDeleteMutation.mutate(Array.from(selectedClients));
+                  setIsBulkDeleteDialogOpen(false);
+                }}
+                disabled={bulkDeleteMutation.isPending}
+                data-testid="button-confirm-bulk-delete"
+              >
+                Supprimer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
