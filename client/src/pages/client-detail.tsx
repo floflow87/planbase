@@ -23,6 +23,8 @@ export default function ClientDetail() {
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [isDeleteContactDialogOpen, setIsDeleteContactDialogOpen] = useState(false);
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactFormData, setContactFormData] = useState({
     firstName: "",
@@ -104,7 +106,12 @@ export default function ClientDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
-      toast({ title: "Contact supprimé" });
+      setIsDeleteContactDialogOpen(false);
+      setContactToDelete(null);
+      toast({ title: "Contact supprimé", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression du contact", variant: "destructive" });
     },
   });
 
@@ -257,6 +264,89 @@ export default function ClientDetail() {
                   <div className="pt-6 border-t mt-6">
                     <p className="text-sm text-muted-foreground mb-2">Notes</p>
                     <p className="text-foreground whitespace-pre-wrap">{client.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Contacts</CardTitle>
+                <Button onClick={() => openContactDialog()} data-testid="button-add-contact">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter un contact
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {contacts.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    Aucun contact pour ce client
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {contacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
+                        data-testid={`contact-item-${contact.id}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar>
+                            <AvatarFallback>
+                              {contact.firstName?.[0]}{contact.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {contact.firstName} {contact.lastName}
+                            </p>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                              {contact.position && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3" />
+                                  {contact.position}
+                                </span>
+                              )}
+                              {contact.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3 h-3" />
+                                  {contact.email}
+                                </span>
+                              )}
+                              {contact.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {contact.phone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openContactDialog(contact)}
+                            data-testid={`button-edit-contact-${contact.id}`}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              setContactToDelete(contact.id);
+                              setIsDeleteContactDialogOpen(true);
+                            }}
+                            data-testid={`button-delete-contact-${contact.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -419,6 +509,40 @@ export default function ClientDetail() {
                   {editingContact ? "Mettre à jour" : "Créer"}
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Contact Confirmation Dialog */}
+        <Dialog open={isDeleteContactDialogOpen} onOpenChange={setIsDeleteContactDialogOpen}>
+          <DialogContent data-testid="dialog-delete-contact">
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+            </DialogHeader>
+            <p>Êtes-vous sûr de vouloir supprimer ce contact ? Cette action est irréversible.</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteContactDialogOpen(false);
+                  setContactToDelete(null);
+                }}
+                data-testid="button-cancel-delete-contact"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (contactToDelete) {
+                    deleteContactMutation.mutate(contactToDelete);
+                  }
+                }}
+                disabled={deleteContactMutation.isPending}
+                data-testid="button-confirm-delete-contact"
+              >
+                Supprimer
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -7,53 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Notes() {
-  // Mock data
-  const notes = [
-    {
-      id: "1",
-      category: "Marketing",
-      categoryColor: "bg-orange-100 text-orange-700 border-orange-200",
-      title: "Stratégie de lancement produit Q1 2024",
-      preview: "Analyse des tendances marché et définition de la stratégie de positionnement pour le lancement du nouveau produit SaaS. Focus sur l'acquisition client B2B...",
-      tags: ["TechCorp", "SaaS Launch"],
-      attachments: 3,
-      updatedAt: "Modifié il y a 2h",
-      author: { name: "Sarah M.", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" },
-    },
-    {
-      id: "2",
-      category: "Produit",
-      categoryColor: "bg-blue-100 text-blue-700 border-blue-200",
-      title: "Feedback utilisateurs - Dashboard V2",
-      preview: "Compilation des retours utilisateurs sur la nouvelle interface dashboard. Points d'amélioration identifiés : navigation, filtres avancés, performance mobile...",
-      tags: [],
-      attachments: 0,
-      updatedAt: "Modifié il y a 1j",
-      author: { name: "Alex J.", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" },
-    },
-    {
-      id: "3",
-      category: "Finance",
-      categoryColor: "bg-green-100 text-green-700 border-green-200",
-      title: "Prévisions budget 2024 - Startup",
-      preview: "Projection financière détaillée pour 2024 incluant les coûts d'acquisition client, salaires équipe, infrastructure cloud et marketing digital...",
-      tags: ["StartupCo", "Budget 2024"],
-      attachments: 2,
-      updatedAt: "Modifié il y a 3j",
-      author: { name: "Alex J.", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" },
-    },
-    {
-      id: "4",
-      category: "Legal",
-      categoryColor: "bg-purple-100 text-purple-700 border-purple-200",
-      title: "Contrat partenariat - TechVenture",
-      preview: "Points clés du contrat de partenariat stratégique avec TechVenture. Clauses de propriété intellectuelle, revenus partagés et exclusivité territoriale...",
-      tags: ["TechVenture"],
-      attachments: 2,
-      updatedAt: "Modifié il y a 1 sem",
-      author: { name: "Marie L.", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie" },
-    },
-  ];
+  const notes: any[] = [];
 
   return (
     <div className="flex-1 overflow-auto bg-background relative" data-testid="page-notes">
@@ -119,7 +73,16 @@ export default function Notes() {
 
         {/* Notes Grid */}
         <div className="space-y-3">
-          {notes.map((note) => (
+          {notes.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-muted-foreground">
+                  Aucune note disponible. Cliquez sur "Nouvelle note" pour commencer.
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            notes.map((note) => (
             <Card key={note.id} className="hover-elevate cursor-pointer transition-shadow" data-testid={`card-note-${note.id}`}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
@@ -142,7 +105,7 @@ export default function Notes() {
                     <div className="flex items-center gap-4 flex-wrap">
                       {note.tags.length > 0 && (
                         <div className="flex items-center gap-2">
-                          {note.tags.map((tag, idx) => (
+                          {note.tags.map((tag: string, idx: number) => (
                             <Badge key={idx} variant="secondary" className="text-xs font-normal">
                               {tag}
                             </Badge>
@@ -165,7 +128,7 @@ export default function Notes() {
                         <Avatar className="w-6 h-6">
                           <AvatarImage src={note.author.avatar} />
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                            {note.author.name.split(' ').map(n => n[0]).join('')}
+                            {note.author.name.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm text-muted-foreground">{note.author.name}</span>
@@ -175,7 +138,8 @@ export default function Notes() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
