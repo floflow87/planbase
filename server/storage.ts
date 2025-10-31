@@ -330,6 +330,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(taskColumns.order);
   }
 
+  async getTaskColumnsByAccountId(accountId: string): Promise<TaskColumn[]> {
+    return await db
+      .select()
+      .from(taskColumns)
+      .where(eq(taskColumns.accountId, accountId))
+      .orderBy(taskColumns.order);
+  }
+
   async createTaskColumn(columnData: InsertTaskColumn): Promise<TaskColumn> {
     const [column] = await db.insert(taskColumns).values(columnData).returning();
     return column;

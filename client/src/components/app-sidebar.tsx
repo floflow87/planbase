@@ -137,7 +137,7 @@ export function AppSidebar() {
         <Link href="/profile">
           <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
             <Avatar className="w-8 h-8">
-              <AvatarImage src={userProfile?.avatar || defaultAvatar} />
+              <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
                 {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
                 {userProfile?.lastName?.[0] || ''}

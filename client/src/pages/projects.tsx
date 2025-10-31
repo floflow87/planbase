@@ -1055,7 +1055,9 @@ export default function Projects() {
   }, [projects, selectedProjectId]);
 
   const { data: taskColumns = [], isLoading: columnsLoading } = useQuery<TaskColumn[]>({
-    queryKey: ["/api/projects", selectedProjectId, "task-columns"],
+    queryKey: selectedProjectId === "all" 
+      ? ["/api/task-columns"]
+      : ["/api/projects", selectedProjectId, "task-columns"],
     enabled: !!selectedProjectId,
   });
 
@@ -1074,7 +1076,7 @@ export default function Projects() {
   }, [newTaskProjectId, newTaskProjectColumns]);
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
-    queryKey: ["/api/projects", selectedProjectId, "tasks"],
+    queryKey: selectedProjectId === "all" ? ["/api/tasks"] : ["/api/projects", selectedProjectId, "tasks"],
     enabled: !!selectedProjectId,
   });
 
@@ -1092,6 +1094,8 @@ export default function Projects() {
       if (variables.projectId !== selectedProjectId) {
         queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
       }
+      // Invalidate aggregated tasks for "all projects" view
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsCreateTaskDialogOpen(false);
       setNewTaskTitle("");
       setNewTaskDescription("");
@@ -1118,6 +1122,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ title: "Tâche mise à jour", variant: "success" });
     },
     onError: (error: Error) => {
@@ -1136,6 +1141,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ title: "Tâche dupliquée avec succès", variant: "success" });
     },
     onError: (error: Error) => {
@@ -1154,6 +1160,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsDeleteTaskDialogOpen(false);
       setSelectedTask(null);
       toast({ title: "Tâche supprimée", variant: "success" });
@@ -1174,6 +1181,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Tâche déplacée",
         description: "La position de la tâche a été mise à jour avec succès.",
@@ -1196,6 +1204,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
       setIsCreateColumnDialogOpen(false);
       setNewColumnName("");
       toast({ title: "Colonne créée avec succès", variant: "success" });
@@ -1216,6 +1225,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
       setIsRenameColumnDialogOpen(false);
       setIsColorColumnDialogOpen(false);
       setSelectedColumn(null);
@@ -1237,6 +1247,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
       setIsDeleteColumnDialogOpen(false);
       setSelectedColumn(null);
       toast({ title: "Colonne supprimée", variant: "success" });
@@ -1263,6 +1274,7 @@ export default function Projects() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
     },
     onError: (error: Error) => {
       toast({
@@ -1738,6 +1750,7 @@ export default function Projects() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Tous les projets</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
@@ -1752,35 +1765,64 @@ export default function Projects() {
                   <Filter className="w-4 h-4 mr-2" />
                   Filtres
                 </Button>
-                <div className="flex border rounded-md">
+                {selectedProjectId !== "all" && (
+                  <div className="flex border rounded-md">
+                    <Button
+                      variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => setViewMode("kanban")}
+                      data-testid="button-view-kanban"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => setViewMode("list")}
+                      data-testid="button-view-list"
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                {selectedProjectId !== "all" && (
                   <Button
-                    variant={viewMode === "kanban" ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("kanban")}
-                    data-testid="button-view-kanban"
+                    onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
+                    data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
                   >
-                    <LayoutGrid className="w-4 h-4" />
+                    <Plus className="w-4 h-4 mr-2" />
+                    {viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}
                   </Button>
+                )}
+                {selectedProjectId === "all" && (
                   <Button
-                    variant={viewMode === "list" ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setViewMode("list")}
-                    data-testid="button-view-list"
+                    onClick={() => setIsCreateTaskDialogOpen(true)}
+                    data-testid="button-new-task"
                   >
-                    <List className="w-4 h-4" />
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouvelle Tâche
                   </Button>
-                </div>
-                <Button
-                  onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
-                  data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}
-                </Button>
+                )}
               </div>
             </div>
 
-            {selectedProject && (() => {
+            {selectedProjectId === "all" ? (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-foreground mb-2">
+                        Vue d'ensemble de toutes les tâches
+                      </h3>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground">
+                      <div>{tasks.length} tâches au total</div>
+                      <div>{projects.length} projets</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : selectedProject && (() => {
               // Find the "Terminé" column (last locked column with highest order)
               const completedColumn = taskColumns
                 .filter(c => c.isLocked)
@@ -1819,7 +1861,18 @@ export default function Projects() {
               <div className="text-center py-12 text-muted-foreground">
                 Chargement des tâches...
               </div>
-            ) : viewMode === "kanban" ? (
+            ) : selectedProjectId === "all" || viewMode === "list" ? (
+              <ListView
+                tasks={tasks}
+                columns={taskColumns}
+                users={users}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onUpdateTask={(taskId, data) => {
+                  updateTaskMutation.mutate({ id: taskId, data });
+                }}
+              />
+            ) : (
               <DndContext
                 sensors={sensors}
                 collisionDetection={pointerWithin}
@@ -1889,17 +1942,6 @@ export default function Projects() {
                   ) : null}
                 </DragOverlay>
               </DndContext>
-            ) : (
-              <ListView
-                tasks={tasks}
-                columns={taskColumns}
-                users={users}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                onUpdateTask={(taskId, data) => {
-                  updateTaskMutation.mutate({ id: taskId, data });
-                }}
-              />
             )}
           </TabsContent>
 

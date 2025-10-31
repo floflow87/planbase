@@ -445,6 +445,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TASKS - Protected Routes
   // ============================================
 
+  // Get all tasks for the authenticated account
+  app.get("/api/tasks", requireAuth, async (req, res) => {
+    try {
+      const tasks = await storage.getTasksByAccountId(req.accountId!);
+      res.json(tasks);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Get all tasks by project
   app.get("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
     try {
@@ -641,6 +651,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all task columns for a project
+  // Get all task columns for the authenticated account
+  app.get("/api/task-columns", requireAuth, async (req, res) => {
+    try {
+      const columns = await storage.getTaskColumnsByAccountId(req.accountId!);
+      res.json(columns);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/projects/:projectId/task-columns", requireAuth, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
