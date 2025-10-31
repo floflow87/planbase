@@ -14,6 +14,7 @@ import ClientDetail from "@/pages/client-detail";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import Notes from "@/pages/notes";
+import NoteDetail from "@/pages/note-detail";
 import Documents from "@/pages/documents";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
@@ -49,6 +50,9 @@ function Router() {
       </Route>
       <Route path="/projects">
         <ProtectedRoute><Projects /></ProtectedRoute>
+      </Route>
+      <Route path="/notes/:id">
+        <ProtectedRoute><NoteDetail /></ProtectedRoute>
       </Route>
       <Route path="/notes">
         <ProtectedRoute><Notes /></ProtectedRoute>

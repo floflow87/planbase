@@ -64,7 +64,7 @@ export default function ClientDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      toast({ title: "Client supprimé avec succès" });
+      toast({ title: "Client supprimé avec succès", variant: "success" });
       setLocation("/crm");
     },
     onError: () => {
@@ -208,8 +208,7 @@ export default function ClientDetail() {
         <Tabs defaultValue="informations" className="w-full">
           <TabsList>
             <TabsTrigger value="informations" data-testid="tab-informations">Informations</TabsTrigger>
-            <TabsTrigger value="comptabilite" data-testid="tab-comptabilite">Comptabilité</TabsTrigger>
-            <TabsTrigger value="suivi" data-testid="tab-suivi">Suivi notarial</TabsTrigger>
+            <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
             <TabsTrigger value="activites" data-testid="tab-activites">Activités</TabsTrigger>
             <TabsTrigger value="taches" data-testid="tab-taches">Tâches & RDV</TabsTrigger>
             <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
@@ -353,29 +352,15 @@ export default function ClientDetail() {
             </Card>
           </TabsContent>
 
-          {/* Comptabilité */}
-          <TabsContent value="comptabilite" className="space-y-4">
+          {/* Notes */}
+          <TabsContent value="notes" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Comptabilité</CardTitle>
+                <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="py-12 text-center text-muted-foreground">
-                  Section comptabilité à implémenter
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Suivi notarial */}
-          <TabsContent value="suivi" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Suivi notarial</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  Section suivi notarial à implémenter
+                  Section notes à implémenter
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Mic } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,10 @@ export default function Notes() {
   const notes: any[] = [];
 
   return (
-    <div className="flex-1 overflow-auto bg-background relative" data-testid="page-notes">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-heading font-semibold text-foreground" data-testid="text-page-title">Notes</h1>
+        <div className="flex items-center justify-end">
           <Button className="gap-2" data-testid="button-nouvelle-note">
             <Plus className="w-4 h-4" />
             Nouvelle note
@@ -142,15 +141,6 @@ export default function Notes() {
           )}
         </div>
       </div>
-
-      {/* Floating Audio Button */}
-      <Button
-        size="lg"
-        className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-lg bg-violet-600 hover:bg-violet-700"
-        data-testid="button-record-audio"
-      >
-        <Mic className="w-6 h-6" />
-      </Button>
     </div>
   );
 }
