@@ -95,6 +95,24 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 
+// Helper function to derive task status from column name
+function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
+  const lowerName = columnName.toLowerCase();
+  
+  if (lowerName.includes("à faire") || lowerName.includes("todo") || lowerName.includes("backlog")) {
+    return "todo";
+  } else if (lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété")) {
+    return "done";
+  } else if (lowerName.includes("en cours") || lowerName.includes("progress") || lowerName.includes("doing")) {
+    return "in_progress";
+  } else if (lowerName.includes("revue") || lowerName.includes("review") || lowerName.includes("validation")) {
+    return "review";
+  }
+  
+  // Default to in_progress for custom columns
+  return "in_progress";
+}
+
 interface SortableTaskCardProps {
   task: Task;
   users: AppUser[];
@@ -1550,6 +1568,10 @@ export default function Projects() {
       return;
     }
 
+    // Find the target column to derive status from its name
+    const targetColumn = targetColumns.find((c) => c.id === targetColumnId);
+    const taskStatus = targetColumn ? getStatusFromColumnName(targetColumn.name) : "todo";
+
     // Calculate position - fetch tasks from the target project if different
     const targetProjectId = newTaskProjectId || selectedProjectId;
     const tasksInColumn = tasks
@@ -1565,7 +1587,7 @@ export default function Projects() {
       title: newTaskTitle,
       description: newTaskDescription || null,
       priority: newTaskPriority,
-      status: "todo",
+      status: taskStatus,
       assignedToId: newTaskAssignedTo || null,
       assignees: [],
       progress: 0,
