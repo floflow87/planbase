@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, List, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,15 +18,102 @@ import { insertClientSchema, type InsertClient, type Client, type Contact, type 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// Type pour les colonnes
+type ColumnId = "client" | "contacts" | "type" | "projets" | "budget";
+
+interface Column {
+  id: ColumnId;
+  label: string;
+  width: number;
+  className: string;
+}
+
+// Composant pour une colonne draggable
+function DraggableColumnHeader({ id, label }: { id: string; label: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-1 cursor-move"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical className="w-3 h-3 text-muted-foreground" />
+      <span>{label}</span>
+    </div>
+  );
+}
 
 export default function CRM() {
   const { toast } = useToast();
   
-  const [viewMode, setViewMode] = useState<"table" | "kanban" | "list">("table");
+  const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  
+  // Colonnes configurables
+  const [columns, setColumns] = useState<Column[]>([
+    { id: "client", label: "Client", width: 4, className: "col-span-4" },
+    { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
+    { id: "type", label: "Type", width: 2, className: "col-span-2" },
+    { id: "projets", label: "Projets", width: 2, className: "col-span-2" },
+    { id: "budget", label: "Budget", width: 1, className: "col-span-1" },
+  ]);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setColumns((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -76,6 +163,30 @@ export default function CRM() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       toast({ title: "Client supprimé", variant: "success" });
+    },
+  });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => apiRequest("DELETE", `/api/clients/${id}`)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      setSelectedClients(new Set());
+      toast({ title: "Clients supprimés", variant: "success" });
+    },
+  });
+
+  // Bulk update status mutation
+  const bulkUpdateStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      await Promise.all(ids.map(id => apiRequest("PATCH", `/api/clients/${id}`, { status })));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      setSelectedClients(new Set());
+      toast({ title: "Statuts mis à jour", variant: "success" });
     },
   });
 
@@ -412,8 +523,8 @@ export default function CRM() {
         {/* Filters and Actions */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-1 min-w-fit">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -430,14 +541,59 @@ export default function CRM() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                    <SelectItem value="in_progress">En négociation</SelectItem>
-                    <SelectItem value="signed">Gagné</SelectItem>
-                    <SelectItem value="inactive">Inactif</SelectItem>
+                    <SelectItem value="prospecting">Prospection</SelectItem>
+                    <SelectItem value="qualified">Qualifié</SelectItem>
+                    <SelectItem value="negotiation">Négociation</SelectItem>
+                    <SelectItem value="won">Gagné</SelectItem>
+                    <SelectItem value="lost">Perdu</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center gap-2">
+                {selectedClients.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" data-testid="button-bulk-actions">
+                          Actions
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (confirm(`Supprimer ${selectedClients.size} client(s) ?`)) {
+                              bulkDeleteMutation.mutate(Array.from(selectedClients));
+                            }
+                          }}
+                          className="text-red-600"
+                          data-testid="button-bulk-delete"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Supprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "prospecting" })}
+                          data-testid="button-bulk-prospecting"
+                        >
+                          Marquer comme prospection
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "won" })}
+                          data-testid="button-bulk-won"
+                        >
+                          Marquer comme gagné
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "lost" })}
+                          data-testid="button-bulk-lost"
+                        >
+                          Marquer comme perdu
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
                 <Button variant="outline" size="sm" data-testid="button-export">
                   <Download className="w-4 h-4 mr-2" />
                   Exporter
@@ -452,20 +608,12 @@ export default function CRM() {
                     <Table2 className="w-4 h-4" />
                   </Button>
                   <Button
-                    variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                    variant={viewMode === "card" ? "secondary" : "ghost"}
                     size="sm"
-                    onClick={() => setViewMode("kanban")}
-                    data-testid="button-view-kanban"
+                    onClick={() => setViewMode("card")}
+                    data-testid="button-view-card"
                   >
                     <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    data-testid="button-view-list"
-                  >
-                    <List className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -476,87 +624,248 @@ export default function CRM() {
               <div className="text-center py-12 text-muted-foreground">
                 Aucun client trouvé
               </div>
-            ) : (
-              <div className="space-y-2">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-                  <div className="col-span-4">Client</div>
-                  <div className="col-span-2">Contacts</div>
-                  <div className="col-span-2">Type</div>
-                  <div className="col-span-2">Projets</div>
-                  <div className="col-span-1">Budget</div>
-                  <div className="col-span-1">Actions</div>
+            ) : viewMode === "table" ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="space-y-2">
+                  {/* Table Header with drag and drop */}
+                  <SortableContext
+                    items={columns.map(col => col.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                      <div className="col-span-1 flex items-center">
+                        <Checkbox
+                          checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedClients(new Set(filteredClients.map(c => c.id)));
+                            } else {
+                              setSelectedClients(new Set());
+                            }
+                          }}
+                          data-testid="checkbox-select-all"
+                        />
+                      </div>
+                      {columns.map((column) => (
+                        <div key={column.id} className={column.className}>
+                          <DraggableColumnHeader id={column.id} label={column.label} />
+                        </div>
+                      ))}
+                      <div className="col-span-1">Actions</div>
+                    </div>
+                  </SortableContext>
+                  
+                  {/* Table Rows */}
+                  {filteredClients.map((client) => {
+                    const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
+                    const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+                    const isSelected = selectedClients.has(client.id);
+
+                    const renderColumnContent = (columnId: ColumnId) => {
+                      switch (columnId) {
+                        case "client":
+                          return (
+                            <div className="flex items-center gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{client.name}</p>
+                                <p className="text-xs text-muted-foreground capitalize">
+                                  {client.type === 'company' ? 'Entreprise' : 'Personne'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        case "contacts":
+                          return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
+                        case "type":
+                          return (
+                            <Badge variant="secondary">
+                              {client.status === "prospecting" ? "Prospection" :
+                               client.status === "qualified" ? "Qualifié" :
+                               client.status === "negotiation" ? "Négociation" :
+                               client.status === "won" ? "Gagné" :
+                               client.status === "lost" ? "Perdu" : client.status}
+                            </Badge>
+                          );
+                        case "projets":
+                          return <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>;
+                        case "budget":
+                          return (
+                            <p className="text-sm font-medium text-foreground">
+                              €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                            </p>
+                          );
+                        default:
+                          return null;
+                      }
+                    };
+                    
+                    return (
+                      <div
+                        key={client.id}
+                        className={`grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border ${isSelected ? 'bg-muted/50' : ''}`}
+                        data-testid={`row-client-${client.id}`}
+                      >
+                        <div className="col-span-1 flex items-center">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedClients);
+                              if (checked) {
+                                newSelected.add(client.id);
+                              } else {
+                                newSelected.delete(client.id);
+                              }
+                              setSelectedClients(newSelected);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`checkbox-select-${client.id}`}
+                          />
+                        </div>
+                        {columns.map((column) => (
+                          <Link key={column.id} href={`/crm/${client.id}`}>
+                            <div className={`${column.className} flex items-center cursor-pointer`}>
+                              {renderColumnContent(column.id)}
+                            </div>
+                          </Link>
+                        ))}
+                        <div className="col-span-1 flex items-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`button-message-${client.id}`}>
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Message
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
+                                    deleteMutation.mutate(client.id);
+                                  }
+                                }}
+                                data-testid={`button-delete-${client.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {/* Table Rows */}
+              </DndContext>
+            ) : (
+              /* Card View */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredClients.map((client) => {
                   const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
                   const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-                  
+                  const isSelected = selectedClients.has(client.id);
+
                   return (
-                    <Link key={client.id} href={`/crm/${client.id}`}>
-                      <div
-                        className="grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border cursor-pointer"
-                        data-testid={`row-client-${client.id}`}
-                      >
-                      <div className="col-span-4 flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
-                          <AvatarFallback>{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{client.name}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{client.type === 'company' ? 'Entreprise' : 'Personne'}</p>
-                        </div>
-                      </div>
-                      <div className="col-span-2 flex items-center">
-                        <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>
-                      </div>
-                      <div className="col-span-2 flex items-center">
-                        <Badge variant={client.type === "client" ? "default" : "secondary"}>
-                          {client.type === "client" ? "Client" : "Prospect"}
-                        </Badge>
-                      </div>
-                      <div className="col-span-2 flex items-center">
-                        <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
-                      </div>
-                      <div className="col-span-1 flex items-center">
-                        <p className="text-sm font-medium text-foreground">
-                          €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
-                        </p>
-                      </div>
-                      <div className="col-span-1 flex items-center">
+                    <Card
+                      key={client.id}
+                      className={`hover-elevate cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                      data-testid={`card-client-${client.id}`}
+                    >
+                      <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            const newSelected = new Set(selectedClients);
+                            if (checked) {
+                              newSelected.add(client.id);
+                            } else {
+                              newSelected.delete(client.id);
+                            }
+                            setSelectedClients(newSelected);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`checkbox-card-select-${client.id}`}
+                        />
+                        <Link href={`/crm/${client.id}`} className="flex-1">
+                          <div>
+                            <CardTitle className="text-base">{client.name}</CardTitle>
+                            <p className="text-xs text-muted-foreground capitalize mt-1">
+                              {client.type === 'company' ? 'Entreprise' : 'Personne'}
+                            </p>
+                          </div>
+                        </Link>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
+                            <Button variant="ghost" size="sm" data-testid={`button-card-actions-${client.id}`}>
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                            <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-card-edit-${client.id}`}>
                               <Edit className="w-4 h-4 mr-2" />
                               Modifier
                             </DropdownMenuItem>
-                            <DropdownMenuItem data-testid={`button-message-${client.id}`}>
+                            <DropdownMenuItem data-testid={`button-card-message-${client.id}`}>
                               <MessageSquare className="w-4 h-4 mr-2" />
                               Message
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
                                   deleteMutation.mutate(client.id);
                                 }
                               }}
-                              data-testid={`button-delete-${client.id}`}
+                              data-testid={`button-card-delete-${client.id}`}
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
                               Supprimer
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </div>
-                    </div>
-                  </Link>
+                      </CardHeader>
+                      <Link href={`/crm/${client.id}`}>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Statut</span>
+                            <Badge variant="secondary">
+                              {client.status === "prospecting" ? "Prospection" :
+                               client.status === "qualified" ? "Qualifié" :
+                               client.status === "negotiation" ? "Négociation" :
+                               client.status === "won" ? "Gagné" :
+                               client.status === "lost" ? "Perdu" : client.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Contacts</span>
+                            <Badge variant="outline">{clientContacts.length}</Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Projets</span>
+                            <span className="text-sm text-foreground">{clientProjects.length}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Budget</span>
+                            <span className="text-sm font-medium text-foreground">
+                              €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Link>
+                    </Card>
                   );
                 })}
               </div>
