@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn } from "@shared/schema";
@@ -179,6 +180,12 @@ export default function ProjectDetail() {
     return acc;
   }, {} as Record<string, Task[]>);
 
+  // Calculate progress based on completed tasks
+  const completedColumn = columns.find(col => col.name === "Terminé");
+  const completedTasksCount = completedColumn ? (tasksByStatus[completedColumn.id] || []).length : 0;
+  const totalTasksCount = projectTasks.length;
+  const progressPercentage = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+
   return (
     <div className="h-full overflow-auto">
       <div className="container mx-auto p-6 max-w-7xl">
@@ -269,6 +276,28 @@ export default function ProjectDetail() {
             </Card>
           )}
         </div>
+
+        {totalTasksCount > 0 && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Progression des tâches</CardTitle>
+                <span className="text-sm font-semibold" data-testid="progress-percentage">
+                  {progressPercentage}%
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Progress value={progressPercentage} className="h-2" data-testid="progress-bar" />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span data-testid="completed-tasks-count">{completedTasksCount} tâche{completedTasksCount !== 1 ? 's' : ''} terminée{completedTasksCount !== 1 ? 's' : ''}</span>
+                  <span data-testid="total-tasks-count">{totalTasksCount} tâche{totalTasksCount !== 1 ? 's' : ''} au total</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {project.description && (
           <Card className="mb-6">
