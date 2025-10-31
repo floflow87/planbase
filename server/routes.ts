@@ -661,6 +661,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get global task columns (not tied to any project)
+  app.get("/api/task-columns/global", requireAuth, async (req, res) => {
+    try {
+      const columns = await storage.getGlobalTaskColumnsByAccountId(req.accountId!);
+      res.json(columns);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/projects/:projectId/task-columns", requireAuth, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);

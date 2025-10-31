@@ -1080,19 +1080,26 @@ export default function Projects() {
     enabled: !!selectedProjectId,
   });
 
+  // Fetch global columns (for tasks without a project)
+  const { data: globalTaskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns/global"],
+    enabled: isCreateTaskDialogOpen,
+  });
+
   // Fetch columns for the project selected in task creation form
   const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
     queryKey: ["/api/projects", newTaskProjectId, "task-columns"],
-    enabled: !!newTaskProjectId && isCreateTaskDialogOpen,
+    enabled: !!newTaskProjectId && newTaskProjectId !== "none" && isCreateTaskDialogOpen,
   });
 
   // Auto-select first column when project changes in task creation form
   useEffect(() => {
-    if (newTaskProjectId && newTaskProjectColumns.length > 0) {
-      const sortedColumns = [...newTaskProjectColumns].sort((a, b) => a.order - b.order);
+    const columnsToUse = newTaskProjectId === "none" ? globalTaskColumns : newTaskProjectColumns;
+    if (columnsToUse.length > 0) {
+      const sortedColumns = [...columnsToUse].sort((a, b) => a.order - b.order);
       setCreateTaskColumnId(sortedColumns[0].id);
     }
-  }, [newTaskProjectId, newTaskProjectColumns]);
+  }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns]);
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: selectedProjectId === "all" ? ["/api/tasks"] : ["/api/projects", selectedProjectId, "tasks"],
@@ -1555,10 +1562,18 @@ export default function Projects() {
   const handleCreateTask = () => {
     if (!newTaskTitle.trim() || !accountId || !userId) return;
 
-    // Determine which columns to use (from selected project in form or current project)
-    const targetColumns = newTaskProjectId && newTaskProjectId !== selectedProjectId 
-      ? newTaskProjectColumns 
-      : taskColumns;
+    // Determine which columns to use
+    let targetColumns: TaskColumn[];
+    if (newTaskProjectId === "none") {
+      // Use global columns for tasks without a project
+      targetColumns = globalTaskColumns;
+    } else if (newTaskProjectId && newTaskProjectId !== selectedProjectId) {
+      // Use columns from the selected project in form
+      targetColumns = newTaskProjectColumns;
+    } else {
+      // Use columns from currently selected project
+      targetColumns = taskColumns;
+    }
     
     // Use createTaskColumnId if set, otherwise use first column (sorted by order)
     const sortedTargetColumns = [...targetColumns].sort((a, b) => a.order - b.order);
@@ -1574,7 +1589,8 @@ export default function Projects() {
     const taskStatus = targetColumn ? getStatusFromColumnName(targetColumn.name) : "todo";
 
     // Calculate position - fetch tasks from the target project if different
-    const targetProjectId = newTaskProjectId || selectedProjectId;
+    // For tasks without a project, projectId will be null
+    const targetProjectId = newTaskProjectId === "none" ? null : (newTaskProjectId || selectedProjectId);
     const tasksInColumn = tasks
       .filter((t) => t.columnId === targetColumnId && t.projectId === targetProjectId);
     const maxPosition = tasksInColumn.length > 0
@@ -1596,7 +1612,7 @@ export default function Projects() {
       order: 0,
       dueDate: (newTaskDueDate ? newTaskDueDate.toISOString() : null) as any,
       createdBy: userId,
-    });
+    } as InsertTask);
   };
 
   const handleCreateColumn = () => {
@@ -2783,7 +2799,7 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Projet *</Label>
+              <Label>Projet</Label>
               <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -2793,7 +2809,9 @@ export default function Projects() {
                     className="w-full justify-between"
                     data-testid="button-select-project"
                   >
-                    {newTaskProjectId
+                    {newTaskProjectId === "none"
+                      ? "Aucun projet"
+                      : newTaskProjectId
                       ? projects.find((p) => p.id === newTaskProjectId)?.name
                       : "Sélectionner un projet..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -2805,6 +2823,22 @@ export default function Projects() {
                     <CommandList>
                       <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                          value="Aucun projet"
+                          onSelect={() => {
+                            setNewTaskProjectId("none");
+                            setProjectComboboxOpen(false);
+                            setCreateTaskColumnId(null);
+                          }}
+                          data-testid="project-option-none"
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              newTaskProjectId === "none" ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          Aucun projet
+                        </CommandItem>
                         {projects.map((project) => (
                           <CommandItem
                             key={project.id}
@@ -2899,8 +2933,12 @@ export default function Projects() {
                     data-testid="button-select-column"
                   >
                     {createTaskColumnId
-                      ? (newTaskProjectId ? newTaskProjectColumns : taskColumns)
-                          .find((c) => c.id === createTaskColumnId)?.name
+                      ? (() => {
+                          const columnsToDisplay = newTaskProjectId === "none" 
+                            ? globalTaskColumns 
+                            : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
+                          return columnsToDisplay.find((c) => c.id === createTaskColumnId)?.name;
+                        })()
                       : "Sélectionner une colonne..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -2911,26 +2949,31 @@ export default function Projects() {
                     <CommandList>
                       <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
                       <CommandGroup>
-                        {(newTaskProjectId ? newTaskProjectColumns : taskColumns)
-                          .sort((a, b) => a.order - b.order)
-                          .map((column) => (
-                            <CommandItem
-                              key={column.id}
-                              value={column.name}
-                              onSelect={() => {
-                                setCreateTaskColumnId(column.id);
-                                setColumnComboboxOpen(false);
-                              }}
-                              data-testid={`column-option-${column.id}`}
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${
-                                  createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
-                                }`}
-                              />
-                              {column.name}
-                            </CommandItem>
-                          ))}
+                        {(() => {
+                          const columnsToDisplay = newTaskProjectId === "none" 
+                            ? globalTaskColumns 
+                            : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
+                          return columnsToDisplay
+                            .sort((a, b) => a.order - b.order)
+                            .map((column) => (
+                              <CommandItem
+                                key={column.id}
+                                value={column.name}
+                                onSelect={() => {
+                                  setCreateTaskColumnId(column.id);
+                                  setColumnComboboxOpen(false);
+                                }}
+                                data-testid={`column-option-${column.id}`}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                {column.name}
+                              </CommandItem>
+                            ));
+                        })()}
                       </CommandGroup>
                     </CommandList>
                   </Command>

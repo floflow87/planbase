@@ -20,7 +20,7 @@ import {
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, isNull } from "drizzle-orm";
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -61,6 +61,7 @@ export interface IStorage {
   // Task Columns
   getTaskColumn(id: string): Promise<TaskColumn | undefined>;
   getTaskColumnsByProjectId(projectId: string): Promise<TaskColumn[]>;
+  getGlobalTaskColumnsByAccountId(accountId: string): Promise<TaskColumn[]>;
   createTaskColumn(column: InsertTaskColumn): Promise<TaskColumn>;
   updateTaskColumn(id: string, column: Partial<InsertTaskColumn>): Promise<TaskColumn | undefined>;
   deleteTaskColumn(id: string): Promise<boolean>;
@@ -327,6 +328,17 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(taskColumns)
       .where(eq(taskColumns.projectId, projectId))
+      .orderBy(taskColumns.order);
+  }
+
+  async getGlobalTaskColumnsByAccountId(accountId: string): Promise<TaskColumn[]> {
+    return await db
+      .select()
+      .from(taskColumns)
+      .where(and(
+        eq(taskColumns.accountId, accountId),
+        isNull(taskColumns.projectId)
+      ))
       .orderBy(taskColumns.order);
   }
 

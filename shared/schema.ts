@@ -128,7 +128,7 @@ export const projects = pgTable("projects", {
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }), // Now nullable - allows global columns for tasks without a project
   name: text("name").notNull(),
   color: text("color").notNull().default("#e5e7eb"), // Pastel color hex code
   order: integer("order").notNull().default(0), // For ordering columns
@@ -142,7 +142,7 @@ export const taskColumns = pgTable("task_columns", {
 export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }), // Now nullable - tasks can exist without a project
   columnId: uuid("column_id").references(() => taskColumns.id, { onDelete: "set null" }), // Link to task column
   title: text("title").notNull(),
   description: text("description"),
