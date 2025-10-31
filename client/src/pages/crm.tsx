@@ -79,13 +79,7 @@ export default function CRM() {
     defaultValues: {
       accountId: accountId || "",
       name: "",
-      type: "prospect",
-      clientType: "company",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      country: "France",
+      type: "company",
       status: "prospecting",
       budget: "0",
       tags: [],
@@ -102,12 +96,6 @@ export default function CRM() {
         accountId: editingClient.accountId,
         name: editingClient.name,
         type: editingClient.type,
-        clientType: editingClient.clientType,
-        email: editingClient.email || "",
-        phone: editingClient.phone || "",
-        address: editingClient.address || "",
-        city: editingClient.city || "",
-        country: editingClient.country || "France",
         status: editingClient.status,
         budget: editingClient.budget?.toString() || "0",
         tags: editingClient.tags as string[] || [],
@@ -119,13 +107,7 @@ export default function CRM() {
       form.reset({
         accountId: accountId || "",
         name: "",
-        type: "prospect",
-        clientType: "company",
-        email: "",
-        phone: "",
-        address: "",
-        city: "",
-        country: "France",
+        type: "company",
         status: "prospecting",
         budget: "0",
         tags: [],
@@ -160,9 +142,7 @@ export default function CRM() {
   const filteredClients = clients.filter((client) => {
     const matchesStatus = filterStatus === "all" || client.status === filterStatus;
     const matchesSearch = searchQuery === "" || 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.city?.toLowerCase().includes(searchQuery.toLowerCase());
+      client.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -277,62 +257,19 @@ export default function CRM() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nom *</FormLabel>
-                          <FormControl>
-                            <Input {...field} data-testid="input-client-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} type="email" data-testid="input-client-email" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Téléphone</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} type="tel" data-testid="input-client-phone" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ville</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} data-testid="input-client-city" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nom *</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-client-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -347,8 +284,8 @@ export default function CRM() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="prospect">Prospect</SelectItem>
-                              <SelectItem value="client">Client</SelectItem>
+                              <SelectItem value="company">Entreprise</SelectItem>
+                              <SelectItem value="person">Personne</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -545,7 +482,7 @@ export default function CRM() {
                         </Avatar>
                         <div>
                           <p className="text-sm font-medium text-foreground">{client.name}</p>
-                          <p className="text-xs text-muted-foreground">{client.city || client.email}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{client.type === 'company' ? 'Entreprise' : 'Personne'}</p>
                         </div>
                       </div>
                       <div className="col-span-2 flex items-center">

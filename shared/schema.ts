@@ -55,19 +55,8 @@ export const invitations = pgTable("invitations", {
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  type: text("type").notNull().default("prospect"), // 'prospect', 'client'
-  clientType: text("client_type").notNull().default("company"), // 'company', 'person'
+  type: text("type").notNull().default("company"), // 'company', 'person' - MUST match Supabase CHECK constraint
   name: text("name").notNull(),
-  civility: text("civility"), // 'M', 'Mme', 'Mlle', 'Dr', etc.
-  email: text("email"),
-  phone: text("phone"),
-  address: text("address"),
-  postalCode: text("postal_code"),
-  city: text("city"),
-  country: text("country").default("France"),
-  siren: text("siren"), // French business registry number (9 digits)
-  siret: text("siret"), // French establishment number (14 digits)
-  tva: text("tva"), // VAT/TVA number
   contacts: jsonb("contacts").notNull().default([]), // Legacy field - [{name,email,phone,role}]
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   status: text("status").notNull().default("prospecting"),
@@ -78,7 +67,6 @@ export const clients = pgTable("clients", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountNameIdx: index().on(table.accountId, table.name),
-  accountTypeIdx: index().on(table.accountId, table.type),
 }));
 
 export const contacts = pgTable("contacts", {
