@@ -622,13 +622,10 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
 
       const firstColumn = projectColumns.sort((a, b) => a.order - b.order)[0];
 
-      await apiRequest("/api/tasks/bulk-update-project", {
-        method: "PATCH",
-        body: JSON.stringify({
-          taskIds: Array.from(selectedTasks),
-          projectId: attachProjectId,
-          newColumnId: firstColumn.id,
-        }),
+      await apiRequest("PATCH", "/api/tasks/bulk-update-project", {
+        taskIds: Array.from(selectedTasks),
+        projectId: attachProjectId,
+        newColumnId: firstColumn.id,
       });
 
       toast({

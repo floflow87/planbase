@@ -225,6 +225,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get clients by account ID (for frontend queries)
+  app.get("/api/accounts/:accountId/clients", requireAuth, async (req, res) => {
+    try {
+      // Verify user has access to this account
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+      const clients = await storage.getClientsByAccountId(req.params.accountId);
+      res.json(clients);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // AI suggestion for client next actions
   app.post("/api/clients/:id/suggest-actions", requireAuth, async (req, res) => {
     try {
@@ -315,6 +329,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Contact not found" });
       }
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get contacts by account ID (for frontend queries)
+  app.get("/api/accounts/:accountId/contacts", requireAuth, async (req, res) => {
+    try {
+      // Verify user has access to this account
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+      const contacts = await storage.getContactsByAccountId(req.params.accountId);
+      res.json(contacts);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -456,6 +484,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get projects by account ID (for frontend queries)
+  app.get("/api/accounts/:accountId/projects", requireAuth, async (req, res) => {
+    try {
+      // Verify user has access to this account
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+      const projects = await storage.getProjectsByAccountId(req.params.accountId);
+      res.json(projects);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // TASKS - Protected Routes
   // ============================================
@@ -496,15 +538,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('POST /api/tasks - accountId:', req.accountId);
       console.log('POST /api/tasks - userId:', req.userId);
       
-      // Verify project exists and belongs to account
-      const project = await storage.getProject(req.body.projectId);
-      if (!project) {
-        console.error('Project not found:', req.body.projectId);
-        return res.status(404).json({ error: "Project not found" });
-      }
-      if (project.accountId !== req.accountId) {
-        console.error('Project access denied. Project accountId:', project.accountId, 'User accountId:', req.accountId);
-        return res.status(403).json({ error: "Access denied to this project" });
+      // Verify project exists and belongs to account (only if projectId is provided)
+      if (req.body.projectId) {
+        const project = await storage.getProject(req.body.projectId);
+        if (!project) {
+          console.error('Project not found:', req.body.projectId);
+          return res.status(404).json({ error: "Project not found" });
+        }
+        if (project.accountId !== req.accountId) {
+          console.error('Project access denied. Project accountId:', project.accountId, 'User accountId:', req.accountId);
+          return res.status(403).json({ error: "Access denied to this project" });
+        }
       }
 
       // Convert dueDate string to Date if present

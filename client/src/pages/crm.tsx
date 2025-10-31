@@ -14,7 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertClientSchema, type InsertClient, type Client, type Contact, type Project } from "@shared/schema";
+import { insertClientSchema, type InsertClient, type Client, type Contact, type Project, type AppUser } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -29,7 +29,7 @@ export default function CRM() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   // Fetch current user to get accountId
-  const { data: currentUser } = useQuery({
+  const { data: currentUser } = useQuery<AppUser>({
     queryKey: ["/api/me"],
   });
 
@@ -91,9 +91,26 @@ export default function CRM() {
       tags: [],
       contacts: [],
       notes: "",
-      createdBy: localStorage.getItem("demo_user_id") || "",
+      createdBy: currentUser?.id || "",
     },
   });
+
+  // Update form default values when accountId and currentUser become available
+  useEffect(() => {
+    if (accountId && currentUser && !editingClient) {
+      form.reset({
+        accountId: accountId,
+        name: "",
+        type: "company",
+        status: "prospecting",
+        budget: "0",
+        tags: [],
+        contacts: [],
+        notes: "",
+        createdBy: currentUser.id,
+      });
+    }
+  }, [accountId, currentUser, editingClient, form]);
 
   // Update form when editing
   useEffect(() => {
@@ -119,10 +136,10 @@ export default function CRM() {
         tags: [],
         contacts: [],
         notes: "",
-        createdBy: localStorage.getItem("demo_user_id") || "",
+        createdBy: currentUser?.id || "",
       });
     }
-  }, [editingClient, accountId, form]);
+  }, [editingClient, accountId, currentUser, form]);
 
   const onSubmit = (data: InsertClient) => {
     if (editingClient) {
