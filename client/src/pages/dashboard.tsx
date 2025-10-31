@@ -43,17 +43,17 @@ export default function Dashboard() {
   }, [accountId, isInitializing]);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ["/api/accounts", accountId, "projects"],
+    queryKey: ["/api/projects"],
     enabled: !!accountId,
   });
 
   const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
-    queryKey: ["/api/accounts", accountId, "clients"],
+    queryKey: ["/api/clients"],
     enabled: !!accountId,
   });
 
   const { data: activities = [], isLoading: activitiesLoading } = useQuery<Activity[]>({
-    queryKey: ["/api/accounts", accountId, "activities"],
+    queryKey: ["/api/activities"],
     enabled: !!accountId,
   });
 
@@ -153,7 +153,11 @@ export default function Dashboard() {
               <FileText className="w-4 h-4 mr-2" />
               Rapports
             </Button>
-            <Button size="sm" data-testid="button-new-project">
+            <Button 
+              size="sm" 
+              onClick={() => setLocation("/projects")}
+              data-testid="button-new-project"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Nouveau Projet
             </Button>
@@ -281,7 +285,8 @@ export default function Dashboard() {
                 recentProjects.map((project) => (
                   <div
                     key={project.id}
-                    className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border"
+                    className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border cursor-pointer"
+                    onClick={() => setLocation(`/projects/${project.id}`)}
                     data-testid={`project-${project.id}`}
                   >
                     <div className="w-1 h-12 rounded bg-primary" />
