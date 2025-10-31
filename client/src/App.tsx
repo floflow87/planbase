@@ -35,6 +35,9 @@ function Router() {
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       </Route>
+      <Route path="/home">
+        <ProtectedRoute><Dashboard /></ProtectedRoute>
+      </Route>
       <Route path="/crm/:id">
         <ProtectedRoute><ClientDetail /></ProtectedRoute>
       </Route>
@@ -127,7 +130,7 @@ function AppLayout() {
   };
 
   const getPageTitle = (path: string) => {
-    if (path === "/") return "Tableau de bord";
+    if (path === "/" || path === "/home") return "Tableau de bord";
     if (path === "/crm") return "CRM";
     if (path === "/projects" || path.startsWith("/projects/")) return "To-Do & Project Management";
     if (path === "/notes") return "Notes";

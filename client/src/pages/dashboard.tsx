@@ -9,6 +9,55 @@ import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import type { Project, Client, Activity } from "@shared/schema";
 
+// Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
+const getStageColor = (stage: string) => {
+  const colors: Record<string, string> = {
+    prospection: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    en_cours: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    termine: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    signe: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  };
+  return colors[stage] || "";
+};
+
+// Fonction pour obtenir le label du stage
+const getStageLabel = (stage: string) => {
+  const labels: Record<string, string> = {
+    prospection: "Prospection",
+    en_cours: "En cours",
+    termine: "Terminé",
+    signe: "Signé",
+  };
+  return labels[stage] || stage;
+};
+
+// Fonction pour traduire les types d'activités
+const translateActivityKind = (kind: string) => {
+  const translations: Record<string, string> = {
+    created: "créé",
+    updated: "mis à jour",
+    deleted: "supprimé",
+    email: "email envoyé",
+    call: "appel",
+    meeting: "réunion",
+    note: "note",
+  };
+  return translations[kind] || kind;
+};
+
+// Fonction pour traduire les types de sujets
+const translateSubjectType = (subjectType: string) => {
+  const translations: Record<string, string> = {
+    project: "projet",
+    client: "client",
+    deal: "affaire",
+    task: "tâche",
+    note: "note",
+    contact: "contact",
+  };
+  return translations[subjectType] || subjectType;
+};
+
 export default function Dashboard() {
   const [accountId, setAccountId] = useState<string | null>(localStorage.getItem("demo_account_id"));
   const [isInitializing, setIsInitializing] = useState(false);
@@ -66,7 +115,8 @@ export default function Dashboard() {
   }
 
   // Calculate real KPIs
-  const activeProjectsCount = projects.filter(p => p.stage === "en_cours").length;
+  // Par définition, tous les projets sont "en cours" sauf ceux qui sont terminés
+  const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
   const clientsCount = clients.length;
   const totalRevenue = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
@@ -245,11 +295,15 @@ export default function Dashboard() {
               <div className="space-y-4">
                 {activityFeed.map((activity) => {
                   const payload = activity.payload as { description?: string };
+                  const translatedKind = translateActivityKind(activity.kind);
+                  const translatedSubject = translateSubjectType(activity.subjectType);
                   return (
                     <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
                       <div className="w-2 h-2 rounded-full bg-primary mt-2" />
                       <div className="flex-1">
-                        <p className="text-sm text-foreground">{payload.description || `${activity.kind} - ${activity.subjectType}`}</p>
+                        <p className="text-sm text-foreground capitalize">
+                          {payload.description || `${translatedSubject} ${translatedKind}`}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(activity.createdAt).toLocaleDateString()}
                         </p>
@@ -295,8 +349,8 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground mt-1">{project.description || "Aucune description"}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Badge variant="secondary" className="capitalize">
-                        {project.stage === "en_cours" ? "En cours" : project.stage === "termine" ? "Terminé" : "Prospection"}
+                      <Badge className={getStageColor(project.stage || "prospection")}>
+                        {getStageLabel(project.stage || "prospection")}
                       </Badge>
                       <p className="text-xs text-muted-foreground">
                         {new Date(project.createdAt).toLocaleDateString()}
