@@ -183,6 +183,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(client);
     } catch (error: any) {
+      console.error("[ERROR] Failed to create client:", error);
+      console.error("[ERROR] Error message:", error.message);
       res.status(400).json({ error: error.message });
     }
   });
@@ -374,6 +376,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(project);
     } catch (error: any) {
+      console.error("[ERROR] Failed to create project:", error);
+      console.error("[ERROR] Error message:", error.message);
+      if (error.issues) {
+        console.error("[ERROR] Zod validation issues:", JSON.stringify(error.issues, null, 2));
+      }
       res.status(400).json({ error: error.message });
     }
   });
