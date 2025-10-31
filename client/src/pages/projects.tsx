@@ -566,6 +566,13 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
     setSelectedTasks(new Set());
   };
 
+  const handleBulkDelete = async () => {
+    for (const taskId of Array.from(selectedTasks)) {
+      onDeleteTask(taskId);
+    }
+    setSelectedTasks(new Set());
+  };
+
   const SortableTableHeader = ({ columnId }: { columnId: string }) => {
     // Special handling for checkbox column
     if (columnId === 'checkbox') {
@@ -687,6 +694,15 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="text-destructive"
+                onClick={handleBulkDelete}
+                data-testid="button-bulk-delete"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
