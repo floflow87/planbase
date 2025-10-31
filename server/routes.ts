@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: column.name,
           color: column.color,
           order: column.order,
-          isLocked: false,
+          isLocked: 0,
         });
       }
       
