@@ -210,9 +210,17 @@ export default function ProjectDetail() {
                   </Badge>
                 )}
               </div>
-              <p className="text-muted-foreground text-sm">
-                {project.client?.name || "Client non défini"}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-muted-foreground text-sm">
+                  {project.client?.name || "Client non défini"}
+                </p>
+                {project.budget && (
+                  <Badge className="bg-orange-500 hover:bg-orange-600 text-white" data-testid="badge-budget">
+                    <DollarSign className="h-3 w-3 mr-1" />
+                    {project.budget}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -231,8 +239,21 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {project.description && (
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Description</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground" data-testid="project-description">
+                  {project.description}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className={!project.description ? "lg:col-span-3" : ""}>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Période</CardTitle>
             </CardHeader>
@@ -263,20 +284,6 @@ export default function ProjectDetail() {
               </div>
             </CardContent>
           </Card>
-
-          {project.budget && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Budget</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold" data-testid="project-budget">{project.budget}</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {totalTasksCount > 0 && (
@@ -297,19 +304,6 @@ export default function ProjectDetail() {
                   <span data-testid="total-tasks-count">{totalTasksCount} tâche{totalTasksCount !== 1 ? 's' : ''} au total</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {project.description && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground" data-testid="project-description">
-                {project.description}
-              </p>
             </CardContent>
           </Card>
         )}
