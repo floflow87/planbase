@@ -122,6 +122,22 @@ function AppLayout() {
     "--sidebar-width-icon": "3rem",
   };
 
+  const getPageTitle = (path: string) => {
+    if (path === "/") return "Tableau de bord";
+    if (path === "/crm") return "CRM";
+    if (path === "/projects" || path.startsWith("/projects/")) return "To-Do & Project Management";
+    if (path === "/notes") return "Notes";
+    if (path === "/documents") return "Documents";
+    if (path === "/roadmap") return "Roadmap";
+    if (path === "/product") return "Produits";
+    if (path === "/marketing") return "Marketing";
+    if (path === "/finance") return "Finance";
+    if (path === "/commercial") return "Commercial";
+    if (path === "/legal") return "Légal";
+    if (path === "/profile") return "Profil";
+    return "";
+  };
+
   if (isLoginPage) {
     return <Router />;
   }
@@ -131,9 +147,12 @@ function AppLayout() {
       <div className="flex h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-background sticky top-0 z-10">
-            <div className="flex items-center gap-2">
+          <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-10">
+            <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
+                {getPageTitle(location)}
+              </h1>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" className="relative" data-testid="button-notifications">
