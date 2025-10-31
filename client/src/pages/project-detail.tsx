@@ -189,7 +189,12 @@ export default function ProjectDetail() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold" data-testid="project-title">{project.name}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold" data-testid="project-title">{project.name}</h1>
+                <Badge className={getStageColor(project.stage || "prospection")} data-testid="badge-stage">
+                  {getStageLabel(project.stage || "prospection")}
+                </Badge>
+              </div>
               <p className="text-muted-foreground text-sm">
                 {project.client?.name || "Client non défini"}
               </p>
@@ -214,12 +219,33 @@ export default function ProjectDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Étape</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Date de début</CardTitle>
             </CardHeader>
             <CardContent>
-              <Badge className={getStageColor(project.stage || "prospection")} data-testid="badge-stage">
-                {getStageLabel(project.stage || "prospection")}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span data-testid="project-start-date">
+                  {project.startDate 
+                    ? format(new Date(project.startDate), "dd MMMM yyyy", { locale: fr })
+                    : "Non définie"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Date de fin</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span data-testid="project-end-date">
+                  {project.endDate 
+                    ? format(new Date(project.endDate), "dd MMMM yyyy", { locale: fr })
+                    : "Non définie"}
+                </span>
+              </div>
             </CardContent>
           </Card>
 
@@ -252,47 +278,18 @@ export default function ProjectDetail() {
           )}
         </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Informations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {project.description && (
-              <div>
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-muted-foreground" data-testid="project-description">
-                  {project.description}
-                </p>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-4">
-              {project.startDate && (
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Date de début</p>
-                    <p className="text-sm font-medium" data-testid="project-start-date">
-                      {format(new Date(project.startDate), "dd MMMM yyyy", { locale: fr })}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {project.endDate && (
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Date de fin</p>
-                    <p className="text-sm font-medium" data-testid="project-end-date">
-                      {format(new Date(project.endDate), "dd MMMM yyyy", { locale: fr })}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {project.description && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground" data-testid="project-description">
+                {project.description}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
