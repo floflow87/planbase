@@ -74,7 +74,11 @@ export const projects = pgTable("projects", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   name: text("name").notNull(),
-  stage: text("stage").default("discovery"),
+  description: text("description"),
+  stage: text("stage").default("prospection"), // 'prospection', 'en_cours', 'termine'
+  category: text("category"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
   budget: numeric("budget", { precision: 14, scale: 2 }),
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   meta: jsonb("meta").notNull().default({}),
