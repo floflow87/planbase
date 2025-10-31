@@ -273,6 +273,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const project = await storage.createProject(data);
       
+      // Create default task columns for new project
+      const defaultColumns = [
+        { name: "À faire", color: "rgba(229, 231, 235, 0.4)", order: 0 },
+        { name: "En cours", color: "rgba(59, 130, 246, 0.2)", order: 1 },
+        { name: "Terminé", color: "rgba(34, 197, 94, 0.2)", order: 2 },
+      ];
+      
+      for (const column of defaultColumns) {
+        await storage.createTaskColumn({
+          accountId: req.accountId!,
+          projectId: project.id,
+          name: column.name,
+          color: column.color,
+          order: column.order,
+          isLocked: false,
+        });
+      }
+      
       // Create activity
       await storage.createActivity({
         accountId: req.accountId!,
