@@ -54,6 +54,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -1566,186 +1567,208 @@ export default function Projects() {
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 flex-1">
-            <div>
-              <h1 className="text-2xl font-heading font-bold text-foreground">
-                To-Do & Projects
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Gestion des tâches en mode Kanban et Liste
-              </p>
-            </div>
-            {projects.length > 0 && (
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-[280px]" data-testid="select-project">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" data-testid="button-filters">
-              <Filter className="w-4 h-4 mr-2" />
-              Filtres
-            </Button>
-            <div className="flex border rounded-md">
-              <Button
-                variant={viewMode === "kanban" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("kanban")}
-                data-testid="button-view-kanban"
-              >
-                <LayoutGrid className="w-4 h-4 mr-2" />
-                Kanban
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                data-testid="button-view-list"
-              >
-                <List className="w-4 h-4 mr-2" />
-                Liste
-              </Button>
-            </div>
-            <Button
-              onClick={() => setIsCreateColumnDialogOpen(true)}
-              data-testid="button-new-column"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle Colonne
-            </Button>
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-foreground">
+              Projets
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gestion des projets et tâches
+            </p>
           </div>
         </div>
 
-        {selectedProject && (() => {
-          // Find the "Terminé" column (last locked column with highest order)
-          const completedColumn = taskColumns
-            .filter(c => c.isLocked)
-            .sort((a, b) => b.order - a.order)[0];
-          const completedTasks = completedColumn 
-            ? tasks.filter((t) => t.columnId === completedColumn.id).length 
-            : 0;
-          const progressPercentage = Math.round((completedTasks / Math.max(tasks.length, 1)) * 100);
+        <Tabs defaultValue="tasks" className="w-full">
+          <TabsList>
+            <TabsTrigger value="tasks" data-testid="tab-tasks">
+              Tâches
+            </TabsTrigger>
+            <TabsTrigger value="projects" data-testid="tab-projects">
+              Projets
+            </TabsTrigger>
+          </TabsList>
 
-          return (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-foreground">
-                        Progression du projet
-                      </h3>
-                      <span className="text-sm font-semibold text-foreground">
-                        {progressPercentage}%
-                      </span>
-                    </div>
-                    <Progress value={progressPercentage} />
-                  </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    <div>{tasks.length} tâches</div>
-                    <div>{completedTasks} terminées</div>
-                  </div>
+          <TabsContent value="tasks" className="space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                {projects.length > 0 && (
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger className="w-[280px]" data-testid="select-project">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" data-testid="button-filters">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtres
+                </Button>
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("kanban")}
+                    data-testid="button-view-kanban"
+                  >
+                    <LayoutGrid className="w-4 h-4 mr-2" />
+                    Kanban
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    data-testid="button-view-list"
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    Liste
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })()}
-
-        {tasksLoading ? (
-          <div className="text-center py-12 text-muted-foreground">
-            Chargement des tâches...
-          </div>
-        ) : viewMode === "kanban" ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={pointerWithin}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              <SortableContext
-                items={sortedColumns.map((c) => c.id)}
-                strategy={horizontalListSortingStrategy}
-              >
-                {sortedColumns.map((column) => {
-                  const columnTasks = tasks.filter((t) => t.columnId === column.id);
-                  const showBeforeIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'before';
-                  const showAfterIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'after';
-                  
-                  return (
-                    <div key={column.id} className="flex items-stretch">
-                      {showBeforeIndicator && (
-                        <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
-                      )}
-                      <div className="min-w-[320px]">
-                        <SortableColumn
-                          column={column}
-                          tasks={columnTasks}
-                          users={users}
-                          onRename={handleRenameColumn}
-                          onChangeColor={handleChangeColor}
-                          onDelete={handleDeleteColumn}
-                          onAddTask={handleAddTask}
-                          onDuplicate={handleDuplicateTask}
-                          onEditTask={handleEditTask}
-                          onDeleteTask={handleDeleteTask}
-                          onAssign={handleAssignTask}
-                          onMarkComplete={handleMarkComplete}
-                          onTaskClick={handleTaskClick}
-                        />
-                      </div>
-                      {showAfterIndicator && (
-                        <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
-                      )}
-                    </div>
-                  );
-                })}
-              </SortableContext>
+                <Button
+                  onClick={() => setIsCreateColumnDialogOpen(true)}
+                  data-testid="button-new-column"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle Colonne
+                </Button>
+              </div>
             </div>
-            <DragOverlay>
-              {activeTaskId ? (
-                <Card className="w-[300px] opacity-50">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium">
-                      {tasks.find((t) => t.id === activeTaskId)?.title}
+
+            {selectedProject && (() => {
+              // Find the "Terminé" column (last locked column with highest order)
+              const completedColumn = taskColumns
+                .filter(c => c.isLocked)
+                .sort((a, b) => b.order - a.order)[0];
+              const completedTasks = completedColumn 
+                ? tasks.filter((t) => t.columnId === completedColumn.id).length 
+                : 0;
+              const progressPercentage = Math.round((completedTasks / Math.max(tasks.length, 1)) * 100);
+
+              return (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-sm font-medium text-foreground">
+                            Progression du projet
+                          </h3>
+                          <span className="text-sm font-semibold text-foreground">
+                            {progressPercentage}%
+                          </span>
+                        </div>
+                        <Progress value={progressPercentage} />
+                      </div>
+                      <div className="text-right text-sm text-muted-foreground">
+                        <div>{tasks.length} tâches</div>
+                        <div>{completedTasks} terminées</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ) : activeColumnId ? (
-                <div className="w-[320px] opacity-50">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">
-                        {taskColumns.find((c) => c.id === activeColumnId)?.name}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
+              );
+            })()}
+
+            {tasksLoading ? (
+              <div className="text-center py-12 text-muted-foreground">
+                Chargement des tâches...
+              </div>
+            ) : viewMode === "kanban" ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={pointerWithin}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  <SortableContext
+                    items={sortedColumns.map((c) => c.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    {sortedColumns.map((column) => {
+                      const columnTasks = tasks.filter((t) => t.columnId === column.id);
+                      const showBeforeIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'before';
+                      const showAfterIndicator = dropIndicator?.columnId === column.id && dropIndicator.position === 'after';
+                      
+                      return (
+                        <div key={column.id} className="flex items-stretch">
+                          {showBeforeIndicator && (
+                            <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
+                          )}
+                          <div className="min-w-[320px]">
+                            <SortableColumn
+                              column={column}
+                              tasks={columnTasks}
+                              users={users}
+                              onRename={handleRenameColumn}
+                              onChangeColor={handleChangeColor}
+                              onDelete={handleDeleteColumn}
+                              onAddTask={handleAddTask}
+                              onDuplicate={handleDuplicateTask}
+                              onEditTask={handleEditTask}
+                              onDeleteTask={handleDeleteTask}
+                              onAssign={handleAssignTask}
+                              onMarkComplete={handleMarkComplete}
+                              onTaskClick={handleTaskClick}
+                            />
+                          </div>
+                          {showAfterIndicator && (
+                            <div className="w-1 bg-primary rounded-full mx-2 animate-pulse" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </SortableContext>
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        ) : (
-          <ListView
-            tasks={tasks}
-            columns={taskColumns}
-            users={users}
-            onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
-            onUpdateTask={(taskId, data) => {
-              updateTaskMutation.mutate({ id: taskId, data });
-            }}
-          />
-        )}
+                <DragOverlay>
+                  {activeTaskId ? (
+                    <Card className="w-[300px] opacity-50">
+                      <CardContent className="p-3">
+                        <div className="text-sm font-medium">
+                          {tasks.find((t) => t.id === activeTaskId)?.title}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : activeColumnId ? (
+                    <div className="w-[320px] opacity-50">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm">
+                            {taskColumns.find((c) => c.id === activeColumnId)?.name}
+                          </CardTitle>
+                        </CardHeader>
+                      </Card>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              <ListView
+                tasks={tasks}
+                columns={taskColumns}
+                users={users}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onUpdateTask={(taskId, data) => {
+                  updateTaskMutation.mutate({ id: taskId, data });
+                }}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="projects">
+            <div className="flex items-center justify-center py-12">
+              <p className="text-muted-foreground">Vue Projets - En cours de développement</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
