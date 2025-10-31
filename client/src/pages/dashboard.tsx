@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import type { Project, Client, Activity } from "@shared/schema";
 
 export default function Dashboard() {
   const [accountId, setAccountId] = useState<string | null>(localStorage.getItem("demo_account_id"));
@@ -39,23 +40,22 @@ export default function Dashboard() {
     initializeAccount();
   }, [accountId, isInitializing]);
 
-  // Fetch stats from API
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/accounts", accountId, "stats"],
-    enabled: !!accountId,
-  });
-
-  const { data: projects, isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/accounts", accountId, "projects"],
     enabled: !!accountId,
   });
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery({
+  const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
+    queryKey: ["/api/accounts", accountId, "clients"],
+    enabled: !!accountId,
+  });
+
+  const { data: activities = [], isLoading: activitiesLoading } = useQuery<Activity[]>({
     queryKey: ["/api/accounts", accountId, "activities"],
     enabled: !!accountId,
   });
 
-  if (!accountId || isInitializing || statsLoading || projectsLoading || activitiesLoading) {
+  if (!accountId || isInitializing || projectsLoading || clientsLoading || activitiesLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-muted-foreground">Chargement...</div>
@@ -63,20 +63,34 @@ export default function Dashboard() {
     );
   }
 
-  // KPI data from API
-  const kpis = [
+  // Calculate real KPIs
+  const activeProjectsCount = projects.filter(p => p.stage === "en_cours").length;
+  const totalProjectsCount = projects.length;
+  const clientsCount = clients.length;
+  const totalRevenue = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+
+  // KPI data from real data
+  const kpis: Array<{
+    title: string;
+    value: string;
+    change: string;
+    changeType: "positive" | "negative" | "neutral";
+    icon: any;
+    iconBg: string;
+    iconColor: string;
+  }> = [
     {
-      title: "Active Projects",
-      value: stats?.activeProjectsCount?.toString() || "0",
-      change: "+2.5%",
-      changeType: "positive",
+      title: "Projets en cours",
+      value: activeProjectsCount.toString(),
+      change: totalProjectsCount > 0 ? `${totalProjectsCount} au total` : "0 au total",
+      changeType: "neutral",
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
     },
     {
       title: "Clients",
-      value: stats?.clientsCount?.toString() || "0",
+      value: clientsCount.toString(),
       change: "+12.5%",
       changeType: "positive",
       icon: Users,
@@ -84,8 +98,8 @@ export default function Dashboard() {
       iconColor: "text-blue-600",
     },
     {
-      title: "Monthly Revenue",
-      value: `€${stats?.totalRevenue?.toLocaleString() || "0"}`,
+      title: "Budget Total",
+      value: `€${totalRevenue.toLocaleString()}`,
       change: "+8.2%",
       changeType: "positive",
       icon: Euro,
@@ -93,21 +107,23 @@ export default function Dashboard() {
       iconColor: "text-green-600",
     },
     {
-      title: "Tasks",
-      value: "47",
-      change: "-3.1%",
-      changeType: "negative",
+      title: "Projets Total",
+      value: totalProjectsCount.toString(),
+      change: `${activeProjectsCount} actifs`,
+      changeType: "neutral",
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
     },
   ];
 
-  // Recent projects from API
-  const recentProjects = (projects || []).slice(0, 3);
+  // Recent 5 projects from API, sorted by creation date
+  const recentProjects = [...projects]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
 
   // Activity feed from API
-  const activityFeed = (activities || []).slice(0, 5);
+  const activityFeed = activities.slice(0, 5);
 
   // Revenue data for chart (mock for now)
   const revenueData = [
@@ -158,14 +174,18 @@ export default function Dashboard() {
                         {kpi.value}
                       </h3>
                       <p className={`text-xs mt-2 flex items-center gap-1 ${
-                        kpi.changeType === "positive" ? "text-green-600" : "text-red-600"
+                        kpi.changeType === "positive" 
+                          ? "text-green-600" 
+                          : kpi.changeType === "negative" 
+                            ? "text-red-600"
+                            : "text-muted-foreground"
                       }`}>
                         {kpi.changeType === "positive" ? (
                           <ArrowUp className="w-3 h-3" />
-                        ) : (
+                        ) : kpi.changeType === "negative" ? (
                           <ArrowDown className="w-3 h-3" />
-                        )}
-                        {kpi.change} vs dernier mois
+                        ) : null}
+                        {kpi.change}
                       </p>
                     </div>
                     <div className={`${kpi.iconBg} p-3 rounded-md`}>
@@ -217,17 +237,20 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityFeed.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(activity.createdAt).toLocaleDateString()}
-                      </p>
+                {activityFeed.map((activity) => {
+                  const payload = activity.payload as { description?: string };
+                  return (
+                    <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{payload.description || `${activity.kind} - ${activity.subjectType}`}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(activity.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -251,20 +274,18 @@ export default function Dashboard() {
                   className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border"
                   data-testid={`project-${project.id}`}
                 >
-                  <div className="w-1 h-12 rounded" style={{ backgroundColor: project.color }} />
+                  <div className="w-1 h-12 rounded bg-primary" />
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-foreground">{project.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">{project.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{project.description || "Aucune description"}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Progression</p>
-                      <p className="text-sm font-semibold text-foreground">{project.progress}%</p>
-                    </div>
-                    <Progress value={project.progress} className="w-24" />
                     <Badge variant="secondary" className="capitalize">
-                      {project.status}
+                      {project.stage === "en_cours" ? "En cours" : project.stage === "termine" ? "Terminé" : "Prospection"}
                     </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(project.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               ))}
