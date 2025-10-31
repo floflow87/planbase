@@ -185,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
-      const client = await storage.getClient(req.accountId, req.params.id);
+      const client = await storage.getClient(req.accountId!, req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -197,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const client = await storage.updateClient(req.accountId, req.params.id, req.body);
+      const client = await storage.updateClient(req.accountId!, req.params.id, req.body);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const success = await storage.deleteClient(req.accountId, req.params.id);
+      const success = await storage.deleteClient(req.accountId!, req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI suggestion for client next actions
   app.post("/api/clients/:id/suggest-actions", requireAuth, async (req, res) => {
     try {
-      const client = await storage.getClient(req.accountId, req.params.id);
+      const client = await storage.getClient(req.accountId!, req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -251,7 +251,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/clients/:clientId/contacts", requireAuth, async (req, res) => {
     try {
-      const contacts = await storage.getContactsByClientId(req.params.clientId);
+      // First verify the client belongs to this account (security check)
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+      
+      const contacts = await storage.getContactsByClientId(req.accountId!, req.params.clientId);
       res.json(contacts);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -274,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/contacts/:id", requireAuth, async (req, res) => {
     try {
-      const contact = await storage.getContact(req.accountId, req.params.id);
+      const contact = await storage.getContact(req.accountId!, req.params.id);
       if (!contact) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -286,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const contact = await storage.updateContact(req.accountId, req.params.id, req.body);
+      const contact = await storage.updateContact(req.accountId!, req.params.id, req.body);
       if (!contact) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -298,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const success = await storage.deleteContact(req.accountId, req.params.id);
+      const success = await storage.deleteContact(req.accountId!, req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Contact not found" });
       }
@@ -376,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get related data
       const [client, tasks] = await Promise.all([
-        project.clientId ? storage.getClient(project.clientId) : null,
+        project.clientId ? storage.getClient(req.accountId!, project.clientId) : null,
         storage.getTasksByProjectId(project.id),
       ]);
 

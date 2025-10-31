@@ -45,7 +45,7 @@ export interface IStorage {
 
   // Contacts
   getContact(accountId: string, id: string): Promise<Contact | undefined>;
-  getContactsByClientId(clientId: string): Promise<Contact[]>;
+  getContactsByClientId(accountId: string, clientId: string): Promise<Contact[]>;
   getContactsByAccountId(accountId: string): Promise<Contact[]>;
   createContact(contact: InsertContact): Promise<Contact>;
   updateContact(accountId: string, id: string, contact: Partial<InsertContact>): Promise<Contact | undefined>;
@@ -197,7 +197,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<InsertAppUser>): Promise<AppUser | undefined> {
     // Security: Strip out protected fields that users shouldn't modify themselves
-    const { id: _id, accountId: _accountId, role: _role, createdAt: _createdAt, ...safeUpdates } = updates;
+    const { id: _id, accountId: _accountId, role: _role, ...safeUpdates } = updates;
     
     const [user] = await db
       .update(appUsers)
@@ -249,8 +249,13 @@ export class DatabaseStorage implements IStorage {
     return contact || undefined;
   }
 
-  async getContactsByClientId(clientId: string): Promise<Contact[]> {
-    return await db.select().from(contacts).where(eq(contacts.clientId, clientId));
+  async getContactsByClientId(accountId: string, clientId: string): Promise<Contact[]> {
+    return await db.select().from(contacts).where(
+      and(
+        eq(contacts.accountId, accountId),
+        eq(contacts.clientId, clientId)
+      )
+    );
   }
 
   async getContactsByAccountId(accountId: string): Promise<Contact[]> {

@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import type { Project, Client, Activity } from "@shared/schema";
 
 export default function Dashboard() {
   const [accountId, setAccountId] = useState<string | null>(localStorage.getItem("demo_account_id"));
   const [isInitializing, setIsInitializing] = useState(false);
+  const [, setLocation] = useLocation();
 
   // Auto-initialize demo account if not exists
   useEffect(() => {
@@ -262,7 +264,12 @@ export default function Dashboard() {
             <CardTitle className="text-base font-heading font-semibold">
               Projets Récents
             </CardTitle>
-            <Button variant="ghost" size="sm" data-testid="button-view-all-projects">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setLocation("/projects")}
+              data-testid="button-view-all-projects"
+            >
               Voir tout <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>

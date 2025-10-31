@@ -23,7 +23,7 @@ import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, LogOut, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -111,7 +111,7 @@ function UserMenu() {
         data-testid="button-logout"
         title="Se déconnecter"
       >
-        <LogOut className="w-4 h-4" />
+        <LogOut className="w-4 h-4 text-primary" />
       </Button>
     </div>
   );
@@ -159,8 +159,14 @@ function AppLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" data-testid="button-mail">
+                <Mail className="w-5 h-5 text-primary" />
+              </Button>
+              <Button variant="ghost" size="sm" data-testid="button-calendar">
+                <Calendar className="w-5 h-5 text-primary" />
+              </Button>
               <Button variant="ghost" size="sm" className="relative" data-testid="button-notifications">
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5 text-primary" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               </Button>
               <UserMenu />
