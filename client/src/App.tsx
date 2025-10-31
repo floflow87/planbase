@@ -11,6 +11,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import CRM from "@/pages/crm";
 import Projects from "@/pages/projects";
+import ProjectDetail from "@/pages/project-detail";
 import Notes from "@/pages/notes";
 import Documents from "@/pages/documents";
 import Init from "@/pages/init";
@@ -43,6 +44,9 @@ function Router() {
       </Route>
       <Route path="/crm">
         <ProtectedRoute><CRM /></ProtectedRoute>
+      </Route>
+      <Route path="/projects/:id">
+        <ProtectedRoute><ProjectDetail /></ProtectedRoute>
       </Route>
       <Route path="/projects">
         <ProtectedRoute><Projects /></ProtectedRoute>

@@ -298,7 +298,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (project.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
       }
-      res.json(project);
+
+      // Get related data
+      const [client, tasks] = await Promise.all([
+        project.clientId ? storage.getClient(project.clientId) : null,
+        storage.getTasksByProjectId(project.id),
+      ]);
+
+      res.json({
+        ...project,
+        client,
+        tasks,
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -1006,6 +1006,8 @@ export default function Projects() {
   });
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectStageFilter, setProjectStageFilter] = useState("all");
+  const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("grid");
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -1348,6 +1350,38 @@ export default function Projects() {
       });
     },
   });
+
+  // Project selection handlers
+  const toggleProjectSelection = (projectId: string) => {
+    setSelectedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllProjects = (filteredProjects: any[]) => {
+    if (selectedProjects.size === filteredProjects.length) {
+      setSelectedProjects(new Set());
+    } else {
+      setSelectedProjects(new Set(filteredProjects.map(p => p.id)));
+    }
+  };
+
+  const handleBulkDeleteProjects = async () => {
+    for (const projectId of Array.from(selectedProjects)) {
+      await deleteProjectMutation.mutateAsync(projectId);
+    }
+    setSelectedProjects(new Set());
+    toast({ 
+      title: `${selectedProjects.size} projet(s) supprimé(s)`, 
+      variant: "success" 
+    });
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -1906,6 +1940,26 @@ export default function Projects() {
                     <SelectItem value="termine">Terminé</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={projectViewMode === "grid" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setProjectViewMode("grid")}
+                    data-testid="button-project-view-grid"
+                  >
+                    <LayoutGrid className="w-4 h-4 mr-2" />
+                    Grille
+                  </Button>
+                  <Button
+                    variant={projectViewMode === "list" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setProjectViewMode("list")}
+                    data-testid="button-project-view-list"
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    Liste
+                  </Button>
+                </div>
                 <Button 
                   data-testid="button-create-project"
                   onClick={() => {
@@ -2027,9 +2081,11 @@ export default function Projects() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-sm truncate" data-testid={`project-name-${project.id}`}>
-                                {project.name}
-                              </h3>
+                              <Link href={`/projects/${project.id}`}>
+                                <h3 className="font-medium text-sm truncate hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
+                                  {project.name}
+                                </h3>
+                              </Link>
                               <p className="text-xs text-muted-foreground truncate">
                                 {client?.name || "Client non défini"}
                               </p>
