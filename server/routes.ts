@@ -6,6 +6,7 @@ import {
   insertAppUserSchema,
   updateProfileSchema,
   insertClientSchema,
+  insertContactSchema,
   insertProjectSchema,
   insertNoteSchema,
   insertFolderSchema,
@@ -184,13 +185,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/clients/:id", requireAuth, async (req, res) => {
     try {
-      const client = await storage.getClient(req.params.id);
+      const client = await storage.getClient(req.accountId, req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
-      }
-      // Verify client belongs to user's account
-      if (client.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
       }
       res.json(client);
     } catch (error: any) {
@@ -200,16 +197,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      // First verify client belongs to user's account
-      const existing = await storage.getClient(req.params.id);
-      if (!existing) {
+      const client = await storage.updateClient(req.accountId, req.params.id, req.body);
+      if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
-      if (existing.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const client = await storage.updateClient(req.params.id, req.body);
       res.json(client);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -218,16 +209,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      // First verify client belongs to user's account
-      const existing = await storage.getClient(req.params.id);
-      if (!existing) {
+      const success = await storage.deleteClient(req.accountId, req.params.id);
+      if (!success) {
         return res.status(404).json({ error: "Client not found" });
       }
-      if (existing.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const success = await storage.deleteClient(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -235,9 +220,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI suggestion for client next actions
-  app.post("/api/clients/:id/suggest-actions", async (req, res) => {
+  app.post("/api/clients/:id/suggest-actions", requireAuth, async (req, res) => {
     try {
-      const client = await storage.getClient(req.params.id);
+      const client = await storage.getClient(req.accountId, req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -246,6 +231,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const suggestions = await suggestNextActions(history);
       
       res.json({ suggestions });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CONTACTS - Protected Routes
+  // ============================================
+
+  app.get("/api/contacts", requireAuth, async (req, res) => {
+    try {
+      const contacts = await storage.getContactsByAccountId(req.accountId!);
+      res.json(contacts);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clients/:clientId/contacts", requireAuth, async (req, res) => {
+    try {
+      const contacts = await storage.getContactsByClientId(req.params.clientId);
+      res.json(contacts);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/contacts", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertContactSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const contact = await storage.createContact(data);
+      res.json(contact);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/contacts/:id", requireAuth, async (req, res) => {
+    try {
+      const contact = await storage.getContact(req.accountId, req.params.id);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.json(contact);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const contact = await storage.updateContact(req.accountId, req.params.id, req.body);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.json(contact);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const success = await storage.deleteContact(req.accountId, req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

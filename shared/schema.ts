@@ -55,9 +55,20 @@ export const invitations = pgTable("invitations", {
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  type: text("type").notNull().default("company"), // 'company', 'person'
+  type: text("type").notNull().default("prospect"), // 'prospect', 'client'
+  clientType: text("client_type").notNull().default("company"), // 'company', 'person'
   name: text("name").notNull(),
-  contacts: jsonb("contacts").notNull().default([]), // [{name,email,phone,role}]
+  civility: text("civility"), // 'M', 'Mme', 'Mlle', 'Dr', etc.
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  postalCode: text("postal_code"),
+  city: text("city"),
+  country: text("country").default("France"),
+  siren: text("siren"), // French business registry number (9 digits)
+  siret: text("siret"), // French establishment number (14 digits)
+  tva: text("tva"), // VAT/TVA number
+  contacts: jsonb("contacts").notNull().default([]), // Legacy field - [{name,email,phone,role}]
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   status: text("status").notNull().default("prospecting"),
   budget: numeric("budget", { precision: 14, scale: 2 }),
@@ -67,6 +78,29 @@ export const clients = pgTable("clients", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountNameIdx: index().on(table.accountId, table.name),
+  accountTypeIdx: index().on(table.accountId, table.type),
+}));
+
+export const contacts = pgTable("contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  civility: text("civility"), // 'M', 'Mme', 'Mlle', 'Dr', etc.
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  fullName: text("full_name").notNull(), // For display
+  email: text("email"),
+  phone: text("phone"),
+  mobile: text("mobile"),
+  position: text("position"), // Job title/role
+  isPrimary: integer("is_primary").notNull().default(0), // 0 = false, 1 = true (main contact)
+  notes: text("notes"),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountClientIdx: index().on(table.accountId, table.clientId),
+  clientPrimaryIdx: index().on(table.clientId, table.isPrimary),
 }));
 
 export const projects = pgTable("projects", {
@@ -177,7 +211,7 @@ export const notes = pgTable("notes", {
 }));
 
 export const noteLinks = pgTable("note_links", {
-  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  noteId: uuid("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
   targetType: text("target_type").notNull(), // 'project', 'task', 'meeting', 'file', 'client'
   targetId: uuid("target_id").notNull(),
 }, (table) => ({
@@ -197,8 +231,8 @@ export const tags = pgTable("tags", {
 }));
 
 export const noteTags = pgTable("note_tags", {
-  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
-  tagId: uuid("tag_id").references(() => tags.id, { onDelete: "cascade" }),
+  noteId: uuid("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
+  tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
 }, (table) => ({
   pk: primaryKey({ columns: [table.noteId, table.tagId] }),
 }));
@@ -217,16 +251,16 @@ export const noteVersions = pgTable("note_versions", {
 }));
 
 export const noteShares = pgTable("note_shares", {
-  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  noteId: uuid("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
   subjectType: text("subject_type").notNull(), // 'user', 'client', 'role'
-  subjectId: uuid("subject_id"),
+  subjectId: uuid("subject_id").notNull(),
   permission: text("permission").notNull(), // 'read', 'comment', 'edit'
 }, (table) => ({
   pk: primaryKey({ columns: [table.noteId, table.subjectType, table.subjectId] }),
 }));
 
 export const noteFiles = pgTable("note_files", {
-  noteId: uuid("note_id").references(() => notes.id, { onDelete: "cascade" }),
+  noteId: uuid("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
   fileId: uuid("file_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -290,9 +324,9 @@ export const fileVersions = pgTable("file_versions", {
 }));
 
 export const fileShares = pgTable("file_shares", {
-  fileId: uuid("file_id").references(() => files.id, { onDelete: "cascade" }),
+  fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
   subjectType: text("subject_type").notNull(), // 'user', 'client', 'role'
-  subjectId: uuid("subject_id"),
+  subjectId: uuid("subject_id").notNull(),
   permission: text("permission").notNull(), // 'read', 'comment', 'edit', 'download'
 }, (table) => ({
   pk: primaryKey({ columns: [table.fileId, table.subjectType, table.subjectId] }),
@@ -443,6 +477,7 @@ export const updateProfileSchema = z.object({
 
 export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
@@ -464,6 +499,7 @@ export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 export type InsertClient = z.infer<typeof insertClientSchema>;
+export type InsertContact = z.infer<typeof insertContactSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -485,6 +521,7 @@ export type Account = typeof accounts.$inferSelect;
 export type AppUser = typeof appUsers.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Client = typeof clients.$inferSelect;
+export type Contact = typeof contacts.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;

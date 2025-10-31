@@ -3,6 +3,7 @@ import {
   type Account, type InsertAccount,
   type AppUser, type InsertAppUser,
   type Client, type InsertClient,
+  type Contact, type InsertContact,
   type Project, type InsertProject,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
@@ -15,7 +16,7 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
-  accounts, appUsers, clients, projects, taskColumns, tasks, notes, folders, files, activities,
+  accounts, appUsers, clients, contacts, projects, taskColumns, tasks, notes, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -36,11 +37,19 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertAppUser>): Promise<AppUser | undefined>;
 
   // Clients
-  getClient(id: string): Promise<Client | undefined>;
+  getClient(accountId: string, id: string): Promise<Client | undefined>;
   getClientsByAccountId(accountId: string): Promise<Client[]>;
   createClient(client: InsertClient): Promise<Client>;
-  updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
-  deleteClient(id: string): Promise<boolean>;
+  updateClient(accountId: string, id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
+  deleteClient(accountId: string, id: string): Promise<boolean>;
+
+  // Contacts
+  getContact(accountId: string, id: string): Promise<Contact | undefined>;
+  getContactsByClientId(clientId: string): Promise<Contact[]>;
+  getContactsByAccountId(accountId: string): Promise<Contact[]>;
+  createContact(contact: InsertContact): Promise<Contact>;
+  updateContact(accountId: string, id: string, contact: Partial<InsertContact>): Promise<Contact | undefined>;
+  deleteContact(accountId: string, id: string): Promise<boolean>;
 
   // Projects
   getProject(id: string): Promise<Project | undefined>;
@@ -199,8 +208,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Clients
-  async getClient(id: string): Promise<Client | undefined> {
-    const [client] = await db.select().from(clients).where(eq(clients.id, id));
+  async getClient(accountId: string, id: string): Promise<Client | undefined> {
+    const [client] = await db.select().from(clients).where(
+      and(eq(clients.id, id), eq(clients.accountId, accountId))
+    );
     return client || undefined;
   }
 
@@ -216,17 +227,55 @@ export class DatabaseStorage implements IStorage {
     return client;
   }
 
-  async updateClient(id: string, updateData: Partial<InsertClient>): Promise<Client | undefined> {
+  async updateClient(accountId: string, id: string, updateData: Partial<InsertClient>): Promise<Client | undefined> {
     const [client] = await db
       .update(clients)
       .set(updateData)
-      .where(eq(clients.id, id))
+      .where(and(eq(clients.id, id), eq(clients.accountId, accountId)))
       .returning();
     return client || undefined;
   }
 
-  async deleteClient(id: string): Promise<boolean> {
-    const result = await db.delete(clients).where(eq(clients.id, id));
+  async deleteClient(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(clients).where(and(eq(clients.id, id), eq(clients.accountId, accountId)));
+    return result.length > 0;
+  }
+
+  // Contacts
+  async getContact(accountId: string, id: string): Promise<Contact | undefined> {
+    const [contact] = await db.select().from(contacts).where(
+      and(eq(contacts.id, id), eq(contacts.accountId, accountId))
+    );
+    return contact || undefined;
+  }
+
+  async getContactsByClientId(clientId: string): Promise<Contact[]> {
+    return await db.select().from(contacts).where(eq(contacts.clientId, clientId));
+  }
+
+  async getContactsByAccountId(accountId: string): Promise<Contact[]> {
+    return await db.select().from(contacts).where(eq(contacts.accountId, accountId));
+  }
+
+  async createContact(insertContact: InsertContact): Promise<Contact> {
+    const [contact] = await db
+      .insert(contacts)
+      .values(insertContact)
+      .returning();
+    return contact;
+  }
+
+  async updateContact(accountId: string, id: string, updateData: Partial<InsertContact>): Promise<Contact | undefined> {
+    const [contact] = await db
+      .update(contacts)
+      .set(updateData)
+      .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)))
+      .returning();
+    return contact || undefined;
+  }
+
+  async deleteContact(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
     return result.length > 0;
   }
 

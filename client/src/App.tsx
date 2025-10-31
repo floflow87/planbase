@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import CRM from "@/pages/crm";
+import ClientDetail from "@/pages/client-detail";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import Notes from "@/pages/notes";
@@ -33,6 +34,9 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
+      </Route>
+      <Route path="/crm/:id">
+        <ProtectedRoute><ClientDetail /></ProtectedRoute>
       </Route>
       <Route path="/crm">
         <ProtectedRoute><CRM /></ProtectedRoute>

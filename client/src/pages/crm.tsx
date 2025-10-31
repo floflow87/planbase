@@ -92,14 +92,19 @@ export default function CRM() {
     defaultValues: {
       accountId: accountId || "",
       name: "",
-      type: "individual",
+      type: "prospect",
+      clientType: "company",
       email: "",
-      company: "",
-      position: "",
-      sector: "",
-      status: "prospect",
-      budget: 0,
+      phone: "",
+      address: "",
+      city: "",
+      country: "France",
+      status: "prospecting",
+      budget: "0",
       tags: [],
+      contacts: [],
+      notes: "",
+      createdBy: localStorage.getItem("demo_user_id") || "",
     },
   });
 
@@ -110,26 +115,36 @@ export default function CRM() {
         accountId: editingClient.accountId,
         name: editingClient.name,
         type: editingClient.type,
+        clientType: editingClient.clientType,
         email: editingClient.email || "",
-        company: editingClient.company || "",
-        position: editingClient.position || "",
-        sector: editingClient.sector || "",
+        phone: editingClient.phone || "",
+        address: editingClient.address || "",
+        city: editingClient.city || "",
+        country: editingClient.country || "France",
         status: editingClient.status,
-        budget: editingClient.budget || 0,
+        budget: editingClient.budget?.toString() || "0",
         tags: editingClient.tags as string[] || [],
+        contacts: editingClient.contacts || [],
+        notes: editingClient.notes || "",
+        createdBy: editingClient.createdBy,
       });
     } else {
       form.reset({
         accountId: accountId || "",
         name: "",
-        type: "individual",
+        type: "prospect",
+        clientType: "company",
         email: "",
-        company: "",
-        position: "",
-        sector: "",
-        status: "prospect",
-        budget: 0,
+        phone: "",
+        address: "",
+        city: "",
+        country: "France",
+        status: "prospecting",
+        budget: "0",
         tags: [],
+        contacts: [],
+        notes: "",
+        createdBy: localStorage.getItem("demo_user_id") || "",
       });
     }
   }, [editingClient, accountId, form]);
@@ -142,13 +157,25 @@ export default function CRM() {
     }
   };
 
+  // Fetch projects for project counts
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/accounts", accountId, "projects"],
+    enabled: !!accountId,
+  });
+
+  // Fetch contacts for contact counts  
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["/api/accounts", accountId, "contacts"],
+    enabled: !!accountId,
+  });
+
   // Filter and search clients
   const filteredClients = clients.filter((client) => {
     const matchesStatus = filterStatus === "all" || client.status === filterStatus;
     const matchesSearch = searchQuery === "" || 
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.company?.toLowerCase().includes(searchQuery.toLowerCase());
+      client.city?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -300,12 +327,12 @@ export default function CRM() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="company"
+                      name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Entreprise</FormLabel>
+                          <FormLabel>Téléphone</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} data-testid="input-client-company" />
+                            <Input {...field} value={field.value || ""} type="tel" data-testid="input-client-phone" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -313,12 +340,12 @@ export default function CRM() {
                     />
                     <FormField
                       control={form.control}
-                      name="position"
+                      name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Poste</FormLabel>
+                          <FormLabel>Ville</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} data-testid="input-client-position" />
+                            <Input {...field} value={field.value || ""} data-testid="input-client-city" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -328,13 +355,21 @@ export default function CRM() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="sector"
+                      name="type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Secteur</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} data-testid="input-client-sector" />
-                          </FormControl>
+                          <FormLabel>Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-client-type">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="prospect">Prospect</SelectItem>
+                              <SelectItem value="client">Client</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -352,10 +387,11 @@ export default function CRM() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="prospect">Prospect</SelectItem>
-                              <SelectItem value="in_progress">En négociation</SelectItem>
-                              <SelectItem value="signed">Gagné</SelectItem>
-                              <SelectItem value="inactive">Inactif</SelectItem>
+                              <SelectItem value="prospecting">Prospection</SelectItem>
+                              <SelectItem value="qualified">Qualifié</SelectItem>
+                              <SelectItem value="negotiation">Négociation</SelectItem>
+                              <SelectItem value="won">Gagné</SelectItem>
+                              <SelectItem value="lost">Perdu</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -503,82 +539,85 @@ export default function CRM() {
               <div className="space-y-2">
                 {/* Table Header */}
                 <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-                  <div className="col-span-3">Contact</div>
-                  <div className="col-span-2">Entreprise</div>
-                  <div className="col-span-2">Statut</div>
-                  <div className="col-span-2">Budget</div>
-                  <div className="col-span-2">Secteur</div>
+                  <div className="col-span-4">Client</div>
+                  <div className="col-span-2">Contacts</div>
+                  <div className="col-span-2">Type</div>
+                  <div className="col-span-2">Projets</div>
+                  <div className="col-span-1">Budget</div>
                   <div className="col-span-1">Actions</div>
                 </div>
                 {/* Table Rows */}
-                {filteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border"
-                    data-testid={`row-client-${client.id}`}
-                  >
-                    <div className="col-span-3 flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
-                        <AvatarFallback>{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{client.name}</p>
-                        <p className="text-xs text-muted-foreground">{client.email}</p>
+                {filteredClients.map((client) => {
+                  const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
+                  const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+                  
+                  return (
+                    <Link key={client.id} href={`/crm/${client.id}`}>
+                      <div
+                        className="grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border cursor-pointer"
+                        data-testid={`row-client-${client.id}`}
+                      >
+                      <div className="col-span-4 flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}`} />
+                          <AvatarFallback>{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{client.name}</p>
+                          <p className="text-xs text-muted-foreground">{client.city || client.email}</p>
+                        </div>
+                      </div>
+                      <div className="col-span-2 flex items-center">
+                        <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>
+                      </div>
+                      <div className="col-span-2 flex items-center">
+                        <Badge variant={client.type === "client" ? "default" : "secondary"}>
+                          {client.type === "client" ? "Client" : "Prospect"}
+                        </Badge>
+                      </div>
+                      <div className="col-span-2 flex items-center">
+                        <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="col-span-1 flex items-center">
+                        <p className="text-sm font-medium text-foreground">
+                          €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                        </p>
+                      </div>
+                      <div className="col-span-1 flex items-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem data-testid={`button-message-${client.id}`}>
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              Message
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => {
+                                if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
+                                  deleteMutation.mutate(client.id);
+                                }
+                              }}
+                              data-testid={`button-delete-${client.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="col-span-2 flex items-center">
-                      <div>
-                        <p className="text-sm text-foreground">{client.company}</p>
-                        <p className="text-xs text-muted-foreground">{client.position}</p>
-                      </div>
-                    </div>
-                    <div className="col-span-2 flex items-center">
-                      <Badge variant={getStatusBadgeVariant(client.status)}>
-                        {getStatusLabel(client.status)}
-                      </Badge>
-                    </div>
-                    <div className="col-span-2 flex items-center">
-                      <p className="text-sm font-medium text-foreground">
-                        €{client.budget?.toLocaleString() || "0"}
-                      </p>
-                    </div>
-                    <div className="col-span-2 flex items-center">
-                      <p className="text-sm text-foreground">{client.sector}</p>
-                    </div>
-                    <div className="col-span-1 flex items-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem data-testid={`button-message-${client.id}`}>
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Message
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => {
-                              if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
-                                deleteMutation.mutate(client.id);
-                              }
-                            }}
-                            data-testid={`button-delete-${client.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
+                  </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
