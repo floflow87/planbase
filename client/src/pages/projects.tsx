@@ -2279,17 +2279,15 @@ export default function Projects() {
             </Button>
             <Button
               onClick={() => {
-                if (!accountId || !userId) return;
                 createProjectMutation.mutate({
-                  ...projectFormData,
-                  accountId,
-                  createdBy: userId,
+                  name: projectFormData.name.trim(),
+                  description: projectFormData.description?.trim() || null,
+                  clientId: projectFormData.clientId || null,
+                  stage: projectFormData.stage,
+                  category: projectFormData.category?.trim() || null,
                   startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
                   endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
-                  budget: projectFormData.budget ? projectFormData.budget : null,
-                  clientId: projectFormData.clientId || null,
-                  category: projectFormData.category || null,
-                  description: projectFormData.description || null,
+                  budget: projectFormData.budget?.trim() || null,
                 });
               }}
               disabled={!projectFormData.name.trim() || createProjectMutation.isPending}
@@ -2465,13 +2463,14 @@ export default function Projects() {
                 updateProjectMutation.mutate({
                   id: editingProject.id,
                   data: {
-                    ...projectFormData,
+                    name: projectFormData.name.trim(),
+                    description: projectFormData.description?.trim() || null,
+                    clientId: projectFormData.clientId || null,
+                    stage: projectFormData.stage,
+                    category: projectFormData.category?.trim() || null,
                     startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
                     endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
-                    budget: projectFormData.budget ? projectFormData.budget : null,
-                    clientId: projectFormData.clientId || null,
-                    category: projectFormData.category || null,
-                    description: projectFormData.description || null,
+                    budget: projectFormData.budget?.trim() || null,
                   },
                 });
               }}
