@@ -5,19 +5,39 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
 
 export default function Dashboard() {
-  const [, setLocation] = useLocation();
-  const accountId = localStorage.getItem("demo_account_id");
+  const [accountId, setAccountId] = useState<string | null>(localStorage.getItem("demo_account_id"));
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  // Redirect to init if no account
+  // Auto-initialize demo account if not exists
   useEffect(() => {
-    if (!accountId) {
-      setLocation("/init");
-    }
-  }, [accountId, setLocation]);
+    const initializeAccount = async () => {
+      if (!accountId && !isInitializing) {
+        setIsInitializing(true);
+        try {
+          const response = await fetch("/api/seed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("demo_account_id", data.accountId);
+            localStorage.setItem("demo_user_id", data.userId);
+            setAccountId(data.accountId);
+          }
+        } catch (error) {
+          console.error("Failed to initialize account:", error);
+        } finally {
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    initializeAccount();
+  }, [accountId, isInitializing]);
 
   // Fetch stats from API
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -35,11 +55,7 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  if (!accountId) {
-    return null;
-  }
-
-  if (statsLoading || projectsLoading || activitiesLoading) {
+  if (!accountId || isInitializing || statsLoading || projectsLoading || activitiesLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-muted-foreground">Chargement...</div>

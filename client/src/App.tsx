@@ -14,8 +14,6 @@ import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
 import Notes from "@/pages/notes";
 import Documents from "@/pages/documents";
-import Init from "@/pages/init";
-import Setup from "@/pages/setup";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
 import Marketing from "@/pages/marketing";
@@ -33,12 +31,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/init">
-        <ProtectedRoute><Init /></ProtectedRoute>
-      </Route>
-      <Route path="/setup">
-        <ProtectedRoute><Setup /></ProtectedRoute>
-      </Route>
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       </Route>

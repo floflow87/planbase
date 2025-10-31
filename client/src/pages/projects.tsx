@@ -1028,12 +1028,6 @@ export default function Projects() {
     })
   );
 
-  useEffect(() => {
-    if (!accountId) {
-      setLocation("/init");
-    }
-  }, [accountId, setLocation]);
-
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });

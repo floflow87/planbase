@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function CRM() {
-  const [, setLocation] = useLocation();
   const accountId = localStorage.getItem("demo_account_id");
   const { toast } = useToast();
   
@@ -28,13 +27,6 @@ export default function CRM() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-
-  // Redirect if no account
-  useEffect(() => {
-    if (!accountId) {
-      setLocation("/init");
-    }
-  }, [accountId, setLocation]);
 
   // Fetch clients
   const { data: clients = [], isLoading } = useQuery<Client[]>({
