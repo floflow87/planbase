@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1763,10 +1763,176 @@ export default function Projects() {
             )}
           </TabsContent>
 
-          <TabsContent value="projects">
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Vue Projets - En cours de développement</p>
+          <TabsContent value="projects" className="space-y-4">
+            {/* Projects View Header */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  placeholder="Rechercher des projets..."
+                  className="max-w-sm"
+                  data-testid="input-search-projects"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]" data-testid="select-project-stage-filter">
+                    <SelectValue placeholder="Tous les stages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les stages</SelectItem>
+                    <SelectItem value="prospection">Prospection</SelectItem>
+                    <SelectItem value="en_cours">En cours</SelectItem>
+                    <SelectItem value="termine">Terminé</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button data-testid="button-create-project">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouveau projet
+                </Button>
+              </div>
             </div>
+
+            {/* Projects Grid */}
+            {projects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-muted-foreground mb-4">Aucun projet pour le moment</p>
+                <Button data-testid="button-create-first-project">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Créer votre premier projet
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {projects.map((project) => {
+                  const client = clients.find((c) => c.id === project.clientId);
+                  
+                  const getStageColor = (stage: string | null) => {
+                    switch (stage) {
+                      case "prospection":
+                        return "bg-yellow-100 text-yellow-700 border-yellow-200";
+                      case "en_cours":
+                        return "bg-blue-100 text-blue-700 border-blue-200";
+                      case "termine":
+                        return "bg-green-100 text-green-700 border-green-200";
+                      default:
+                        return "bg-gray-100 text-gray-700 border-gray-200";
+                    }
+                  };
+
+                  const getStageLabel = (stage: string | null) => {
+                    switch (stage) {
+                      case "prospection":
+                        return "Prospection";
+                      case "en_cours":
+                        return "En cours";
+                      case "termine":
+                        return "Terminé";
+                      default:
+                        return stage || "Non défini";
+                    }
+                  };
+
+                  return (
+                    <Card
+                      key={project.id}
+                      className="hover-elevate active-elevate-2"
+                      data-testid={`project-card-${project.id}`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-3 flex-1">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary text-primary-foreground">
+                                {client?.name.substring(0, 2).toUpperCase() || "??"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm truncate" data-testid={`project-name-${project.id}`}>
+                                {project.name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {client?.name || "Client non défini"}
+                              </p>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                data-testid={`button-project-menu-${project.id}`}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem data-testid={`button-view-project-${project.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Voir les détails
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`button-edit-project-${project.id}`}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`button-complete-project-${project.id}`}>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Marquer comme terminé
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                data-testid={`button-delete-project-${project.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStageColor(project.stage)} data-testid={`badge-stage-${project.id}`}>
+                              {getStageLabel(project.stage)}
+                            </Badge>
+                            {project.category && (
+                              <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
+                                {project.category}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {project.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {project.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" />
+                              {project.startDate
+                                ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                                : "Pas de date"}
+                            </div>
+                            {project.budget && (
+                              <div className="font-medium text-foreground">
+                                {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                  style: "currency",
+                                  currency: "EUR",
+                                  minimumFractionDigits: 0,
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
