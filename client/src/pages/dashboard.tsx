@@ -268,27 +268,31 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border"
-                  data-testid={`project-${project.id}`}
-                >
-                  <div className="w-1 h-12 rounded bg-primary" />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-foreground">{project.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">{project.description || "Aucune description"}</p>
+              {recentProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun projet récent</p>
+              ) : (
+                recentProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border"
+                    data-testid={`project-${project.id}`}
+                  >
+                    <div className="w-1 h-12 rounded bg-primary" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-foreground">{project.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">{project.description || "Aucune description"}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant="secondary" className="capitalize">
+                        {project.stage === "en_cours" ? "En cours" : project.stage === "termine" ? "Terminé" : "Prospection"}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary" className="capitalize">
-                      {project.stage === "en_cours" ? "En cours" : project.stage === "termine" ? "Terminé" : "Prospection"}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

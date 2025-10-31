@@ -711,14 +711,16 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
         </div>
       )}
       
-      <div className="overflow-x-auto">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <Table>
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
           <TableHeader>
             <TableRow>
               <SortableContext items={columnOrder}>
@@ -964,10 +966,12 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
           </TableBody>
         </Table>
       </DndContext>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 export default function Projects() {
   const [, setLocation] = useLocation();

@@ -38,13 +38,7 @@ export default function CRM() {
   // Create client mutation
   const createMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      const response = await fetch("/api/clients", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) throw new Error("Failed to create client");
-      return response.json();
+      return await apiRequest("POST", "/api/clients", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -59,13 +53,7 @@ export default function CRM() {
   // Update client mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClient> }) => {
-      const response = await fetch(`/api/clients/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) throw new Error("Failed to update client");
-      return response.json();
+      return await apiRequest("PATCH", `/api/clients/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -77,9 +65,7 @@ export default function CRM() {
   // Delete client mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/clients/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete client");
-      return response.json();
+      return await apiRequest("DELETE", `/api/clients/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
