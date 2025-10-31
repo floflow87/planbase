@@ -665,44 +665,6 @@ export default function CRM() {
                     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
                     const isSelected = selectedClients.has(client.id);
 
-                    const renderColumnContent = (columnId: ColumnId) => {
-                      switch (columnId) {
-                        case "client":
-                          return (
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{client.name}</p>
-                                <p className="text-xs text-muted-foreground capitalize">
-                                  {client.type === 'company' ? 'Entreprise' : 'Personne'}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        case "contacts":
-                          return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
-                        case "type":
-                          return (
-                            <Badge variant="secondary">
-                              {client.status === "prospecting" ? "Prospection" :
-                               client.status === "qualified" ? "Qualifié" :
-                               client.status === "negotiation" ? "Négociation" :
-                               client.status === "won" ? "Gagné" :
-                               client.status === "lost" ? "Perdu" : client.status}
-                            </Badge>
-                          );
-                        case "projets":
-                          return <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>;
-                        case "budget":
-                          return (
-                            <p className="text-sm font-medium text-foreground">
-                              €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
-                            </p>
-                          );
-                        default:
-                          return null;
-                      }
-                    };
-                    
                     return (
                       <div
                         key={client.id}
@@ -725,13 +687,61 @@ export default function CRM() {
                             data-testid={`checkbox-select-${client.id}`}
                           />
                         </div>
-                        {columns.map((column) => (
-                          <Link key={column.id} href={`/crm/${client.id}`}>
-                            <div className={`${column.className} flex items-center cursor-pointer`}>
-                              {renderColumnContent(column.id)}
+                        {columns.map((column) => {
+                          const content = (() => {
+                            switch (column.id) {
+                              case "client":
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div>
+                                      <p className="text-sm font-medium text-foreground">{client.name}</p>
+                                      <p className="text-xs text-muted-foreground capitalize">
+                                        {client.type === 'company' ? 'Entreprise' : 'Personne'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              case "contacts":
+                                return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
+                              case "type":
+                                return (
+                                  <Badge variant="secondary">
+                                    {client.status === "prospecting" ? "Prospection" :
+                                     client.status === "qualified" ? "Qualifié" :
+                                     client.status === "negotiation" ? "Négociation" :
+                                     client.status === "won" ? "Gagné" :
+                                     client.status === "lost" ? "Perdu" : client.status}
+                                  </Badge>
+                                );
+                              case "projets":
+                                return <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>;
+                              case "budget":
+                                return (
+                                  <p className="text-sm font-medium text-foreground">
+                                    €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                                  </p>
+                                );
+                              default:
+                                return null;
+                            }
+                          })();
+
+                          if (column.id === "client") {
+                            return (
+                              <Link key={column.id} href={`/crm/${client.id}`} className={column.className}>
+                                <div className="flex items-center cursor-pointer">
+                                  {content}
+                                </div>
+                              </Link>
+                            );
+                          }
+
+                          return (
+                            <div key={column.id} className={`${column.className} flex items-center`}>
+                              {content}
                             </div>
-                          </Link>
-                        ))}
+                          );
+                        })}
                         <div className="col-span-1 flex items-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
