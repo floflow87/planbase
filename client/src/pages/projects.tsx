@@ -1759,29 +1759,27 @@ export default function Projects() {
                 <div className="flex border rounded-md">
                   <Button
                     variant={viewMode === "kanban" ? "secondary" : "ghost"}
-                    size="sm"
+                    size="icon"
                     onClick={() => setViewMode("kanban")}
                     data-testid="button-view-kanban"
                   >
-                    <LayoutGrid className="w-4 h-4 mr-2" />
-                    Kanban
+                    <LayoutGrid className="w-4 h-4" />
                   </Button>
                   <Button
                     variant={viewMode === "list" ? "secondary" : "ghost"}
-                    size="sm"
+                    size="icon"
                     onClick={() => setViewMode("list")}
                     data-testid="button-view-list"
                   >
-                    <List className="w-4 h-4 mr-2" />
-                    Liste
+                    <List className="w-4 h-4" />
                   </Button>
                 </div>
                 <Button
-                  onClick={() => setIsCreateColumnDialogOpen(true)}
-                  data-testid="button-new-column"
+                  onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
+                  data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle Colonne
+                  {viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}
                 </Button>
               </div>
             </div>
@@ -1937,21 +1935,19 @@ export default function Projects() {
                 <div className="flex border rounded-md">
                   <Button
                     variant={projectViewMode === "grid" ? "secondary" : "ghost"}
-                    size="sm"
+                    size="icon"
                     onClick={() => setProjectViewMode("grid")}
                     data-testid="button-project-view-grid"
                   >
-                    <LayoutGrid className="w-4 h-4 mr-2" />
-                    Grille
+                    <LayoutGrid className="w-4 h-4" />
                   </Button>
                   <Button
                     variant={projectViewMode === "list" ? "secondary" : "ghost"}
-                    size="sm"
+                    size="icon"
                     onClick={() => setProjectViewMode("list")}
                     data-testid="button-project-view-list"
                   >
-                    <List className="w-4 h-4 mr-2" />
-                    Liste
+                    <List className="w-4 h-4" />
                   </Button>
                 </div>
                 <Button 
