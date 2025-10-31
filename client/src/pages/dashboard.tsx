@@ -6,8 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useState, useEffect } from "react";
-import type { Project, Client, Activity } from "@shared/schema";
+import type { Project, Client, Activity, AppUser } from "@shared/schema";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
 const getStageColor = (stage: string) => {
@@ -58,38 +57,42 @@ const translateSubjectType = (subjectType: string) => {
   return translations[subjectType] || subjectType;
 };
 
+// Fonction pour traduire les descriptions d'activités
+const translateActivityDescription = (description: string) => {
+  const translations: Record<string, string> = {
+    "Project created:": "Projet créé :",
+    "Project updated:": "Projet mis à jour :",
+    "Project deleted:": "Projet supprimé :",
+    "New client onboarded:": "Nouveau client enregistré :",
+    "Client updated:": "Client mis à jour :",
+    "Client deleted:": "Client supprimé :",
+    "Task created:": "Tâche créée :",
+    "Task updated:": "Tâche mise à jour :",
+    "Task deleted:": "Tâche supprimée :",
+    "Contact created:": "Contact créé :",
+    "Contact updated:": "Contact mis à jour :",
+    "Contact deleted:": "Contact supprimé :",
+  };
+  
+  // Try to translate known patterns
+  for (const [key, value] of Object.entries(translations)) {
+    if (description.includes(key)) {
+      return description.replace(key, value);
+    }
+  }
+  
+  return description;
+};
+
 export default function Dashboard() {
-  const [accountId, setAccountId] = useState<string | null>(localStorage.getItem("demo_account_id"));
-  const [isInitializing, setIsInitializing] = useState(false);
   const [, setLocation] = useLocation();
 
-  // Auto-initialize demo account if not exists
-  useEffect(() => {
-    const initializeAccount = async () => {
-      if (!accountId && !isInitializing) {
-        setIsInitializing(true);
-        try {
-          const response = await fetch("/api/seed", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
+  // Fetch current user to get accountId
+  const { data: currentUser } = useQuery<AppUser>({
+    queryKey: ["/api/me"],
+  });
 
-          if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem("demo_account_id", data.accountId);
-            localStorage.setItem("demo_user_id", data.userId);
-            setAccountId(data.accountId);
-          }
-        } catch (error) {
-          console.error("Failed to initialize account:", error);
-        } finally {
-          setIsInitializing(false);
-        }
-      }
-    };
-
-    initializeAccount();
-  }, [accountId, isInitializing]);
+  const accountId = currentUser?.accountId;
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -106,7 +109,7 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  if (!accountId || isInitializing || projectsLoading || clientsLoading || activitiesLoading) {
+  if (!accountId || projectsLoading || clientsLoading || activitiesLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-muted-foreground">Chargement...</div>
@@ -297,12 +300,15 @@ export default function Dashboard() {
                   const payload = activity.payload as { description?: string };
                   const translatedKind = translateActivityKind(activity.kind);
                   const translatedSubject = translateSubjectType(activity.subjectType);
+                  const description = payload.description 
+                    ? translateActivityDescription(payload.description)
+                    : `${translatedSubject} ${translatedKind}`;
                   return (
                     <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
                       <div className="w-2 h-2 rounded-full bg-primary mt-2" />
                       <div className="flex-1">
                         <p className="text-sm text-foreground capitalize">
-                          {payload.description || `${translatedSubject} ${translatedKind}`}
+                          {description}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(activity.createdAt).toLocaleDateString()}
