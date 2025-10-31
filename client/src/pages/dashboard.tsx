@@ -130,7 +130,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       setIsCreateClientDialogOpen(false);
       form.reset();
-      toast({ title: "Client créé avec succès", variant: "default" });
+      toast({ title: "Client créé avec succès", variant: "success" });
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });

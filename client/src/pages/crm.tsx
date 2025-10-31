@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -89,7 +90,7 @@ export default function CRM() {
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
-    { id: "client", label: "Client", width: 3, className: "col-span-3" },
+    { id: "client", label: "Client", width: 2, className: "col-span-2" },
     { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
     { id: "type", label: "Type", width: 2, className: "col-span-2" },
     { id: "projets", label: "Projets", width: 2, className: "col-span-2" },
@@ -705,7 +706,7 @@ export default function CRM() {
                                 return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
                               case "type":
                                 return (
-                                  <Badge variant="secondary">
+                                  <Badge>
                                     {client.status === "prospecting" ? "Prospection" :
                                      client.status === "qualified" ? "Qualifié" :
                                      client.status === "negotiation" ? "Négociation" :
@@ -714,7 +715,22 @@ export default function CRM() {
                                   </Badge>
                                 );
                               case "projets":
-                                return <p className="text-sm text-foreground">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>;
+                                return clientProjects.length > 0 ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className="text-sm text-foreground cursor-help">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="space-y-1">
+                                        {clientProjects.map((p: Project) => (
+                                          <div key={p.id} className="text-xs">{p.name}</div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <p className="text-sm text-foreground">0 projet</p>
+                                );
                               case "budget":
                                 return (
                                   <p className="text-sm font-medium text-foreground">
