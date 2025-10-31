@@ -158,10 +158,14 @@ export default function ClientDetail() {
               <div>
                 <h1 className="text-3xl font-heading font-bold text-foreground">{client.name}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={client.type === "client" ? "default" : "secondary"}>
-                    {client.type === "client" ? "Client" : "Prospect"}
+                  <Badge>
+                    {client.status === "prospecting" ? "Prospection" :
+                     client.status === "qualified" ? "Qualifié" :
+                     client.status === "negotiation" ? "Négociation" :
+                     client.status === "won" ? "Gagné" :
+                     client.status === "lost" ? "Perdu" : client.status}
                   </Badge>
-                  <Badge variant="outline">{client.clientType === "company" ? "Entreprise" : "Particulier"}</Badge>
+                  <Badge variant="outline">{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
                 </div>
               </div>
             </div>
@@ -185,95 +189,63 @@ export default function ClientDetail() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="infos" className="w-full">
+        <Tabs defaultValue="informations" className="w-full">
           <TabsList>
-            <TabsTrigger value="infos" data-testid="tab-infos">Infos générales</TabsTrigger>
-            <TabsTrigger value="contacts" data-testid="tab-contacts">Contacts ({contacts.length})</TabsTrigger>
-            <TabsTrigger value="projects" data-testid="tab-projects">Projets ({projects.length})</TabsTrigger>
+            <TabsTrigger value="informations" data-testid="tab-informations">Informations</TabsTrigger>
+            <TabsTrigger value="comptabilite" data-testid="tab-comptabilite">Comptabilité</TabsTrigger>
+            <TabsTrigger value="suivi" data-testid="tab-suivi">Suivi notarial</TabsTrigger>
+            <TabsTrigger value="activites" data-testid="tab-activites">Activités</TabsTrigger>
+            <TabsTrigger value="taches" data-testid="tab-taches">Tâches & RDV</TabsTrigger>
+            <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
           </TabsList>
 
-          {/* Infos générales */}
-          <TabsContent value="infos" className="space-y-4">
+          {/* Informations */}
+          <TabsContent value="informations" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Informations</CardTitle>
+                <CardTitle>Informations du client</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    {client.email && (
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="text-foreground">{client.email}</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Téléphone</p>
-                          <p className="text-foreground">{client.phone}</p>
-                        </div>
-                      </div>
-                    )}
-                    {(client.address || client.city) && (
-                      <div className="flex items-center gap-3">
-                        <MapPin className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Adresse</p>
-                          <p className="text-foreground">
-                            {client.address && <span>{client.address}<br /></span>}
-                            {client.postalCode && client.city && <span>{client.postalCode} {client.city}</span>}
-                            {client.country && client.country !== "France" && <span><br />{client.country}</span>}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Civilité</p>
+                      <p className="text-foreground">-</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Prénom</p>
+                      <p className="text-foreground">-</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Date de naissance</p>
+                      <p className="text-foreground">-</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Nationalité</p>
+                      <p className="text-foreground">-</p>
+                    </div>
                   </div>
                   <div className="space-y-4">
-                    {client.siren && (
-                      <div className="flex items-center gap-3">
-                        <Building2 className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">SIREN</p>
-                          <p className="text-foreground">{client.siren}</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.siret && (
-                      <div className="flex items-center gap-3">
-                        <Building2 className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">SIRET</p>
-                          <p className="text-foreground">{client.siret}</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.tva && (
-                      <div className="flex items-center gap-3">
-                        <Building2 className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">TVA</p>
-                          <p className="text-foreground">{client.tva}</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.budget && (
-                      <div className="flex items-center gap-3">
-                        <Briefcase className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Budget</p>
-                          <p className="text-foreground">€{parseFloat(client.budget).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Type de client</p>
+                      <Badge>{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Nom</p>
+                      <p className="text-foreground">{client.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Lieu de naissance</p>
+                      <p className="text-foreground">-</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Société</p>
+                      <p className="text-foreground">-</p>
+                    </div>
                   </div>
                 </div>
                 {client.notes && (
-                  <div className="pt-4 border-t">
+                  <div className="pt-6 border-t mt-6">
                     <p className="text-sm text-muted-foreground mb-2">Notes</p>
                     <p className="text-foreground whitespace-pre-wrap">{client.notes}</p>
                   </div>
@@ -282,135 +254,74 @@ export default function ClientDetail() {
             </Card>
           </TabsContent>
 
-          {/* Contacts */}
-          <TabsContent value="contacts" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-heading font-semibold">Contacts</h2>
-              <Button onClick={() => openContactDialog()} data-testid="button-new-contact">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau contact
-              </Button>
-            </div>
-            {contacts.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  Aucun contact pour ce client
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {contacts.map((contact) => (
-                  <Card key={contact.id} data-testid={`card-contact-${contact.id}`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Avatar>
-                            <AvatarFallback>
-                              {contact.firstName?.charAt(0)}{contact.lastName?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h3 className="font-medium text-foreground">
-                              {contact.firstName} {contact.lastName}
-                            </h3>
-                            {contact.position && (
-                              <p className="text-sm text-muted-foreground">{contact.position}</p>
-                            )}
-                            <div className="flex items-center gap-4 mt-2">
-                              {contact.email && (
-                                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                  <Mail className="w-3 h-3" />
-                                  {contact.email}
-                                </span>
-                              )}
-                              {contact.phone && (
-                                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                  <Phone className="w-3 h-3" />
-                                  {contact.phone}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openContactDialog(contact)}
-                            data-testid={`button-edit-contact-${contact.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              if (confirm("Supprimer ce contact ?")) {
-                                deleteContactMutation.mutate(contact.id);
-                              }
-                            }}
-                            data-testid={`button-delete-contact-${contact.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+          {/* Comptabilité */}
+          <TabsContent value="comptabilite" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Comptabilité</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-12 text-center text-muted-foreground">
+                  Section comptabilité à implémenter
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Projets */}
-          <TabsContent value="projects" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-heading font-semibold">Projets</h2>
-              <Link href="/projects/new">
-                <Button data-testid="button-new-project">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouveau projet
-                </Button>
-              </Link>
-            </div>
-            {projects.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  Aucun projet pour ce client
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {projects.map((project) => (
-                  <Link key={project.id} href={`/projects/${project.id}`}>
-                    <Card className="hover-elevate active-elevate-2 cursor-pointer" data-testid={`card-project-${project.id}`}>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium text-foreground">{project.name}</h3>
-                            {project.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
-                            )}
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline">{project.stage}</Badge>
-                              {project.category && <Badge variant="secondary">{project.category}</Badge>}
-                            </div>
-                          </div>
-                          {project.budget && (
-                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Budget</p>
-                              <p className="text-lg font-medium text-foreground">
-                                €{parseFloat(project.budget).toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            )}
+          {/* Suivi notarial */}
+          <TabsContent value="suivi" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Suivi notarial</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-12 text-center text-muted-foreground">
+                  Section suivi notarial à implémenter
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Activités */}
+          <TabsContent value="activites" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activités</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-12 text-center text-muted-foreground">
+                  Section activités à implémenter
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tâches & RDV */}
+          <TabsContent value="taches" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tâches & RDV</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-12 text-center text-muted-foreground">
+                  Section tâches & RDV à implémenter
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Documents */}
+          <TabsContent value="documents" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-12 text-center text-muted-foreground">
+                  Section documents à implémenter
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
