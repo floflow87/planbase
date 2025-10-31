@@ -1715,17 +1715,6 @@ export default function Projects() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">
-              Projets
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Gestion des projets et tâches
-            </p>
-          </div>
-        </div>
-
         <Tabs defaultValue="tasks" className="w-full">
           <TabsList>
             <TabsTrigger value="tasks" data-testid="tab-tasks">
