@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Filter, Download, LayoutGrid, List, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertClientSchema, type InsertClient, type Client } from "@shared/schema";
+import { insertClientSchema, type InsertClient, type Client, type Contact, type Project } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -158,13 +159,13 @@ export default function CRM() {
   };
 
   // Fetch projects for project counts
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/accounts", accountId, "projects"],
     enabled: !!accountId,
   });
 
   // Fetch contacts for contact counts  
-  const { data: contacts = [] } = useQuery({
+  const { data: contacts = [] } = useQuery<Contact[]>({
     queryKey: ["/api/accounts", accountId, "contacts"],
     enabled: !!accountId,
   });
@@ -184,7 +185,7 @@ export default function CRM() {
   const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
   const wonClients = clients.filter(c => c.status === "signed").length;
   const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
-  const totalOpportunities = clients.reduce((sum, c) => sum + (c.budget || 0), 0);
+  const totalOpportunities = clients.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
 
   const kpis = [
     {
@@ -271,13 +272,7 @@ export default function CRM() {
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">CRM</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Gestion des clients et prospects
-            </p>
-          </div>
+        <div className="flex items-center justify-end">
           <Dialog open={isCreateDialogOpen || !!editingClient} onOpenChange={(open) => {
             if (!open) {
               setIsCreateDialogOpen(false);
