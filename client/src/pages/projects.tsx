@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,12 +395,14 @@ interface ListViewProps {
   tasks: Task[];
   columns: TaskColumn[];
   users: AppUser[];
+  projects: Project[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onUpdateTask: (taskId: string, data: Partial<Task>) => void;
 }
 
-function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
+function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
+  const { toast } = useToast();
   const [columnOrder, setColumnOrder] = useState([
     'checkbox',
     'title',
@@ -414,6 +416,8 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
   const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
+  const [isAttachToProjectDialogOpen, setIsAttachToProjectDialogOpen] = useState(false);
+  const [attachProjectId, setAttachProjectId] = useState<string>("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -594,6 +598,58 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
     setSelectedTasks(new Set());
   };
 
+  const handleBulkAttachToProject = async () => {
+    if (!attachProjectId) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner un projet",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Get the first column of the target project
+      const projectColumns = columns.filter(c => c.projectId === attachProjectId);
+      if (projectColumns.length === 0) {
+        toast({
+          title: "Erreur",
+          description: "Le projet sélectionné n'a pas de colonnes",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const firstColumn = projectColumns.sort((a, b) => a.order - b.order)[0];
+
+      await apiRequest("/api/tasks/bulk-update-project", {
+        method: "PATCH",
+        body: JSON.stringify({
+          taskIds: Array.from(selectedTasks),
+          projectId: attachProjectId,
+          newColumnId: firstColumn.id,
+        }),
+      });
+
+      toast({
+        title: "Succès",
+        description: `${selectedTasks.size} tâche(s) rattachée(s) au projet`,
+        variant: "success",
+      });
+
+      setSelectedTasks(new Set());
+      setIsAttachToProjectDialogOpen(false);
+      setAttachProjectId("");
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de rattacher les tâches",
+        variant: "destructive",
+      });
+    }
+  };
+
   const SortableTableHeader = ({ columnId }: { columnId: string }) => {
     // Special handling for checkbox column
     if (columnId === 'checkbox') {
@@ -715,6 +771,14 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => setIsAttachToProjectDialogOpen(true)}
+                data-testid="button-bulk-attach-project"
+              >
+                <FolderInput className="h-4 w-4 mr-2" />
+                Rattacher à un projet
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-destructive"
@@ -987,6 +1051,47 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
             </div>
           </CardContent>
         </Card>
+
+      {/* Dialogue de rattachement à un projet */}
+      <Dialog open={isAttachToProjectDialogOpen} onOpenChange={setIsAttachToProjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rattacher les tâches à un projet</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Projet de destination</Label>
+              <Select value={attachProjectId} onValueChange={setAttachProjectId}>
+                <SelectTrigger data-testid="select-attach-project">
+                  <SelectValue placeholder="Sélectionner un projet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAttachToProjectDialogOpen(false);
+                setAttachProjectId("");
+              }}
+              data-testid="button-cancel-attach"
+            >
+              Annuler
+            </Button>
+            <Button onClick={handleBulkAttachToProject} data-testid="button-confirm-attach">
+              Rattacher {selectedTasks.size} tâche{selectedTasks.size > 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     );
   }
@@ -1905,6 +2010,7 @@ export default function Projects() {
                 tasks={tasks}
                 columns={taskColumns}
                 users={users}
+                projects={projects}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
                 onUpdateTask={(taskId, data) => {

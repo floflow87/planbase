@@ -551,6 +551,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update tasks project - MUST be before /:id routes
+  app.patch("/api/tasks/bulk-update-project", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { z } = await import("zod");
+      
+      const bulkUpdateProjectSchema = z.object({
+        taskIds: z.array(z.string().uuid()),
+        projectId: z.string().uuid().nullable(),
+        newColumnId: z.string().uuid()
+      });
+      
+      const { taskIds, projectId, newColumnId } = bulkUpdateProjectSchema.parse(req.body);
+      
+      // Verify all tasks belong to user's account
+      for (const taskId of taskIds) {
+        const task = await storage.getTask(taskId);
+        if (!task || task.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+
+      // Verify project belongs to user's account if projectId is not null
+      if (projectId) {
+        const project = await storage.getProject(projectId);
+        if (!project || project.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied to project" });
+        }
+      }
+
+      // Verify the destination column exists, belongs to user's account, and matches the project
+      const column = await storage.getTaskColumn(newColumnId);
+      if (!column) {
+        return res.status(404).json({ error: "Column not found" });
+      }
+      
+      // CRITICAL SECURITY: Verify column belongs to user's account
+      if (column.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to column" });
+      }
+      
+      // For global columns (projectId is null), verify column is global
+      if (projectId === null) {
+        if (column.projectId !== null) {
+          return res.status(403).json({ error: "Column must be a global column" });
+        }
+      } else {
+        // For project columns, verify column belongs to the specified project
+        if (column.projectId !== projectId) {
+          return res.status(403).json({ error: "Column does not belong to the specified project" });
+        }
+      }
+
+      await storage.bulkUpdateTasksProject(taskIds, projectId, newColumnId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Bulk update project error:", error);
+      res.status(400).json({ error: error.message || "Invalid input data" });
+    }
+  });
+
   // Get a specific task
   app.get("/api/tasks/:id", requireAuth, async (req, res) => {
     try {

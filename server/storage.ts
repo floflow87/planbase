@@ -77,6 +77,7 @@ export interface IStorage {
   duplicateTask(id: string): Promise<Task | undefined>;
   moveTaskToColumn(taskId: string, columnId: string, position: number): Promise<Task | undefined>;
   bulkUpdateTaskPositions(updates: { id: string; positionInColumn: number; columnId: string }[]): Promise<void>;
+  bulkUpdateTasksProject(taskIds: string[], projectId: string | null, newColumnId: string): Promise<void>;
 
   // Notes
   getNote(id: string): Promise<Note | undefined>;
@@ -457,6 +458,20 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date() 
         })
         .where(eq(tasks.id, update.id))
+        .execute();
+    }
+  }
+
+  async bulkUpdateTasksProject(taskIds: string[], projectId: string | null, newColumnId: string): Promise<void> {
+    for (const taskId of taskIds) {
+      await db
+        .update(tasks)
+        .set({ 
+          projectId,
+          columnId: newColumnId,
+          updatedAt: new Date() 
+        })
+        .where(eq(tasks.id, taskId))
         .execute();
     }
   }
