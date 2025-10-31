@@ -38,7 +38,7 @@ export default function Login() {
           const response = await apiRequest("GET", "/api/me");
           const userData = await response.json();
           localStorage.setItem("demo_account_id", userData.accountId);
-          localStorage.setItem("demo_user_id", userData.userId);
+          localStorage.setItem("demo_user_id", userData.id);
           
           toast({
             title: "Connexion réussie",

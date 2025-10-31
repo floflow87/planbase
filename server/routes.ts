@@ -160,11 +160,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/clients", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log("[DEBUG] Creating client - req.userId:", req.userId, "req.accountId:", req.accountId);
+      console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
+      
       const data = insertClientSchema.parse({
         ...req.body,
         accountId: req.accountId!, // Force accountId from auth context
         createdBy: req.userId || req.body.createdBy,
       });
+      console.log("[DEBUG] Parsed data:", JSON.stringify(data, null, 2));
       const client = await storage.createClient(data);
       
       // Create activity
@@ -329,11 +333,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log("[DEBUG] Creating project - req.userId:", req.userId, "req.accountId:", req.accountId);
+      console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
+      
       const data = insertProjectSchema.parse({
         ...req.body,
         accountId: req.accountId!,
         createdBy: req.userId || req.body.createdBy,
       });
+      console.log("[DEBUG] Parsed data:", JSON.stringify(data, null, 2));
       const project = await storage.createProject(data);
       
       // Create default task columns for new project
