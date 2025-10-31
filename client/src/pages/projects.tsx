@@ -568,7 +568,10 @@ function ListView({ tasks, columns, users, onEditTask, onDeleteTask, onUpdateTas
 
   const handleBulkDelete = async () => {
     for (const taskId of Array.from(selectedTasks)) {
-      onDeleteTask(taskId);
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        onDeleteTask(task);
+      }
     }
     setSelectedTasks(new Set());
   };
