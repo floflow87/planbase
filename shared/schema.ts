@@ -114,6 +114,7 @@ export const projects = pgTable("projects", {
   startDate: date("start_date"),
   endDate: date("end_date"),
   budget: numeric("budget", { precision: 14, scale: 2 }),
+  signatureDate: date("signature_date"), // Date de signature pour calcul CA mensuel
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   meta: jsonb("meta").notNull().default({}),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
