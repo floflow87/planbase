@@ -53,7 +53,8 @@ export default function ProjectDetail() {
   });
 
   const { data: columns = [] } = useQuery<TaskColumn[]>({
-    queryKey: ['/api/columns'],
+    queryKey: ['/api/projects', id, 'task-columns'],
+    enabled: !!id,
   });
 
   const updateProjectMutation = {
@@ -189,11 +190,16 @@ export default function ProjectDetail() {
               </Button>
             </Link>
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-bold" data-testid="project-title">{project.name}</h1>
                 <Badge className={getStageColor(project.stage || "prospection")} data-testid="badge-stage">
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
+                {project.category && (
+                  <Badge variant="outline" data-testid="badge-category">
+                    {project.category}
+                  </Badge>
+                )}
               </div>
               <p className="text-muted-foreground text-sm">
                 {project.client?.name || "Client non défini"}
@@ -216,52 +222,38 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Date de début</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Période</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span data-testid="project-start-date">
-                  {project.startDate 
-                    ? format(new Date(project.startDate), "dd MMMM yyyy", { locale: fr })
-                    : "Non définie"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Date de fin</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span data-testid="project-end-date">
-                  {project.endDate 
-                    ? format(new Date(project.endDate), "dd MMMM yyyy", { locale: fr })
-                    : "Non définie"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {project.category && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Catégorie</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-muted-foreground" />
-                  <span data-testid="project-category">{project.category}</span>
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Début:</span>
+                    <span data-testid="project-start-date">
+                      {project.startDate 
+                        ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                        : "Non définie"}
+                    </span>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Fin:</span>
+                    <span data-testid="project-end-date">
+                      {project.endDate 
+                        ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
+                        : "Non définie"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {project.budget && (
             <Card>
