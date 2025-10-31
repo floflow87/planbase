@@ -20,7 +20,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function CRM() {
-  const accountId = localStorage.getItem("demo_account_id");
   const { toast } = useToast();
   
   const [viewMode, setViewMode] = useState<"table" | "kanban" | "list">("table");
@@ -28,6 +27,13 @@ export default function CRM() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+  // Fetch current user to get accountId
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/me"],
+  });
+
+  const accountId = currentUser?.accountId;
 
   // Fetch clients
   const { data: clients = [], isLoading } = useQuery<Client[]>({
