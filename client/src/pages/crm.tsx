@@ -89,11 +89,11 @@ export default function CRM() {
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
-    { id: "client", label: "Client", width: 4, className: "col-span-4" },
+    { id: "client", label: "Client", width: 3, className: "col-span-3" },
     { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
     { id: "type", label: "Type", width: 2, className: "col-span-2" },
     { id: "projets", label: "Projets", width: 2, className: "col-span-2" },
-    { id: "budget", label: "Budget", width: 1, className: "col-span-1" },
+    { id: "budget", label: "Budget", width: 2, className: "col-span-2" },
   ]);
   
   const sensors = useSensors(

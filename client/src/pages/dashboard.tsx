@@ -3,10 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import type { Project, Client, Activity, AppUser } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Project, Client, Activity, AppUser, InsertClient } from "@shared/schema";
+import { insertClientSchema } from "@shared/schema";
+import { useState, useEffect } from "react";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
 const getStageColor = (stage: string) => {
@@ -86,6 +96,8 @@ const translateActivityDescription = (description: string) => {
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -108,6 +120,59 @@ export default function Dashboard() {
     queryKey: ["/api/activities"],
     enabled: !!accountId,
   });
+
+  // Create client mutation
+  const createClientMutation = useMutation({
+    mutationFn: async (data: InsertClient) => {
+      return await apiRequest("POST", "/api/clients", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      setIsCreateClientDialogOpen(false);
+      form.reset();
+      toast({ title: "Client créé avec succès", variant: "default" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  // Form for client creation
+  const form = useForm<InsertClient>({
+    resolver: zodResolver(insertClientSchema),
+    defaultValues: {
+      accountId: accountId || "",
+      name: "",
+      type: "company",
+      status: "prospecting",
+      budget: "0",
+      tags: [],
+      contacts: [],
+      notes: "",
+      createdBy: currentUser?.id || "",
+    },
+  });
+
+  // Update form default values when accountId and currentUser become available
+  useEffect(() => {
+    if (accountId && currentUser) {
+      form.reset({
+        accountId: accountId,
+        name: "",
+        type: "company",
+        status: "prospecting",
+        budget: "0",
+        tags: [],
+        contacts: [],
+        notes: "",
+        createdBy: currentUser.id,
+      });
+    }
+  }, [accountId, currentUser, form]);
+
+  const onSubmit = (data: InsertClient) => {
+    createClientMutation.mutate(data);
+  };
 
   if (!accountId || projectsLoading || clientsLoading || activitiesLoading) {
     return (
@@ -193,6 +258,114 @@ export default function Dashboard() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
+        {/* Create Client Dialog */}
+        <Dialog open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>
+          <DialogContent data-testid="dialog-create-client">
+            <DialogHeader>
+              <DialogTitle>Créer un nouveau client</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom du client</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-client-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="company">Entreprise</SelectItem>
+                            <SelectItem value="person">Personne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Statut</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="prospecting">Prospection</SelectItem>
+                            <SelectItem value="qualified">Qualifié</SelectItem>
+                            <SelectItem value="negotiation">Négociation</SelectItem>
+                            <SelectItem value="won">Gagné</SelectItem>
+                            <SelectItem value="lost">Perdu</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget (€)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value || 0}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          disabled={field.disabled}
+                          data-testid="input-client-budget"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateClientDialogOpen(false)}
+                    data-testid="button-cancel"
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={createClientMutation.isPending} data-testid="button-submit-client">
+                    Créer
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -202,9 +375,14 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" data-testid="button-filters">
-              <FileText className="w-4 h-4 mr-2" />
-              Rapports
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsCreateClientDialogOpen(true)}
+              data-testid="button-new-client"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nouveau Client
             </Button>
             <Button 
               size="sm" 
