@@ -130,6 +130,7 @@ export const taskColumns = pgTable("task_columns", {
 export const tasks = pgTable("tasks", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }), // Direct link to client (optional)
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }), // Now nullable - tasks can exist without a project
   columnId: uuid("column_id").references(() => taskColumns.id, { onDelete: "set null" }), // Link to task column
   title: text("title").notNull(),
@@ -147,6 +148,7 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountProjectColumnIdx: index().on(table.accountId, table.projectId, table.columnId),
+  accountClientIdx: index().on(table.accountId, table.clientId),
 }));
 
 export const deals = pgTable("deals", {

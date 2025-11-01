@@ -35,6 +35,14 @@ export default function ClientDetail() {
     position: "",
   });
   const [newComment, setNewComment] = useState("");
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [taskFormData, setTaskFormData] = useState({
+    title: "",
+    description: "",
+    priority: "medium",
+    status: "todo",
+    dueDate: "",
+  });
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -65,11 +73,14 @@ export default function ClientDetail() {
     enabled: !!accountId,
   });
 
-  // Filter tasks that belong to this client's projects
+  // Filter tasks that belong to this client (either directly or via projects)
   const tasks = useMemo(() => {
     const projectIds = projects.map(p => p.id);
-    return allTasks.filter(t => t.projectId && projectIds.includes(t.projectId));
-  }, [allTasks, projects]);
+    return allTasks.filter(t => 
+      t.clientId === id || // Direct client link
+      (t.projectId && projectIds.includes(t.projectId)) // Or via project
+    );
+  }, [allTasks, projects, id]);
 
   const { data: comments = [] } = useQuery<ClientComment[]>({
     queryKey: ['/api/clients', id, 'comments'],
@@ -166,9 +177,39 @@ export default function ClientDetail() {
     },
   });
 
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/tasks", {
+        ...data,
+        clientId: id,
+        accountId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsTaskDialogOpen(false);
+      setTaskFormData({
+        title: "",
+        description: "",
+        priority: "medium",
+        status: "todo",
+        dueDate: "",
+      });
+      toast({ title: "Tâche créée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création de la tâche", variant: "destructive" });
+    },
+  });
+
   const handleCommentSubmit = () => {
     if (!newComment.trim()) return;
     createCommentMutation.mutate(newComment);
+  };
+
+  const handleTaskSubmit = () => {
+    if (!taskFormData.title.trim()) return;
+    createTaskMutation.mutate(taskFormData);
   };
 
   const handleContactSubmit = () => {
@@ -607,13 +648,77 @@ export default function ClientDetail() {
           {/* Tâches & RDV */}
           <TabsContent value="taches" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Tâches & RDV</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardTitle>Tâches du client</CardTitle>
+                <Button onClick={() => setIsTaskDialogOpen(true)} data-testid="button-add-task">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle tâche
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  Section tâches & RDV à implémenter
-                </div>
+                {tasks.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    Aucune tâche pour ce client
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {tasks.map((task) => {
+                      const assignee = users.find((u) => u.id === task.assignedToId);
+                      const project = projects.find((p) => p.id === task.projectId);
+                      
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover-elevate"
+                          data-testid={`task-item-${task.id}`}
+                        >
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium text-foreground">{task.title}</p>
+                                <Badge variant={
+                                  task.priority === "high" ? "destructive" :
+                                  task.priority === "medium" ? "default" : "secondary"
+                                }>
+                                  {task.priority === "high" ? "Haute" :
+                                   task.priority === "medium" ? "Moyenne" : "Basse"}
+                                </Badge>
+                                <Badge variant="outline">
+                                  {task.status === "todo" ? "À faire" :
+                                   task.status === "in_progress" ? "En cours" :
+                                   task.status === "review" ? "En revue" : "Terminé"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                {project && (
+                                  <span className="flex items-center gap-1">
+                                    <Briefcase className="w-3 h-3" />
+                                    {project.name}
+                                  </span>
+                                )}
+                                {assignee && (
+                                  <span className="flex items-center gap-1">
+                                    <User className="w-3 h-3" />
+                                    {assignee.firstName} {assignee.lastName}
+                                  </span>
+                                )}
+                                {task.dueDate && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {format(new Date(task.dueDate), "d MMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
+                              {task.description && (
+                                <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -752,6 +857,92 @@ export default function ClientDetail() {
               >
                 Supprimer
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Task Creation Dialog */}
+        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nouvelle tâche pour {client?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Titre *</Label>
+                <Input
+                  value={taskFormData.title}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
+                  placeholder="Titre de la tâche"
+                  data-testid="input-task-title"
+                />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  value={taskFormData.description}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
+                  placeholder="Description de la tâche"
+                  rows={3}
+                  data-testid="input-task-description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Priorité</Label>
+                  <Select
+                    value={taskFormData.priority}
+                    onValueChange={(value) => setTaskFormData({ ...taskFormData, priority: value })}
+                  >
+                    <SelectTrigger data-testid="select-task-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Basse</SelectItem>
+                      <SelectItem value="medium">Moyenne</SelectItem>
+                      <SelectItem value="high">Haute</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Statut</Label>
+                  <Select
+                    value={taskFormData.status}
+                    onValueChange={(value) => setTaskFormData({ ...taskFormData, status: value })}
+                  >
+                    <SelectTrigger data-testid="select-task-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todo">À faire</SelectItem>
+                      <SelectItem value="in_progress">En cours</SelectItem>
+                      <SelectItem value="review">En revue</SelectItem>
+                      <SelectItem value="done">Terminé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Date d'échéance</Label>
+                <Input
+                  type="date"
+                  value={taskFormData.dueDate}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
+                  data-testid="input-task-duedate"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleTaskSubmit}
+                  disabled={createTaskMutation.isPending || !taskFormData.title.trim()}
+                  data-testid="button-submit-task"
+                >
+                  Créer la tâche
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
