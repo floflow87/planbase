@@ -9,14 +9,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task } from "@shared/schema";
-import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient } from "@shared/schema";
+import { insertClientSchema } from "@shared/schema";
+import { useState, useMemo, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +48,7 @@ export default function ClientDetail() {
     projectId: "",
     dueDate: "",
   });
+  const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -101,6 +106,48 @@ export default function ClientDetail() {
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ['/api/accounts', accountId, 'users'],
     enabled: !!accountId,
+  });
+
+  // Form for client edit
+  const clientForm = useForm<InsertClient>({
+    resolver: zodResolver(insertClientSchema),
+    defaultValues: {
+      name: "",
+      type: "company",
+      status: "prospecting",
+      budget: "",
+      accountId: accountId || "",
+      createdBy: currentUser?.id || "",
+    },
+  });
+
+  // Update form when client data loads
+  useEffect(() => {
+    if (client && accountId && currentUser) {
+      clientForm.reset({
+        name: client.name,
+        type: client.type || "company",
+        status: client.status || "prospecting",
+        budget: client.budget || "",
+        accountId,
+        createdBy: client.createdBy || currentUser.id,
+      });
+    }
+  }, [client, accountId, currentUser, clientForm]);
+
+  const updateClientMutation = useMutation({
+    mutationFn: async (data: InsertClient) => {
+      return await apiRequest("PATCH", `/api/clients/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+      setIsEditClientDialogOpen(false);
+      toast({ title: "Client mis à jour", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
   });
 
   const deleteClientMutation = useMutation({
@@ -270,6 +317,114 @@ export default function ClientDetail() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+        {/* Edit Client Dialog */}
+        <Dialog open={isEditClientDialogOpen} onOpenChange={setIsEditClientDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Modifier le client</DialogTitle>
+            </DialogHeader>
+            <Form {...clientForm}>
+              <form onSubmit={clientForm.handleSubmit((data) => updateClientMutation.mutate(data))} className="space-y-4">
+                <FormField
+                  control={clientForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-client-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={clientForm.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="company">Entreprise</SelectItem>
+                            <SelectItem value="person">Personne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={clientForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Statut</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="prospecting">Prospection</SelectItem>
+                            <SelectItem value="qualified">Qualifié</SelectItem>
+                            <SelectItem value="negotiation">Négociation</SelectItem>
+                            <SelectItem value="won">Gagné</SelectItem>
+                            <SelectItem value="lost">Perdu</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={clientForm.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget (€)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          disabled={field.disabled}
+                          data-testid="input-client-budget"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditClientDialogOpen(false)}
+                    data-testid="button-cancel"
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={updateClientMutation.isPending} data-testid="button-submit-client">
+                    Mettre à jour
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
@@ -298,12 +453,15 @@ export default function ClientDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Link href={`/crm/${id}/edit`} className="flex-1 sm:flex-none">
-              <Button variant="outline" data-testid="button-edit" className="w-full">
-                <Edit className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Modifier</span>
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditClientDialogOpen(true)} 
+              data-testid="button-edit" 
+              className="flex-1 sm:flex-none"
+            >
+              <Edit className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Modifier</span>
+            </Button>
             <Button
               variant="destructive"
               onClick={() => setIsDeleteDialogOpen(true)}
