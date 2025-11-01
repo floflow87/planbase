@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, DollarSign, Tag, Edit, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -216,7 +216,7 @@ export default function ProjectDetail() {
                 </p>
                 {project.budget && (
                   <Badge className="bg-orange-500 hover:bg-orange-600 text-white shrink-0" data-testid="badge-budget">
-                    <DollarSign className="h-3 w-3 mr-1" />
+                    <Euro className="h-3 w-3 mr-1" />
                     {project.budget}
                   </Badge>
                 )}
