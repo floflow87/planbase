@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient, InsertProject } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect } from "react";
 
@@ -122,16 +122,24 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+    enabled: !!accountId,
+  });
+
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      return await apiRequest("POST", "/api/clients", data);
+      const response = await apiRequest("POST", "/api/clients", data);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newClient) => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       setIsCreateClientDialogOpen(false);
       clientForm.reset();
       toast({ title: "Client créé avec succès", variant: "success" });
+      // Rediriger vers la page du nouveau client
+      setLocation(`/crm/${newClient.id}`);
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
@@ -222,7 +230,7 @@ export default function Dashboard() {
     createProjectMutation.mutate(data);
   };
 
-  if (!accountId || projectsLoading || clientsLoading || activitiesLoading) {
+  if (!accountId || projectsLoading || clientsLoading || activitiesLoading || tasksLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-muted-foreground">Chargement...</div>
@@ -236,6 +244,8 @@ export default function Dashboard() {
   const totalProjectsCount = projects.length;
   const clientsCount = clients.length;
   const totalRevenue = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+  // Compter les tâches en cours (status !== 'done')
+  const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
   // KPI data from real data
   const kpis: Array<{
@@ -256,6 +266,7 @@ export default function Dashboard() {
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
+      link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
     {
       title: "Clients",
@@ -265,7 +276,6 @@ export default function Dashboard() {
       icon: Users,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
-      link: { label: "Voir tous", href: "/crm" },
     },
     {
       title: "Budget Total",
@@ -277,14 +287,14 @@ export default function Dashboard() {
       iconColor: "text-green-600",
     },
     {
-      title: "Projets Total",
-      value: totalProjectsCount.toString(),
-      change: `${activeProjectsCount} actifs`,
+      title: "Tâches en cours",
+      value: activeTasksCount.toString(),
+      change: `${tasks.length} au total`,
       changeType: "neutral",
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
-      link: { label: "Voir tous", href: "/projects?tab=projects" },
+      link: { label: "Voir plus", href: "/projects?tab=tasks" },
     },
   ];
 

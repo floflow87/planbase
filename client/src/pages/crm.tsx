@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,19 @@ interface Column {
 }
 
 // Composant pour une colonne draggable
-function DraggableColumnHeader({ id, label }: { id: string; label: string }) {
+function DraggableColumnHeader({ 
+  id, 
+  label, 
+  sortColumn, 
+  sortDirection, 
+  onSort 
+}: { 
+  id: string; 
+  label: string;
+  sortColumn: string | null;
+  sortDirection: "asc" | "desc";
+  onSort: (columnId: string) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -64,16 +76,32 @@ function DraggableColumnHeader({ id, label }: { id: string; label: string }) {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const isSorted = sortColumn === id;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-1 cursor-move"
-      {...attributes}
-      {...listeners}
+      className="flex items-center gap-1"
     >
-      <GripVertical className="w-3 h-3 text-muted-foreground" />
-      <span>{label}</span>
+      <div className="cursor-move flex items-center gap-1" {...attributes} {...listeners}>
+        <GripVertical className="w-3 h-3 text-muted-foreground" />
+      </div>
+      <button
+        onClick={() => onSort(id)}
+        className="flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        <span>{label}</span>
+        {isSorted ? (
+          sortDirection === "asc" ? (
+            <ArrowUp className="w-3 h-3" />
+          ) : (
+            <ArrowDown className="w-3 h-3" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-50" />
+        )}
+      </button>
     </div>
   );
 }
@@ -90,6 +118,8 @@ export default function CRM() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<ColumnId | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
@@ -277,12 +307,77 @@ export default function CRM() {
   });
 
   // Filter and search clients
-  const filteredClients = clients.filter((client) => {
+  let filteredClients = clients.filter((client) => {
     const matchesStatus = filterStatus === "all" || client.status === filterStatus;
     const matchesSearch = searchQuery === "" || 
       client.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  // Handle sorting
+  const handleSort = (columnId: string) => {
+    if (sortColumn === columnId) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(columnId as ColumnId);
+      setSortDirection("asc");
+    }
+  };
+
+  // Sort filtered clients
+  if (sortColumn) {
+    filteredClients = [...filteredClients].sort((a, b) => {
+      let compareA: any;
+      let compareB: any;
+
+      switch (sortColumn) {
+        case "client":
+          compareA = a.name.toLowerCase();
+          compareB = b.name.toLowerCase();
+          break;
+        case "contacts":
+          const contactsA = contacts.filter((c: any) => c.clientId === a.id).length;
+          const contactsB = contacts.filter((c: any) => c.clientId === b.id).length;
+          compareA = contactsA;
+          compareB = contactsB;
+          break;
+        case "type":
+          compareA = a.status || "";
+          compareB = b.status || "";
+          break;
+        case "projets":
+          const projectsA = projects.filter((p: any) => p.clientId === a.id).length;
+          const projectsB = projects.filter((p: any) => p.clientId === b.id).length;
+          compareA = projectsA;
+          compareB = projectsB;
+          break;
+        case "budget":
+          const budgetA = projects
+            .filter((p: any) => p.clientId === a.id)
+            .reduce((sum, p: Project) => sum + (parseFloat(p.budget || "0")), 0);
+          const budgetB = projects
+            .filter((p: any) => p.clientId === b.id)
+            .reduce((sum, p: Project) => sum + (parseFloat(p.budget || "0")), 0);
+          compareA = budgetA;
+          compareB = budgetB;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof compareA === "string") {
+        return sortDirection === "asc" 
+          ? compareA.localeCompare(compareB)
+          : compareB.localeCompare(compareA);
+      } else {
+        return sortDirection === "asc" 
+          ? compareA - compareB
+          : compareB - compareA;
+      }
+    });
+  }
 
   // Calculate KPIs
   const totalContacts = clients.length;
@@ -330,18 +425,21 @@ export default function CRM() {
     },
   ];
 
-  const getStatusBadgeVariant = (status: string) => {
+  // Obtenir les couleurs personnalisées pour les badges de statut
+  const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "in_progress":
-        return "default";
-      case "prospect":
-        return "secondary";
-      case "signed":
-        return "outline";
-      case "inactive":
-        return "destructive";
+      case "won":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "lost":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "prospecting":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "negotiation":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "qualified":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
       default:
-        return "secondary";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
   };
 
@@ -655,7 +753,13 @@ export default function CRM() {
                       </div>
                       {columns.map((column) => (
                         <div key={column.id} className={column.className}>
-                          <DraggableColumnHeader id={column.id} label={column.label} />
+                          <DraggableColumnHeader 
+                            id={column.id} 
+                            label={column.label}
+                            sortColumn={sortColumn}
+                            sortDirection={sortDirection}
+                            onSort={handleSort}
+                          />
                         </div>
                       ))}
                       <div className="col-span-1">Actions</div>
@@ -708,7 +812,7 @@ export default function CRM() {
                                 return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
                               case "type":
                                 return (
-                                  <Badge>
+                                  <Badge className={getStatusBadgeColor(client.status)}>
                                     {client.status === "prospecting" ? "Prospection" :
                                      client.status === "qualified" ? "Qualifié" :
                                      client.status === "negotiation" ? "Négociation" :
@@ -871,7 +975,7 @@ export default function CRM() {
                         <CardContent className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-muted-foreground">Statut</span>
-                            <Badge variant="secondary">
+                            <Badge className={getStatusBadgeColor(client.status)}>
                               {client.status === "prospecting" ? "Prospection" :
                                client.status === "qualified" ? "Qualifié" :
                                client.status === "negotiation" ? "Négociation" :
