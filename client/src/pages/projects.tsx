@@ -1869,10 +1869,24 @@ export default function Projects() {
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
+  // Check for tab query parameter
+  const [activeTab, setActiveTab] = useState<string>("tasks");
+
+  // Update activeTab when URL changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        <Tabs defaultValue="tasks" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="tasks" data-testid="tab-tasks">
               Tâches

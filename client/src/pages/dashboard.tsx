@@ -246,6 +246,7 @@ export default function Dashboard() {
     icon: any;
     iconBg: string;
     iconColor: string;
+    link?: { label: string; href: string };
   }> = [
     {
       title: "Projets en cours",
@@ -264,6 +265,7 @@ export default function Dashboard() {
       icon: Users,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
+      link: { label: "Voir tous", href: "/crm" },
     },
     {
       title: "Budget Total",
@@ -282,6 +284,7 @@ export default function Dashboard() {
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
+      link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
   ];
 
@@ -564,7 +567,7 @@ export default function Dashboard() {
             return (
               <Card key={index} data-testid={`card-kpi-${index}`}>
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-muted-foreground font-medium">
                         {kpi.title}
@@ -591,6 +594,25 @@ export default function Dashboard() {
                       <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
                     </div>
                   </div>
+                  {kpi.link && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-xs hover:text-primary -mb-2" 
+                      onClick={() => {
+                        if (kpi.link!.href.includes('?')) {
+                          // Force page reload for links with query params to ensure tab changes
+                          window.location.href = kpi.link!.href;
+                        } else {
+                          setLocation(kpi.link!.href);
+                        }
+                      }}
+                      data-testid={`button-kpi-${index}-view-all`}
+                    >
+                      {kpi.link.label}
+                      <ChevronRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
