@@ -527,43 +527,47 @@ export default function Dashboard() {
         </Dialog>
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-heading font-bold text-foreground">Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Bienvenue sur Planbase
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => setIsCreateClientDialogOpen(true)}
               data-testid="button-new-client"
+              className="flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Nouveau Client
+              <span className="hidden sm:inline">Nouveau Client</span>
+              <span className="sm:hidden">Client</span>
             </Button>
             <Button 
               size="sm" 
               onClick={() => setIsCreateProjectDialogOpen(true)}
               data-testid="button-new-project"
+              className="flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Nouveau Projet
+              <span className="hidden sm:inline">Nouveau Projet</span>
+              <span className="sm:hidden">Projet</span>
             </Button>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <Card key={index} data-testid={`card-kpi-${index}`}>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm text-muted-foreground font-medium">
                         {kpi.title}
                       </p>
@@ -585,7 +589,7 @@ export default function Dashboard() {
                         {kpi.change}
                       </p>
                     </div>
-                    <div className={`${kpi.iconBg} p-3 rounded-md`}>
+                    <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
                       <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
                     </div>
                   </div>
@@ -596,32 +600,36 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Revenue Chart - Col Span 2 */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="lg:col-span-2 overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
               <Button variant="ghost" size="sm" data-testid="button-view-all-revenue">
-                Voir tout <ChevronRight className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">Voir tout</span>
+                <span className="sm:hidden">Tout</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                    }}
-                  />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <CardContent className="min-w-0">
+              <div className="w-full overflow-hidden">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                      }}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -643,8 +651,8 @@ export default function Dashboard() {
                     : `${translatedSubject} ${translatedKind}`;
                   return (
                     <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                      <div className="flex-1">
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground capitalize">
                           {description}
                         </p>
@@ -662,7 +670,7 @@ export default function Dashboard() {
 
         {/* Recent Projects */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
             <CardTitle className="text-base font-heading font-semibold">
               Projets Récents
             </CardTitle>
@@ -672,7 +680,9 @@ export default function Dashboard() {
               onClick={() => setLocation("/projects")}
               data-testid="button-view-all-projects"
             >
-              Voir tout <ChevronRight className="w-4 h-4 ml-1" />
+              <span className="hidden sm:inline">Voir tout</span>
+              <span className="sm:hidden">Tout</span>
+              <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -683,17 +693,17 @@ export default function Dashboard() {
                 recentProjects.map((project) => (
                   <div
                     key={project.id}
-                    className="flex items-center gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border cursor-pointer"
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border cursor-pointer"
                     onClick={() => setLocation(`/projects/${project.id}`)}
                     data-testid={`project-${project.id}`}
                   >
-                    <div className="w-1 h-12 rounded bg-primary" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-foreground">{project.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">{project.description || "Aucune description"}</p>
+                    <div className="w-1 h-12 rounded bg-primary shrink-0 hidden sm:block" />
+                    <div className="flex-1 min-w-0 w-full sm:w-auto">
+                      <h4 className="text-sm font-medium text-foreground truncate">{project.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={getStageColor(project.stage || "prospection")}>
+                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
+                      <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`}>
                         {getStageLabel(project.stage || "prospection")}
                       </Badge>
                       <p className="text-xs text-muted-foreground">

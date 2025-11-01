@@ -1883,11 +1883,11 @@ export default function Projects() {
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">
                 {projects.length > 0 && (
                   <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                    <SelectTrigger className="w-[280px]" data-testid="select-project">
+                    <SelectTrigger className="w-full sm:w-[280px]" data-testid="select-project">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1901,8 +1901,8 @@ export default function Projects() {
                   </Select>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" data-testid="button-filters">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                <Button variant="outline" size="sm" data-testid="button-filters" className="hidden sm:flex">
                   <Filter className="w-4 h-4 mr-2" />
                   Filtres
                 </Button>
@@ -1930,18 +1930,22 @@ export default function Projects() {
                   <Button
                     onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
                     data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
+                    className="flex-1 sm:flex-none"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    {viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}
+                    <span className="hidden sm:inline">{viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}</span>
+                    <span className="sm:hidden">{viewMode === "list" ? "Tâche" : "Colonne"}</span>
                   </Button>
                 )}
                 {selectedProjectId === "all" && (
                   <Button
                     onClick={() => setIsCreateTaskDialogOpen(true)}
                     data-testid="button-new-task"
+                    className="flex-1 sm:flex-none"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Nouvelle Tâche
+                    <span className="hidden sm:inline">Nouvelle Tâche</span>
+                    <span className="sm:hidden">Tâche</span>
                   </Button>
                 )}
               </div>
@@ -2232,7 +2236,7 @@ export default function Projects() {
               };
 
               return projectViewMode === "grid" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredProjects.map((project) => {
                     const client = clients.find((c) => c.id === project.clientId);
 

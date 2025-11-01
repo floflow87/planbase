@@ -500,21 +500,21 @@ export default function CRM() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <Card key={index} data-testid={`card-kpi-${index}`}>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm text-muted-foreground font-medium">{kpi.title}</p>
                       <h3 className="text-2xl font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
                       <p className="text-xs text-green-600 mt-2">
                         {kpi.change} {kpi.changeLabel}
                       </p>
                     </div>
-                    <div className={`${kpi.iconBg} p-3 rounded-md`}>
+                    <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
                       <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
                     </div>
                   </div>
@@ -527,9 +527,9 @@ export default function CRM() {
         {/* Filters and Actions */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-2 flex-1 min-w-fit">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+                <div className="relative flex-1 w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Rechercher un contact..."
@@ -540,7 +540,7 @@ export default function CRM() {
                   />
                 </div>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[180px]" data-testid="select-filter-status">
+                  <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -553,7 +553,7 @@ export default function CRM() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 {selectedClients.size > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
@@ -594,11 +594,11 @@ export default function CRM() {
                     </DropdownMenu>
                   </div>
                 )}
-                <Button variant="outline" size="sm" data-testid="button-export">
+                <Button variant="outline" size="sm" data-testid="button-export" className="hidden sm:flex">
                   <Download className="w-4 h-4 mr-2" />
                   Exporter
                 </Button>
-                <div className="flex border rounded-md">
+                <div className="flex border rounded-md hidden md:flex">
                   <Button
                     variant={viewMode === "table" ? "secondary" : "ghost"}
                     size="sm"
@@ -624,13 +624,16 @@ export default function CRM() {
               <div className="text-center py-12 text-muted-foreground">
                 Aucun client trouvé
               </div>
-            ) : viewMode === "table" ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="space-y-2">
+            ) : (
+              <>
+                {/* Table View - Desktop only, shown when viewMode is "table" */}
+                {viewMode === "table" && (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="space-y-2 hidden md:block overflow-x-auto">
                   {/* Table Header with drag and drop */}
                   <SortableContext
                     items={columns.map(col => col.id)}
@@ -792,10 +795,11 @@ export default function CRM() {
                     );
                   })}
                 </div>
-              </DndContext>
-            ) : (
-              /* Card View */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  </DndContext>
+                )}
+                
+                {/* Card View - Always shown on mobile (< md), shown on desktop (>= md) when viewMode === "card" */}
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${viewMode === "table" ? "md:hidden" : ""}`}>
                 {filteredClients.map((client) => {
                   const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
                   const clientProjects = projects.filter((p: any) => p.clientId === client.id);
@@ -891,7 +895,8 @@ export default function CRM() {
                     </Card>
                   );
                 })}
-              </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

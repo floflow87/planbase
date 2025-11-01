@@ -191,31 +191,31 @@ export default function ProjectDetail() {
   return (
     <div className="h-full overflow-auto">
       <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-start gap-2 sm:gap-3 w-full sm:w-auto">
             <Link href="/projects">
-              <Button variant="ghost" size="icon" data-testid="button-back">
+              <Button variant="ghost" size="icon" data-testid="button-back" className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold" data-testid="project-title">{project.name}</h1>
-                <Badge className={getStageColor(project.stage || "prospection")} data-testid="badge-stage">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start sm:items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-3xl font-bold truncate" data-testid="project-title">{project.name}</h1>
+                <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`} data-testid="badge-stage">
                   {getStageLabel(project.stage || "prospection")}
                 </Badge>
                 {project.category && (
-                  <Badge variant="outline" data-testid="badge-category">
+                  <Badge variant="outline" data-testid="badge-category" className="shrink-0">
                     {project.category}
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <p className="text-muted-foreground text-sm">
                   {project.client?.name || "Client non défini"}
                 </p>
                 {project.budget && (
-                  <Badge className="bg-orange-500 hover:bg-orange-600 text-white" data-testid="badge-budget">
+                  <Badge className="bg-orange-500 hover:bg-orange-600 text-white shrink-0" data-testid="badge-budget">
                     <DollarSign className="h-3 w-3 mr-1" />
                     {project.budget}
                   </Badge>
@@ -223,23 +223,26 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none">
               <Edit className="h-4 w-4 mr-2" />
-              Modifier
+              <span className="hidden sm:inline">Modifier</span>
+              <span className="sm:hidden">Modifier</span>
             </Button>
             <Button 
               variant="destructive" 
               onClick={() => setIsDeleteDialogOpen(true)}
               data-testid="button-delete-project"
+              className="flex-1 sm:flex-none"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Supprimer
+              <span className="hidden sm:inline">Supprimer</span>
+              <span className="sm:hidden">Supprimer</span>
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
           {project.description && (
             <Card className="lg:col-span-2">
               <CardHeader>

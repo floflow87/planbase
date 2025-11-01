@@ -271,58 +271,61 @@ export default function ClientDetail() {
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <Link href="/crm">
               <Button variant="ghost" size="icon" data-testid="button-back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16">
-                <AvatarFallback className="text-xl">{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+              <Avatar className="w-12 h-12 sm:w-16 sm:h-16 shrink-0">
+                <AvatarFallback className="text-lg sm:text-xl">{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div>
-                <h1 className="text-3xl font-heading font-bold text-foreground">{client.name}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-3xl font-heading font-bold text-foreground truncate">{client.name}</h1>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Badge className="shrink-0">
                     {client.status === "prospecting" ? "Prospection" :
                      client.status === "qualified" ? "Qualifié" :
                      client.status === "negotiation" ? "Négociation" :
                      client.status === "won" ? "Gagné" :
                      client.status === "lost" ? "Perdu" : client.status}
                   </Badge>
-                  <Badge variant="outline">{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
+                  <Badge variant="outline" className="shrink-0">{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
                 </div>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href={`/crm/${id}/edit`}>
-              <Button variant="outline" data-testid="button-edit">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Link href={`/crm/${id}/edit`} className="flex-1 sm:flex-none">
+              <Button variant="outline" data-testid="button-edit" className="w-full">
                 <Edit className="w-4 h-4 mr-2" />
-                Modifier
+                <span className="hidden sm:inline">Modifier</span>
+                <span className="sm:hidden">Modifier</span>
               </Button>
             </Link>
             <Button
               variant="destructive"
               onClick={() => setIsDeleteDialogOpen(true)}
               data-testid="button-delete"
+              className="flex-1 sm:flex-none"
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer
+              <span className="hidden sm:inline">Supprimer</span>
+              <span className="sm:hidden">Supprimer</span>
             </Button>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="informations" className="w-full">
-          <TabsList>
-            <TabsTrigger value="informations" data-testid="tab-informations">Informations</TabsTrigger>
-            <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
-            <TabsTrigger value="activites" data-testid="tab-activites">Activités</TabsTrigger>
-            <TabsTrigger value="taches" data-testid="tab-taches">Tâches & RDV</TabsTrigger>
-            <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
+          <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex sm:grid-cols-none h-auto">
+            <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
+            <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+            <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
+            <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
+            <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
           </TabsList>
 
           {/* Informations */}
@@ -332,7 +335,7 @@ export default function ClientDetail() {
                 <CardTitle>Informations du client</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Civilité</p>
@@ -380,9 +383,9 @@ export default function ClientDetail() {
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                 <CardTitle>Contacts</CardTitle>
-                <Button onClick={() => openContactDialog()} data-testid="button-add-contact">
+                <Button onClick={() => openContactDialog()} data-testid="button-add-contact" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Ajouter un contact
                 </Button>
