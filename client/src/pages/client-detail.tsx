@@ -63,11 +63,15 @@ export default function ClientDetail() {
     enabled: !!accountId,
   });
 
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: allProjects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
-    select: (data) => data.filter((p: Project) => p.clientId === id),
     enabled: !!accountId,
   });
+
+  // Filter projects for this client
+  const projects = useMemo(() => {
+    return allProjects.filter((p: Project) => p.clientId === id);
+  }, [allProjects, id]);
 
   const { data: allTasks = [] } = useQuery<Task[]>({
     queryKey: ['/api/tasks'],
@@ -544,28 +548,11 @@ export default function ClientDetail() {
                 
                 {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length > 0 && (
                   <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-                    {/* Création du client */}
-                    {client && (
-                      <div className="relative" data-testid="activity-client-created">
-                        <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                          <User className="w-3 h-3 text-primary-foreground" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-foreground">
-                            <span className="font-medium">
-                              {users.find((u) => u.id === client.createdBy)?.firstName} {users.find((u) => u.id === client.createdBy)?.lastName}
-                            </span>{" "}
-                            a créé le compte
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(client.createdAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Autres activités triées par date décroissante */}
+                    {/* Toutes les activités triées par date décroissante (plus récentes en premier) */}
                     {[
+                      // Ajouter la création du client
+                      ...(client ? [{ ...client, _date: new Date(client.createdAt), _type: 'client_created' as const }] : []),
+                      // Ajouter les autres activités
                       ...projects.map((p) => ({ ...p, _date: new Date(p.createdAt), _type: 'project' as const })),
                       ...tasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
                       ...contacts.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'contact' as const })),
@@ -575,6 +562,27 @@ export default function ClientDetail() {
                       .map((item, index) => {
                         const author = users.find((u) => u.id === item.createdBy);
                         
+                        if (item._type === 'client_created') {
+                          return (
+                            <div key="client-created" className="relative" data-testid="activity-client-created">
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                <User className="w-3 h-3 text-primary-foreground" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">
+                                    {author?.firstName} {author?.lastName}
+                                  </span>{" "}
+                                  a créé le compte
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         if (item._type === 'project') {
                           return (
                             <div key={`project-${item.id}`} className="relative" data-testid={`activity-project-${item.id}`}>
