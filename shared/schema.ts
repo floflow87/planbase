@@ -447,6 +447,21 @@ export const roadmapItems = pgTable("roadmap_items", {
 }));
 
 // ============================================
+// CLIENT COMMENTS
+// ============================================
+
+export const clientComments = pgTable("client_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountClientIdx: index().on(table.accountId, table.clientId),
+}));
+
+// ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
 
@@ -486,6 +501,7 @@ export const insertProductSchema = createInsertSchema(products).omit({ id: true,
 export const insertFeatureSchema = createInsertSchema(features).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
 
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
@@ -508,6 +524,7 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertFeature = z.infer<typeof insertFeatureSchema>;
 export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
 
 // Select types
 export type Account = typeof accounts.$inferSelect;
@@ -530,3 +547,4 @@ export type Product = typeof products.$inferSelect;
 export type Feature = typeof features.$inferSelect;
 export type Roadmap = typeof roadmaps.$inferSelect;
 export type RoadmapItem = typeof roadmapItems.$inferSelect;
+export type ClientComment = typeof clientComments.$inferSelect;

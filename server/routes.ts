@@ -17,6 +17,7 @@ import {
   insertFeatureSchema,
   insertRoadmapSchema,
   insertRoadmapItemSchema,
+  insertClientCommentSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -343,6 +344,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const contacts = await storage.getContactsByAccountId(req.params.accountId);
       res.json(contacts);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CLIENT COMMENTS - Protected Routes
+  // ============================================
+
+  app.get("/api/clients/:clientId/comments", requireAuth, async (req, res) => {
+    try {
+      // First verify the client belongs to this account (security check)
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+      
+      const comments = await storage.getClientComments(req.accountId!, req.params.clientId);
+      res.json(comments);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:clientId/comments", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      // First verify the client belongs to this account (security check)
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      const data = insertClientCommentSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        clientId: req.params.clientId,
+        createdBy: req.userId!,
+      });
+      const comment = await storage.createClientComment(data);
+      
+      // Create activity for comment
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "client",
+        subjectId: req.params.clientId,
+        kind: "note",
+        payload: { description: "Commentaire ajouté", commentId: comment.id },
+        createdBy: req.userId || null,
+      });
+      
+      res.json(comment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

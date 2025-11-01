@@ -4,6 +4,7 @@ import {
   type AppUser, type InsertAppUser,
   type Client, type InsertClient,
   type Contact, type InsertContact,
+  type ClientComment, type InsertClientComment,
   type Project, type InsertProject,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
@@ -16,7 +17,7 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
-  accounts, appUsers, clients, contacts, projects, taskColumns, tasks, notes, folders, files, activities,
+  accounts, appUsers, clients, contacts, clientComments, projects, taskColumns, tasks, notes, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -50,6 +51,10 @@ export interface IStorage {
   createContact(contact: InsertContact): Promise<Contact>;
   updateContact(accountId: string, id: string, contact: Partial<InsertContact>): Promise<Contact | undefined>;
   deleteContact(accountId: string, id: string): Promise<boolean>;
+
+  // Client Comments
+  getClientComments(accountId: string, clientId: string): Promise<ClientComment[]>;
+  createClientComment(comment: InsertClientComment): Promise<ClientComment>;
 
   // Projects
   getProject(id: string): Promise<Project | undefined>;
@@ -284,6 +289,28 @@ export class DatabaseStorage implements IStorage {
   async deleteContact(accountId: string, id: string): Promise<boolean> {
     const result = await db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
     return result.length > 0;
+  }
+
+  // Client Comments
+  async getClientComments(accountId: string, clientId: string): Promise<ClientComment[]> {
+    return await db
+      .select()
+      .from(clientComments)
+      .where(
+        and(
+          eq(clientComments.accountId, accountId),
+          eq(clientComments.clientId, clientId)
+        )
+      )
+      .orderBy(desc(clientComments.createdAt));
+  }
+
+  async createClientComment(insertComment: InsertClientComment): Promise<ClientComment> {
+    const [comment] = await db
+      .insert(clientComments)
+      .values(insertComment)
+      .returning();
+    return comment;
   }
 
   // Projects

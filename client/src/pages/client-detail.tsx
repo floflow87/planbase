@@ -1,15 +1,16 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project, AppUser } from "@shared/schema";
-import { useState } from "react";
+import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task } from "@shared/schema";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ export default function ClientDetail() {
     phone: "",
     position: "",
   });
+  const [newComment, setNewComment] = useState("");
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -55,6 +57,33 @@ export default function ClientDetail() {
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
     select: (data) => data.filter((p: Project) => p.clientId === id),
+    enabled: !!accountId,
+  });
+
+  const { data: allTasks = [] } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    enabled: !!accountId,
+  });
+
+  // Filter tasks that belong to this client's projects
+  const tasks = useMemo(() => {
+    const projectIds = projects.map(p => p.id);
+    return allTasks.filter(t => t.projectId && projectIds.includes(t.projectId));
+  }, [allTasks, projects]);
+
+  const { data: comments = [] } = useQuery<ClientComment[]>({
+    queryKey: ['/api/clients', id, 'comments'],
+    enabled: !!accountId && !!id,
+  });
+
+  const { data: activities = [] } = useQuery<Activity[]>({
+    queryKey: ['/api/activities'],
+    select: (data) => data.filter((a: Activity) => a.subjectType === 'client' && a.subjectId === id),
+    enabled: !!accountId && !!id,
+  });
+
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ['/api/accounts', accountId, 'users'],
     enabled: !!accountId,
   });
 
@@ -114,6 +143,26 @@ export default function ClientDetail() {
       toast({ title: "Erreur lors de la suppression du contact", variant: "destructive" });
     },
   });
+
+  const createCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      return await apiRequest("POST", `/api/clients/${id}/comments`, { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
+      setNewComment("");
+      toast({ title: "Commentaire ajouté", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de l'ajout du commentaire", variant: "destructive" });
+    },
+  });
+
+  const handleCommentSubmit = () => {
+    if (!newComment.trim()) return;
+    createCommentMutation.mutate(newComment);
+  };
 
   const handleContactSubmit = () => {
     if (editingContact) {
@@ -368,14 +417,193 @@ export default function ClientDetail() {
 
           {/* Activités */}
           <TabsContent value="activites" className="space-y-4">
+            {/* Section commentaire */}
             <Card>
               <CardHeader>
-                <CardTitle>Activités</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Ajouter un commentaire
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  placeholder="Écrivez votre commentaire..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={4}
+                  data-testid="input-new-comment"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleCommentSubmit}
+                    disabled={createCommentMutation.isPending || !newComment.trim()}
+                    data-testid="button-submit-comment"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Ajouter le commentaire
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Liste des commentaires */}
+            {comments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Commentaires ({comments.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {comments.map((comment) => {
+                      const author = users.find((u) => u.id === comment.createdBy);
+                      return (
+                        <div key={comment.id} className="flex gap-4 p-4 border rounded-lg" data-testid={`comment-${comment.id}`}>
+                          <Avatar>
+                            <AvatarFallback>
+                              {author?.firstName?.[0]}{author?.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-foreground">
+                                {author?.firstName} {author?.lastName}
+                              </p>
+                              <span className="text-sm text-muted-foreground">•</span>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(comment.createdAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                              </p>
+                            </div>
+                            <p className="text-foreground whitespace-pre-wrap">{comment.content}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Timeline des activités */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Historique des activités</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  Section activités à implémenter
-                </div>
+                {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length === 0 && (
+                  <div className="py-12 text-center text-muted-foreground">
+                    Aucune activité pour le moment
+                  </div>
+                )}
+                
+                {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length > 0 && (
+                  <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+                    {/* Création du client */}
+                    {client && (
+                      <div className="relative" data-testid="activity-client-created">
+                        <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                          <User className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-foreground">
+                            <span className="font-medium">
+                              {users.find((u) => u.id === client.createdBy)?.firstName} {users.find((u) => u.id === client.createdBy)?.lastName}
+                            </span>{" "}
+                            a créé le compte
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(client.createdAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Autres activités triées par date décroissante */}
+                    {[
+                      ...projects.map((p) => ({ ...p, _date: new Date(p.createdAt), _type: 'project' as const })),
+                      ...tasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
+                      ...contacts.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'contact' as const })),
+                      ...comments.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'comment' as const })),
+                    ]
+                      .sort((a, b) => b._date.getTime() - a._date.getTime())
+                      .map((item, index) => {
+                        const author = users.find((u) => u.id === item.createdBy);
+                        
+                        if (item._type === 'project') {
+                          return (
+                            <div key={`project-${item.id}`} className="relative" data-testid={`activity-project-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-accent flex items-center justify-center">
+                                <Briefcase className="w-3 h-3 text-accent-foreground" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé un projet : {(item as Project).name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'task') {
+                          return (
+                            <div key={`task-${item.id}`} className="relative" data-testid={`activity-task-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une tâche : {(item as Task).title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'contact') {
+                          return (
+                            <div key={`contact-${item.id}`} className="relative" data-testid={`activity-contact-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center">
+                                <UserPlus className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé le contact {(item as Contact).fullName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'comment') {
+                          return (
+                            <div key={`comment-activity-${item.id}`} className="relative" data-testid={`activity-comment-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                <MessageSquare className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un commentaire
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
