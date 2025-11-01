@@ -103,13 +103,19 @@ export default function ClientDetail() {
 
   const createContactMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/contacts", { ...data, clientId: id });
+      const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
+      return await apiRequest("POST", "/api/contacts", { 
+        ...data, 
+        clientId: id,
+        fullName,
+        accountId
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
-      toast({ title: "Contact créé avec succès" });
+      toast({ title: "Contact créé avec succès", variant: "success" });
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
@@ -118,14 +124,15 @@ export default function ClientDetail() {
 
   const updateContactMutation = useMutation({
     mutationFn: async ({ id: contactId, data }: { id: string; data: any }) => {
-      return await apiRequest("PATCH", `/api/contacts/${contactId}`, data);
+      const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
+      return await apiRequest("PATCH", `/api/contacts/${contactId}`, { ...data, fullName });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setEditingContact(null);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
-      toast({ title: "Contact mis à jour" });
+      toast({ title: "Contact mis à jour", variant: "success" });
     },
   });
 
@@ -403,20 +410,6 @@ export default function ClientDetail() {
 
           {/* Notes */}
           <TabsContent value="notes" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  Section notes à implémenter
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Activités */}
-          <TabsContent value="activites" className="space-y-4">
             {/* Section commentaire */}
             <Card>
               <CardHeader>
@@ -482,7 +475,10 @@ export default function ClientDetail() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
 
+          {/* Activités */}
+          <TabsContent value="activites" className="space-y-4">
             {/* Timeline des activités */}
             <Card>
               <CardHeader>
