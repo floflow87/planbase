@@ -211,9 +211,17 @@ export default function ProjectDetail() {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <p className="text-muted-foreground text-sm">
-                  {project.client?.name || "Client non défini"}
-                </p>
+                {project.client ? (
+                  <Link href={`/crm/${project.clientId}`}>
+                    <p className="text-muted-foreground text-sm hover:text-primary cursor-pointer hover:underline">
+                      {project.client.name}
+                    </p>
+                  </Link>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Client non défini
+                  </p>
+                )}
                 {project.budget && (
                   <Badge className="bg-orange-500 hover:bg-orange-600 text-white shrink-0" data-testid="badge-budget">
                     <Euro className="h-3 w-3 mr-1" />
