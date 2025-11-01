@@ -530,10 +530,7 @@ export default function Dashboard() {
         </Dialog>
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Tableau de bord</h1>
-          </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 
@@ -595,7 +592,7 @@ export default function Dashboard() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-xs hover:text-primary h-auto py-1 px-2" 
+                          className="text-xs hover:text-primary h-auto py-1 px-0" 
                           onClick={() => {
                             if (kpi.link!.href.includes('?')) {
                               window.location.href = kpi.link!.href;
