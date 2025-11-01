@@ -136,7 +136,7 @@ function AppLayout() {
   const getPageTitle = (path: string) => {
     if (path === "/" || path === "/home") return "Tableau de bord";
     if (path === "/crm") return "CRM";
-    if (path === "/projects" || path.startsWith("/projects/")) return "To-Do & Project Management";
+    if (path === "/projects" || path.startsWith("/projects/")) return "Projets et tâches";
     if (path === "/notes") return "Notes";
     if (path === "/documents") return "Documents";
     if (path === "/roadmap") return "Roadmap";

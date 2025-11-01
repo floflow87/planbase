@@ -26,7 +26,7 @@ export function AppSidebar() {
   ];
 
   const projectsNav = [
-    { title: "To-Do & Projects", url: "/projects", icon: FolderKanban },
+    { title: "Projets et tâches", url: "/projects", icon: FolderKanban },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Product", url: "/product", icon: Package },
   ];
