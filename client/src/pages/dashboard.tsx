@@ -276,6 +276,7 @@ export default function Dashboard() {
       icon: Users,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
+      link: { label: "Voir tous", href: "/crm" },
     },
     {
       title: "Budget Total",

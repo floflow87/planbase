@@ -443,6 +443,18 @@ export default function CRM() {
     }
   };
 
+  // Obtenir les couleurs personnalisées pour les badges de type
+  const getTypeBadgeColor = (type: string) => {
+    switch (type) {
+      case "company":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "person":
+        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "in_progress":
@@ -935,10 +947,15 @@ export default function CRM() {
                         />
                         <Link href={`/crm/${client.id}`} className="flex-1">
                           <div>
-                            <CardTitle className="text-base">{client.name}</CardTitle>
-                            <p className="text-xs text-muted-foreground capitalize mt-1">
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-base">{client.name}</CardTitle>
+                              <Badge variant="outline" className="text-xs">
+                                {clientProjects.length}
+                              </Badge>
+                            </div>
+                            <Badge className={`${getTypeBadgeColor(client.type)} mt-1 text-xs`}>
                               {client.type === 'company' ? 'Entreprise' : 'Personne'}
-                            </p>
+                            </Badge>
                           </div>
                         </Link>
                         <DropdownMenu>
@@ -972,9 +989,11 @@ export default function CRM() {
                         </DropdownMenu>
                       </CardHeader>
                       <Link href={`/crm/${client.id}`}>
-                        <CardContent className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Statut</span>
+                        <CardContent>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-foreground">
+                              €{clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0).toLocaleString()}
+                            </span>
                             <Badge className={getStatusBadgeColor(client.status)}>
                               {client.status === "prospecting" ? "Prospection" :
                                client.status === "qualified" ? "Qualifié" :
@@ -982,20 +1001,6 @@ export default function CRM() {
                                client.status === "won" ? "Gagné" :
                                client.status === "lost" ? "Perdu" : client.status}
                             </Badge>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Contacts</span>
-                            <Badge variant="outline">{clientContacts.length}</Badge>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Projets</span>
-                            <span className="text-sm text-foreground">{clientProjects.length}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Budget</span>
-                            <span className="text-sm font-medium text-foreground">
-                              €{clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0).toLocaleString()}
-                            </span>
                           </div>
                         </CardContent>
                       </Link>
