@@ -41,6 +41,7 @@ export default function ClientDetail() {
     description: "",
     priority: "medium",
     status: "todo",
+    projectId: "",
     dueDate: "",
   });
 
@@ -179,11 +180,19 @@ export default function ClientDetail() {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/tasks", {
-        ...data,
+      // Prepare task data
+      const taskData: any = {
+        title: data.title,
+        description: data.description || null,
+        priority: data.priority,
+        status: data.status,
         clientId: id,
         accountId,
-      });
+        projectId: data.projectId || null,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+      };
+      
+      return await apiRequest("POST", "/api/tasks", taskData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -193,6 +202,7 @@ export default function ClientDetail() {
         description: "",
         priority: "medium",
         status: "todo",
+        projectId: "",
         dueDate: "",
       });
       toast({ title: "Tâche créée avec succès", variant: "success" });
@@ -886,6 +896,25 @@ export default function ClientDetail() {
                   rows={3}
                   data-testid="input-task-description"
                 />
+              </div>
+              <div>
+                <Label>Projet (optionnel)</Label>
+                <Select
+                  value={taskFormData.projectId}
+                  onValueChange={(value) => setTaskFormData({ ...taskFormData, projectId: value })}
+                >
+                  <SelectTrigger data-testid="select-task-project">
+                    <SelectValue placeholder="Aucun projet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun projet</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
