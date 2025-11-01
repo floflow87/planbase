@@ -83,21 +83,16 @@ export function TaskDetailModal({
 
     // Only sync columnId if status changed
     if (status !== task.status) {
-      // Try to find column by status field first (future-proof)
-      let targetColumn = columns.find(c => c.status === status);
-      
-      // Fallback: Try by order (assumes standard order: 0=todo, 1=in_progress, 2=review, 3=done)
-      if (!targetColumn) {
-        const statusToOrder: Record<string, number> = {
-          'todo': 0,
-          'in_progress': 1,
-          'review': 2,
-          'done': 3
-        };
-        const targetOrder = statusToOrder[status];
-        const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
-        targetColumn = sortedColumns[targetOrder];
-      }
+      // Find column by order (assumes standard order: 0=todo, 1=in_progress, 2=review, 3=done)
+      const statusToOrder: Record<string, number> = {
+        'todo': 0,
+        'in_progress': 1,
+        'review': 2,
+        'done': 3
+      };
+      const targetOrder = statusToOrder[status];
+      const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+      const targetColumn = sortedColumns[targetOrder];
       
       // If we found a matching column, update columnId
       if (targetColumn) {
