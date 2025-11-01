@@ -734,9 +734,12 @@ export default function CRM() {
                                   <p className="text-sm text-foreground">0 projet</p>
                                 );
                               case "budget":
+                                const totalProjectBudget = clientProjects.reduce((sum, p: Project) => {
+                                  return sum + (parseFloat(p.budget || "0"));
+                                }, 0);
                                 return (
                                   <p className="text-sm font-medium text-foreground">
-                                    €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                                    €{totalProjectBudget > 0 ? totalProjectBudget.toLocaleString() : "0"}
                                   </p>
                                 );
                               default:
@@ -887,7 +890,7 @@ export default function CRM() {
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-muted-foreground">Budget</span>
                             <span className="text-sm font-medium text-foreground">
-                              €{client.budget ? parseFloat(client.budget).toLocaleString() : "0"}
+                              €{clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0).toLocaleString()}
                             </span>
                           </div>
                         </CardContent>

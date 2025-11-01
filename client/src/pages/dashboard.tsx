@@ -567,7 +567,7 @@ export default function Dashboard() {
             return (
               <Card key={index} data-testid={`card-kpi-${index}`}>
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-muted-foreground font-medium">
                         {kpi.title}
@@ -575,44 +575,45 @@ export default function Dashboard() {
                       <h3 className="text-2xl font-heading font-bold mt-2 text-foreground">
                         {kpi.value}
                       </h3>
-                      <p className={`text-xs mt-2 flex items-center gap-1 ${
-                        kpi.changeType === "positive" 
-                          ? "text-green-600" 
-                          : kpi.changeType === "negative" 
-                            ? "text-red-600"
-                            : "text-muted-foreground"
-                      }`}>
-                        {kpi.changeType === "positive" ? (
-                          <ArrowUp className="w-3 h-3" />
-                        ) : kpi.changeType === "negative" ? (
-                          <ArrowDown className="w-3 h-3" />
-                        ) : null}
-                        {kpi.change}
-                      </p>
+                      <div className="flex items-center justify-between mt-2 gap-2">
+                        <p className={`text-xs flex items-center gap-1 ${
+                          kpi.changeType === "positive" 
+                            ? "text-green-600" 
+                            : kpi.changeType === "negative" 
+                              ? "text-red-600"
+                              : "text-muted-foreground"
+                        }`}>
+                          {kpi.changeType === "positive" ? (
+                            <ArrowUp className="w-3 h-3" />
+                          ) : kpi.changeType === "negative" ? (
+                            <ArrowDown className="w-3 h-3" />
+                          ) : null}
+                          {kpi.change}
+                        </p>
+                        {kpi.link && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs hover:text-primary h-auto py-1 px-2" 
+                            onClick={() => {
+                              if (kpi.link!.href.includes('?')) {
+                                window.location.href = kpi.link!.href;
+                              } else {
+                                setLocation(kpi.link!.href);
+                              }
+                            }}
+                            data-testid={`button-kpi-${index}-view-all`}
+                          >
+                            {kpi.link.label}
+                            <ChevronRight className="w-3 h-3 ml-1" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
                       <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
                     </div>
                   </div>
-                  {kpi.link && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full text-xs hover:text-primary -mb-2" 
-                      onClick={() => {
-                        if (kpi.link!.href.includes('?')) {
-                          // Force page reload for links with query params to ensure tab changes
-                          window.location.href = kpi.link!.href;
-                        } else {
-                          setLocation(kpi.link!.href);
-                        }
-                      }}
-                      data-testid={`button-kpi-${index}-view-all`}
-                    >
-                      {kpi.link.label}
-                      <ChevronRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             );
