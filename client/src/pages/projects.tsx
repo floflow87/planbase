@@ -1907,7 +1907,7 @@ export default function Projects() {
                   Filtres
                 </Button>
                 {selectedProjectId !== "all" && (
-                  <div className="flex border rounded-md">
+                  <div className="hidden md:flex border rounded-md">
                     <Button
                       variant={viewMode === "kanban" ? "secondary" : "ghost"}
                       size="icon"
@@ -1927,15 +1927,25 @@ export default function Projects() {
                   </div>
                 )}
                 {selectedProjectId !== "all" && (
-                  <Button
-                    onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
-                    data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
-                    className="flex-1 sm:flex-none"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">{viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}</span>
-                    <span className="sm:hidden">{viewMode === "list" ? "Tâche" : "Colonne"}</span>
-                  </Button>
+                  <>
+                    {/* Mobile: Always show "New Task" button */}
+                    <Button
+                      onClick={() => setIsCreateTaskDialogOpen(true)}
+                      data-testid="button-new-task"
+                      className="flex-1 sm:flex-none md:hidden"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    {/* Desktop: Show task or column button based on viewMode */}
+                    <Button
+                      onClick={() => viewMode === "list" ? setIsCreateTaskDialogOpen(true) : setIsCreateColumnDialogOpen(true)}
+                      data-testid={viewMode === "list" ? "button-new-task" : "button-new-column"}
+                      className="hidden md:flex"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      <span>{viewMode === "list" ? "Nouvelle Tâche" : "Nouvelle Colonne"}</span>
+                    </Button>
+                  </>
                 )}
                 {selectedProjectId === "all" && (
                   <Button
@@ -1943,9 +1953,8 @@ export default function Projects() {
                     data-testid="button-new-task"
                     className="flex-1 sm:flex-none"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4 sm:mr-2" />
                     <span className="hidden sm:inline">Nouvelle Tâche</span>
-                    <span className="sm:hidden">Tâche</span>
                   </Button>
                 )}
               </div>
@@ -2006,20 +2015,37 @@ export default function Projects() {
               <div className="text-center py-12 text-muted-foreground">
                 Chargement des tâches...
               </div>
-            ) : selectedProjectId === "all" || viewMode === "list" ? (
-              <ListView
-                tasks={tasks}
-                columns={taskColumns}
-                users={users}
-                projects={projects}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                onUpdateTask={(taskId, data) => {
-                  updateTaskMutation.mutate({ id: taskId, data });
-                }}
-              />
             ) : (
-              <DndContext
+              <>
+                {/* Liste View 
+                    - Always visible on mobile (md:hidden unless viewMode is explicitly "list")
+                    - On desktop, visible only when selectedProjectId="all" OR viewMode="list"
+                */}
+                <div className={
+                  selectedProjectId === "all" || viewMode === "list" 
+                    ? "" // Always show when "all" or "list" mode
+                    : "md:hidden" // On mobile, show even in kanban mode
+                }>
+                  <ListView
+                    tasks={tasks}
+                    columns={taskColumns}
+                    users={users}
+                    projects={projects}
+                    onEditTask={handleEditTask}
+                    onDeleteTask={handleDeleteTask}
+                    onUpdateTask={(taskId, data) => {
+                      updateTaskMutation.mutate({ id: taskId, data });
+                    }}
+                  />
+                </div>
+                
+                {/* Kanban View 
+                    - Hidden on mobile (< md)
+                    - On desktop, visible only when viewMode="kanban" AND selectedProjectId!="all"
+                */}
+                {selectedProjectId !== "all" && viewMode === "kanban" && (
+                  <div className="hidden md:block">
+                    <DndContext
                 sensors={sensors}
                 collisionDetection={pointerWithin}
                 onDragStart={handleDragStart}
@@ -2087,7 +2113,10 @@ export default function Projects() {
                     </div>
                   ) : null}
                 </DragOverlay>
-              </DndContext>
+                    </DndContext>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -2150,8 +2179,8 @@ export default function Projects() {
                     setIsCreateProjectDialogOpen(true);
                   }}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouveau projet
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Nouveau projet</span>
                 </Button>
               </div>
             </div>

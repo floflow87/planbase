@@ -225,9 +225,8 @@ export default function ProjectDetail() {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none">
-              <Edit className="h-4 w-4 mr-2" />
+              <Edit className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Modifier</span>
-              <span className="sm:hidden">Modifier</span>
             </Button>
             <Button 
               variant="destructive" 
@@ -235,9 +234,8 @@ export default function ProjectDetail() {
               data-testid="button-delete-project"
               className="flex-1 sm:flex-none"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Supprimer</span>
-              <span className="sm:hidden">Supprimer</span>
             </Button>
           </div>
         </div>

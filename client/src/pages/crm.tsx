@@ -385,8 +385,8 @@ export default function CRM() {
           }}>
             <DialogTrigger asChild>
               <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau Client
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Nouveau Client</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

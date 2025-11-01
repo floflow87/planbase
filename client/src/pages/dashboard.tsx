@@ -542,9 +542,8 @@ export default function Dashboard() {
               data-testid="button-new-client"
               className="flex-1 sm:flex-none"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Nouveau Client</span>
-              <span className="sm:hidden">Client</span>
             </Button>
             <Button 
               size="sm" 
@@ -552,9 +551,8 @@ export default function Dashboard() {
               data-testid="button-new-project"
               className="flex-1 sm:flex-none"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Nouveau Projet</span>
-              <span className="sm:hidden">Projet</span>
             </Button>
           </div>
         </div>

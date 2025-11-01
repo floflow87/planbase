@@ -159,13 +159,13 @@ function AppLayout() {
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card sticky top-0 z-10">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <h1 className="text-lg font-semibold text-foreground" data-testid="page-title">
+              <h1 className="text-base sm:text-lg font-semibold text-foreground truncate" data-testid="page-title">
                 {getPageTitle(location)}
               </h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button variant="ghost" size="sm" data-testid="button-mail">
                 <Mail className="w-5 h-5 text-primary" />
               </Button>

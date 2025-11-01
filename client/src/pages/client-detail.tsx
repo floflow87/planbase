@@ -269,7 +269,7 @@ export default function ClientDetail() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
@@ -300,9 +300,8 @@ export default function ClientDetail() {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Link href={`/crm/${id}/edit`} className="flex-1 sm:flex-none">
               <Button variant="outline" data-testid="button-edit" className="w-full">
-                <Edit className="w-4 h-4 mr-2" />
+                <Edit className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Modifier</span>
-                <span className="sm:hidden">Modifier</span>
               </Button>
             </Link>
             <Button
@@ -311,22 +310,23 @@ export default function ClientDetail() {
               data-testid="button-delete"
               className="flex-1 sm:flex-none"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Supprimer</span>
-              <span className="sm:hidden">Supprimer</span>
             </Button>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="informations" className="w-full">
-          <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex sm:grid-cols-none h-auto">
-            <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
-            <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
-            <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
-            <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
-            <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <TabsList className="w-full sm:w-auto inline-flex h-auto">
+              <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
+              <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+              <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
+              <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
+              <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Informations */}
           <TabsContent value="informations" className="space-y-4">
@@ -386,8 +386,8 @@ export default function ClientDetail() {
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                 <CardTitle>Contacts</CardTitle>
                 <Button onClick={() => openContactDialog()} data-testid="button-add-contact" className="w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un contact
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Ajouter un contact</span>
                 </Button>
               </CardHeader>
               <CardContent>
