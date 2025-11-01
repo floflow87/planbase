@@ -2268,6 +2268,15 @@ export default function Projects() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredProjects.map((project) => {
                     const client = clients.find((c) => c.id === project.clientId);
+                    
+                    // Calculate number of incomplete tasks
+                    const projectTasks = tasks.filter(t => t.projectId === project.id);
+                    const completedColumn = taskColumns
+                      .filter(c => c.isLocked && c.projectId === project.id)
+                      .sort((a, b) => b.order - a.order)[0];
+                    const incompleteTasks = projectTasks.filter(t => 
+                      !completedColumn || t.columnId !== completedColumn.id
+                    ).length;
 
                     return (
                       <Card
@@ -2284,11 +2293,18 @@ export default function Projects() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
-                                <Link href={`/projects/${project.id}`}>
-                                  <h3 className="font-medium text-sm truncate hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
-                                    {project.name}
-                                  </h3>
-                                </Link>
+                                <div className="flex items-center gap-2">
+                                  <Link href={`/projects/${project.id}`}>
+                                    <h3 className="font-medium text-sm truncate hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
+                                      {project.name}
+                                    </h3>
+                                  </Link>
+                                  {incompleteTasks > 0 && (
+                                    <Badge variant="secondary" className="text-xs" data-testid={`badge-tasks-count-${project.id}`}>
+                                      {incompleteTasks}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {client?.name || "Client non défini"}
                                 </p>
