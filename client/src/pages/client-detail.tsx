@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -324,6 +324,7 @@ export default function ClientDetail() {
               <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
               <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
               <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
+              <TabsTrigger value="projets" data-testid="tab-projets" className="text-xs sm:text-sm">Projets</TabsTrigger>
               <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
             </TabsList>
           </div>
@@ -736,6 +737,102 @@ export default function ClientDetail() {
                             </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Projets */}
+          <TabsContent value="projets" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Projets du client</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {projects.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Aucun projet rattaché à ce client
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {projects.map((project) => {
+                      const getStageColor = (stage: string | null) => {
+                        switch (stage) {
+                          case "prospection":
+                            return "bg-yellow-100 text-yellow-700 border-yellow-200";
+                          case "signe":
+                            return "bg-purple-100 text-purple-700 border-purple-200";
+                          case "en_cours":
+                            return "bg-blue-100 text-blue-700 border-blue-200";
+                          case "termine":
+                            return "bg-green-100 text-green-700 border-green-200";
+                          default:
+                            return "bg-gray-100 text-gray-700 border-gray-200";
+                        }
+                      };
+
+                      const getStageLabel = (stage: string | null) => {
+                        switch (stage) {
+                          case "prospection":
+                            return "Prospection";
+                          case "signe":
+                            return "Signé";
+                          case "en_cours":
+                            return "En cours";
+                          case "termine":
+                            return "Terminé";
+                          default:
+                            return stage || "Non défini";
+                        }
+                      };
+
+                      return (
+                        <Link href={`/projects/${project.id}`} key={project.id}>
+                          <div
+                            className="p-4 border rounded-md hover-elevate active-elevate-2 cursor-pointer"
+                            data-testid={`project-item-${project.id}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FolderKanban className="w-4 h-4 text-primary flex-shrink-0" />
+                                  <h4 className="font-medium truncate">{project.name}</h4>
+                                </div>
+                                {project.description && (
+                                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                    {project.description}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                  <Badge className={getStageColor(project.stage)}>
+                                    {getStageLabel(project.stage)}
+                                  </Badge>
+                                  {project.category && (
+                                    <Badge variant="outline">{project.category}</Badge>
+                                  )}
+                                  {project.startDate && (
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      <CalendarIcon className="w-3 h-3" />
+                                      {format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })}
+                                    </span>
+                                  )}
+                                  {project.budget && (
+                                    <span className="font-medium">
+                                      {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                        minimumFractionDigits: 0,
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
                       );
                     })}
                   </div>
