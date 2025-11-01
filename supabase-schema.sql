@@ -77,7 +77,12 @@ create table app_users (
   id            uuid primary key,
   account_id    uuid not null references accounts(id) on delete cascade,
   email         text not null,
+  first_name    text,
+  last_name     text,
+  gender        text,
+  position      text,
   role          text not null check (role in ('owner','collaborator','client_viewer')),
+  avatar_url    text,
   profile       jsonb not null default '{}',
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()

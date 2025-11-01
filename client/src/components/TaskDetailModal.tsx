@@ -186,7 +186,9 @@ export function TaskDetailModal({
                   <SelectItem value="unassigned">Non assigné</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName}
+                      {user.firstName && user.lastName 
+                        ? `${user.firstName} ${user.lastName}` 
+                        : user.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
