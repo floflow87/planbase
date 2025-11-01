@@ -69,6 +69,7 @@ export default function ProjectDetail() {
         toast({
           title: "Projet mis à jour",
           description: "Le projet a été mis à jour avec succès.",
+          variant: "success",
         });
         setIsEditDialogOpen(false);
       } catch (error: any) {
@@ -89,6 +90,7 @@ export default function ProjectDetail() {
         toast({
           title: "Projet supprimé",
           description: "Le projet a été supprimé avec succès.",
+          variant: "success",
         });
         setLocation("/projects");
       } catch (error: any) {

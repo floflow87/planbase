@@ -552,7 +552,7 @@ export default function ClientDetail() {
                 
                 {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length > 0 && (
                   <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-                    {/* Toutes les activités triées par date décroissante (plus récentes en premier) */}
+                    {/* Toutes les activités triées par ordre décroissant chronologique (plus récentes en premier, création du client en bas) */}
                     {[
                       // Ajouter la création du client
                       ...(client ? [{ ...client, _date: new Date(client.createdAt), _type: 'client_created' as const }] : []),
