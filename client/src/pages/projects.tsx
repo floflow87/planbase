@@ -1225,11 +1225,12 @@ export default function Projects() {
   const sortedColumns = [...taskColumns].sort((a, b) => a.order - b.order);
 
   const createTaskMutation = useMutation({
-    mutationFn: async (data: InsertTask) => {
-      const response = await apiRequest("POST", "/api/tasks", data);
-      return response.json();
+    mutationFn: async (data: InsertTask & { keepOpen?: boolean }) => {
+      const { keepOpen, ...taskData } = data;
+      const response = await apiRequest("POST", "/api/tasks", taskData);
+      return { data: await response.json(), keepOpen };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (result, variables) => {
       // Invalidate tasks for the project where the task was created
       queryClient.invalidateQueries({ queryKey: ["/api/projects", variables.projectId, "tasks"] });
       // Also invalidate current project if different
@@ -1238,14 +1239,21 @@ export default function Projects() {
       }
       // Invalidate aggregated tasks for "all projects" view
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      setIsCreateTaskDialogOpen(false);
+      
+      // Reset form
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskPriority("medium");
       setNewTaskAssignedTo(undefined);
       setNewTaskDueDate(undefined);
-      setNewTaskProjectId("");
-      setCreateTaskColumnId(null);
+      
+      // Only close dialog and reset project/column if not keeping it open
+      if (!result.keepOpen) {
+        setIsCreateTaskDialogOpen(false);
+        setNewTaskProjectId("");
+        setCreateTaskColumnId(null);
+      }
+      
       toast({ title: "Tâche créée avec succès", variant: "success" });
     },
     onError: (error: Error) => {
@@ -1675,7 +1683,7 @@ export default function Projects() {
     }
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = (keepOpen = false) => {
     if (!newTaskTitle.trim() || !accountId || !userId) return;
 
     // Determine which columns to use
@@ -1728,7 +1736,8 @@ export default function Projects() {
       order: 0,
       dueDate: (newTaskDueDate ? newTaskDueDate.toISOString() : null) as any,
       createdBy: userId,
-    } as InsertTask);
+      keepOpen,
+    } as InsertTask & { keepOpen?: boolean });
   };
 
   const handleCreateColumn = () => {
@@ -3080,7 +3089,9 @@ export default function Projects() {
                     <SelectItem value="unassigned">Non assigné</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName}
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName}` 
+                          : user.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -3191,7 +3202,15 @@ export default function Projects() {
               Annuler
             </Button>
             <Button
-              onClick={handleCreateTask}
+              variant="outline"
+              onClick={() => handleCreateTask(true)}
+              disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
+              data-testid="button-create-and-add-task"
+            >
+              Créer et ajouter
+            </Button>
+            <Button
+              onClick={() => handleCreateTask(false)}
               disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
               data-testid="button-submit-create-task"
             >
