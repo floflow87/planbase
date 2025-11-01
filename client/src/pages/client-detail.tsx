@@ -900,14 +900,14 @@ export default function ClientDetail() {
               <div>
                 <Label>Projet (optionnel)</Label>
                 <Select
-                  value={taskFormData.projectId}
-                  onValueChange={(value) => setTaskFormData({ ...taskFormData, projectId: value })}
+                  value={taskFormData.projectId || "none"}
+                  onValueChange={(value) => setTaskFormData({ ...taskFormData, projectId: value === "none" ? "" : value })}
                 >
                   <SelectTrigger data-testid="select-task-project">
-                    <SelectValue placeholder="Aucun projet" />
+                    <SelectValue placeholder="Sélectionner un projet" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun projet</SelectItem>
+                    <SelectItem value="none">Aucun projet</SelectItem>
                     {projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
