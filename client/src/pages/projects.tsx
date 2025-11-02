@@ -1240,6 +1240,37 @@ export default function Projects() {
     return saved ? JSON.parse(saved) : defaultColumnOrder;
   });
   const [activeProjectColumnId, setActiveProjectColumnId] = useState<string | null>(null);
+  
+  // Inline category editing
+  const [editingCategoryProjectId, setEditingCategoryProjectId] = useState<string | null>(null);
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
+  
+  // Inline stage editing
+  const [editingStageProjectId, setEditingStageProjectId] = useState<string | null>(null);
+  const [stagePopoverOpen, setStagePopoverOpen] = useState(false);
+  
+  // Inline date editing
+  const [editingStartDateProjectId, setEditingStartDateProjectId] = useState<string | null>(null);
+  const [startDatePopoverOpen, setStartDatePopoverOpen] = useState(false);
+  
+  // Inline budget editing
+  const [editingBudgetProjectId, setEditingBudgetProjectId] = useState<string | null>(null);
+  const [tempBudgetValue, setTempBudgetValue] = useState("");
+  
+  // Get unique categories and recent ones
+  const uniqueCategories = Array.from(new Set(
+    projects
+      .filter(p => p.category && p.category.trim())
+      .map(p => p.category!)
+  )).sort();
+  
+  const recentCategories = projects
+    .filter(p => p.category && p.category.trim())
+    .sort((a, b) => new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime())
+    .map(p => p.category!)
+    .filter((cat, index, self) => self.indexOf(cat) === index)
+    .slice(0, 5);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -2672,9 +2703,61 @@ export default function Projects() {
                               ),
                               stage: (
                                 <TableCell key="stage">
-                                  <Badge className={getStageColor(project.stage)} data-testid={`badge-stage-${project.id}`}>
-                                    {getStageLabel(project.stage)}
-                                  </Badge>
+                                  <Popover
+                                    open={stagePopoverOpen && editingStageProjectId === project.id}
+                                    onOpenChange={(open) => {
+                                      setStagePopoverOpen(open);
+                                      if (open) {
+                                        setEditingStageProjectId(project.id);
+                                      } else {
+                                        setEditingStageProjectId(null);
+                                      }
+                                    }}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="hover-elevate active-elevate-2 rounded-md"
+                                        data-testid={`button-edit-stage-${project.id}`}
+                                      >
+                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer`}>
+                                          {getStageLabel(project.stage)}
+                                        </Badge>
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-0" align="start">
+                                      <Command>
+                                        <CommandList>
+                                          <CommandGroup>
+                                            {[
+                                              { value: "prospection", label: "Prospection" },
+                                              { value: "en_cours", label: "En cours" },
+                                              { value: "termine", label: "Terminé" }
+                                            ].map((stage) => (
+                                              <CommandItem
+                                                key={stage.value}
+                                                onSelect={() => {
+                                                  updateProjectMutation.mutate({
+                                                    id: project.id,
+                                                    data: { stage: stage.value }
+                                                  });
+                                                  setStagePopoverOpen(false);
+                                                  setEditingStageProjectId(null);
+                                                }}
+                                                data-testid={`item-stage-${stage.value}`}
+                                              >
+                                                <Check
+                                                  className={`mr-2 h-4 w-4 ${
+                                                    project.stage === stage.value ? 'opacity-100' : 'opacity-0'
+                                                  }`}
+                                                />
+                                                {stage.label}
+                                              </CommandItem>
+                                            ))}
+                                          </CommandGroup>
+                                        </CommandList>
+                                      </Command>
+                                    </PopoverContent>
+                                  </Popover>
                                 </TableCell>
                               ),
                               progress: (
@@ -2687,38 +2770,224 @@ export default function Projects() {
                               ),
                               category: (
                                 <TableCell key="category">
-                                  {project.category ? (
-                                    <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
-                                      {project.category}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-[11px] text-muted-foreground">—</span>
-                                  )}
+                                  <Popover
+                                    open={categoryPopoverOpen && editingCategoryProjectId === project.id}
+                                    onOpenChange={(open) => {
+                                      setCategoryPopoverOpen(open);
+                                      if (open) {
+                                        setEditingCategoryProjectId(project.id);
+                                        setCategorySearchQuery("");
+                                      } else {
+                                        setEditingCategoryProjectId(null);
+                                        setCategorySearchQuery("");
+                                      }
+                                    }}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="text-left hover-elevate active-elevate-2 rounded-md px-2 py-1"
+                                        data-testid={`button-edit-category-${project.id}`}
+                                      >
+                                        {project.category ? (
+                                          <Badge variant="outline" className="cursor-pointer">
+                                            {project.category}
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-[11px] text-muted-foreground">—</span>
+                                        )}
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-0" align="start">
+                                      <Command>
+                                        <CommandInput
+                                          placeholder="Rechercher ou créer..."
+                                          value={categorySearchQuery}
+                                          onValueChange={setCategorySearchQuery}
+                                          data-testid="input-category-search"
+                                        />
+                                        <CommandList>
+                                          <CommandEmpty>
+                                            <button
+                                              className="w-full text-left px-2 py-1.5 text-sm hover-elevate active-elevate-2 rounded-md"
+                                              onClick={() => {
+                                                if (categorySearchQuery.trim()) {
+                                                  updateProjectMutation.mutate({
+                                                    id: project.id,
+                                                    data: { category: categorySearchQuery.trim() }
+                                                  });
+                                                  setCategoryPopoverOpen(false);
+                                                  setEditingCategoryProjectId(null);
+                                                  setCategorySearchQuery("");
+                                                }
+                                              }}
+                                              data-testid="button-create-category"
+                                            >
+                                              <Plus className="inline h-4 w-4 mr-2" />
+                                              Créer "{categorySearchQuery}"
+                                            </button>
+                                          </CommandEmpty>
+                                          
+                                          {recentCategories.length > 0 && (
+                                            <CommandGroup heading="Récentes">
+                                              {recentCategories.map((cat) => (
+                                                <CommandItem
+                                                  key={cat}
+                                                  onSelect={() => {
+                                                    updateProjectMutation.mutate({
+                                                      id: project.id,
+                                                      data: { category: cat }
+                                                    });
+                                                    setCategoryPopoverOpen(false);
+                                                    setEditingCategoryProjectId(null);
+                                                    setCategorySearchQuery("");
+                                                  }}
+                                                  data-testid={`item-category-${cat}`}
+                                                >
+                                                  <Check
+                                                    className={`mr-2 h-4 w-4 ${
+                                                      project.category === cat ? 'opacity-100' : 'opacity-0'
+                                                    }`}
+                                                  />
+                                                  {cat}
+                                                </CommandItem>
+                                              ))}
+                                            </CommandGroup>
+                                          )}
+                                          
+                                          {uniqueCategories.length > 0 && (
+                                            <CommandGroup heading="Toutes les catégories">
+                                              {uniqueCategories
+                                                .filter(cat => !recentCategories.includes(cat))
+                                                .map((cat) => (
+                                                  <CommandItem
+                                                    key={cat}
+                                                    onSelect={() => {
+                                                      updateProjectMutation.mutate({
+                                                        id: project.id,
+                                                        data: { category: cat }
+                                                      });
+                                                      setCategoryPopoverOpen(false);
+                                                      setEditingCategoryProjectId(null);
+                                                      setCategorySearchQuery("");
+                                                    }}
+                                                    data-testid={`item-category-${cat}`}
+                                                  >
+                                                    <Check
+                                                      className={`mr-2 h-4 w-4 ${
+                                                        project.category === cat ? 'opacity-100' : 'opacity-0'
+                                                      }`}
+                                                    />
+                                                    {cat}
+                                                  </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                          )}
+                                        </CommandList>
+                                      </Command>
+                                    </PopoverContent>
+                                  </Popover>
                                 </TableCell>
                               ),
                               startDate: (
                                 <TableCell key="startDate">
-                                  <div className="flex items-center gap-1 text-[11px]">
-                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                                    {project.startDate
-                                      ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                                      : <span className="text-muted-foreground">—</span>
-                                    }
-                                  </div>
+                                  <Popover
+                                    open={startDatePopoverOpen && editingStartDateProjectId === project.id}
+                                    onOpenChange={(open) => {
+                                      setStartDatePopoverOpen(open);
+                                      if (open) {
+                                        setEditingStartDateProjectId(project.id);
+                                      } else {
+                                        setEditingStartDateProjectId(null);
+                                      }
+                                    }}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="flex items-center gap-1 text-[11px] hover-elevate active-elevate-2 rounded-md px-2 py-1"
+                                        data-testid={`button-edit-start-date-${project.id}`}
+                                      >
+                                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                        {project.startDate
+                                          ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                                          : <span className="text-muted-foreground">—</span>
+                                        }
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={project.startDate ? new Date(project.startDate) : undefined}
+                                        onSelect={(date) => {
+                                          updateProjectMutation.mutate({
+                                            id: project.id,
+                                            data: { startDate: date ? formatDate(date, "yyyy-MM-dd") : null }
+                                          });
+                                          setStartDatePopoverOpen(false);
+                                          setEditingStartDateProjectId(null);
+                                        }}
+                                        locale={fr}
+                                        data-testid="calendar-start-date"
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
                                 </TableCell>
                               ),
                               budget: (
                                 <TableCell key="budget" className="text-right">
-                                  {project.budget ? (
-                                    <span className="font-medium text-[11px]">
-                                      {parseFloat(project.budget).toLocaleString("fr-FR", {
-                                        style: "currency",
-                                        currency: "EUR",
-                                        minimumFractionDigits: 0,
-                                      })}
-                                    </span>
+                                  {editingBudgetProjectId === project.id ? (
+                                    <Input
+                                      type="number"
+                                      value={tempBudgetValue}
+                                      onChange={(e) => setTempBudgetValue(e.target.value)}
+                                      onBlur={() => {
+                                        const budgetValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
+                                        updateProjectMutation.mutate({
+                                          id: project.id,
+                                          data: { budget: budgetValue }
+                                        });
+                                        setEditingBudgetProjectId(null);
+                                        setTempBudgetValue("");
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const budgetValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
+                                          updateProjectMutation.mutate({
+                                            id: project.id,
+                                            data: { budget: budgetValue }
+                                          });
+                                          setEditingBudgetProjectId(null);
+                                          setTempBudgetValue("");
+                                        } else if (e.key === "Escape") {
+                                          setEditingBudgetProjectId(null);
+                                          setTempBudgetValue("");
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="h-8 text-[11px] text-right w-24"
+                                      placeholder="Budget"
+                                      data-testid={`input-edit-budget-${project.id}`}
+                                    />
                                   ) : (
-                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingBudgetProjectId(project.id);
+                                        setTempBudgetValue(project.budget || "");
+                                      }}
+                                      className="hover-elevate active-elevate-2 rounded-md px-2 py-1 text-right w-full"
+                                      data-testid={`button-edit-budget-${project.id}`}
+                                    >
+                                      {project.budget ? (
+                                        <span className="font-medium text-[11px]">
+                                          {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                            style: "currency",
+                                            currency: "EUR",
+                                            minimumFractionDigits: 0,
+                                          })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[11px] text-muted-foreground">—</span>
+                                      )}
+                                    </button>
                                   )}
                                 </TableCell>
                               ),
