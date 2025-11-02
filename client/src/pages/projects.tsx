@@ -1265,12 +1265,14 @@ export default function Projects() {
 
   // Auto-select first column when project changes in task creation form
   useEffect(() => {
+    if (!isCreateTaskDialogOpen) return;
+    
     const columnsToUse = newTaskProjectId === "none" ? globalTaskColumns : newTaskProjectColumns;
-    if (columnsToUse.length > 0) {
+    if (columnsToUse.length > 0 && !createTaskColumnId) {
       const sortedColumns = [...columnsToUse].sort((a, b) => a.order - b.order);
       setCreateTaskColumnId(sortedColumns[0].id);
     }
-  }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns]);
+  }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: selectedProjectId === "all" ? ["/api/tasks"] : ["/api/projects", selectedProjectId, "tasks"],
