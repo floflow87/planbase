@@ -143,6 +143,7 @@ export const tasks = pgTable("tasks", {
   positionInColumn: integer("position_in_column").notNull().default(0), // For ordering within columns
   order: integer("order").notNull().default(0), // For ordering within columns (legacy)
   dueDate: timestamp("due_date", { withTimezone: true }),
+  effort: integer("effort"), // 1-5 stars rating for task effort/complexity
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

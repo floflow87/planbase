@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -403,15 +403,19 @@ interface ListViewProps {
 
 function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
   const { toast } = useToast();
-  const [columnOrder, setColumnOrder] = useState([
-    'checkbox',
-    'title',
-    'assignedTo',
-    'status',
-    'priority',
-    'dueDate',
-    'actions'
-  ]);
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem('taskListColumnOrder');
+    return saved ? JSON.parse(saved) : [
+      'checkbox',
+      'title',
+      'assignedTo',
+      'status',
+      'priority',
+      'effort',
+      'dueDate',
+      'actions'
+    ];
+  });
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -440,7 +444,9 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
     setColumnOrder((items) => {
       const oldIndex = items.indexOf(active.id as string);
       const newIndex = items.indexOf(over.id as string);
-      return arrayMove(items, oldIndex, newIndex);
+      const newOrder = arrayMove(items, oldIndex, newIndex);
+      localStorage.setItem('taskListColumnOrder', JSON.stringify(newOrder));
+      return newOrder;
     });
   };
 
@@ -542,6 +548,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
     assignedTo: { label: 'Assigné à', id: 'assignedTo' },
     status: { label: 'Statut', id: 'status' },
     priority: { label: 'Priorité', id: 'priority' },
+    effort: { label: 'Effort', id: 'effort' },
     dueDate: { label: 'Échéance', id: 'dueDate' },
     actions: { label: 'Actions', id: 'actions' },
   };
@@ -687,7 +694,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
         ref={setNodeRef}
         style={style}
         {...attributes}
-        className="font-semibold"
+        className="font-semibold text-[13px] h-10"
         data-testid={`table-header-${columnId}`}
       >
         <div className="flex items-center gap-2">
@@ -801,7 +808,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
             >
               <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/40">
               <SortableContext items={columnOrder}>
                 {columnOrder.map((columnId) => (
                   <SortableTableHeader key={columnId} columnId={columnId} />
@@ -823,7 +830,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                 const isEditing = editingCell?.taskId === task.id;
                 
                 return (
-                  <TableRow key={task.id} data-testid={`table-row-${task.id}`}>
+                  <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
                     {columnOrder.map((columnId) => {
                       switch (columnId) {
                         case 'checkbox':
@@ -842,7 +849,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                           return (
                             <TableCell 
                               key={columnId} 
-                              className="font-medium cursor-pointer hover:text-primary"
+                              className="font-medium cursor-pointer hover:text-primary text-[13px]"
                               onClick={() => onEditTask(task)}
                               data-testid={`cell-title-${task.id}`}
                             >
@@ -861,12 +868,12 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                       {assignedUser.lastName?.[0]}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className="text-sm">
+                                  <span className="text-[13px]">
                                     {assignedUser.firstName} {assignedUser.lastName}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-sm text-muted-foreground">Non assigné</span>
+                                <span className="text-[13px] text-muted-foreground">Non assigné</span>
                               )}
                             </TableCell>
                           );
@@ -961,6 +968,53 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                         <Badge className={`text-xs ${priority.color}`}>
                                           {priority.label}
                                         </Badge>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
+                          );
+                        case 'effort':
+                          return (
+                            <TableCell key={columnId}>
+                              <Popover
+                                open={isEditing && editingCell.field === 'effort'}
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setEditingCell({ taskId: task.id, field: 'effort' });
+                                  } else {
+                                    setEditingCell(null);
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <div className="flex items-center gap-0.5 cursor-pointer" data-testid={`stars-effort-${task.id}`}>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                      <Star
+                                        key={star}
+                                        className={`h-4 w-4 ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 p-2">
+                                  <div className="space-y-1">
+                                    {[1, 2, 3, 4, 5].map(rating => (
+                                      <button
+                                        key={rating}
+                                        onClick={() => {
+                                          onUpdateTask(task.id, { effort: rating } as any);
+                                          setEditingCell(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-1"
+                                      >
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                          <Star
+                                            key={star}
+                                            className={`h-4 w-4 ${rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                                          />
+                                        ))}
                                       </button>
                                     ))}
                                   </div>
@@ -1133,7 +1187,7 @@ export default function Projects() {
   });
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectStageFilter, setProjectStageFilter] = useState("all");
-  const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("grid");
+  const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("list");
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
