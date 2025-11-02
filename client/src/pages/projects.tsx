@@ -1283,6 +1283,12 @@ export default function Projects() {
     enabled: activeTab === "projects",
   });
 
+  // Load all task columns for projects view to check "done" columns
+  const { data: allTaskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
+    enabled: activeTab === "projects",
+  });
+
   const sortedColumns = [...taskColumns].sort((a, b) => a.order - b.order);
 
   // Calculate project progress based on completed tasks
@@ -1290,7 +1296,21 @@ export default function Projects() {
     const projectTasks = allTasks.filter(t => t.projectId === projectId);
     if (projectTasks.length === 0) return 0;
     
-    const completedTasks = projectTasks.filter(t => t.status === "done").length;
+    const completedTasks = projectTasks.filter(t => {
+      // Check if task status is "done"
+      if (t.status === "done") return true;
+      
+      // Check if task is in a column named "terminé" or "done"
+      if (t.columnId) {
+        const column = allTaskColumns.find(c => c.id === t.columnId);
+        if (column && (column.name.toLowerCase() === "terminé" || column.name.toLowerCase() === "done")) {
+          return true;
+        }
+      }
+      
+      return false;
+    }).length;
+    
     return Math.round((completedTasks / projectTasks.length) * 100);
   };
 
