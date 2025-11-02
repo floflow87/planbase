@@ -618,9 +618,9 @@ export default function CRM() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground font-medium">{kpi.title}</p>
-                      <h3 className="text-2xl font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
-                      <p className="text-xs text-green-600 mt-2">
+                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-[10px] text-green-600 mt-2">
                         {kpi.change} {kpi.changeLabel}
                       </p>
                     </div>
@@ -666,7 +666,7 @@ export default function CRM() {
               <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 {selectedClients.size > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
+                    <span className="text-xs text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" data-testid="button-bulk-actions">
@@ -749,7 +749,7 @@ export default function CRM() {
                     items={columns.map(col => col.id)}
                     strategy={horizontalListSortingStrategy}
                   >
-                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b">
                       <div className="col-span-1 flex items-center">
                         <Checkbox
                           checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
@@ -813,8 +813,8 @@ export default function CRM() {
                                 return (
                                   <div className="flex items-center gap-2">
                                     <div>
-                                      <p className="text-sm font-medium text-foreground">{client.name}</p>
-                                      <p className="text-xs text-muted-foreground capitalize">
+                                      <p className="text-xs font-medium text-foreground">{client.name}</p>
+                                      <p className="text-[10px] text-muted-foreground capitalize">
                                         {client.type === 'company' ? 'Entreprise' : 'Personne'}
                                       </p>
                                     </div>
@@ -836,25 +836,25 @@ export default function CRM() {
                                 return clientProjects.length > 0 ? (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <p className="text-sm text-foreground cursor-help">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
+                                      <p className="text-xs text-foreground cursor-help">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       <div className="space-y-1">
                                         {clientProjects.map((p: Project) => (
-                                          <div key={p.id} className="text-xs">{p.name}</div>
+                                          <div key={p.id} className="text-[10px]">{p.name}</div>
                                         ))}
                                       </div>
                                     </TooltipContent>
                                   </Tooltip>
                                 ) : (
-                                  <p className="text-sm text-foreground">0 projet</p>
+                                  <p className="text-xs text-foreground">0 projet</p>
                                 );
                               case "budget":
                                 const totalProjectBudget = clientProjects.reduce((sum, p: Project) => {
                                   return sum + (parseFloat(p.budget || "0"));
                                 }, 0);
                                 return (
-                                  <p className="text-sm font-medium text-foreground">
+                                  <p className="text-xs font-medium text-foreground">
                                     €{totalProjectBudget > 0 ? totalProjectBudget.toLocaleString() : "0"}
                                   </p>
                                 );
@@ -949,11 +949,11 @@ export default function CRM() {
                           <div>
                             <div className="flex items-center gap-2">
                               <CardTitle className="text-base">{client.name}</CardTitle>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[10px]">
                                 {clientProjects.length}
                               </Badge>
                             </div>
-                            <Badge className={`${getTypeBadgeColor(client.type)} mt-1 text-xs`}>
+                            <Badge className={`${getTypeBadgeColor(client.type)} mt-1 text-[10px]`}>
                               {client.type === 'company' ? 'Entreprise' : 'Personne'}
                             </Badge>
                           </div>
@@ -991,7 +991,7 @@ export default function CRM() {
                       <Link href={`/crm/${client.id}`}>
                         <CardContent>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-foreground">
+                            <span className="text-xs font-medium text-foreground">
                               €{clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0).toLocaleString()}
                             </span>
                             <Badge className={getStatusBadgeColor(client.status)}>

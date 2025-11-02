@@ -50,9 +50,9 @@ export function AppSidebar() {
         <Link href="/">
           <div className="flex items-center gap-2 cursor-pointer hover-elevate active-elevate-2 rounded-md p-2" data-testid="link-logo">
             <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-              <span className="text-white font-heading font-bold text-sm">PB</span>
+              <span className="text-white font-heading font-bold text-xs">PB</span>
             </div>
-            <span className="font-heading font-semibold text-lg text-sidebar-foreground">PlanBase</span>
+            <span className="font-heading font-semibold text-base text-sidebar-foreground">PlanBase</span>
           </div>
         </Link>
       </SidebarHeader>
@@ -76,7 +76,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
+          <SidebarGroupLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2">
             Projects
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -113,7 +113,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
+          <SidebarGroupLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2">
             Business
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -138,18 +138,18 @@ export function AppSidebar() {
           <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
             <Avatar className="w-8 h-8">
               <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+              <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-medium">
                 {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
                 {userProfile?.lastName?.[0] || ''}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">
                 {userProfile?.firstName && userProfile?.lastName 
                   ? `${userProfile.firstName} ${userProfile.lastName}`
                   : user?.email || 'Utilisateur'}
               </p>
-              <Badge variant="secondary" className="text-xs mt-0.5">
+              <Badge variant="secondary" className="text-[10px] mt-0.5">
                 {userProfile?.position || 'Membre'}
               </Badge>
             </div>

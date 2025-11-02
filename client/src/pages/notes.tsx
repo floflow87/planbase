@@ -25,7 +25,7 @@ export default function Notes() {
           <Sparkles className="w-5 h-5 text-violet-600" />
           <AlertDescription className="text-violet-900">
             <span className="font-semibold">Suggestion IA</span>
-            <p className="mt-1 text-sm">
+            <p className="mt-1 text-xs">
               Tu sembles chercher les dernières notes liées à ton projet de SaaS Fintech.{" "}
               <button className="underline font-medium hover:text-violet-700">
                 Filtrer par tag 'Finance' et client 'TechCorp' ?
@@ -93,10 +93,10 @@ export default function Notes() {
                     </div>
 
                     <div>
-                      <h3 className="font-heading font-semibold text-lg text-foreground mb-2">
+                      <h3 className="font-heading font-semibold text-base text-foreground mb-2">
                         {note.title}
                       </h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {note.preview}
                       </p>
                     </div>
@@ -105,7 +105,7 @@ export default function Notes() {
                       {note.tags.length > 0 && (
                         <div className="flex items-center gap-2">
                           {note.tags.map((tag: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-xs font-normal">
+                            <Badge key={idx} variant="secondary" className="text-[10px] font-normal">
                               {tag}
                             </Badge>
                           ))}
@@ -113,24 +113,24 @@ export default function Notes() {
                       )}
 
                       {note.attachments > 0 && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <File className="w-4 h-4" />
                           <span>{note.attachments} fichiers</span>
                         </div>
                       )}
 
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <span>{note.updatedAt}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Avatar className="w-6 h-6">
                           <AvatarImage src={note.author.avatar} />
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                             {note.author.name.split(' ').map((n: string) => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm text-muted-foreground">{note.author.name}</span>
+                        <span className="text-xs text-muted-foreground">{note.author.name}</span>
                       </div>
                     </div>
                   </div>

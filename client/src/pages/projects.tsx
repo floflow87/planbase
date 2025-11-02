@@ -197,7 +197,7 @@ function SortableTaskCard({
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
               </div>
               <h4
-                className="text-sm font-medium text-foreground flex-1 cursor-pointer"
+                className="text-xs font-medium text-foreground flex-1 cursor-pointer"
                 onClick={() => onClick(task)}
               >
                 {task.title}
@@ -216,17 +216,17 @@ function SortableTaskCard({
             </div>
           </div>
           {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 ml-6">
+            <p className="text-[10px] text-muted-foreground line-clamp-2 ml-6">
               {task.description}
             </p>
           )}
           <div className="flex items-center justify-between gap-2 ml-6">
             <div className="flex items-center gap-2 flex-1">
-              <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
+              <Badge className={`text-[10px] ${getPriorityColor(task.priority)}`}>
                 {getPriorityLabel(task.priority)}
               </Badge>
               {task.dueDate && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <CalendarLucide className="h-3 w-3" />
                   {formatDate(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
                 </div>
@@ -238,7 +238,7 @@ function SortableTaskCard({
                   <TooltipTrigger asChild>
                     <Avatar className="h-6 w-6 cursor-pointer">
                       <AvatarImage src={assignedUser.avatarUrl || ""} />
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback className="text-[10px]">
                         {assignedUser.firstName?.[0]}
                         {assignedUser.lastName?.[0]}
                       </AvatarFallback>
@@ -323,11 +323,11 @@ function SortableColumn({
       >
         <CardHeader className="pb-3" {...listeners}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-heading font-semibold">
+            <CardTitle className="text-xs font-heading font-semibold">
               {column.name}
             </CardTitle>
             <div className="flex items-center gap-1">
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-[10px]">
                 {tasks.length}
               </Badge>
               <ColumnHeaderMenu
@@ -353,7 +353,7 @@ function SortableColumn({
                 strategy={verticalListSortingStrategy}
               >
                 {sortedTasks.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
+                  <div className="text-center py-8 text-xs text-muted-foreground">
                     Aucune tâche
                   </div>
                 ) : (
@@ -694,7 +694,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
         ref={setNodeRef}
         style={style}
         {...attributes}
-        className="font-semibold text-[13px] h-10"
+        className="font-semibold text-[11px] h-10"
         data-testid={`table-header-${columnId}`}
       >
         <div className="flex items-center gap-2">
@@ -730,7 +730,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
     <div className="space-y-4">
       {selectedTasks.size > 0 && (
         <div className="flex items-center gap-2 p-3 bg-accent rounded-md">
-          <span className="text-sm font-medium">
+          <span className="text-xs font-medium">
             {selectedTasks.size} tâche{selectedTasks.size > 1 ? 's' : ''} sélectionnée{selectedTasks.size > 1 ? 's' : ''}
           </span>
           <DropdownMenu>
@@ -763,11 +763,11 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={user.avatarUrl || ""} />
-                          <AvatarFallback className="text-xs">
+                          <AvatarFallback className="text-[10px]">
                             {user.firstName?.[0]}{user.lastName?.[0]}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm">
+                        <span className="text-xs">
                           {user.firstName} {user.lastName}
                         </span>
                       </div>
@@ -849,7 +849,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                           return (
                             <TableCell 
                               key={columnId} 
-                              className="font-medium cursor-pointer hover:text-primary text-[13px]"
+                              className="font-medium cursor-pointer hover:text-primary text-[11px]"
                               onClick={() => onEditTask(task)}
                               data-testid={`cell-title-${task.id}`}
                             >
@@ -863,17 +863,17 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-6 w-6">
                                     <AvatarImage src={assignedUser.avatarUrl || ""} />
-                                    <AvatarFallback className="text-xs">
+                                    <AvatarFallback className="text-[10px]">
                                       {assignedUser.firstName?.[0]}
                                       {assignedUser.lastName?.[0]}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className="text-[13px]">
+                                  <span className="text-[11px]">
                                     {assignedUser.firstName} {assignedUser.lastName}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[13px] text-muted-foreground">Non assigné</span>
+                                <span className="text-[11px] text-muted-foreground">Non assigné</span>
                               )}
                             </TableCell>
                           );
@@ -893,7 +893,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                 <PopoverTrigger asChild>
                                   <Badge 
                                     style={{ backgroundColor: taskColumn?.color || 'transparent' }}
-                                    className="text-foreground text-xs min-w-[80px] cursor-pointer hover-elevate"
+                                    className="text-foreground text-[10px] min-w-[80px] cursor-pointer hover-elevate"
                                     data-testid={`badge-status-${task.id}`}
                                   >
                                     {taskColumn?.name || '—'}
@@ -921,7 +921,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                           className="w-3 h-3 rounded-full"
                                           style={{ backgroundColor: col.color }}
                                         />
-                                        <span className="text-sm">{col.name}</span>
+                                        <span className="text-xs">{col.name}</span>
                                       </button>
                                     ))}
                                   </div>
@@ -944,7 +944,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                               >
                                 <PopoverTrigger asChild>
                                   <Badge 
-                                    className={`text-xs cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                                    className={`text-[10px] cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
                                     data-testid={`badge-priority-${task.id}`}
                                   >
                                     {getPriorityLabel(task.priority)}
@@ -965,7 +965,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                         }}
                                         className="w-full text-left px-3 py-2 rounded hover-elevate"
                                       >
-                                        <Badge className={`text-xs ${priority.color}`}>
+                                        <Badge className={`text-[10px] ${priority.color}`}>
                                           {priority.label}
                                         </Badge>
                                       </button>
@@ -1038,7 +1038,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                                 <PopoverTrigger asChild>
                                   <Badge
                                     variant="outline"
-                                    className="text-xs cursor-pointer hover-elevate min-w-[100px]"
+                                    className="text-[10px] cursor-pointer hover-elevate min-w-[100px]"
                                     data-testid={`badge-due-date-${task.id}`}
                                   >
                                     {task.dueDate 
@@ -2080,11 +2080,11 @@ export default function Projects() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
-                      <h3 className="text-sm font-medium text-foreground mb-2">
+                      <h3 className="text-xs font-medium text-foreground mb-2">
                         Vue d'ensemble de toutes les tâches
                       </h3>
                     </div>
-                    <div className="text-right text-sm text-muted-foreground">
+                    <div className="text-right text-xs text-muted-foreground">
                       <div>{tasks.length} tâches au total</div>
                       <div>{projects.length} projets</div>
                     </div>
@@ -2107,16 +2107,16 @@ export default function Projects() {
                     <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-medium text-foreground">
+                          <h3 className="text-xs font-medium text-foreground">
                             Progression du projet
                           </h3>
-                          <span className="text-sm font-semibold text-foreground">
+                          <span className="text-xs font-semibold text-foreground">
                             {progressPercentage}%
                           </span>
                         </div>
                         <Progress value={progressPercentage} />
                       </div>
-                      <div className="text-right text-sm text-muted-foreground">
+                      <div className="text-right text-xs text-muted-foreground">
                         <div>{tasks.length} tâches</div>
                         <div>{completedTasks} terminées</div>
                       </div>
@@ -2211,7 +2211,7 @@ export default function Projects() {
                   {activeTaskId ? (
                     <Card className="w-[300px] opacity-50">
                       <CardContent className="p-3">
-                        <div className="text-sm font-medium">
+                        <div className="text-xs font-medium">
                           {tasks.find((t) => t.id === activeTaskId)?.title}
                         </div>
                       </CardContent>
@@ -2220,7 +2220,7 @@ export default function Projects() {
                     <div className="w-[320px] opacity-50">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-sm">
+                          <CardTitle className="text-xs">
                             {taskColumns.find((c) => c.id === activeColumnId)?.name}
                           </CardTitle>
                         </CardHeader>
@@ -2410,17 +2410,17 @@ export default function Projects() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <Link href={`/projects/${project.id}`}>
-                                    <h3 className="font-medium text-sm truncate hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
+                                    <h3 className="font-medium text-xs truncate hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
                                       {project.name}
                                     </h3>
                                   </Link>
                                   {incompleteTasks > 0 && (
-                                    <Badge variant="secondary" className="text-xs" data-testid={`badge-tasks-count-${project.id}`}>
+                                    <Badge variant="secondary" className="text-[10px]" data-testid={`badge-tasks-count-${project.id}`}>
                                       {incompleteTasks}
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-xs text-muted-foreground truncate">
+                                <p className="text-[10px] text-muted-foreground truncate">
                                   {client?.name || "Client non défini"}
                                 </p>
                               </div>
@@ -2493,12 +2493,12 @@ export default function Projects() {
                             </div>
 
                             {project.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">
+                              <p className="text-[10px] text-muted-foreground line-clamp-2">
                                 {project.description}
                               </p>
                             )}
 
-                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t">
                               <div className="flex items-center gap-1">
                                 <CalendarIcon className="h-3 w-3" />
                                 {project.startDate
@@ -2527,14 +2527,14 @@ export default function Projects() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/40">
-                          <TableHead className="text-[13px] h-10">Projet</TableHead>
-                          <TableHead className="text-[13px] h-10">Client</TableHead>
-                          <TableHead className="text-[13px] h-10">Étape</TableHead>
-                          <TableHead className="text-[13px] h-10">Progression</TableHead>
-                          <TableHead className="text-[13px] h-10">Catégorie</TableHead>
-                          <TableHead className="text-[13px] h-10">Date de début</TableHead>
-                          <TableHead className="text-[13px] h-10 text-right">Budget</TableHead>
-                          <TableHead className="text-[13px] h-10 w-[80px]">Actions</TableHead>
+                          <TableHead className="text-[11px] h-10">Projet</TableHead>
+                          <TableHead className="text-[11px] h-10">Client</TableHead>
+                          <TableHead className="text-[11px] h-10">Étape</TableHead>
+                          <TableHead className="text-[11px] h-10">Progression</TableHead>
+                          <TableHead className="text-[11px] h-10">Catégorie</TableHead>
+                          <TableHead className="text-[11px] h-10">Date de début</TableHead>
+                          <TableHead className="text-[11px] h-10 text-right">Budget</TableHead>
+                          <TableHead className="text-[11px] h-10 w-[80px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2545,12 +2545,12 @@ export default function Projects() {
                             <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
                               <TableCell>
                                 <Link href={`/projects/${project.id}`}>
-                                  <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[13px]" data-testid={`project-name-${project.id}`}>
+                                  <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[11px]" data-testid={`project-name-${project.id}`}>
                                     {project.name}
                                   </div>
                                 </Link>
                                 {project.description && (
-                                  <div className="text-xs text-muted-foreground line-clamp-1">
+                                  <div className="text-[10px] text-muted-foreground line-clamp-1">
                                     {project.description}
                                   </div>
                                 )}
@@ -2558,11 +2558,11 @@ export default function Projects() {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                                       {client?.name.substring(0, 2).toUpperCase() || "??"}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className="text-[13px]">{client?.name || "Non défini"}</span>
+                                  <span className="text-[11px]">{client?.name || "Non défini"}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -2576,7 +2576,7 @@ export default function Projects() {
                                   return (
                                     <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
                                       <Progress value={progress} className="w-24" data-testid={`progress-bar-${project.id}`} />
-                                      <span className="text-[13px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
+                                      <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
                                     </div>
                                   );
                                 })()}
@@ -2587,11 +2587,11 @@ export default function Projects() {
                                     {project.category}
                                   </Badge>
                                 ) : (
-                                  <span className="text-[13px] text-muted-foreground">—</span>
+                                  <span className="text-[11px] text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-1 text-[13px]">
+                                <div className="flex items-center gap-1 text-[11px]">
                                   <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                                   {project.startDate
                                     ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
@@ -2601,7 +2601,7 @@ export default function Projects() {
                               </TableCell>
                               <TableCell className="text-right">
                                 {project.budget ? (
-                                  <span className="font-medium text-[13px]">
+                                  <span className="font-medium text-[11px]">
                                     {parseFloat(project.budget).toLocaleString("fr-FR", {
                                       style: "currency",
                                       currency: "EUR",
@@ -2609,7 +2609,7 @@ export default function Projects() {
                                     })}
                                   </span>
                                 ) : (
-                                  <span className="text-[13px] text-muted-foreground">—</span>
+                                  <span className="text-[11px] text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -3222,7 +3222,7 @@ export default function Projects() {
                   <button
                     type="button"
                     onClick={() => setNewTaskEffort(null)}
-                    className="ml-2 text-sm text-muted-foreground hover:text-foreground"
+                    className="ml-2 text-xs text-muted-foreground hover:text-foreground"
                     data-testid="button-clear-new-task-effort"
                   >
                     Effacer

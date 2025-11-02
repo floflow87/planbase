@@ -574,13 +574,13 @@ export default function Dashboard() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground font-medium">
+                      <p className="text-xs text-muted-foreground font-medium">
                         {kpi.title}
                       </p>
-                      <h3 className="text-2xl font-heading font-bold mt-2 text-foreground">
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">
                         {kpi.value}
                       </h3>
-                      <p className={`text-xs flex items-center gap-1 mt-2 ${
+                      <p className={`text-[10px] flex items-center gap-1 mt-2 ${
                         kpi.changeType === "positive" 
                           ? "text-green-600" 
                           : kpi.changeType === "negative" 
@@ -603,7 +603,7 @@ export default function Dashboard() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-xs hover:text-primary h-auto py-1 px-0" 
+                          className="text-[10px] hover:text-primary h-auto py-1 px-0" 
                           onClick={() => {
                             if (kpi.link!.href.includes('?')) {
                               window.location.href = kpi.link!.href;
@@ -679,10 +679,10 @@ export default function Dashboard() {
                     <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
                       <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground capitalize">
+                        <p className="text-xs text-foreground capitalize">
                           {description}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[10px] text-muted-foreground mt-1">
                           {new Date(activity.createdAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -714,7 +714,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-3">
               {recentProjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun projet récent</p>
+                <p className="text-xs text-muted-foreground text-center py-4">Aucun projet récent</p>
               ) : (
                 recentProjects.map((project) => (
                   <div
@@ -725,14 +725,14 @@ export default function Dashboard() {
                   >
                     <div className="w-1 h-12 rounded bg-primary shrink-0 hidden sm:block" />
                     <div className="flex-1 min-w-0 w-full sm:w-auto">
-                      <h4 className="text-sm font-medium text-foreground truncate">{project.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
+                      <h4 className="text-xs font-medium text-foreground truncate">{project.name}</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
                       <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`}>
                         {getStageLabel(project.stage || "prospection")}
                       </Badge>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground">
                         {new Date(project.createdAt).toLocaleDateString()}
                       </p>
                     </div>
