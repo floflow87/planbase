@@ -1096,6 +1096,58 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                 );
               })
             )}
+            {/* Quick add task row */}
+            <TableRow className="h-12">
+              {columnOrder.map((columnId: string) => {
+                if (columnId === 'title') {
+                  return (
+                    <TableCell key={columnId} colSpan={columnOrder.length}>
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Nouvelle tâche..."
+                          value={quickAddTaskTitle}
+                          onChange={(e) => setQuickAddTaskTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && quickAddTaskTitle.trim()) {
+                              setIsQuickAddingTask(true);
+                              createTaskMutation.mutate(
+                                {
+                                  title: quickAddTaskTitle.trim(),
+                                  description: "",
+                                  status: "todo",
+                                  priority: "medium",
+                                  projectId: selectedProjectId || undefined,
+                                  columnId: columns.find(c => c.name.toLowerCase().includes("à faire"))?.id || columns[0]?.id,
+                                  order: (allTasks?.length || 0) + 1,
+                                  accountId: accountId!,
+                                  createdBy: userId!,
+                                },
+                                {
+                                  onSuccess: () => {
+                                    setQuickAddTaskTitle("");
+                                    setIsQuickAddingTask(false);
+                                  },
+                                  onError: () => {
+                                    setIsQuickAddingTask(false);
+                                  },
+                                }
+                              );
+                            } else if (e.key === "Escape") {
+                              setQuickAddTaskTitle("");
+                            }
+                          }}
+                          disabled={isQuickAddingTask}
+                          className="border-0 focus-visible:ring-0 text-[11px] h-8"
+                          data-testid="input-quick-add-task"
+                        />
+                      </div>
+                    </TableCell>
+                  );
+                }
+                return null;
+              })}
+            </TableRow>
           </TableBody>
         </Table>
       </DndContext>
@@ -1257,6 +1309,10 @@ export default function Projects() {
   // Inline budget editing
   const [editingBudgetProjectId, setEditingBudgetProjectId] = useState<string | null>(null);
   const [tempBudgetValue, setTempBudgetValue] = useState("");
+  
+  // Quick add task
+  const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
+  const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
   
   // Get unique categories and recent ones
   const uniqueCategories = Array.from(new Set(
