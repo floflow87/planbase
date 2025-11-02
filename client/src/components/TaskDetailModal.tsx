@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Star } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
@@ -53,6 +53,7 @@ export function TaskDetailModal({
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [status, setStatus] = useState("todo");
   const [projectId, setProjectId] = useState<string | undefined>();
+  const [effort, setEffort] = useState<number | null>(null);
 
   useEffect(() => {
     if (task) {
@@ -63,6 +64,7 @@ export function TaskDetailModal({
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
       setStatus(task.status || "todo");
       setProjectId(task.projectId || undefined);
+      setEffort(task.effort ?? null);
     }
   }, [task]);
 
@@ -79,6 +81,7 @@ export function TaskDetailModal({
       dueDate: dueDate || null,
       status,
       projectId: projectId || task.projectId,
+      effort: effort,
     };
 
     // Only sync columnId if status changed
@@ -164,6 +167,35 @@ export function TaskDetailModal({
                   <SelectItem value="done">Terminé</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Effort / Complexité</Label>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(rating => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => setEffort(rating)}
+                  className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                  data-testid={`button-effort-${rating}`}
+                >
+                  <Star
+                    className={`h-6 w-6 transition-colors ${(effort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                  />
+                </button>
+              ))}
+              {effort !== null && (
+                <button
+                  type="button"
+                  onClick={() => setEffort(null)}
+                  className="ml-2 text-sm text-muted-foreground hover:text-foreground"
+                  data-testid="button-clear-effort"
+                >
+                  Effacer
+                </button>
+              )}
             </div>
           </div>
 

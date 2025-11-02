@@ -2488,14 +2488,15 @@ export default function Projects() {
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Projet</TableHead>
-                          <TableHead>Client</TableHead>
-                          <TableHead>Étape</TableHead>
-                          <TableHead>Catégorie</TableHead>
-                          <TableHead>Date de début</TableHead>
-                          <TableHead className="text-right">Budget</TableHead>
-                          <TableHead className="w-[80px]">Actions</TableHead>
+                        <TableRow className="bg-muted/40">
+                          <TableHead className="text-[13px] h-10">Projet</TableHead>
+                          <TableHead className="text-[13px] h-10">Client</TableHead>
+                          <TableHead className="text-[13px] h-10">Étape</TableHead>
+                          <TableHead className="text-[13px] h-10">Progression</TableHead>
+                          <TableHead className="text-[13px] h-10">Catégorie</TableHead>
+                          <TableHead className="text-[13px] h-10">Date de début</TableHead>
+                          <TableHead className="text-[13px] h-10 text-right">Budget</TableHead>
+                          <TableHead className="text-[13px] h-10 w-[80px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2503,10 +2504,10 @@ export default function Projects() {
                           const client = clients.find((c) => c.id === project.clientId);
                           
                           return (
-                            <TableRow key={project.id} data-testid={`project-row-${project.id}`}>
+                            <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
                               <TableCell>
                                 <Link href={`/projects/${project.id}`}>
-                                  <div className="font-medium hover:text-primary cursor-pointer transition-colors" data-testid={`project-name-${project.id}`}>
+                                  <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[13px]" data-testid={`project-name-${project.id}`}>
                                     {project.name}
                                   </div>
                                 </Link>
@@ -2518,12 +2519,12 @@ export default function Projects() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <Avatar className="h-8 w-8">
+                                  <Avatar className="h-6 w-6">
                                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                       {client?.name.substring(0, 2).toUpperCase() || "??"}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <span className="text-sm">{client?.name || "Non défini"}</span>
+                                  <span className="text-[13px]">{client?.name || "Non défini"}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -2532,16 +2533,22 @@ export default function Projects() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
+                                <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
+                                  <Progress value={project.progress || 0} className="w-24" data-testid={`progress-bar-${project.id}`} />
+                                  <span className="text-[13px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{project.progress || 0}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
                                 {project.category ? (
                                   <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
                                     {project.category}
                                   </Badge>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">—</span>
+                                  <span className="text-[13px] text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-1 text-sm">
+                                <div className="flex items-center gap-1 text-[13px]">
                                   <CalendarIcon className="h-3 w-3 text-muted-foreground" />
                                   {project.startDate
                                     ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
@@ -2551,7 +2558,7 @@ export default function Projects() {
                               </TableCell>
                               <TableCell className="text-right">
                                 {project.budget ? (
-                                  <span className="font-medium">
+                                  <span className="font-medium text-[13px]">
                                     {parseFloat(project.budget).toLocaleString("fr-FR", {
                                       style: "currency",
                                       currency: "EUR",
@@ -2559,7 +2566,7 @@ export default function Projects() {
                                     })}
                                   </span>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">—</span>
+                                  <span className="text-[13px] text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell>
