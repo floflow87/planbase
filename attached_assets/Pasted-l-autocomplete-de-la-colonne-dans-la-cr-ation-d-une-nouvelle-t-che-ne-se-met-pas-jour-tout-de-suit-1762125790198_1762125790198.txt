@@ -1,0 +1,28 @@
+l'autocomplete de la colonne dans la création d'une nouvelle tâche ne se met pas à jour tout de suite j'ai l'impression qu'il faut en faire plusieurs. Corriger cela.
+
+Attention je ne vois plus les tâches crées : les remettre dans le tableau des tâhces
+Aussi, la barre de progression que tu viens de créer doit tenir compte des tâches du projet qui ne sont pas "terminé".
+
+sur la vue liste d'un projet, ajouter également la possibilité de glisser déposer chaque colonne (excepté la colonne action qui elle est figée) afin de pouvoir modifier l'ordre d'affichage des colonnes (enregister ce choix et le maintenir jusq'uà ce qu'il soit modifié).
+
+Donner aussi la possibilité depuis la vue lise d'un projet de modifier directement la catégorie : soit on sélecitonne une catégorie existante avec un sélecteur qui propose les 5 dernières catégories, un système d'autocomplete qui affichera selon ce que l'on tape les catégories existantes correspondantes, ou à la Notion la possibilité de créer de nouvelles catégories depuis ce tableau. de même, on peut depuis ce tablaeu modifier les dates de début, le budget et le statut.
+
+Enfin, mettre le background du sélecteur de la colonne actions en blanc.
+
+Sur la fiche d'un client, permettre de créer des onglets personnalisés supplémentaires. Ajouter alors un onglet ave cun +, cr sui ouvrira un nouvel onglet avec un titre modifiable.
+Ensuite il sera possible d'ajouter des cjhamps personnalisables où l'on choisit le type de champs :
+Texte
+Date
+Number
+Lien
+Boolean
+Checkbox
+Sélecteur multiple
+Enregistrer ces champs personnalisés et les proposer lors de la création de nouveaux champs personnalisés
+
+Sur la vue liste des tâches
+la dernière ligne doit être une ligne de saisie qui permet de créer une nouvelle tâche, un peu à la Notion
+Aisni le label sera : + Nouvelle tâche (dans la colonne tâche)
+Tous les éléments de chaue colonne seront modifiables
+
+Dans le tableau de bord ajouter un petit encart ma journée qui présente toutes les tâches qui arrivent à échéances et les rdv pris (ft. à venir)

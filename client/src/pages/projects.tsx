@@ -441,7 +441,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
 
     if (!over || active.id === over.id) return;
 
-    setColumnOrder((items) => {
+    setColumnOrder((items: string[]) => {
       const oldIndex = items.indexOf(active.id as string);
       const newIndex = items.indexOf(over.id as string);
       const newOrder = arrayMove(items, oldIndex, newIndex);
@@ -810,7 +810,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
           <TableHeader>
             <TableRow className="bg-muted/40">
               <SortableContext items={columnOrder}>
-                {columnOrder.map((columnId) => (
+                {columnOrder.map((columnId: string) => (
                   <SortableTableHeader key={columnId} columnId={columnId} />
                 ))}
               </SortableContext>
@@ -831,7 +831,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                 
                 return (
                   <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
-                    {columnOrder.map((columnId) => {
+                    {columnOrder.map((columnId: string) => {
                       switch (columnId) {
                         case 'checkbox':
                           return (
@@ -1147,6 +1147,49 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
     );
   }
 
+// Sortable project column header component
+interface SortableProjectColumnHeaderProps {
+  id: string;
+  label: string;
+  className?: string;
+  isDraggable?: boolean;
+}
+
+function SortableProjectColumnHeader({ id, label, className, isDraggable = true }: SortableProjectColumnHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id,
+    disabled: !isDraggable,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableHead
+      ref={setNodeRef}
+      style={style}
+      className={`text-[11px] h-10 ${isDraggable ? 'cursor-move' : ''} ${className || ''}`}
+    >
+      <div className="flex items-center gap-2">
+        {isDraggable && (
+          <GripVertical className="h-3 w-3 text-muted-foreground" {...attributes} {...listeners} />
+        )}
+        <span>{label}</span>
+      </div>
+    </TableHead>
+  );
+}
+
 export default function Projects() {
   const [, setLocation] = useLocation();
   const accountId = localStorage.getItem("demo_account_id");
@@ -1189,6 +1232,14 @@ export default function Projects() {
   const [projectStageFilter, setProjectStageFilter] = useState("all");
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("list");
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  
+  // Column order state for project list view
+  const defaultColumnOrder = ["name", "client", "stage", "progress", "category", "startDate", "budget", "actions"];
+  const [projectColumnOrder, setProjectColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem("projectColumnOrder");
+    return saved ? JSON.parse(saved) : defaultColumnOrder;
+  });
+  const [activeProjectColumnId, setActiveProjectColumnId] = useState<string | null>(null);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -1606,6 +1657,29 @@ export default function Projects() {
       });
     },
   });
+
+  // Handlers for project column drag and drop
+  const handleProjectColumnDragStart = (event: DragStartEvent) => {
+    setActiveProjectColumnId(event.active.id as string);
+  };
+
+  const handleProjectColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveProjectColumnId(null);
+
+    if (!over || active.id === over.id || active.id === "actions" || over.id === "actions") {
+      return;
+    }
+
+    const oldIndex = projectColumnOrder.indexOf(active.id as string);
+    const newIndex = projectColumnOrder.indexOf(over.id as string);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newOrder = arrayMove(projectColumnOrder, oldIndex, newIndex);
+      setProjectColumnOrder(newOrder);
+      localStorage.setItem("projectColumnOrder", JSON.stringify(newOrder));
+    }
+  };
 
   // Project selection handlers
   const toggleProjectSelection = (projectId: string) => {
@@ -2524,158 +2598,200 @@ export default function Projects() {
                   })}
                 </div>
               ) : (
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/40">
-                          <TableHead className="text-[11px] h-10">Projet</TableHead>
-                          <TableHead className="text-[11px] h-10">Client</TableHead>
-                          <TableHead className="text-[11px] h-10">Étape</TableHead>
-                          <TableHead className="text-[11px] h-10">Progression</TableHead>
-                          <TableHead className="text-[11px] h-10">Catégorie</TableHead>
-                          <TableHead className="text-[11px] h-10">Date de début</TableHead>
-                          <TableHead className="text-[11px] h-10 text-right">Budget</TableHead>
-                          <TableHead className="text-[11px] h-10 w-[80px]">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProjects.map((project) => {
-                          const client = clients.find((c) => c.id === project.clientId);
-                          
-                          return (
-                            <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
-                              <TableCell>
-                                <Link href={`/projects/${project.id}`}>
-                                  <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[11px]" data-testid={`project-name-${project.id}`}>
-                                    {project.name}
-                                  </div>
-                                </Link>
-                                {project.description && (
-                                  <div className="text-[10px] text-muted-foreground line-clamp-1">
-                                    {project.description}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
-                                      {client?.name.substring(0, 2).toUpperCase() || "??"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-[11px]">{client?.name || "Non défini"}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getStageColor(project.stage)} data-testid={`badge-stage-${project.id}`}>
-                                  {getStageLabel(project.stage)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {(() => {
-                                  const progress = calculateProjectProgress(project.id);
-                                  return (
-                                    <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
-                                      <Progress value={progress} className="w-24" data-testid={`progress-bar-${project.id}`} />
-                                      <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
-                                    </div>
-                                  );
-                                })()}
-                              </TableCell>
-                              <TableCell>
-                                {project.category ? (
-                                  <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
-                                    {project.category}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-[11px] text-muted-foreground">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1 text-[11px]">
-                                  <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                                  {project.startDate
-                                    ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                                    : <span className="text-muted-foreground">—</span>
-                                  }
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {project.budget ? (
-                                  <span className="font-medium text-[11px]">
-                                    {parseFloat(project.budget).toLocaleString("fr-FR", {
-                                      style: "currency",
-                                      currency: "EUR",
-                                      minimumFractionDigits: 0,
-                                    })}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] text-muted-foreground">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-8 w-8"
-                                      data-testid={`button-project-menu-${project.id}`}
-                                    >
-                                      <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem 
-                                      data-testid={`button-edit-project-${project.id}`}
-                                      onClick={() => {
-                                        setEditingProject(project);
-                                        setProjectFormData({
-                                          name: project.name,
-                                          description: project.description || "",
-                                          clientId: project.clientId || "",
-                                          stage: project.stage || "prospection",
-                                          category: project.category || "",
-                                          startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                          endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                          budget: project.budget || "",
-                                        });
-                                        setIsEditProjectDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="h-4 w-4 mr-2" />
-                                      Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      data-testid={`button-complete-project-${project.id}`}
-                                      onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Marquer comme terminé
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      data-testid={`button-delete-project-${project.id}`}
-                                      onClick={() => {
-                                        setEditingProject(project);
-                                        setIsDeleteProjectDialogOpen(true);
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
+                <DndContext
+                  sensors={sensors}
+                  onDragStart={handleProjectColumnDragStart}
+                  onDragEnd={handleProjectColumnDragEnd}
+                >
+                  <Card>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <SortableContext
+                            items={projectColumnOrder.filter(id => id !== "actions")}
+                            strategy={horizontalListSortingStrategy}
+                          >
+                            <TableRow className="bg-muted/40">
+                              {projectColumnOrder.map((columnId) => {
+                                const columnLabels: Record<string, string> = {
+                                  name: "Projet",
+                                  client: "Client",
+                                  stage: "Étape",
+                                  progress: "Progression",
+                                  category: "Catégorie",
+                                  startDate: "Date de début",
+                                  budget: "Budget",
+                                  actions: "Actions",
+                                };
+                                
+                                return (
+                                  <SortableProjectColumnHeader
+                                    key={columnId}
+                                    id={columnId}
+                                    label={columnLabels[columnId] || columnId}
+                                    className={columnId === "budget" ? "text-right" : columnId === "actions" ? "w-[80px] bg-white" : ""}
+                                    isDraggable={columnId !== "actions"}
+                                  />
+                                );
+                              })}
                             </TableRow>
-                          );
-                        })}
+                          </SortableContext>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredProjects.map((project) => {
+                            const client = clients.find((c) => c.id === project.clientId);
+                            const progress = calculateProjectProgress(project.id);
+                            
+                            // Create a mapping of column IDs to their cell content
+                            const cellContent: Record<string, JSX.Element> = {
+                              name: (
+                                <TableCell key="name">
+                                  <Link href={`/projects/${project.id}`}>
+                                    <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[11px]" data-testid={`project-name-${project.id}`}>
+                                      {project.name}
+                                    </div>
+                                  </Link>
+                                  {project.description && (
+                                    <div className="text-[10px] text-muted-foreground line-clamp-1">
+                                      {project.description}
+                                    </div>
+                                  )}
+                                </TableCell>
+                              ),
+                              client: (
+                                <TableCell key="client">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
+                                        {client?.name.substring(0, 2).toUpperCase() || "??"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-[11px]">{client?.name || "Non défini"}</span>
+                                  </div>
+                                </TableCell>
+                              ),
+                              stage: (
+                                <TableCell key="stage">
+                                  <Badge className={getStageColor(project.stage)} data-testid={`badge-stage-${project.id}`}>
+                                    {getStageLabel(project.stage)}
+                                  </Badge>
+                                </TableCell>
+                              ),
+                              progress: (
+                                <TableCell key="progress">
+                                  <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
+                                    <Progress value={progress} className="w-24" data-testid={`progress-bar-${project.id}`} />
+                                    <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
+                                  </div>
+                                </TableCell>
+                              ),
+                              category: (
+                                <TableCell key="category">
+                                  {project.category ? (
+                                    <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
+                                      {project.category}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                              ),
+                              startDate: (
+                                <TableCell key="startDate">
+                                  <div className="flex items-center gap-1 text-[11px]">
+                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                    {project.startDate
+                                      ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                                      : <span className="text-muted-foreground">—</span>
+                                    }
+                                  </div>
+                                </TableCell>
+                              ),
+                              budget: (
+                                <TableCell key="budget" className="text-right">
+                                  {project.budget ? (
+                                    <span className="font-medium text-[11px]">
+                                      {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                        style: "currency",
+                                        currency: "EUR",
+                                        minimumFractionDigits: 0,
+                                      })}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                              ),
+                              actions: (
+                                <TableCell key="actions">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8"
+                                        data-testid={`button-project-menu-${project.id}`}
+                                      >
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-white">
+                                      <DropdownMenuItem 
+                                        data-testid={`button-edit-project-${project.id}`}
+                                        onClick={() => {
+                                          setEditingProject(project);
+                                          setProjectFormData({
+                                            name: project.name,
+                                            description: project.description || "",
+                                            clientId: project.clientId || "",
+                                            stage: project.stage || "prospection",
+                                            category: project.category || "",
+                                            startDate: project.startDate ? new Date(project.startDate) : undefined,
+                                            endDate: project.endDate ? new Date(project.endDate) : undefined,
+                                            budget: project.budget || "",
+                                          });
+                                          setIsEditProjectDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Modifier
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        data-testid={`button-complete-project-${project.id}`}
+                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Marquer comme terminé
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        data-testid={`button-delete-project-${project.id}`}
+                                        onClick={() => {
+                                          setEditingProject(project);
+                                          setIsDeleteProjectDialogOpen(true);
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Supprimer
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              ),
+                            };
+                          
+                            return (
+                              <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
+                                {projectColumnOrder.map((columnId) => cellContent[columnId])}
+                              </TableRow>
+                            );
+                          })}
                       </TableBody>
                     </Table>
                   </CardContent>
                 </Card>
+                </DndContext>
               );
             })()}
           </TabsContent>
