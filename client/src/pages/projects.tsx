@@ -1195,6 +1195,7 @@ export default function Projects() {
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>();
   const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
   const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
   const [projectComboboxOpen, setProjectComboboxOpen] = useState(false);
   const [columnComboboxOpen, setColumnComboboxOpen] = useState(false);
@@ -1276,7 +1277,22 @@ export default function Projects() {
     enabled: !!selectedProjectId,
   });
 
+  // Load all tasks for projects view to calculate progress
+  const { data: allTasks = [] } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+    enabled: activeTab === "projects",
+  });
+
   const sortedColumns = [...taskColumns].sort((a, b) => a.order - b.order);
+
+  // Calculate project progress based on completed tasks
+  const calculateProjectProgress = (projectId: string): number => {
+    const projectTasks = allTasks.filter(t => t.projectId === projectId);
+    if (projectTasks.length === 0) return 0;
+    
+    const completedTasks = projectTasks.filter(t => t.status === "done").length;
+    return Math.round((completedTasks / projectTasks.length) * 100);
+  };
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask & { keepOpen?: boolean }) => {
@@ -1300,6 +1316,7 @@ export default function Projects() {
       setNewTaskPriority("medium");
       setNewTaskAssignedTo(undefined);
       setNewTaskDueDate(undefined);
+      setNewTaskEffort(null);
       
       // Only close dialog and reset project/column if not keeping it open
       if (!result.keepOpen) {
@@ -1789,6 +1806,7 @@ export default function Projects() {
       positionInColumn: maxPosition + 1,
       order: 0,
       dueDate: (newTaskDueDate ? newTaskDueDate.toISOString() : null) as any,
+      effort: newTaskEffort,
       createdBy: userId,
       keepOpen,
     } as InsertTask & { keepOpen?: boolean });
@@ -2533,10 +2551,15 @@ export default function Projects() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
-                                  <Progress value={project.progress || 0} className="w-24" data-testid={`progress-bar-${project.id}`} />
-                                  <span className="text-[13px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{project.progress || 0}%</span>
-                                </div>
+                                {(() => {
+                                  const progress = calculateProjectProgress(project.id);
+                                  return (
+                                    <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
+                                      <Progress value={progress} className="w-24" data-testid={`progress-bar-${project.id}`} />
+                                      <span className="text-[13px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
+                                    </div>
+                                  );
+                                })()}
                               </TableCell>
                               <TableCell>
                                 {project.category ? (
@@ -3160,6 +3183,34 @@ export default function Projects() {
               </div>
             </div>
             <div>
+              <Label>Effort / Complexité</Label>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(rating => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setNewTaskEffort(rating)}
+                    className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                    data-testid={`button-new-task-effort-${rating}`}
+                  >
+                    <Star
+                      className={`h-6 w-6 transition-colors ${(newTaskEffort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                    />
+                  </button>
+                ))}
+                {newTaskEffort !== null && (
+                  <button
+                    type="button"
+                    onClick={() => setNewTaskEffort(null)}
+                    className="ml-2 text-sm text-muted-foreground hover:text-foreground"
+                    data-testid="button-clear-new-task-effort"
+                  >
+                    Effacer
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
               <Label>Colonne *</Label>
               <Popover open={columnComboboxOpen} onOpenChange={setColumnComboboxOpen}>
                 <PopoverTrigger asChild>
@@ -3256,6 +3307,7 @@ export default function Projects() {
                 setNewTaskPriority("medium");
                 setNewTaskAssignedTo(undefined);
                 setNewTaskDueDate(undefined);
+                setNewTaskEffort(null);
                 setNewTaskProjectId("");
               }}
               data-testid="button-cancel-create-task"
