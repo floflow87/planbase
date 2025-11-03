@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField, ClientCustomFieldValue, InsertClientCustomFieldValue } from "@shared/schema";
 import { insertClientSchema } from "@shared/schema";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,8 @@ export default function ClientDetail() {
   });
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
+  const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>({});
+  const savedFieldValuesRef = useRef<Record<string, any>>({});
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -180,7 +182,7 @@ export default function ClientDetail() {
       });
       // Initialize client info form with current values
       setClientInfoForm({
-        type: client.type || "company",
+        type: (client.type as "company" | "person") || "company",
         name: client.name || "",
         civility: client.civility || "",
         firstName: client.firstName || "",
@@ -193,6 +195,46 @@ export default function ClientDetail() {
       });
     }
   }, [client, accountId, currentUser, clientForm]);
+
+  // Initialize local field values from server data
+  useEffect(() => {
+    const initialValues: Record<string, any> = {};
+    fieldValues.forEach(fv => {
+      initialValues[fv.fieldId] = fv.value;
+    });
+    
+    // Only update if server data is different from saved ref
+    // This prevents overwriting unsaved local edits
+    const serverSnapshot = JSON.stringify(initialValues);
+    const savedSnapshot = JSON.stringify(savedFieldValuesRef.current);
+    
+    if (serverSnapshot !== savedSnapshot) {
+      // Deep clone to avoid reference sharing
+      const clonedValues = JSON.parse(JSON.stringify(initialValues));
+      setLocalFieldValues(clonedValues);
+      savedFieldValuesRef.current = JSON.parse(JSON.stringify(initialValues));
+    }
+  }, [fieldValues]);
+
+  // Debounce field value updates
+  useEffect(() => {
+    const timers: Record<string, NodeJS.Timeout> = {};
+    
+    Object.entries(localFieldValues).forEach(([fieldId, value]) => {
+      const savedValue = savedFieldValuesRef.current[fieldId];
+      
+      // Only save if value has changed from last saved value
+      if (JSON.stringify(value) !== JSON.stringify(savedValue)) {
+        timers[fieldId] = setTimeout(() => {
+          upsertFieldValueMutation.mutate({ fieldId, value });
+        }, 500);
+      }
+    });
+
+    return () => {
+      Object.values(timers).forEach(timer => clearTimeout(timer));
+    };
+  }, [localFieldValues]);
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
@@ -417,23 +459,56 @@ export default function ClientDetail() {
     },
   });
 
-  const upsertFieldValueMutation = useMutation({
+  const upsertFieldValueMutation = useMutation<ClientCustomFieldValue, Error, { fieldId: string; value: any }>({
     mutationFn: async (data: { fieldId: string; value: any }) => {
       const existingValue = fieldValues.find(v => v.fieldId === data.fieldId);
       if (existingValue) {
-        return await apiRequest("PATCH", `/api/client-custom-field-values/${existingValue.id}`, {
+        const response = await apiRequest("PATCH", `/api/client-custom-field-values/${existingValue.id}`, {
           value: data.value,
         });
+        return await response.json();
       } else {
-        return await apiRequest("POST", "/api/client-custom-field-values", {
+        const response = await apiRequest("POST", "/api/client-custom-field-values", {
           clientId: id,
           fieldId: data.fieldId,
           value: data.value,
         });
+        return await response.json();
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-field-values'] });
+    onSuccess: (response, variables) => {
+      // Sync local state with normalized value from server to prevent re-trigger loops
+      // The backend may normalize values (trim, coerce, etc.), so we need to update
+      // both savedFieldValuesRef and localFieldValues to match the server response
+      setLocalFieldValues(prev => ({
+        ...prev,
+        [variables.fieldId]: response.value
+      }));
+      
+      savedFieldValuesRef.current = {
+        ...savedFieldValuesRef.current,
+        [variables.fieldId]: response.value
+      };
+      
+      // Update the cache directly instead of invalidating to avoid refetch
+      queryClient.setQueryData<ClientCustomFieldValue[]>(
+        ['/api/client-custom-field-values'],
+        (oldData) => {
+          // Handle empty cache by creating new array with response
+          if (!oldData) return [response];
+          
+          const existingIndex = oldData.findIndex(v => v.fieldId === variables.fieldId && v.clientId === id);
+          if (existingIndex >= 0) {
+            // Update existing value with full response
+            const newData = [...oldData];
+            newData[existingIndex] = response;
+            return newData;
+          } else {
+            // Add new value
+            return [...oldData, response];
+          }
+        }
+      );
     },
     onError: () => {
       toast({ title: "Erreur lors de la modification du champ", variant: "destructive" });
@@ -1432,11 +1507,13 @@ export default function ClientDetail() {
             const tabFields = customFields.filter(f => f.tabId === tab.id).sort((a, b) => a.order - b.order);
             
             const renderFieldInput = (field: ClientCustomField) => {
-              const existingValue = fieldValues.find(v => v.fieldId === field.id);
-              const value = existingValue?.value;
+              const value = localFieldValues[field.id] ?? fieldValues.find(v => v.fieldId === field.id)?.value;
 
               const handleFieldChange = (newValue: any) => {
-                upsertFieldValueMutation.mutate({ fieldId: field.id, value: newValue });
+                setLocalFieldValues(prev => ({
+                  ...prev,
+                  [field.id]: newValue
+                }));
               };
 
               switch (field.fieldType) {
