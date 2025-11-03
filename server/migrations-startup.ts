@@ -92,6 +92,17 @@ export async function runStartupMigrations() {
       ON client_custom_field_values(client_id, field_id);
     `);
     
+    // Ensure created_by columns are nullable (for existing tables)
+    await db.execute(sql`
+      ALTER TABLE client_custom_tabs 
+      ALTER COLUMN created_by DROP NOT NULL;
+    `);
+    
+    await db.execute(sql`
+      ALTER TABLE client_custom_fields 
+      ALTER COLUMN created_by DROP NOT NULL;
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
