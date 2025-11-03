@@ -154,13 +154,13 @@ function SortableTaskCard({
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-100 text-red-700";
+        return "bg-red-100 text-red-700 border-red-200";
       case "medium":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "low":
-        return "bg-green-100 text-green-700";
+        return "bg-green-100 text-green-700 border-green-200";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
@@ -400,9 +400,33 @@ interface ListViewProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onUpdateTask: (taskId: string, data: Partial<Task>) => void;
+  quickAddTaskTitle: string;
+  setQuickAddTaskTitle: (value: string) => void;
+  isQuickAddingTask: boolean;
+  setIsQuickAddingTask: (value: boolean) => void;
+  onCreateTask: (data: InsertTask) => void;
+  selectedProjectId?: string;
+  accountId?: string;
+  userId?: string;
 }
 
-function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, onUpdateTask }: ListViewProps) {
+function ListView({ 
+  tasks, 
+  columns, 
+  users, 
+  projects, 
+  onEditTask, 
+  onDeleteTask, 
+  onUpdateTask,
+  quickAddTaskTitle,
+  setQuickAddTaskTitle,
+  isQuickAddingTask,
+  setIsQuickAddingTask,
+  onCreateTask,
+  selectedProjectId,
+  accountId,
+  userId
+}: ListViewProps) {
   const { toast } = useToast();
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('taskListColumnOrder');
@@ -454,13 +478,13 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
-        return "bg-red-100 text-red-700";
+        return "bg-red-100 text-red-700 border-red-200";
       case "medium":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "low":
-        return "bg-green-100 text-green-700";
+        return "bg-green-100 text-green-700 border-green-200";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
@@ -740,7 +764,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                 Actions
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="bg-white">
               <DropdownMenuItem onClick={() => handleBulkAction('complete')}>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 Marquer comme terminé
@@ -755,7 +779,7 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                   <UserCheck className="h-4 w-4 mr-2" />
                   Changer l'assignation
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
+                <DropdownMenuSubContent className="bg-white">
                   {users.map(user => (
                     <DropdownMenuItem 
                       key={user.id}
@@ -979,48 +1003,19 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                         case 'effort':
                           return (
                             <TableCell key={columnId}>
-                              <Popover
-                                open={isEditing && editingCell.field === 'effort'}
-                                onOpenChange={(open) => {
-                                  if (open) {
-                                    setEditingCell({ taskId: task.id, field: 'effort' });
-                                  } else {
-                                    setEditingCell(null);
-                                  }
-                                }}
-                              >
-                                <PopoverTrigger asChild>
-                                  <div className="flex items-center gap-0.5 cursor-pointer" data-testid={`stars-effort-${task.id}`}>
-                                    {[1, 2, 3, 4, 5].map(star => (
-                                      <Star
-                                        key={star}
-                                        className={`h-4 w-4 ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                                      />
-                                    ))}
-                                  </div>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-48 p-2">
-                                  <div className="space-y-1">
-                                    {[1, 2, 3, 4, 5].map(rating => (
-                                      <button
-                                        key={rating}
-                                        onClick={() => {
-                                          onUpdateTask(task.id, { effort: rating } as any);
-                                          setEditingCell(null);
-                                        }}
-                                        className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-1"
-                                      >
-                                        {[1, 2, 3, 4, 5].map(star => (
-                                          <Star
-                                            key={star}
-                                            className={`h-4 w-4 ${rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                                          />
-                                        ))}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+                              <div className="flex items-center gap-0.5" data-testid={`stars-effort-${task.id}`}>
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <Star
+                                    key={star}
+                                    className={`h-4 w-4 cursor-pointer transition-colors ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUpdateTask(task.id, { effort: star } as any);
+                                    }}
+                                    data-testid={`star-${star}-task-${task.id}`}
+                                  />
+                                ))}
+                              </div>
                             </TableCell>
                           );
                         case 'dueDate':
@@ -1097,6 +1092,48 @@ function ListView({ tasks, columns, users, projects, onEditTask, onDeleteTask, o
                 );
               })
             )}
+            {/* Quick add task row */}
+            <TableRow className="h-12">
+              {columnOrder.map((columnId: string) => {
+                if (columnId === 'title') {
+                  return (
+                    <TableCell key={columnId} colSpan={columnOrder.length}>
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Nouvelle tâche..."
+                          value={quickAddTaskTitle}
+                          onChange={(e) => setQuickAddTaskTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && quickAddTaskTitle.trim()) {
+                              setIsQuickAddingTask(true);
+                              const firstColumn = columns.find(c => c.name.toLowerCase().includes("à faire")) || columns[0];
+                              onCreateTask({
+                                title: quickAddTaskTitle.trim(),
+                                description: "",
+                                status: "todo",
+                                priority: "medium",
+                                projectId: selectedProjectId && selectedProjectId !== "all" ? selectedProjectId : undefined,
+                                columnId: firstColumn?.id,
+                                positionInColumn: tasks.filter(t => t.columnId === firstColumn?.id).length,
+                                accountId: accountId!,
+                                createdBy: userId!,
+                              });
+                            } else if (e.key === "Escape") {
+                              setQuickAddTaskTitle("");
+                            }
+                          }}
+                          disabled={isQuickAddingTask}
+                          className="border-0 focus-visible:ring-0 text-[11px] h-8"
+                          data-testid="input-quick-add-task"
+                        />
+                      </div>
+                    </TableCell>
+                  );
+                }
+                return null;
+              })}
+            </TableRow>
           </TableBody>
         </Table>
       </DndContext>
@@ -1271,6 +1308,10 @@ export default function Projects() {
   const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("rgba(229, 231, 235, 0.4)");
+  
+  // Quick add task states
+  const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
+  const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
 
   // Check for tab query parameter
   const [activeTab, setActiveTab] = useState<string>("tasks");
@@ -2004,6 +2045,18 @@ export default function Projects() {
     }
   };
 
+  const handleQuickCreateTask = (data: InsertTask) => {
+    createTaskMutation.mutate(data, {
+      onSuccess: () => {
+        setQuickAddTaskTitle("");
+        setIsQuickAddingTask(false);
+      },
+      onError: () => {
+        setIsQuickAddingTask(false);
+      },
+    });
+  };
+
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setIsTaskDetailOpen(true);
@@ -2259,6 +2312,14 @@ export default function Projects() {
                     onUpdateTask={(taskId, data) => {
                       updateTaskMutation.mutate({ id: taskId, data });
                     }}
+                    quickAddTaskTitle={quickAddTaskTitle}
+                    setQuickAddTaskTitle={setQuickAddTaskTitle}
+                    isQuickAddingTask={isQuickAddingTask}
+                    setIsQuickAddingTask={setIsQuickAddingTask}
+                    onCreateTask={handleQuickCreateTask}
+                    selectedProjectId={selectedProjectId}
+                    accountId={accountId || undefined}
+                    userId={userId || undefined}
                   />
                 </div>
                 
@@ -2544,7 +2605,7 @@ export default function Projects() {
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" className="bg-white">
                                 <DropdownMenuItem 
                                   data-testid={`button-edit-project-${project.id}`}
                                   onClick={() => {
