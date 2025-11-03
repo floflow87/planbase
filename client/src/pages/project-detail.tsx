@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Check, X } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,8 +34,6 @@ export default function ProjectDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingTaskTitle, setEditingTaskTitle] = useState("");
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false);
   const [projectFormData, setProjectFormData] = useState({
@@ -108,22 +106,6 @@ export default function ProjectDetail() {
       }
     },
   };
-
-  const updateTaskMutation = useMutation({
-    mutationFn: async ({ taskId, title }: { taskId: string; title: string }) => {
-      return await apiRequest("PATCH", `/api/tasks/${taskId}`, { title });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      setEditingTaskId(null);
-      setEditingTaskTitle("");
-      toast({ title: "Tâche mise à jour", variant: "success" });
-    },
-    onError: () => {
-      toast({ title: "Erreur lors de la mise à jour de la tâche", variant: "destructive" });
-    },
-  });
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -396,70 +378,31 @@ export default function ProjectDetail() {
                         <div className="space-y-2">
                           {columnTasks.map((task) => {
                             const assignedUser = users.find(u => u.id === task.assignedToId);
-                            const isEditing = editingTaskId === task.id;
                             
                             return (
                               <div 
                                 key={task.id}
-                                className="p-3 border rounded-md hover-elevate"
+                                className="p-3 border rounded-md hover-elevate cursor-pointer"
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setIsTaskDetailDialogOpen(true);
+                                }}
                                 data-testid={`task-${task.id}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1">
-                                    {isEditing ? (
-                                      <div className="flex items-center gap-2">
-                                        <Input
-                                          value={editingTaskTitle}
-                                          onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                          className="text-sm h-8"
-                                          autoFocus
-                                          data-testid={`input-edit-task-${task.id}`}
-                                        />
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-8 w-8 shrink-0"
-                                          onClick={() => {
-                                            if (editingTaskTitle.trim()) {
-                                              updateTaskMutation.mutate({ taskId: task.id, title: editingTaskTitle });
-                                            }
-                                          }}
-                                          disabled={updateTaskMutation.isPending || !editingTaskTitle.trim()}
-                                          data-testid={`button-save-task-${task.id}`}
-                                        >
-                                          <Check className="h-4 w-4 text-green-600" />
-                                        </Button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-8 w-8 shrink-0"
-                                          onClick={() => {
-                                            setEditingTaskId(null);
-                                            setEditingTaskTitle("");
-                                          }}
-                                          data-testid={`button-cancel-edit-task-${task.id}`}
-                                        >
-                                          <X className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <h4 
-                                        className="text-sm font-medium mb-1 cursor-pointer hover:text-primary"
-                                        onClick={() => {
-                                          setEditingTaskId(task.id);
-                                          setEditingTaskTitle(task.title);
-                                        }}
-                                        data-testid={`title-task-${task.id}`}
-                                      >
-                                        {task.title}
-                                      </h4>
-                                    )}
-                                    {!isEditing && task.description && (
+                                    <h4 
+                                      className="text-sm font-medium mb-1"
+                                      data-testid={`title-task-${task.id}`}
+                                    >
+                                      {task.title}
+                                    </h4>
+                                    {task.description && (
                                       <p className="text-xs text-muted-foreground line-clamp-2">
                                         {task.description}
                                       </p>
                                     )}
-                                    {!isEditing && task.dueDate && (
+                                    {task.dueDate && (
                                       <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
                                         <CalendarIcon className="h-3 w-3" />
                                         {format(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
@@ -474,21 +417,19 @@ export default function ProjectDetail() {
                                         </AvatarFallback>
                                       </Avatar>
                                     )}
-                                    {!isEditing && (
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDeleteTaskId(task.id);
-                                          setIsDeleteTaskDialogOpen(true);
-                                        }}
-                                        data-testid={`button-delete-task-${task.id}`}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    )}
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteTaskId(task.id);
+                                        setIsDeleteTaskDialogOpen(true);
+                                      }}
+                                      data-testid={`button-delete-task-${task.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
