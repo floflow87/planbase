@@ -615,6 +615,7 @@ export default function ClientDetail() {
                                 key={status.value}
                                 onSelect={() => updateClientStatus(status.value)}
                                 data-testid={`status-option-${status.value}`}
+                                className="cursor-pointer"
                               >
                                 <Check
                                   className={`mr-2 h-4 w-4 ${
