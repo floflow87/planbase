@@ -447,6 +447,23 @@ function ListView({
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
   const [isAttachToProjectDialogOpen, setIsAttachToProjectDialogOpen] = useState(false);
   const [attachProjectId, setAttachProjectId] = useState<string>("");
+  
+  // Pagination states
+  const [pageSize, setPageSize] = useState(() => {
+    const saved = localStorage.getItem('taskListPageSize');
+    return saved ? parseInt(saved) : 20;
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Save pageSize to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('taskListPageSize', pageSize.toString());
+  }, [pageSize]);
+
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortConfig, selectedProjectId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -523,9 +540,15 @@ function ListView({
   };
 
   const getSortedTasks = () => {
-    if (!sortConfig) return tasks;
+    // First, filter by selected project
+    let filtered = tasks;
+    if (selectedProjectId && selectedProjectId !== "all") {
+      filtered = filtered.filter(task => task.projectId === selectedProjectId);
+    }
+    
+    if (!sortConfig) return filtered;
 
-    const sorted = [...tasks].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
@@ -566,6 +589,15 @@ function ListView({
 
     return sorted;
   };
+
+  const getPaginatedTasks = () => {
+    const sorted = getSortedTasks();
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return sorted.slice(startIndex, endIndex);
+  };
+
+  const totalPages = Math.ceil(getSortedTasks().length / pageSize);
 
   const columnHeaders = {
     checkbox: { label: '', id: 'checkbox' },
@@ -849,7 +881,7 @@ function ListView({
                 </TableCell>
               </TableRow>
             ) : (
-              getSortedTasks().map((task) => {
+              getPaginatedTasks().map((task) => {
                 const assignedUser = users.find((u) => u.id === task.assignedToId);
                 const taskColumn = columns.find(c => c.id === task.columnId);
                 const isEditing = editingCell?.taskId === task.id;
@@ -924,7 +956,7 @@ function ListView({
                                     {taskColumn?.name || '—'}
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-56 p-2">
+                                <PopoverContent className="w-56 p-2 bg-white">
                                   <div className="space-y-1">
                                     {[...columns].sort((a, b) => a.order - b.order).map(col => (
                                       <button
@@ -975,7 +1007,7 @@ function ListView({
                                     {getPriorityLabel(task.priority)}
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-40 p-2">
+                                <PopoverContent className="w-40 p-2 bg-white">
                                   <div className="space-y-1">
                                     {[
                                       { value: 'high', label: 'Urgent', color: 'bg-red-100 text-red-700' },
@@ -1043,7 +1075,7 @@ function ListView({
                                     }
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
+                                <PopoverContent className="w-auto p-0 bg-white" align="start">
                                   <Calendar
                                     mode="single"
                                     selected={task.dueDate ? new Date(task.dueDate) : undefined}
@@ -1140,6 +1172,80 @@ function ListView({
             </div>
           </CardContent>
         </Card>
+
+      {/* Pagination */}
+      {tasks.length > 0 && (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Lignes par page:
+            </span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => {
+                setPageSize(parseInt(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20 h-8 text-xs bg-white" data-testid="select-page-size">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">
+              {tasks.length} tâche{tasks.length > 1 ? 's' : ''} au total
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Page {currentPage} sur {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                data-testid="button-first-page"
+              >
+                Première
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                data-testid="button-prev-page"
+              >
+                Précédent
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="button-next-page"
+              >
+                Suivant
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                data-testid="button-last-page"
+              >
+                Dernière
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dialogue de rattachement à un projet */}
       <Dialog open={isAttachToProjectDialogOpen} onOpenChange={setIsAttachToProjectDialogOpen}>
@@ -1269,6 +1375,23 @@ export default function Projects() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectStageFilter, setProjectStageFilter] = useState("all");
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("list");
+  
+  // Project pagination states
+  const [projectPageSize, setProjectPageSize] = useState(() => {
+    const saved = localStorage.getItem('projectListPageSize');
+    return saved ? parseInt(saved) : 20;
+  });
+  const [projectCurrentPage, setProjectCurrentPage] = useState(1);
+
+  // Save projectPageSize to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('projectListPageSize', projectPageSize.toString());
+  }, [projectPageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setProjectCurrentPage(1);
+  }, [projectSearchQuery, projectStageFilter]);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   
   // Column order state for project list view
@@ -1312,6 +1435,10 @@ export default function Projects() {
   // Quick add task states
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
+  
+  // Quick add project states
+  const [quickAddProjectName, setQuickAddProjectName] = useState("");
+  const [isQuickAddingProject, setIsQuickAddingProject] = useState(false);
 
   // Check for tab query parameter
   const [activeTab, setActiveTab] = useState<string>("tasks");
@@ -2483,6 +2610,16 @@ export default function Projects() {
                 return matchesSearch && matchesStage;
               });
 
+              // Paginate filtered projects (only for list view)
+              const getPaginatedProjects = () => {
+                if (projectViewMode === "grid") return filteredProjects; // No pagination for grid view
+                const startIndex = (projectCurrentPage - 1) * projectPageSize;
+                const endIndex = startIndex + projectPageSize;
+                return filteredProjects.slice(startIndex, endIndex);
+              };
+
+              const projectTotalPages = Math.ceil(filteredProjects.length / projectPageSize);
+
               if (projects.length === 0) {
                 return (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -2731,7 +2868,7 @@ export default function Projects() {
                           </SortableContext>
                         </TableHeader>
                         <TableBody>
-                          {filteredProjects.map((project) => {
+                          {getPaginatedProjects().map((project) => {
                             const client = clients.find((c) => c.id === project.clientId);
                             const progress = calculateProjectProgress(project.id);
                             
@@ -2786,7 +2923,7 @@ export default function Projects() {
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-48 p-0" align="start">
+                                    <PopoverContent className="w-48 p-0 bg-white" align="start">
                                       <Command>
                                         <CommandList>
                                           <CommandGroup>
@@ -2859,7 +2996,7 @@ export default function Projects() {
                                         )}
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-64 p-0" align="start">
+                                    <PopoverContent className="w-64 p-0 bg-white" align="start">
                                       <Command>
                                         <CommandInput
                                           placeholder="Rechercher ou créer..."
@@ -2975,7 +3112,7 @@ export default function Projects() {
                                         }
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-white" align="start">
                                       <Calendar
                                         mode="single"
                                         selected={project.startDate ? new Date(project.startDate) : undefined}
@@ -3118,11 +3255,145 @@ export default function Projects() {
                               </TableRow>
                             );
                           })}
+                          
+                          {/* Quick add project row */}
+                          <TableRow className="h-12">
+                            {projectColumnOrder.map((columnId) => {
+                              if (columnId === 'name') {
+                                return (
+                                  <TableCell key={columnId} colSpan={projectColumnOrder.length}>
+                                    <div className="flex items-center gap-2">
+                                      <Plus className="h-4 w-4 text-muted-foreground" />
+                                      <Input
+                                        placeholder="Nouveau projet..."
+                                        value={quickAddProjectName}
+                                        onChange={(e) => setQuickAddProjectName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" && quickAddProjectName.trim()) {
+                                            setIsQuickAddingProject(true);
+                                            createProjectMutation.mutate({
+                                              name: quickAddProjectName.trim(),
+                                              description: "",
+                                              stage: "prospection",
+                                              accountId: accountId!,
+                                              clientId: null,
+                                              category: null,
+                                              startDate: null,
+                                              endDate: null,
+                                              budget: null,
+                                            });
+                                            setQuickAddProjectName("");
+                                            setIsQuickAddingProject(false);
+                                          } else if (e.key === "Escape") {
+                                            setQuickAddProjectName("");
+                                          }
+                                        }}
+                                        disabled={isQuickAddingProject}
+                                        className="border-0 focus-visible:ring-0 text-[11px] h-8"
+                                        data-testid="input-quick-add-project"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
+                              return null;
+                            })}
+                          </TableRow>
                       </TableBody>
                     </Table>
                   </CardContent>
                 </Card>
                 </DndContext>
+              );
+            })()}
+            
+            {/* Project List Pagination */}
+            {projectViewMode === "list" && projects.length > 0 && (() => {
+              const filtered = projects.filter((project) => {
+                const matchesSearch = projectSearchQuery === "" || 
+                  project.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
+                  project.description?.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
+                  project.category?.toLowerCase().includes(projectSearchQuery.toLowerCase());
+                
+                const matchesStage = projectStageFilter === "all" || project.stage === projectStageFilter;
+                
+                return matchesSearch && matchesStage;
+              });
+              const projectTotalPages = Math.ceil(filtered.length / projectPageSize);
+              
+              if (filtered.length === 0) return null;
+              
+              return (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Lignes par page:
+                    </span>
+                    <Select
+                      value={projectPageSize.toString()}
+                      onValueChange={(value) => {
+                        setProjectPageSize(parseInt(value));
+                        setProjectCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-20 h-8 text-xs bg-white" data-testid="select-project-page-size">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-xs text-muted-foreground">
+                      {filtered.length} projet{filtered.length > 1 ? 's' : ''} au total
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Page {projectCurrentPage} sur {projectTotalPages}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProjectCurrentPage(1)}
+                        disabled={projectCurrentPage === 1}
+                        data-testid="button-project-first-page"
+                      >
+                        Première
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProjectCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={projectCurrentPage === 1}
+                        data-testid="button-project-prev-page"
+                      >
+                        Précédent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProjectCurrentPage(p => Math.min(projectTotalPages, p + 1))}
+                        disabled={projectCurrentPage === projectTotalPages}
+                        data-testid="button-project-next-page"
+                      >
+                        Suivant
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProjectCurrentPage(projectTotalPages)}
+                        disabled={projectCurrentPage === projectTotalPages}
+                        data-testid="button-project-last-page"
+                      >
+                        Dernière
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               );
             })()}
           </TabsContent>
@@ -3959,6 +4230,10 @@ export default function Projects() {
           setSelectedTask(null);
         }}
         onSave={handleSaveTaskDetail}
+        onDelete={(task) => {
+          setSelectedTask(task);
+          setIsDeleteTaskDialogOpen(true);
+        }}
       />
     </div>
   );

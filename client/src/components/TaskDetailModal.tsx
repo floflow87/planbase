@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star } from "lucide-react";
+import { CalendarIcon, Star, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
@@ -35,6 +35,7 @@ interface TaskDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
+  onDelete?: (task: Task) => void;
 }
 
 export function TaskDetailModal({
@@ -45,6 +46,7 @@ export function TaskDetailModal({
   isOpen,
   onClose,
   onSave,
+  onDelete,
 }: TaskDetailModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -271,20 +273,38 @@ export function TaskDetailModal({
             </Popover>
           </div>
 
-          <div className="flex gap-2 justify-end pt-4">
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              data-testid="button-cancel"
-            >
-              Annuler
-            </Button>
-            <Button 
-              onClick={handleSave}
-              data-testid="button-save-task"
-            >
-              Enregistrer
-            </Button>
+          <div className="flex gap-2 justify-between pt-4">
+            {onDelete && (
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => {
+                  if (task) {
+                    onDelete(task);
+                    onClose();
+                  }
+                }}
+                data-testid="button-delete-task"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                data-testid="button-cancel"
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleSave}
+                data-testid="button-save-task"
+              >
+                Enregistrer
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
