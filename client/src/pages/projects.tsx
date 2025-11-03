@@ -2814,7 +2814,7 @@ export default function Projects() {
 
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Badge className={getStageColor(project.stage)} data-testid={`badge-stage-${project.id}`}>
+                              <Badge className={`${getStageColor(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
                                 {getStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
@@ -2944,7 +2944,7 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-stage-${project.id}`}
                                       >
-                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer`}>
+                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-xs`}>
                                           {getStageLabel(project.stage)}
                                         </Badge>
                                       </button>
@@ -2955,6 +2955,7 @@ export default function Projects() {
                                           <CommandGroup>
                                             {[
                                               { value: "prospection", label: "Prospection" },
+                                              { value: "signe", label: "Signé" },
                                               { value: "en_cours", label: "En cours" },
                                               { value: "termine", label: "Terminé" }
                                             ].map((stage) => (
@@ -3640,9 +3641,9 @@ export default function Projects() {
                 <SelectTrigger id="edit-project-client" data-testid="select-edit-project-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white">
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
+                    <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                       {client.name}
                     </SelectItem>
                   ))}
@@ -3659,11 +3660,11 @@ export default function Projects() {
                   <SelectTrigger id="edit-project-stage" data-testid="select-edit-project-stage">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prospection">Prospection</SelectItem>
-                    <SelectItem value="signe">Signé</SelectItem>
-                    <SelectItem value="en_cours">En cours</SelectItem>
-                    <SelectItem value="termine">Terminé</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
+                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
+                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
