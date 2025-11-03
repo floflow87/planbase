@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn } from "@shared/schema";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,11 @@ export default function ProjectDetail() {
     endDate: undefined as Date | undefined,
     budget: "",
   });
+
+  // Task edit state with debounced autosave
+  const [taskEditData, setTaskEditData] = useState<Partial<Task>>({});
+  const taskSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedTaskRef = useRef<string>("");
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -122,6 +127,51 @@ export default function ProjectDetail() {
       toast({ title: "Erreur lors de la suppression de la tâche", variant: "destructive" });
     },
   });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ taskId, data }: { taskId: string; data: Partial<Task> }) => {
+      return await apiRequest("PATCH", `/api/tasks/${taskId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la mise à jour de la tâche", variant: "destructive" });
+    },
+  });
+
+  // Debounced autosave for task edits
+  useEffect(() => {
+    if (!selectedTask || !taskEditData.id) return;
+
+    const currentData = JSON.stringify(taskEditData);
+    if (currentData === lastSavedTaskRef.current) return;
+
+    if (taskSaveTimeoutRef.current) {
+      clearTimeout(taskSaveTimeoutRef.current);
+    }
+
+    taskSaveTimeoutRef.current = setTimeout(() => {
+      const { id: taskId, ...dataToSave } = taskEditData;
+      updateTaskMutation.mutate({ taskId: taskId!, data: dataToSave });
+      lastSavedTaskRef.current = currentData;
+    }, 500);
+
+    return () => {
+      if (taskSaveTimeoutRef.current) {
+        clearTimeout(taskSaveTimeoutRef.current);
+      }
+    };
+  }, [taskEditData]);
+
+  // Initialize task edit data when opening dialog
+  useEffect(() => {
+    if (selectedTask && isTaskDetailDialogOpen) {
+      setTaskEditData(selectedTask);
+      lastSavedTaskRef.current = JSON.stringify(selectedTask);
+    }
+  }, [selectedTask, isTaskDetailDialogOpen]);
 
   const getStageLabel = (stage: string) => {
     const labels: Record<string, string> = {
@@ -596,82 +646,137 @@ export default function ProjectDetail() {
       </Dialog>
 
       <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-        <DialogContent className="max-w-2xl" data-testid="dialog-task-detail">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-task-detail">
           <DialogHeader>
-            <DialogTitle>{selectedTask?.title}</DialogTitle>
+            <DialogTitle>Détails de la tâche</DialogTitle>
+            <DialogDescription>
+              Modifiez les paramètres de la tâche. Les changements sont automatiquement sauvegardés.
+            </DialogDescription>
           </DialogHeader>
-          {selectedTask && (
+          {selectedTask && taskEditData.id && (
             <div className="space-y-4">
-              {selectedTask.description && (
-                <div>
-                  <Label className="text-sm font-medium">Description</Label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedTask.description}</p>
-                </div>
-              )}
+              <div>
+                <Label htmlFor="task-title">Titre *</Label>
+                <Input
+                  id="task-title"
+                  value={taskEditData.title || ""}
+                  onChange={(e) => setTaskEditData({ ...taskEditData, title: e.target.value })}
+                  data-testid="input-task-title"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="task-description">Description</Label>
+                <Textarea
+                  id="task-description"
+                  value={taskEditData.description || ""}
+                  onChange={(e) => setTaskEditData({ ...taskEditData, description: e.target.value })}
+                  rows={3}
+                  data-testid="input-task-description"
+                />
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Priorité</Label>
-                  <div className="mt-1">
-                    <Badge variant={
-                      selectedTask.priority === "high" ? "destructive" :
-                      selectedTask.priority === "medium" ? "default" :
-                      "secondary"
-                    }>
-                      {selectedTask.priority === "high" ? "Haute" :
-                       selectedTask.priority === "medium" ? "Moyenne" :
-                       "Basse"}
-                    </Badge>
-                  </div>
+                  <Label htmlFor="task-priority">Priorité</Label>
+                  <Select
+                    value={taskEditData.priority || "medium"}
+                    onValueChange={(value) => setTaskEditData({ ...taskEditData, priority: value })}
+                  >
+                    <SelectTrigger id="task-priority" data-testid="select-task-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Basse</SelectItem>
+                      <SelectItem value="medium">Moyenne</SelectItem>
+                      <SelectItem value="high">Haute</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
-                {selectedTask.assignedToId && (
-                  <div>
-                    <Label className="text-sm font-medium">Assigné à</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      {users.find(u => u.id === selectedTask.assignedToId) && (
-                        <>
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {users.find(u => u.id === selectedTask.assignedToId)?.firstName?.[0]}
-                              {users.find(u => u.id === selectedTask.assignedToId)?.lastName?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">
-                            {users.find(u => u.id === selectedTask.assignedToId)?.firstName}{' '}
-                            {users.find(u => u.id === selectedTask.assignedToId)?.lastName}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="task-assigned">Assigné à</Label>
+                  <Select
+                    value={taskEditData.assignedToId || "none"}
+                    onValueChange={(value) => setTaskEditData({ 
+                      ...taskEditData, 
+                      assignedToId: value === "none" ? null : value 
+                    })}
+                  >
+                    <SelectTrigger id="task-assigned" data-testid="select-task-assigned">
+                      <SelectValue placeholder="Non assigné" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non assigné</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName} {user.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {selectedTask.dueDate && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Date d'échéance</Label>
-                  <div className="flex items-center gap-2 mt-1 text-sm">
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    {format(new Date(selectedTask.dueDate), "dd MMMM yyyy", { locale: fr })}
-                  </div>
+                  <Label htmlFor="task-due-date">Date d'échéance</Label>
+                  <Input
+                    id="task-due-date"
+                    type="date"
+                    value={taskEditData.dueDate || ""}
+                    onChange={(e) => setTaskEditData({ ...taskEditData, dueDate: e.target.value || null })}
+                    data-testid="input-task-due-date"
+                  />
                 </div>
-              )}
+
+                <div>
+                  <Label htmlFor="task-effort">Effort</Label>
+                  <Select
+                    value={taskEditData.effort?.toString() || "none"}
+                    onValueChange={(value) => setTaskEditData({ 
+                      ...taskEditData, 
+                      effort: value === "none" ? null : parseInt(value) 
+                    })}
+                  >
+                    <SelectTrigger id="task-effort" data-testid="select-task-effort">
+                      <SelectValue placeholder="Non défini" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non défini</SelectItem>
+                      <SelectItem value="1">⭐ Très facile</SelectItem>
+                      <SelectItem value="2">⭐⭐ Facile</SelectItem>
+                      <SelectItem value="3">⭐⭐⭐ Moyen</SelectItem>
+                      <SelectItem value="4">⭐⭐⭐⭐ Difficile</SelectItem>
+                      <SelectItem value="5">⭐⭐⭐⭐⭐ Très difficile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               <div>
-                <Label className="text-sm font-medium">Statut</Label>
-                <div className="mt-1">
-                  {columns.find(c => c.id === selectedTask.columnId) && (
-                    <Badge 
-                      variant="outline"
-                      style={{
-                        backgroundColor: columns.find(c => c.id === selectedTask.columnId)?.color,
-                      }}
-                    >
-                      {columns.find(c => c.id === selectedTask.columnId)?.name}
-                    </Badge>
-                  )}
-                </div>
+                <Label htmlFor="task-column">Statut</Label>
+                <Select
+                  value={taskEditData.columnId || ""}
+                  onValueChange={(value) => setTaskEditData({ ...taskEditData, columnId: value || null })}
+                >
+                  <SelectTrigger id="task-column" data-testid="select-task-column">
+                    <SelectValue placeholder="Sélectionner un statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {columns.map((column) => (
+                      <SelectItem key={column.id} value={column.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: column.color }}
+                          />
+                          {column.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
