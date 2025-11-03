@@ -361,6 +361,20 @@ export default function ClientDetail() {
     },
   });
 
+  const deleteCustomTabMutation = useMutation({
+    mutationFn: async (tabId: string) => {
+      return await apiRequest("DELETE", `/api/client-custom-tabs/${tabId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
+      toast({ title: "Onglet personnalisé supprimé", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression de l'onglet", variant: "destructive" });
+    },
+  });
+
   const createCustomFieldMutation = useMutation({
     mutationFn: async (data: { tabId: string; name: string; fieldType: string; options?: string }) => {
       const tabFields = customFields.filter(f => f.tabId === data.tabId);
@@ -369,7 +383,7 @@ export default function ClientDetail() {
         tabId: data.tabId,
         name: data.name,
         fieldType: data.fieldType,
-        options: data.options && data.options.trim() ? data.options.split(',').map(o => o.trim()) : null,
+        options: data.options && data.options.trim() ? data.options.split(',').map(o => o.trim()) : [],
         order: maxOrder + 1,
       });
     },
@@ -683,9 +697,20 @@ export default function ClientDetail() {
                   key={tab.id} 
                   value={`custom-${tab.id}`} 
                   data-testid={`tab-custom-${tab.id}`} 
-                  className="text-xs sm:text-sm"
+                  className="text-xs sm:text-sm group relative pr-7"
                 >
                   {tab.name}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteCustomTabMutation.mutate(tab.id);
+                    }}
+                    aria-label={`Supprimer l'onglet ${tab.name}`}
+                    data-testid={`button-delete-tab-${tab.id}`}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity hover-elevate active-elevate-2 rounded p-0.5"
+                  >
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </button>
                 </TabsTrigger>
               ))}
             </TabsList>
