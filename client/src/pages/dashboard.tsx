@@ -306,7 +306,10 @@ export default function Dashboard() {
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
   const clientsCount = clients.length;
-  const totalRevenue = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+  // Opportunités: budget total des clients qui ne sont ni gagnés ni perdus
+  const opportunitiesRevenue = clients
+    .filter(c => c.status !== "won" && c.status !== "lost")
+    .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
@@ -364,10 +367,10 @@ export default function Dashboard() {
       link: { label: "Voir tous", href: "/crm" },
     },
     {
-      title: "Budget Total",
-      value: `€${totalRevenue.toLocaleString()}`,
-      change: "+8.2%",
-      changeType: "positive",
+      title: "Opportunités",
+      value: `€${opportunitiesRevenue.toLocaleString()}`,
+      change: clients.filter(c => c.status !== "won" && c.status !== "lost").length + " clients potentiels",
+      changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
