@@ -12,6 +12,19 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS effort integer;
     `);
     
+    // Add new client columns if they don't exist
+    await db.execute(sql`
+      ALTER TABLE clients 
+      ADD COLUMN IF NOT EXISTS civility text,
+      ADD COLUMN IF NOT EXISTS first_name text,
+      ADD COLUMN IF NOT EXISTS company text,
+      ADD COLUMN IF NOT EXISTS address text,
+      ADD COLUMN IF NOT EXISTS postal_code text,
+      ADD COLUMN IF NOT EXISTS city text,
+      ADD COLUMN IF NOT EXISTS country text,
+      ADD COLUMN IF NOT EXISTS nationality text;
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
