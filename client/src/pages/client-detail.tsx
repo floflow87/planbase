@@ -151,8 +151,7 @@ export default function ClientDetail() {
   });
 
   const { data: fieldValues = [] } = useQuery<ClientCustomFieldValue[]>({
-    queryKey: ['/api/client-custom-field-values'],
-    select: (data) => data.filter((v: ClientCustomFieldValue) => v.clientId === id),
+    queryKey: ['/api/clients', id, 'field-values'],
     enabled: !!accountId && !!id,
   });
 
@@ -461,20 +460,11 @@ export default function ClientDetail() {
 
   const upsertFieldValueMutation = useMutation<ClientCustomFieldValue, Error, { fieldId: string; value: any }>({
     mutationFn: async (data: { fieldId: string; value: any }) => {
-      const existingValue = fieldValues.find(v => v.fieldId === data.fieldId);
-      if (existingValue) {
-        const response = await apiRequest("PATCH", `/api/client-custom-field-values/${existingValue.id}`, {
-          value: data.value,
-        });
-        return await response.json();
-      } else {
-        const response = await apiRequest("POST", "/api/client-custom-field-values", {
-          clientId: id,
-          fieldId: data.fieldId,
-          value: data.value,
-        });
-        return await response.json();
-      }
+      const response = await apiRequest("POST", `/api/clients/${id}/field-values`, {
+        fieldId: data.fieldId,
+        value: data.value,
+      });
+      return await response.json();
     },
     onSuccess: (response, variables) => {
       // Sync local state with normalized value from server to prevent re-trigger loops
@@ -492,12 +482,12 @@ export default function ClientDetail() {
       
       // Update the cache directly instead of invalidating to avoid refetch
       queryClient.setQueryData<ClientCustomFieldValue[]>(
-        ['/api/client-custom-field-values'],
+        ['/api/clients', id, 'field-values'],
         (oldData) => {
           // Handle empty cache by creating new array with response
           if (!oldData) return [response];
           
-          const existingIndex = oldData.findIndex(v => v.fieldId === variables.fieldId && v.clientId === id);
+          const existingIndex = oldData.findIndex(v => v.fieldId === variables.fieldId);
           if (existingIndex >= 0) {
             // Update existing value with full response
             const newData = [...oldData];
