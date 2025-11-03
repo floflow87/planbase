@@ -1347,7 +1347,7 @@ export default function Projects() {
   const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
 
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
