@@ -14,9 +14,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect } from "react";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
 const getStageColor = (stage: string) => {
@@ -99,6 +100,8 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -125,6 +128,18 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
     enabled: !!accountId,
+  });
+
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["/api/accounts", accountId, "users"],
+    enabled: !!accountId,
+  });
+
+  // Get task columns from first project or create default ones
+  const firstProject = projects[0];
+  const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/projects", firstProject?.id, "task-columns"],
+    enabled: !!firstProject?.id,
   });
 
   // Create client mutation
@@ -175,6 +190,40 @@ export default function Dashboard() {
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
     },
   });
+
+  // Handlers for task modal
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleTaskSave = async (updates: Partial<Task>) => {
+    try {
+      await apiRequest("PATCH", `/api/tasks/${updates.id}`, updates);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      if (firstProject?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });
+      }
+      setIsTaskModalOpen(false);
+      toast({ title: "Tâche mise à jour", variant: "success" });
+    } catch (error) {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    }
+  };
+
+  const handleTaskDelete = async (task: Task) => {
+    try {
+      await apiRequest("DELETE", `/api/tasks/${task.id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      if (firstProject?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });
+      }
+      setIsTaskModalOpen(false);
+      toast({ title: "Tâche supprimée", variant: "success" });
+    } catch (error) {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    }
+  };
 
   // Form for client creation
   const clientForm = useForm<InsertClient>({
@@ -814,18 +863,22 @@ export default function Dashboard() {
                     return (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate"
+                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer"
                         data-testid={`today-task-${task.id}`}
+                        onClick={() => handleTaskClick(task)}
                       >
                         <input
                           type="checkbox"
                           checked={false}
-                          onChange={() => updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" })}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" });
+                          }}
                           className="mt-1 h-4 w-4 shrink-0"
                           data-testid={`checkbox-task-${task.id}`}
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
+                          <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>
                           {task.description && (
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                               {task.description}
@@ -856,6 +909,18 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        task={selectedTask}
+        users={users}
+        projects={projects}
+        columns={taskColumns}
+        isOpen={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSave={handleTaskSave}
+        onDelete={handleTaskDelete}
+      />
     </div>
   );
 }

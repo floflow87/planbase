@@ -326,4 +326,10 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Reduce placeholder font size */
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 0.875rem; /* 14px */
+  }
 }

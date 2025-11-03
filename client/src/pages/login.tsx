@@ -158,30 +158,11 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right side - Illustration */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute top-20 right-20 w-16 h-16 bg-yellow-400 rounded-full opacity-80 animate-pulse" />
-        <div className="absolute bottom-32 left-20 w-12 h-12 bg-cyan-400 rounded-full opacity-80 animate-pulse" style={{ animationDelay: '1s' }} />
-        
-        <div className="relative z-10 text-center text-white max-w-lg">
-          <h2 className="text-5xl font-bold mb-4">PlanBase</h2>
-          <p className="text-xl text-violet-100 mb-12">
-            Découvrez une nouvelle façon de travailler
-          </p>
-          
-          {/* Computer illustration placeholder */}
-          <div className="relative">
-            <div className="bg-gradient-to-b from-purple-800/50 to-purple-900/50 rounded-2xl p-8 backdrop-blur-sm border border-white/20">
-              <Monitor className="w-48 h-48 mx-auto text-white/90 mb-4" />
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse" />
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
-                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Right side - Branding */}
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
+        <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+          PlanBase
+        </h2>
       </div>
     </div>
   );

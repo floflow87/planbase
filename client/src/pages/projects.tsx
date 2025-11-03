@@ -406,6 +406,7 @@ interface ListViewProps {
   setIsQuickAddingTask: (value: boolean) => void;
   onCreateTask: (data: InsertTask) => void;
   selectedProjectId?: string;
+  statusFilter: string;
   accountId?: string;
   userId?: string;
 }
@@ -424,6 +425,7 @@ function ListView({
   setIsQuickAddingTask,
   onCreateTask,
   selectedProjectId,
+  statusFilter,
   accountId,
   userId
 }: ListViewProps) {
@@ -544,6 +546,11 @@ function ListView({
     let filtered = tasks;
     if (selectedProjectId && selectedProjectId !== "all") {
       filtered = filtered.filter(task => task.projectId === selectedProjectId);
+    }
+    
+    // Then filter by status
+    if (statusFilter && statusFilter !== "all") {
+      filtered = filtered.filter(task => task.columnId === statusFilter);
     }
     
     if (!sortConfig) return filtered;
@@ -1342,6 +1349,7 @@ export default function Projects() {
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ columnId: string; position: 'before' | 'after' } | null>(null);
@@ -2305,10 +2313,22 @@ export default function Projects() {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                <Button variant="outline" size="sm" data-testid="button-filters" className="hidden sm:flex">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filtres
-                </Button>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40 h-9 text-sm bg-white" data-testid="select-status-filter">
+                    <SelectValue placeholder="Statut" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    {taskColumns
+                      .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
+                      .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order)
+                      .map((column: TaskColumn) => (
+                        <SelectItem key={column.id} value={column.id}>
+                          {column.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
                 {selectedProjectId !== "all" && (
                   <div className="hidden md:flex border rounded-md">
                     <Button
@@ -2445,6 +2465,7 @@ export default function Projects() {
                     setIsQuickAddingTask={setIsQuickAddingTask}
                     onCreateTask={handleQuickCreateTask}
                     selectedProjectId={selectedProjectId}
+                    statusFilter={statusFilter}
                     accountId={accountId || undefined}
                     userId={userId || undefined}
                   />
