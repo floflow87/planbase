@@ -384,7 +384,9 @@ export default function CRM() {
   const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
   const wonClients = clients.filter(c => c.status === "signed").length;
   const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
-  const totalOpportunities = clients.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+  const totalOpportunities = clients
+    .filter(c => c.status !== "signed") // Exclude won clients
+    .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
 
   const kpis = [
     {
