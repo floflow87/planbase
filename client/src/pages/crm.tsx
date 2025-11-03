@@ -756,7 +756,7 @@ export default function CRM() {
                     items={columns.map(col => col.id)}
                     strategy={horizontalListSortingStrategy}
                   >
-                    <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                    <div className="grid grid-cols-12 gap-2 px-4 h-10 items-center text-xs font-medium text-muted-foreground bg-muted/50">
                       <div className="col-span-1 flex items-center">
                         <Checkbox
                           checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
@@ -794,7 +794,7 @@ export default function CRM() {
                     return (
                       <div
                         key={client.id}
-                        className={`grid grid-cols-12 gap-2 px-4 py-2 hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
+                        className={`grid grid-cols-12 gap-2 px-4 py-2 items-center hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
                         data-testid={`row-client-${client.id}`}
                       >
                         <div className="col-span-1 flex items-center">
