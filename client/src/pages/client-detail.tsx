@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -313,7 +313,9 @@ export default function ClientDetail() {
         clientId: id,
         accountId,
         projectId: data.projectId || null,
-        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+        dueDate: data.dueDate 
+          ? (typeof data.dueDate === 'string' ? data.dueDate : formatDateForStorage(new Date(data.dueDate)))
+          : null,
       };
       
       return await apiRequest("POST", "/api/tasks", taskData);

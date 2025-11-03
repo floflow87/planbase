@@ -783,15 +783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Convert dueDate string to Date if present
-      const bodyWithDate = { ...req.body };
-      if (bodyWithDate.dueDate && typeof bodyWithDate.dueDate === 'string') {
-        bodyWithDate.dueDate = new Date(bodyWithDate.dueDate);
-      }
-
+      // Keep dueDate as string if it's in YYYY-MM-DD format (no timezone conversion needed)
+      // PostgreSQL will handle the date string directly as a timestamp at midnight local time
       const { insertTaskSchema } = await import("@shared/schema");
       const data = insertTaskSchema.parse({
-        ...bodyWithDate,
+        ...req.body,
         accountId: req.accountId!,
         createdBy: req.userId!,
       });
@@ -929,13 +925,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Convert dueDate string to Date if present
-      const bodyWithDate = { ...req.body };
-      if (bodyWithDate.dueDate && typeof bodyWithDate.dueDate === 'string') {
-        bodyWithDate.dueDate = new Date(bodyWithDate.dueDate);
-      }
-
-      const task = await storage.updateTask(req.params.id, bodyWithDate);
+      // Keep dueDate as string if it's in YYYY-MM-DD format (no timezone conversion needed)
+      // PostgreSQL will handle the date string directly
+      const task = await storage.updateTask(req.params.id, req.body);
       res.json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

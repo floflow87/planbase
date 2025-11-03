@@ -59,7 +59,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import {
   DndContext,
   DragEndEvent,
@@ -1088,7 +1088,7 @@ function ListView({
                                     selected={task.dueDate ? new Date(task.dueDate) : undefined}
                                     onSelect={(date) => {
                                       onUpdateTask(task.id, { 
-                                        dueDate: date ? date.toISOString() : null 
+                                        dueDate: date ? formatDateForStorage(date) : null 
                                       } as any);
                                       setEditingCell(null);
                                     }}
@@ -2109,7 +2109,9 @@ export default function Projects() {
       progress: 0,
       positionInColumn: maxPosition + 1,
       order: 0,
-      dueDate: (newTaskDueDate ? newTaskDueDate.toISOString() : null) as any,
+      dueDate: (newTaskDueDate 
+        ? (typeof newTaskDueDate === 'string' ? newTaskDueDate : formatDateForStorage(newTaskDueDate))
+        : null) as any,
       effort: newTaskEffort,
       createdBy: userId,
       keepOpen,
@@ -2200,11 +2202,12 @@ export default function Projects() {
   const handleSaveTaskDetail = (data: Partial<Task>) => {
     if (!selectedTask) return;
     
-    // Fix date format if dueDate is provided
+    // Fix date format if dueDate is provided (only if it's a Date object, not a string)
     const updatedData = { ...data };
     if (updatedData.dueDate && typeof updatedData.dueDate !== 'string') {
-      updatedData.dueDate = (updatedData.dueDate as Date).toISOString() as any;
+      updatedData.dueDate = formatDateForStorage(updatedData.dueDate as Date) as any;
     }
+    // If it's already a string, it's in the correct format, no need to transform
     
     // If columnId changed, calculate new position at end of target column
     if (updatedData.columnId && updatedData.columnId !== selectedTask.columnId) {
