@@ -2304,10 +2304,10 @@ export default function Projects() {
                     <SelectTrigger className="w-full sm:w-[280px]" data-testid="select-project">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les projets</SelectItem>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="all" className="cursor-pointer">Tous les projets</SelectItem>
                       {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
+                        <SelectItem key={project.id} value={project.id} className="cursor-pointer">
                           {project.name}
                         </SelectItem>
                       ))}
