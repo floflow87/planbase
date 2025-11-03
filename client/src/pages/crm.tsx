@@ -125,8 +125,8 @@ export default function CRM() {
   const [columns, setColumns] = useState<Column[]>([
     { id: "client", label: "Client", width: 2, className: "col-span-2" },
     { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
-    { id: "type", label: "Type", width: 2, className: "col-span-2" },
-    { id: "projets", label: "Projets", width: 2, className: "col-span-2" },
+    { id: "type", label: "Type", width: 1, className: "col-span-1" },
+    { id: "projets", label: "Projets", width: 1, className: "col-span-1" },
     { id: "budget", label: "Budget", width: 2, className: "col-span-2" },
     { id: "creation", label: "Création", width: 2, className: "col-span-2" },
   ]);
@@ -756,7 +756,7 @@ export default function CRM() {
                     items={columns.map(col => col.id)}
                     strategy={horizontalListSortingStrategy}
                   >
-                    <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30">
+                    <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
                       <div className="col-span-1 flex items-center">
                         <Checkbox
                           checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
