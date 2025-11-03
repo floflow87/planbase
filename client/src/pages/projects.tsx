@@ -2313,22 +2313,24 @@ export default function Projects() {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40 h-9 text-sm bg-white" data-testid="select-status-filter">
-                    <SelectValue placeholder="Statut" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    {taskColumns
-                      .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
-                      .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order)
-                      .map((column: TaskColumn) => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {viewMode !== "kanban" && (
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40 h-9 text-sm bg-white" data-testid="select-status-filter">
+                      <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      {taskColumns
+                        .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
+                        .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order)
+                        .map((column: TaskColumn) => (
+                          <SelectItem key={column.id} value={column.id}>
+                            {column.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {selectedProjectId !== "all" && (
                   <div className="hidden md:flex border rounded-md">
                     <Button
