@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient } from "@shared/schema";
+import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField } from "@shared/schema";
 import { insertClientSchema } from "@shared/schema";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -49,6 +49,9 @@ export default function ClientDetail() {
     dueDate: "",
   });
   const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
+  const [isCreateTabDialogOpen, setIsCreateTabDialogOpen] = useState(false);
+  const [newTabName, setNewTabName] = useState("");
+  const [newTabIcon, setNewTabIcon] = useState("");
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -105,6 +108,11 @@ export default function ClientDetail() {
 
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ['/api/accounts', accountId, 'users'],
+    enabled: !!accountId,
+  });
+
+  const { data: customTabs = [] } = useQuery<ClientCustomTab[]>({
+    queryKey: ['/api/client-custom-tabs'],
     enabled: !!accountId,
   });
 
@@ -260,6 +268,27 @@ export default function ClientDetail() {
     },
     onError: () => {
       toast({ title: "Erreur lors de la création de la tâche", variant: "destructive" });
+    },
+  });
+
+  const createCustomTabMutation = useMutation({
+    mutationFn: async (data: { name: string; icon?: string }) => {
+      const maxOrder = customTabs.length > 0 ? Math.max(...customTabs.map(t => t.order)) : -1;
+      return await apiRequest("POST", "/api/client-custom-tabs", {
+        name: data.name,
+        icon: data.icon || null,
+        order: maxOrder + 1,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
+      setIsCreateTabDialogOpen(false);
+      setNewTabName("");
+      setNewTabIcon("");
+      toast({ title: "Onglet personnalisé créé", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création de l'onglet", variant: "destructive" });
     },
   });
 
@@ -476,7 +505,7 @@ export default function ClientDetail() {
 
         {/* Tabs */}
         <Tabs defaultValue="informations" className="w-full">
-          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="flex items-center gap-2 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
             <TabsList className="w-full sm:w-auto inline-flex h-auto">
               <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
               <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
@@ -484,7 +513,26 @@ export default function ClientDetail() {
               <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
               <TabsTrigger value="projets" data-testid="tab-projets" className="text-xs sm:text-sm">Projets</TabsTrigger>
               <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
+              {customTabs.map((tab) => (
+                <TabsTrigger 
+                  key={tab.id} 
+                  value={`custom-${tab.id}`} 
+                  data-testid={`tab-custom-${tab.id}`} 
+                  className="text-xs sm:text-sm"
+                >
+                  {tab.name}
+                </TabsTrigger>
+              ))}
             </TabsList>
+            <Button 
+              size="icon"
+              variant="outline" 
+              onClick={() => setIsCreateTabDialogOpen(true)}
+              data-testid="button-add-tab"
+              className="shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
 
           {/* Informations */}
@@ -1012,6 +1060,22 @@ export default function ClientDetail() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Custom Tabs Content */}
+          {customTabs.map((tab) => (
+            <TabsContent key={tab.id} value={`custom-${tab.id}`} className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{tab.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="py-12 text-center text-muted-foreground">
+                    Les champs personnalisés seront ajoutés prochainement
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
         </Tabs>
 
         {/* Delete Confirmation Dialog */}
@@ -1236,6 +1300,49 @@ export default function ClientDetail() {
                   data-testid="button-submit-task"
                 >
                   Créer la tâche
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Custom Tab Dialog */}
+        <Dialog open={isCreateTabDialogOpen} onOpenChange={setIsCreateTabDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Créer un onglet personnalisé</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="tab-name">Nom de l'onglet</Label>
+                <Input
+                  id="tab-name"
+                  value={newTabName}
+                  onChange={(e) => setNewTabName(e.target.value)}
+                  placeholder="Ex: Informations contractuelles"
+                  data-testid="input-tab-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="tab-icon">Icône (optionnel)</Label>
+                <Input
+                  id="tab-icon"
+                  value={newTabIcon}
+                  onChange={(e) => setNewTabIcon(e.target.value)}
+                  placeholder="Ex: FileText, Calendar, Settings"
+                  data-testid="input-tab-icon"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsCreateTabDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => createCustomTabMutation.mutate({ name: newTabName, icon: newTabIcon })}
+                  disabled={createCustomTabMutation.isPending || !newTabName.trim()}
+                  data-testid="button-submit-tab"
+                >
+                  Créer l'onglet
                 </Button>
               </div>
             </div>
