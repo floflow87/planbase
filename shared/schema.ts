@@ -107,7 +107,7 @@ export const clientCustomTabs = pgTable("client_custom_tabs", {
   name: text("name").notNull(),
   icon: text("icon"), // Lucide icon name
   order: integer("order").notNull().default(0),
-  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -124,7 +124,7 @@ export const clientCustomFields = pgTable("client_custom_fields", {
   options: jsonb("options").notNull().default([]), // For multiselect: [{value, label, color?}]
   required: integer("required").notNull().default(0), // 0 = false, 1 = true
   order: integer("order").notNull().default(0),
-  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
