@@ -32,6 +32,8 @@ export default function ClientDetail() {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isDeleteContactDialogOpen, setIsDeleteContactDialogOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
+  const [isDeleteCommentDialogOpen, setIsDeleteCommentDialogOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [contactFormData, setContactFormData] = useState({
     firstName: "",
@@ -291,6 +293,8 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
+      setIsDeleteCommentDialogOpen(false);
+      setCommentToDelete(null);
       toast({ title: "Commentaire supprimé", variant: "success" });
     },
     onError: () => {
@@ -1033,9 +1037,8 @@ export default function ClientDetail() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              if (confirm("Êtes-vous sûr de vouloir supprimer ce commentaire ?")) {
-                                deleteCommentMutation.mutate(comment.id);
-                              }
+                              setCommentToDelete(comment.id);
+                              setIsDeleteCommentDialogOpen(true);
                             }}
                             data-testid={`button-delete-comment-${comment.id}`}
                           >
@@ -1639,6 +1642,40 @@ export default function ClientDetail() {
                 }}
                 disabled={deleteContactMutation.isPending}
                 data-testid="button-confirm-delete-contact"
+              >
+                Supprimer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Comment Confirmation Dialog */}
+        <Dialog open={isDeleteCommentDialogOpen} onOpenChange={setIsDeleteCommentDialogOpen}>
+          <DialogContent data-testid="dialog-delete-comment">
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+            </DialogHeader>
+            <p>Êtes-vous sûr de vouloir supprimer ce commentaire ? Cette action est irréversible.</p>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteCommentDialogOpen(false);
+                  setCommentToDelete(null);
+                }}
+                data-testid="button-cancel-delete-comment"
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (commentToDelete) {
+                    deleteCommentMutation.mutate(commentToDelete);
+                  }
+                }}
+                disabled={deleteCommentMutation.isPending}
+                data-testid="button-confirm-delete-comment"
               >
                 Supprimer
               </Button>

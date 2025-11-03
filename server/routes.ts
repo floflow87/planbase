@@ -473,6 +473,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/client-custom-fields", requireAuth, async (req, res) => {
+    try {
+      const fields = await storage.getClientCustomFieldsByAccountId(req.accountId!);
+      res.json(fields);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/client-custom-fields", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const tabFields = await storage.getClientCustomFieldsByTabId(req.accountId!, req.body.tabId);
+      const maxOrder = tabFields.length > 0 ? Math.max(...tabFields.map((f: ClientCustomField) => f.order)) : -1;
+      
+      const data = insertClientCustomFieldSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId!,
+        order: maxOrder + 1,
+      });
+      const field = await storage.createClientCustomField(data);
+      res.json(field);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/client-custom-tabs/:tabId/fields", requireAuth, async (req, res) => {
     try {
       const fields = await storage.getClientCustomFieldsByTabId(req.accountId!, req.params.tabId);

@@ -69,6 +69,7 @@ export interface IStorage {
 
   // Client Custom Fields
   getClientCustomFieldsByTabId(accountId: string, tabId: string): Promise<ClientCustomField[]>;
+  getClientCustomFieldsByAccountId(accountId: string): Promise<ClientCustomField[]>;
   createClientCustomField(field: InsertClientCustomField): Promise<ClientCustomField>;
   updateClientCustomField(accountId: string, id: string, field: Partial<InsertClientCustomField>): Promise<ClientCustomField | undefined>;
   deleteClientCustomField(accountId: string, id: string): Promise<boolean>;
@@ -382,6 +383,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(clientCustomFields)
       .where(and(eq(clientCustomFields.accountId, accountId), eq(clientCustomFields.tabId, tabId)))
+      .orderBy(clientCustomFields.order);
+  }
+
+  async getClientCustomFieldsByAccountId(accountId: string): Promise<ClientCustomField[]> {
+    return await db
+      .select()
+      .from(clientCustomFields)
+      .where(eq(clientCustomFields.accountId, accountId))
       .orderBy(clientCustomFields.order);
   }
 

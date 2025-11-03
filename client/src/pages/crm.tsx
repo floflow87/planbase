@@ -38,7 +38,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // Type pour les colonnes
-type ColumnId = "client" | "contacts" | "type" | "projets" | "budget";
+type ColumnId = "client" | "contacts" | "type" | "projets" | "budget" | "creation";
 
 interface Column {
   id: ColumnId;
@@ -118,8 +118,8 @@ export default function CRM() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<ColumnId | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortColumn, setSortColumn] = useState<ColumnId | null>("creation");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
@@ -128,6 +128,7 @@ export default function CRM() {
     { id: "type", label: "Type", width: 2, className: "col-span-2" },
     { id: "projets", label: "Projets", width: 2, className: "col-span-2" },
     { id: "budget", label: "Budget", width: 2, className: "col-span-2" },
+    { id: "creation", label: "Création", width: 2, className: "col-span-2" },
   ]);
   
   const sensors = useSensors(
@@ -362,6 +363,10 @@ export default function CRM() {
             .reduce((sum, p: Project) => sum + (parseFloat(p.budget || "0")), 0);
           compareA = budgetA;
           compareB = budgetB;
+          break;
+        case "creation":
+          compareA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          compareB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           break;
         default:
           return 0;
@@ -858,6 +863,12 @@ export default function CRM() {
                                 return (
                                   <p className="text-xs font-medium text-foreground">
                                     €{totalProjectBudget > 0 ? totalProjectBudget.toLocaleString() : "0"}
+                                  </p>
+                                );
+                              case "creation":
+                                return (
+                                  <p className="text-xs text-foreground">
+                                    {client.createdAt ? new Date(client.createdAt).toLocaleDateString('fr-FR') : "-"}
                                   </p>
                                 );
                               default:
