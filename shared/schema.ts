@@ -62,6 +62,15 @@ export const clients = pgTable("clients", {
   status: text("status").notNull().default("prospecting"),
   budget: numeric("budget", { precision: 14, scale: 2 }),
   notes: text("notes"),
+  // Personal/company details
+  civility: text("civility"), // M, Mme, Mlle, Dr, etc.
+  firstName: text("first_name"), // For person type
+  company: text("company"), // Company name for person type, or full company name for company type
+  address: text("address"),
+  postalCode: text("postal_code"),
+  city: text("city"),
+  country: text("country"),
+  nationality: text("nationality"),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

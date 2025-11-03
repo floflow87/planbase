@@ -661,76 +661,6 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Ma Journée Widget - Today's Tasks */}
-        {todaysTasks.length > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-              <CardTitle className="text-base font-heading font-semibold">
-                Ma Journée
-              </CardTitle>
-              <Badge variant="secondary" data-testid="badge-today-tasks-count">
-                {todaysTasks.length} tâche{todaysTasks.length > 1 ? 's' : ''}
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {todaysTasks.map((task) => {
-                  const client = clients.find(c => c.id === task.clientId);
-                  const project = projects.find(p => p.id === task.projectId);
-                  const priorityColors: Record<string, string> = {
-                    low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                    high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                  };
-                  const priorityLabels: Record<string, string> = {
-                    low: "Basse",
-                    medium: "Moyenne",
-                    high: "Haute",
-                  };
-
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-start gap-3 p-3 rounded-md border hover-elevate"
-                      data-testid={`today-task-${task.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" })}
-                        className="mt-1 h-4 w-4 shrink-0"
-                        data-testid={`checkbox-task-${task.id}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <Badge className={priorityColors[task.priority]} data-testid={`badge-priority-${task.id}`}>
-                            {priorityLabels[task.priority]}
-                          </Badge>
-                          {client && (
-                            <Badge variant="outline" data-testid={`badge-client-${task.id}`}>
-                              {client.name}
-                            </Badge>
-                          )}
-                          {project && (
-                            <Badge variant="outline" data-testid={`badge-project-${task.id}`}>
-                              {project.name}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
@@ -801,54 +731,130 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Recent Projects */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
-            <CardTitle className="text-base font-heading font-semibold">
-              Projets Récents
-            </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setLocation("/projects")}
-              data-testid="button-view-all-projects"
-            >
-              <span className="hidden sm:inline">Voir tout</span>
-              <span className="sm:hidden">Tout</span>
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentProjects.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">Aucun projet récent</p>
-              ) : (
-                recentProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border cursor-pointer"
-                    onClick={() => setLocation(`/projects/${project.id}`)}
-                    data-testid={`project-${project.id}`}
-                  >
-                    <div className="w-1 h-12 rounded bg-primary shrink-0 hidden sm:block" />
-                    <div className="flex-1 min-w-0 w-full sm:w-auto">
-                      <h4 className="text-xs font-medium text-foreground truncate">{project.name}</h4>
-                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
+        {/* Projets Récents & Ma Journée Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          {/* Recent Projects */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
+              <CardTitle className="text-base font-heading font-semibold">
+                Projets Récents
+              </CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setLocation("/projects")}
+                data-testid="button-view-all-projects"
+              >
+                <span className="hidden sm:inline">Voir tout</span>
+                <span className="sm:hidden">Tout</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentProjects.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucun projet récent</p>
+                ) : (
+                  recentProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 rounded-md hover-elevate active-elevate-2 border border-border cursor-pointer"
+                      onClick={() => setLocation(`/projects/${project.id}`)}
+                      data-testid={`project-${project.id}`}
+                    >
+                      <div className="w-1 h-12 rounded bg-primary shrink-0 hidden sm:block" />
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
+                        <h4 className="text-xs font-medium text-foreground truncate">{project.name}</h4>
+                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
+                        <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`}>
+                          {getStageLabel(project.stage || "prospection")}
+                        </Badge>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(project.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
-                      <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`}>
-                        {getStageLabel(project.stage || "prospection")}
-                      </Badge>
-                      <p className="text-[10px] text-muted-foreground">
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Ma Journée Widget - Today's Tasks */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-base font-heading font-semibold">
+                Ma Journée
+              </CardTitle>
+              <Badge variant="secondary" data-testid="badge-today-tasks-count">
+                {todaysTasks.length} tâche{todaysTasks.length > 1 ? 's' : ''}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {todaysTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche à échéance aujourd'hui</p>
+                ) : (
+                  todaysTasks.map((task) => {
+                    const client = clients.find(c => c.id === task.clientId);
+                    const project = projects.find(p => p.id === task.projectId);
+                    const priorityColors: Record<string, string> = {
+                      low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                      medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                      high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                    };
+                    const priorityLabels: Record<string, string> = {
+                      low: "Basse",
+                      medium: "Moyenne",
+                      high: "Haute",
+                    };
+
+                    return (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate"
+                        data-testid={`today-task-${task.id}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          onChange={() => updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" })}
+                          className="mt-1 h-4 w-4 shrink-0"
+                          data-testid={`checkbox-task-${task.id}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {task.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge className={priorityColors[task.priority]} data-testid={`badge-priority-${task.id}`}>
+                              {priorityLabels[task.priority]}
+                            </Badge>
+                            {client && (
+                              <Badge variant="outline" data-testid={`badge-client-${task.id}`}>
+                                {client.name}
+                              </Badge>
+                            )}
+                            {project && (
+                              <Badge variant="outline" data-testid={`badge-project-${task.id}`}>
+                                {project.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

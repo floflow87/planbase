@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +51,20 @@ export default function ClientDetail() {
     dueDate: "",
   });
   const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
+  const [isEditingClientInfo, setIsEditingClientInfo] = useState(false);
+  const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+  const [clientInfoForm, setClientInfoForm] = useState({
+    type: "company" as "company" | "person",
+    name: "",
+    civility: "",
+    firstName: "",
+    company: "",
+    address: "",
+    postalCode: "",
+    city: "",
+    country: "",
+    nationality: "",
+  });
   const [isCreateTabDialogOpen, setIsCreateTabDialogOpen] = useState(false);
   const [newTabName, setNewTabName] = useState("");
   const [newTabIcon, setNewTabIcon] = useState("");
@@ -157,6 +173,19 @@ export default function ClientDetail() {
         budget: client.budget || "",
         accountId,
         createdBy: client.createdBy || currentUser.id,
+      });
+      // Initialize client info form with current values
+      setClientInfoForm({
+        type: client.type || "company",
+        name: client.name || "",
+        civility: client.civility || "",
+        firstName: client.firstName || "",
+        company: client.company || "",
+        address: client.address || "",
+        postalCode: client.postalCode || "",
+        city: client.city || "",
+        country: client.country || "",
+        nationality: client.nationality || "",
       });
     }
   }, [client, accountId, currentUser, clientForm]);
@@ -350,28 +379,7 @@ export default function ClientDetail() {
         });
       }
     },
-    onSuccess: (newValue, variables) => {
-      // Optimistically update cache to avoid duplicate POST on rapid edits
-      queryClient.setQueryData<ClientCustomFieldValue[]>(
-        ['/api/client-custom-field-values'],
-        (old) => {
-          // Handle case where cache is not yet populated
-          if (!old) {
-            return [newValue as ClientCustomFieldValue];
-          }
-          const existingIndex = old.findIndex(v => v.fieldId === variables.fieldId && v.clientId === id);
-          if (existingIndex >= 0) {
-            // Update existing value
-            const updated = [...old];
-            updated[existingIndex] = { ...updated[existingIndex], value: variables.value };
-            return updated;
-          } else {
-            // Add new value
-            return [...old, newValue as ClientCustomFieldValue];
-          }
-        }
-      );
-      // Also invalidate to ensure sync with backend
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/client-custom-field-values'] });
     },
     onError: () => {
@@ -412,6 +420,30 @@ export default function ClientDetail() {
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
     }
     setIsContactDialogOpen(true);
+  };
+
+  const saveClientInfo = async () => {
+    try {
+      await apiRequest("PATCH", `/api/clients/${id}`, clientInfoForm);
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+      setIsEditingClientInfo(false);
+      toast({ title: "Informations mises à jour", variant: "success" });
+    } catch (error) {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    }
+  };
+
+  const updateClientStatus = async (newStatus: string) => {
+    try {
+      await apiRequest("PATCH", `/api/clients/${id}`, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
+      setIsStatusPopoverOpen(false);
+      toast({ title: "Statut mis à jour", variant: "success" });
+    } catch (error) {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    }
   };
 
   if (clientLoading) {
@@ -556,28 +588,53 @@ export default function ClientDetail() {
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-3xl font-heading font-bold text-foreground truncate">{client.name}</h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge className="shrink-0">
-                    {client.status === "prospecting" ? "Prospection" :
-                     client.status === "qualified" ? "Qualifié" :
-                     client.status === "negotiation" ? "Négociation" :
-                     client.status === "won" ? "Gagné" :
-                     client.status === "lost" ? "Perdu" : client.status}
-                  </Badge>
+                  <Popover open={isStatusPopoverOpen} onOpenChange={setIsStatusPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <button data-testid="button-edit-status">
+                        <Badge className={`shrink-0 cursor-pointer hover-elevate ${client.status === "won" ? "bg-green-600 hover:bg-green-700" : ""}`}>
+                          {client.status === "prospecting" ? "Prospection" :
+                           client.status === "qualified" ? "Qualifié" :
+                           client.status === "negotiation" ? "Négociation" :
+                           client.status === "won" ? "Gagné" :
+                           client.status === "lost" ? "Perdu" : client.status}
+                        </Badge>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-0 bg-white" align="start">
+                      <Command>
+                        <CommandList>
+                          <CommandGroup>
+                            {[
+                              { value: "prospecting", label: "Prospection" },
+                              { value: "qualified", label: "Qualifié" },
+                              { value: "negotiation", label: "Négociation" },
+                              { value: "won", label: "Gagné" },
+                              { value: "lost", label: "Perdu" }
+                            ].map((status) => (
+                              <CommandItem
+                                key={status.value}
+                                onSelect={() => updateClientStatus(status.value)}
+                                data-testid={`status-option-${status.value}`}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    client.status === status.value ? 'opacity-100' : 'opacity-0'
+                                  }`}
+                                />
+                                {status.label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <Badge variant="outline" className="shrink-0">{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditClientDialogOpen(true)} 
-              data-testid="button-edit" 
-              className="flex-1 sm:flex-none"
-            >
-              <Edit className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Modifier</span>
-            </Button>
             <Button
               variant="destructive"
               onClick={() => setIsDeleteDialogOpen(true)}
@@ -625,45 +682,182 @@ export default function ClientDetail() {
           {/* Informations */}
           <TabsContent value="informations" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <CardTitle>Informations du client</CardTitle>
+                {!isEditingClientInfo ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsEditingClientInfo(true)}
+                    data-testid="button-edit-client-info"
+                  >
+                    <Edit className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Modifier</span>
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="default"
+                    size="sm"
+                    onClick={saveClientInfo}
+                    data-testid="button-save-client-info"
+                  >
+                    <Save className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Enregistrer</span>
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-4">
+                    {/* Société */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Civilité</p>
-                      <p className="text-foreground">-</p>
+                      <p className="text-sm text-muted-foreground mb-1">Société</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.company}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, company: e.target.value })}
+                          placeholder="Nom de la société"
+                          data-testid="input-company"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.company || "—"}</p>
+                      )}
                     </div>
+                    {/* Prénom */}
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Prénom</p>
-                      <p className="text-foreground">-</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.firstName}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, firstName: e.target.value })}
+                          placeholder="Prénom"
+                          data-testid="input-firstName"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.firstName || "—"}</p>
+                      )}
                     </div>
+                    {/* Civilité */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Date de naissance</p>
-                      <p className="text-foreground">-</p>
+                      <p className="text-sm text-muted-foreground mb-1">Civilité</p>
+                      {isEditingClientInfo ? (
+                        <Select value={clientInfoForm.civility} onValueChange={(value) => setClientInfoForm({ ...clientInfoForm, civility: value })}>
+                          <SelectTrigger className="bg-white" data-testid="select-civility">
+                            <SelectValue placeholder="Sélectionner" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="M">M</SelectItem>
+                            <SelectItem value="Mme">Mme</SelectItem>
+                            <SelectItem value="Mlle">Mlle</SelectItem>
+                            <SelectItem value="Dr">Dr</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-foreground">{client.civility || "—"}</p>
+                      )}
                     </div>
+                    {/* Adresse */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Nationalité</p>
-                      <p className="text-foreground">-</p>
+                      <p className="text-sm text-muted-foreground mb-1">Adresse</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.address}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, address: e.target.value })}
+                          placeholder="Adresse"
+                          data-testid="input-address"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.address || "—"}</p>
+                      )}
+                    </div>
+                    {/* Ville */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Ville</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.city}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, city: e.target.value })}
+                          placeholder="Ville"
+                          data-testid="input-city"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.city || "—"}</p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-4">
+                    {/* Type de client */}
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Type de client</p>
-                      <Badge>{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
+                      {isEditingClientInfo ? (
+                        <Select value={clientInfoForm.type} onValueChange={(value: "company" | "person") => setClientInfoForm({ ...clientInfoForm, type: value })}>
+                          <SelectTrigger className="bg-white" data-testid="select-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="company">Entreprise</SelectItem>
+                            <SelectItem value="person">Personne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge>{client.type === "company" ? "Entreprise" : "Personne"}</Badge>
+                      )}
                     </div>
+                    {/* Nom */}
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Nom</p>
-                      <p className="text-foreground">{client.name}</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.name}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, name: e.target.value })}
+                          placeholder="Nom"
+                          data-testid="input-name"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.name}</p>
+                      )}
                     </div>
+                    {/* Nationalité */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Lieu de naissance</p>
-                      <p className="text-foreground">-</p>
+                      <p className="text-sm text-muted-foreground mb-1">Nationalité</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.nationality}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, nationality: e.target.value })}
+                          placeholder="Nationalité"
+                          data-testid="input-nationality"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.nationality || "—"}</p>
+                      )}
                     </div>
+                    {/* Code postal */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Société</p>
-                      <p className="text-foreground">-</p>
+                      <p className="text-sm text-muted-foreground mb-1">Code postal</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.postalCode}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, postalCode: e.target.value })}
+                          placeholder="Code postal"
+                          data-testid="input-postalCode"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.postalCode || "—"}</p>
+                      )}
+                    </div>
+                    {/* Pays */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Pays</p>
+                      {isEditingClientInfo ? (
+                        <Input
+                          value={clientInfoForm.country}
+                          onChange={(e) => setClientInfoForm({ ...clientInfoForm, country: e.target.value })}
+                          placeholder="Pays"
+                          data-testid="input-country"
+                        />
+                      ) : (
+                        <p className="text-foreground">{client.country || "—"}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1164,7 +1358,7 @@ export default function ClientDetail() {
                 case 'text':
                   return (
                     <Input
-                      value={value || ""}
+                      value={(value as string) || ""}
                       onChange={(e) => handleFieldChange(e.target.value)}
                       placeholder={`Entrer ${field.name.toLowerCase()}`}
                       data-testid={`input-field-${field.id}`}
@@ -1174,7 +1368,7 @@ export default function ClientDetail() {
                   return (
                     <Input
                       type="date"
-                      value={value || ""}
+                      value={(value as string) || ""}
                       onChange={(e) => handleFieldChange(e.target.value)}
                       data-testid={`input-field-${field.id}`}
                     />
@@ -1183,7 +1377,7 @@ export default function ClientDetail() {
                   return (
                     <Input
                       type="number"
-                      value={value || ""}
+                      value={(value as string) || ""}
                       onChange={(e) => handleFieldChange(e.target.value)}
                       placeholder={`Entrer ${field.name.toLowerCase()}`}
                       data-testid={`input-field-${field.id}`}
@@ -1193,7 +1387,7 @@ export default function ClientDetail() {
                   return (
                     <Input
                       type="url"
-                      value={value || ""}
+                      value={(value as string) || ""}
                       onChange={(e) => handleFieldChange(e.target.value)}
                       placeholder={`https://...`}
                       data-testid={`input-field-${field.id}`}
@@ -1204,7 +1398,7 @@ export default function ClientDetail() {
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={value || false}
+                        checked={(value as boolean) || false}
                         onChange={(e) => handleFieldChange(e.target.checked)}
                         className="h-4 w-4"
                         data-testid={`input-field-${field.id}`}
@@ -1215,11 +1409,11 @@ export default function ClientDetail() {
                     </div>
                   );
                 case 'checkbox':
-                  const options = field.options || [];
+                  const options = (field.options as string[]) || [];
                   const selectedValues = (value as string[]) || [];
                   return (
                     <div className="space-y-2">
-                      {options.map((option, idx) => (
+                      {options.map((option: string, idx: number) => (
                         <div key={idx} className="flex items-center gap-2">
                           <input
                             type="checkbox"
@@ -1239,17 +1433,17 @@ export default function ClientDetail() {
                     </div>
                   );
                 case 'select':
-                  const selectOptions = field.options || [];
+                  const selectOptions = (field.options as string[]) || [];
                   return (
                     <Select
-                      value={value || ""}
+                      value={(value as string) || ""}
                       onValueChange={handleFieldChange}
                     >
                       <SelectTrigger data-testid={`select-field-${field.id}`}>
                         <SelectValue placeholder={`Sélectionner ${field.name.toLowerCase()}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {selectOptions.map((option, idx) => (
+                        {selectOptions.map((option: string, idx: number) => (
                           <SelectItem key={idx} value={option}>
                             {option}
                           </SelectItem>
