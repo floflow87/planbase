@@ -794,7 +794,7 @@ export default function CRM() {
                     return (
                       <div
                         key={client.id}
-                        className={`grid grid-cols-12 gap-4 px-4 py-3 hover-elevate active-elevate-2 rounded-md border border-border ${isSelected ? 'bg-muted/50' : ''}`}
+                        className={`grid grid-cols-12 gap-2 px-4 py-2 hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
                         data-testid={`row-client-${client.id}`}
                       >
                         <div className="col-span-1 flex items-center">
@@ -819,12 +819,9 @@ export default function CRM() {
                               case "client":
                                 return (
                                   <div className="flex items-center gap-2">
-                                    <div>
-                                      <p className="text-xs font-medium text-foreground">{client.name}</p>
-                                      <p className="text-[10px] text-muted-foreground capitalize">
-                                        {client.type === 'company' ? 'Entreprise' : 'Personne'}
-                                      </p>
-                                    </div>
+                                    <p className="text-xs font-medium text-foreground">
+                                      {client.company || client.name}
+                                    </p>
                                   </div>
                                 );
                               case "contacts":

@@ -606,7 +606,7 @@ export default function ClientDetail() {
                 <AvatarFallback className="text-lg sm:text-xl">{client.name.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-3xl font-heading font-bold text-foreground truncate">{client.name}</h1>
+                <h1 className="text-xl sm:text-3xl font-heading font-bold text-foreground truncate">{client.company || client.name}</h1>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Popover open={isStatusPopoverOpen} onOpenChange={setIsStatusPopoverOpen}>
                     <PopoverTrigger asChild>
