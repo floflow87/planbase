@@ -2574,12 +2574,12 @@ export default function Projects() {
                   <SelectTrigger className="w-[180px]" data-testid="select-project-stage-filter">
                     <SelectValue placeholder="Toutes les étapes" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les étapes</SelectItem>
-                    <SelectItem value="prospection">Prospection</SelectItem>
-                    <SelectItem value="signe">Signé</SelectItem>
-                    <SelectItem value="en_cours">En cours</SelectItem>
-                    <SelectItem value="termine">Terminé</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all" className="cursor-pointer">Toutes les étapes</SelectItem>
+                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
+                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
+                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex border rounded-md">
@@ -3460,9 +3460,9 @@ export default function Projects() {
                 <SelectTrigger id="project-client" data-testid="select-project-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white">
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
+                    <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                       {client.name}
                     </SelectItem>
                   ))}
@@ -3479,11 +3479,11 @@ export default function Projects() {
                   <SelectTrigger id="project-stage" data-testid="select-project-stage">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prospection">Prospection</SelectItem>
-                    <SelectItem value="signe">Signé</SelectItem>
-                    <SelectItem value="en_cours">En cours</SelectItem>
-                    <SelectItem value="termine">Terminé</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
+                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
+                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
