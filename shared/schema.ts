@@ -91,6 +91,51 @@ export const contacts = pgTable("contacts", {
   clientPrimaryIdx: index().on(table.clientId, table.isPrimary),
 }));
 
+// Custom tabs for client pages
+export const clientCustomTabs = pgTable("client_custom_tabs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  icon: text("icon"), // Lucide icon name
+  order: integer("order").notNull().default(0),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdIdx: index().on(table.accountId),
+}));
+
+// Custom fields within tabs
+export const clientCustomFields = pgTable("client_custom_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  tabId: uuid("tab_id").notNull().references(() => clientCustomTabs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  fieldType: text("field_type").notNull(), // 'text', 'date', 'number', 'link', 'boolean', 'checkbox', 'multiselect'
+  options: jsonb("options").notNull().default([]), // For multiselect: [{value, label, color?}]
+  required: integer("required").notNull().default(0), // 0 = false, 1 = true
+  order: integer("order").notNull().default(0),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountTabIdx: index().on(table.accountId, table.tabId),
+}));
+
+// Values for custom fields per client
+export const clientCustomFieldValues = pgTable("client_custom_field_values", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  fieldId: uuid("field_id").notNull().references(() => clientCustomFields.id, { onDelete: "cascade" }),
+  value: jsonb("value").notNull().default(null), // Stored as JSON to support all types
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountClientFieldIdx: index().on(table.accountId, table.clientId, table.fieldId),
+  uniqueClientField: uniqueIndex().on(table.clientId, table.fieldId), // One value per field per client
+}));
+
 export const projects = pgTable("projects", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
@@ -487,6 +532,12 @@ export const insertClientSchema = createInsertSchema(clients).omit({ id: true, c
   budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertClientCustomTabSchema = createInsertSchema(clientCustomTabs).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateClientCustomTabSchema = insertClientCustomTabSchema.omit({ accountId: true, createdBy: true });
+export const insertClientCustomFieldSchema = createInsertSchema(clientCustomFields).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateClientCustomFieldSchema = insertClientCustomFieldSchema.omit({ accountId: true, tabId: true, createdBy: true });
+export const insertClientCustomFieldValueSchema = createInsertSchema(clientCustomFieldValues).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateClientCustomFieldValueSchema = insertClientCustomFieldValueSchema.omit({ accountId: true, clientId: true, fieldId: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
@@ -512,6 +563,9 @@ export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type InsertContact = z.infer<typeof insertContactSchema>;
+export type InsertClientCustomTab = z.infer<typeof insertClientCustomTabSchema>;
+export type InsertClientCustomField = z.infer<typeof insertClientCustomFieldSchema>;
+export type InsertClientCustomFieldValue = z.infer<typeof insertClientCustomFieldValueSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -535,6 +589,9 @@ export type AppUser = typeof appUsers.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Contact = typeof contacts.$inferSelect;
+export type ClientCustomTab = typeof clientCustomTabs.$inferSelect;
+export type ClientCustomField = typeof clientCustomFields.$inferSelect;
+export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;

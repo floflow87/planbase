@@ -5,6 +5,9 @@ import {
   type Client, type InsertClient,
   type Contact, type InsertContact,
   type ClientComment, type InsertClientComment,
+  type ClientCustomTab, type InsertClientCustomTab,
+  type ClientCustomField, type InsertClientCustomField,
+  type ClientCustomFieldValue, type InsertClientCustomFieldValue,
   type Project, type InsertProject,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
@@ -17,7 +20,8 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
-  accounts, appUsers, clients, contacts, clientComments, projects, taskColumns, tasks, notes, folders, files, activities,
+  accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
+  projects, taskColumns, tasks, notes, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -55,6 +59,22 @@ export interface IStorage {
   // Client Comments
   getClientComments(accountId: string, clientId: string): Promise<ClientComment[]>;
   createClientComment(comment: InsertClientComment): Promise<ClientComment>;
+
+  // Client Custom Tabs
+  getClientCustomTabsByAccountId(accountId: string): Promise<ClientCustomTab[]>;
+  createClientCustomTab(tab: InsertClientCustomTab): Promise<ClientCustomTab>;
+  updateClientCustomTab(accountId: string, id: string, tab: Partial<InsertClientCustomTab>): Promise<ClientCustomTab | undefined>;
+  deleteClientCustomTab(accountId: string, id: string): Promise<boolean>;
+
+  // Client Custom Fields
+  getClientCustomFieldsByTabId(accountId: string, tabId: string): Promise<ClientCustomField[]>;
+  createClientCustomField(field: InsertClientCustomField): Promise<ClientCustomField>;
+  updateClientCustomField(accountId: string, id: string, field: Partial<InsertClientCustomField>): Promise<ClientCustomField | undefined>;
+  deleteClientCustomField(accountId: string, id: string): Promise<boolean>;
+
+  // Client Custom Field Values
+  getClientCustomFieldValues(accountId: string, clientId: string): Promise<ClientCustomFieldValue[]>;
+  upsertClientCustomFieldValue(value: InsertClientCustomFieldValue): Promise<ClientCustomFieldValue>;
 
   // Projects
   getProject(id: string): Promise<Project | undefined>;
@@ -311,6 +331,94 @@ export class DatabaseStorage implements IStorage {
       .values(insertComment)
       .returning();
     return comment;
+  }
+
+  // Client Custom Tabs
+  async getClientCustomTabsByAccountId(accountId: string): Promise<ClientCustomTab[]> {
+    return await db
+      .select()
+      .from(clientCustomTabs)
+      .where(eq(clientCustomTabs.accountId, accountId))
+      .orderBy(clientCustomTabs.order);
+  }
+
+  async createClientCustomTab(insertTab: InsertClientCustomTab): Promise<ClientCustomTab> {
+    const [tab] = await db
+      .insert(clientCustomTabs)
+      .values(insertTab)
+      .returning();
+    return tab;
+  }
+
+  async updateClientCustomTab(accountId: string, id: string, updateData: Partial<InsertClientCustomTab>): Promise<ClientCustomTab | undefined> {
+    const [tab] = await db
+      .update(clientCustomTabs)
+      .set(updateData)
+      .where(and(eq(clientCustomTabs.id, id), eq(clientCustomTabs.accountId, accountId)))
+      .returning();
+    return tab || undefined;
+  }
+
+  async deleteClientCustomTab(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(clientCustomTabs)
+      .where(and(eq(clientCustomTabs.id, id), eq(clientCustomTabs.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Client Custom Fields
+  async getClientCustomFieldsByTabId(accountId: string, tabId: string): Promise<ClientCustomField[]> {
+    return await db
+      .select()
+      .from(clientCustomFields)
+      .where(and(eq(clientCustomFields.accountId, accountId), eq(clientCustomFields.tabId, tabId)))
+      .orderBy(clientCustomFields.order);
+  }
+
+  async createClientCustomField(insertField: InsertClientCustomField): Promise<ClientCustomField> {
+    const [field] = await db
+      .insert(clientCustomFields)
+      .values(insertField)
+      .returning();
+    return field;
+  }
+
+  async updateClientCustomField(accountId: string, id: string, updateData: Partial<InsertClientCustomField>): Promise<ClientCustomField | undefined> {
+    const [field] = await db
+      .update(clientCustomFields)
+      .set(updateData)
+      .where(and(eq(clientCustomFields.id, id), eq(clientCustomFields.accountId, accountId)))
+      .returning();
+    return field || undefined;
+  }
+
+  async deleteClientCustomField(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(clientCustomFields)
+      .where(and(eq(clientCustomFields.id, id), eq(clientCustomFields.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Client Custom Field Values
+  async getClientCustomFieldValues(accountId: string, clientId: string): Promise<ClientCustomFieldValue[]> {
+    return await db
+      .select()
+      .from(clientCustomFieldValues)
+      .where(and(eq(clientCustomFieldValues.accountId, accountId), eq(clientCustomFieldValues.clientId, clientId)));
+  }
+
+  async upsertClientCustomFieldValue(insertValue: InsertClientCustomFieldValue): Promise<ClientCustomFieldValue> {
+    const [value] = await db
+      .insert(clientCustomFieldValues)
+      .values(insertValue)
+      .onConflictDoUpdate({
+        target: [clientCustomFieldValues.clientId, clientCustomFieldValues.fieldId],
+        set: { value: insertValue.value, updatedAt: sql`now()` },
+      })
+      .returning();
+    return value;
   }
 
   // Projects

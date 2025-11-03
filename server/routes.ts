@@ -7,6 +7,12 @@ import {
   updateProfileSchema,
   insertClientSchema,
   insertContactSchema,
+  insertClientCustomTabSchema,
+  updateClientCustomTabSchema,
+  insertClientCustomFieldSchema,
+  updateClientCustomFieldSchema,
+  insertClientCustomFieldValueSchema,
+  updateClientCustomFieldValueSchema,
   insertProjectSchema,
   insertNoteSchema,
   insertFolderSchema,
@@ -395,6 +401,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.json(comment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CLIENT CUSTOM TABS & FIELDS - Protected Routes
+  // ============================================
+
+  app.get("/api/client-custom-tabs", requireAuth, async (req, res) => {
+    try {
+      const tabs = await storage.getClientCustomTabsByAccountId(req.accountId!);
+      res.json(tabs);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/client-custom-tabs", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertClientCustomTabSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId!,
+      });
+      const tab = await storage.createClientCustomTab(data);
+      res.json(tab);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/client-custom-tabs/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = updateClientCustomTabSchema.parse(req.body);
+      const tab = await storage.updateClientCustomTab(req.accountId!, req.params.id, data);
+      if (!tab) {
+        return res.status(404).json({ error: "Tab not found" });
+      }
+      res.json(tab);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/client-custom-tabs/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const success = await storage.deleteClientCustomTab(req.accountId!, req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Tab not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/client-custom-tabs/:tabId/fields", requireAuth, async (req, res) => {
+    try {
+      const fields = await storage.getClientCustomFieldsByTabId(req.accountId!, req.params.tabId);
+      res.json(fields);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/client-custom-tabs/:tabId/fields", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertClientCustomFieldSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        tabId: req.params.tabId,
+        createdBy: req.userId!,
+      });
+      const field = await storage.createClientCustomField(data);
+      res.json(field);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/client-custom-fields/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = updateClientCustomFieldSchema.parse(req.body);
+      const field = await storage.updateClientCustomField(req.accountId!, req.params.id, data);
+      if (!field) {
+        return res.status(404).json({ error: "Field not found" });
+      }
+      res.json(field);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/client-custom-fields/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const success = await storage.deleteClientCustomField(req.accountId!, req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Field not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clients/:clientId/field-values", requireAuth, async (req, res) => {
+    try {
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+      const values = await storage.getClientCustomFieldValues(req.accountId!, req.params.clientId);
+      res.json(values);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:clientId/field-values", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+      const data = insertClientCustomFieldValueSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        clientId: req.params.clientId,
+      });
+      const value = await storage.upsertClientCustomFieldValue(data);
+      res.json(value);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
