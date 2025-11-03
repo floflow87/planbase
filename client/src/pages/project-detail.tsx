@@ -419,7 +419,12 @@ export default function ProjectDetail() {
                                           size="icon"
                                           variant="ghost"
                                           className="h-8 w-8 shrink-0"
-                                          onClick={() => updateTaskMutation.mutate({ taskId: task.id, title: editingTaskTitle })}
+                                          onClick={() => {
+                                            if (editingTaskTitle.trim()) {
+                                              updateTaskMutation.mutate({ taskId: task.id, title: editingTaskTitle });
+                                            }
+                                          }}
+                                          disabled={updateTaskMutation.isPending || !editingTaskTitle.trim()}
                                           data-testid={`button-save-task-${task.id}`}
                                         >
                                           <Check className="h-4 w-4 text-green-600" />

@@ -73,6 +73,8 @@ export default function ClientDetail() {
   const [newTabIcon, setNewTabIcon] = useState("");
   const [isCreateFieldDialogOpen, setIsCreateFieldDialogOpen] = useState(false);
   const [selectedTabForField, setSelectedTabForField] = useState<string | null>(null);
+  const [deleteFieldId, setDeleteFieldId] = useState<string | null>(null);
+  const [isDeleteFieldDialogOpen, setIsDeleteFieldDialogOpen] = useState(false);
   const [newFieldData, setNewFieldData] = useState({
     name: "",
     fieldType: "text",
@@ -458,6 +460,22 @@ export default function ClientDetail() {
     },
     onError: () => {
       toast({ title: "Erreur lors de la création du champ", variant: "destructive" });
+    },
+  });
+
+  const deleteCustomFieldMutation = useMutation({
+    mutationFn: async (fieldId: string) => {
+      return await apiRequest("DELETE", `/api/client-custom-fields/${fieldId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'field-values'] });
+      setIsDeleteFieldDialogOpen(false);
+      setDeleteFieldId(null);
+      toast({ title: "Champ supprimé avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression du champ", variant: "destructive" });
     },
   });
 
@@ -1698,7 +1716,21 @@ export default function ClientDetail() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {tabFields.map((field) => (
                           <div key={field.id} className="space-y-2">
-                            <Label htmlFor={`field-${field.id}`}>{field.name}</Label>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor={`field-${field.id}`}>{field.name}</Label>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                  setDeleteFieldId(field.id);
+                                  setIsDeleteFieldDialogOpen(true);
+                                }}
+                                data-testid={`button-delete-field-${field.id}`}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
                             {renderFieldInput(field)}
                           </div>
                         ))}
@@ -2119,6 +2151,28 @@ export default function ClientDetail() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Field Confirmation Dialog */}
+        <AlertDialog open={isDeleteFieldDialogOpen} onOpenChange={setIsDeleteFieldDialogOpen}>
+          <AlertDialogContent data-testid="dialog-delete-field-confirm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer le champ</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer ce champ personnalisé ? Cette action est irréversible et toutes les données associées seront perdues.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-field">Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteFieldId && deleteCustomFieldMutation.mutate(deleteFieldId)}
+                data-testid="button-confirm-delete-field"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
