@@ -77,6 +77,8 @@ export default function ClientDetail() {
     fieldType: "text",
     options: "",
   });
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingTabName, setEditingTabName] = useState("");
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -372,6 +374,23 @@ export default function ClientDetail() {
     },
     onError: () => {
       toast({ title: "Erreur lors de la suppression de l'onglet", variant: "destructive" });
+    },
+  });
+
+  const updateCustomTabMutation = useMutation({
+    mutationFn: async (data: { tabId: string; name: string }) => {
+      return await apiRequest("PATCH", `/api/client-custom-tabs/${data.tabId}`, {
+        name: data.name,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
+      setEditingTabId(null);
+      setEditingTabName("");
+      toast({ title: "Onglet personnalisé modifié", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la modification de l'onglet", variant: "destructive" });
     },
   });
 
@@ -700,17 +719,26 @@ export default function ClientDetail() {
                   className="text-xs sm:text-sm group relative pr-7"
                 >
                   {tab.name}
-                  <button
+                  <span
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteCustomTabMutation.mutate(tab.id);
                     }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        deleteCustomTabMutation.mutate(tab.id);
+                      }
+                    }}
                     aria-label={`Supprimer l'onglet ${tab.name}`}
                     data-testid={`button-delete-tab-${tab.id}`}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity hover-elevate active-elevate-2 rounded p-0.5"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer rounded p-0.5"
                   >
                     <Trash2 className="w-3 h-3 text-destructive" />
-                  </button>
+                  </span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -1517,7 +1545,65 @@ export default function ClientDetail() {
               <TabsContent key={tab.id} value={`custom-${tab.id}`} className="space-y-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle>{tab.name}</CardTitle>
+                    {editingTabId === tab.id ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          value={editingTabName}
+                          onChange={(e) => setEditingTabName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && editingTabName.trim()) {
+                              updateCustomTabMutation.mutate({ tabId: tab.id, name: editingTabName });
+                            } else if (e.key === 'Escape') {
+                              setEditingTabId(null);
+                              setEditingTabName("");
+                            }
+                          }}
+                          autoFocus
+                          data-testid={`input-edit-tab-${tab.id}`}
+                          className="max-w-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => {
+                            if (editingTabName.trim()) {
+                              updateCustomTabMutation.mutate({ tabId: tab.id, name: editingTabName });
+                            }
+                          }}
+                          data-testid={`button-save-tab-${tab.id}`}
+                        >
+                          <Save className="w-4 h-4 mr-2" />
+                          Enregistrer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingTabId(null);
+                            setEditingTabName("");
+                          }}
+                          data-testid={`button-cancel-edit-tab-${tab.id}`}
+                        >
+                          Annuler
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <CardTitle>{tab.name}</CardTitle>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingTabId(tab.id);
+                            setEditingTabName(tab.name);
+                          }}
+                          data-testid={`button-edit-tab-${tab.id}`}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -1537,7 +1623,7 @@ export default function ClientDetail() {
                         Aucun champ personnalisé. Cliquez sur "Ajouter un champ" pour commencer.
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {tabFields.map((field) => (
                           <div key={field.id} className="space-y-2">
                             <Label htmlFor={`field-${field.id}`}>{field.name}</Label>
