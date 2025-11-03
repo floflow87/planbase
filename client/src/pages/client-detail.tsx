@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField } from "@shared/schema";
+import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField, ClientCustomFieldValue, InsertClientCustomFieldValue } from "@shared/schema";
 import { insertClientSchema } from "@shared/schema";
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -52,6 +52,13 @@ export default function ClientDetail() {
   const [isCreateTabDialogOpen, setIsCreateTabDialogOpen] = useState(false);
   const [newTabName, setNewTabName] = useState("");
   const [newTabIcon, setNewTabIcon] = useState("");
+  const [isCreateFieldDialogOpen, setIsCreateFieldDialogOpen] = useState(false);
+  const [selectedTabForField, setSelectedTabForField] = useState<string | null>(null);
+  const [newFieldData, setNewFieldData] = useState({
+    name: "",
+    fieldType: "text",
+    options: "",
+  });
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -114,6 +121,17 @@ export default function ClientDetail() {
   const { data: customTabs = [] } = useQuery<ClientCustomTab[]>({
     queryKey: ['/api/client-custom-tabs'],
     enabled: !!accountId,
+  });
+
+  const { data: customFields = [] } = useQuery<ClientCustomField[]>({
+    queryKey: ['/api/client-custom-fields'],
+    enabled: !!accountId,
+  });
+
+  const { data: fieldValues = [] } = useQuery<ClientCustomFieldValue[]>({
+    queryKey: ['/api/client-custom-field-values'],
+    select: (data) => data.filter((v: ClientCustomFieldValue) => v.clientId === id),
+    enabled: !!accountId && !!id,
   });
 
   // Form for client edit
@@ -289,6 +307,73 @@ export default function ClientDetail() {
     },
     onError: () => {
       toast({ title: "Erreur lors de la création de l'onglet", variant: "destructive" });
+    },
+  });
+
+  const createCustomFieldMutation = useMutation({
+    mutationFn: async (data: { tabId: string; name: string; fieldType: string; options?: string }) => {
+      const tabFields = customFields.filter(f => f.tabId === data.tabId);
+      const maxOrder = tabFields.length > 0 ? Math.max(...tabFields.map(f => f.order)) : -1;
+      return await apiRequest("POST", "/api/client-custom-fields", {
+        tabId: data.tabId,
+        name: data.name,
+        fieldType: data.fieldType,
+        options: data.options && data.options.trim() ? data.options.split(',').map(o => o.trim()) : null,
+        order: maxOrder + 1,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
+      setIsCreateFieldDialogOpen(false);
+      setNewFieldData({ name: "", fieldType: "text", options: "" });
+      toast({ title: "Champ personnalisé créé", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création du champ", variant: "destructive" });
+    },
+  });
+
+  const upsertFieldValueMutation = useMutation({
+    mutationFn: async (data: { fieldId: string; value: any }) => {
+      const existingValue = fieldValues.find(v => v.fieldId === data.fieldId);
+      if (existingValue) {
+        return await apiRequest("PATCH", `/api/client-custom-field-values/${existingValue.id}`, {
+          value: data.value,
+        });
+      } else {
+        return await apiRequest("POST", "/api/client-custom-field-values", {
+          clientId: id,
+          fieldId: data.fieldId,
+          value: data.value,
+        });
+      }
+    },
+    onSuccess: (newValue, variables) => {
+      // Optimistically update cache to avoid duplicate POST on rapid edits
+      queryClient.setQueryData<ClientCustomFieldValue[]>(
+        ['/api/client-custom-field-values'],
+        (old) => {
+          // Handle case where cache is not yet populated
+          if (!old) {
+            return [newValue as ClientCustomFieldValue];
+          }
+          const existingIndex = old.findIndex(v => v.fieldId === variables.fieldId && v.clientId === id);
+          if (existingIndex >= 0) {
+            // Update existing value
+            const updated = [...old];
+            updated[existingIndex] = { ...updated[existingIndex], value: variables.value };
+            return updated;
+          } else {
+            // Add new value
+            return [...old, newValue as ClientCustomFieldValue];
+          }
+        }
+      );
+      // Also invalidate to ensure sync with backend
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-field-values'] });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la modification du champ", variant: "destructive" });
     },
   });
 
@@ -1062,20 +1147,157 @@ export default function ClientDetail() {
           </TabsContent>
 
           {/* Custom Tabs Content */}
-          {customTabs.map((tab) => (
-            <TabsContent key={tab.id} value={`custom-${tab.id}`} className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{tab.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="py-12 text-center text-muted-foreground">
-                    Les champs personnalisés seront ajoutés prochainement
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
+          {customTabs.map((tab) => {
+            const tabFields = customFields.filter(f => f.tabId === tab.id).sort((a, b) => a.order - b.order);
+            
+            const renderFieldInput = (field: ClientCustomField) => {
+              const existingValue = fieldValues.find(v => v.fieldId === field.id);
+              const value = existingValue?.value;
+
+              const handleFieldChange = (newValue: any) => {
+                upsertFieldValueMutation.mutate({ fieldId: field.id, value: newValue });
+              };
+
+              switch (field.fieldType) {
+                case 'text':
+                  return (
+                    <Input
+                      value={value || ""}
+                      onChange={(e) => handleFieldChange(e.target.value)}
+                      placeholder={`Entrer ${field.name.toLowerCase()}`}
+                      data-testid={`input-field-${field.id}`}
+                    />
+                  );
+                case 'date':
+                  return (
+                    <Input
+                      type="date"
+                      value={value || ""}
+                      onChange={(e) => handleFieldChange(e.target.value)}
+                      data-testid={`input-field-${field.id}`}
+                    />
+                  );
+                case 'number':
+                  return (
+                    <Input
+                      type="number"
+                      value={value || ""}
+                      onChange={(e) => handleFieldChange(e.target.value)}
+                      placeholder={`Entrer ${field.name.toLowerCase()}`}
+                      data-testid={`input-field-${field.id}`}
+                    />
+                  );
+                case 'link':
+                  return (
+                    <Input
+                      type="url"
+                      value={value || ""}
+                      onChange={(e) => handleFieldChange(e.target.value)}
+                      placeholder={`https://...`}
+                      data-testid={`input-field-${field.id}`}
+                    />
+                  );
+                case 'boolean':
+                  return (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={value || false}
+                        onChange={(e) => handleFieldChange(e.target.checked)}
+                        className="h-4 w-4"
+                        data-testid={`input-field-${field.id}`}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {value ? "Oui" : "Non"}
+                      </span>
+                    </div>
+                  );
+                case 'checkbox':
+                  const options = field.options || [];
+                  const selectedValues = (value as string[]) || [];
+                  return (
+                    <div className="space-y-2">
+                      {options.map((option, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedValues.includes(option)}
+                            onChange={(e) => {
+                              const newValues = e.target.checked
+                                ? [...selectedValues, option]
+                                : selectedValues.filter(v => v !== option);
+                              handleFieldChange(newValues);
+                            }}
+                            className="h-4 w-4"
+                            data-testid={`checkbox-${field.id}-${idx}`}
+                          />
+                          <span className="text-sm">{option}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                case 'select':
+                  const selectOptions = field.options || [];
+                  return (
+                    <Select
+                      value={value || ""}
+                      onValueChange={handleFieldChange}
+                    >
+                      <SelectTrigger data-testid={`select-field-${field.id}`}>
+                        <SelectValue placeholder={`Sélectionner ${field.name.toLowerCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectOptions.map((option, idx) => (
+                          <SelectItem key={idx} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                default:
+                  return <span className="text-muted-foreground">Type non supporté</span>;
+              }
+            };
+
+            return (
+              <TabsContent key={tab.id} value={`custom-${tab.id}`} className="space-y-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                    <CardTitle>{tab.name}</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedTabForField(tab.id);
+                        setIsCreateFieldDialogOpen(true);
+                      }}
+                      data-testid={`button-add-field-${tab.id}`}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Ajouter un champ
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {tabFields.length === 0 ? (
+                      <div className="py-12 text-center text-muted-foreground">
+                        Aucun champ personnalisé. Cliquez sur "Ajouter un champ" pour commencer.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {tabFields.map((field) => (
+                          <div key={field.id} className="space-y-2">
+                            <Label htmlFor={`field-${field.id}`}>{field.name}</Label>
+                            {renderFieldInput(field)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            );
+          })}
         </Tabs>
 
         {/* Delete Confirmation Dialog */}
@@ -1343,6 +1565,80 @@ export default function ClientDetail() {
                   data-testid="button-submit-tab"
                 >
                   Créer l'onglet
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Custom Field Dialog */}
+        <Dialog open={isCreateFieldDialogOpen} onOpenChange={setIsCreateFieldDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ajouter un champ personnalisé</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="field-name">Nom du champ</Label>
+                <Input
+                  id="field-name"
+                  value={newFieldData.name}
+                  onChange={(e) => setNewFieldData({ ...newFieldData, name: e.target.value })}
+                  placeholder="Ex: Budget annuel"
+                  data-testid="input-field-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="field-type">Type de champ</Label>
+                <Select
+                  value={newFieldData.fieldType}
+                  onValueChange={(value) => setNewFieldData({ ...newFieldData, fieldType: value })}
+                >
+                  <SelectTrigger data-testid="select-field-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Texte</SelectItem>
+                    <SelectItem value="number">Nombre</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="link">Lien</SelectItem>
+                    <SelectItem value="boolean">Booléen (Oui/Non)</SelectItem>
+                    <SelectItem value="checkbox">Cases à cocher</SelectItem>
+                    <SelectItem value="select">Sélecteur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(newFieldData.fieldType === 'checkbox' || newFieldData.fieldType === 'select') && (
+                <div>
+                  <Label htmlFor="field-options">Options (séparées par des virgules)</Label>
+                  <Input
+                    id="field-options"
+                    value={newFieldData.options}
+                    onChange={(e) => setNewFieldData({ ...newFieldData, options: e.target.value })}
+                    placeholder="Ex: Option 1, Option 2, Option 3"
+                    data-testid="input-field-options"
+                  />
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsCreateFieldDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (selectedTabForField) {
+                      createCustomFieldMutation.mutate({
+                        tabId: selectedTabForField,
+                        name: newFieldData.name,
+                        fieldType: newFieldData.fieldType,
+                        options: newFieldData.options,
+                      });
+                    }
+                  }}
+                  disabled={createCustomFieldMutation.isPending || !newFieldData.name.trim()}
+                  data-testid="button-submit-field"
+                >
+                  Créer le champ
                 </Button>
               </div>
             </div>
