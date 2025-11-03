@@ -13,6 +13,7 @@ import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, 
 import { insertClientSchema } from "@shared/schema";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -79,6 +80,8 @@ export default function ClientDetail() {
   });
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTabName, setEditingTabName] = useState("");
+  const [deleteTabDialogOpen, setDeleteTabDialogOpen] = useState(false);
+  const [tabToDelete, setTabToDelete] = useState<{ id: string; name: string } | null>(null);
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>({});
   const savedFieldValuesRef = useRef<Record<string, any>>({});
 
@@ -787,7 +790,8 @@ export default function ClientDetail() {
                   <span
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteCustomTabMutation.mutate(tab.id);
+                      setTabToDelete({ id: tab.id, name: tab.name });
+                      setDeleteTabDialogOpen(true);
                     }}
                     role="button"
                     tabIndex={0}
@@ -795,7 +799,8 @@ export default function ClientDetail() {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.stopPropagation();
                         e.preventDefault();
-                        deleteCustomTabMutation.mutate(tab.id);
+                        setTabToDelete({ id: tab.id, name: tab.name });
+                        setDeleteTabDialogOpen(true);
                       }
                     }}
                     aria-label={`Supprimer l'onglet ${tab.name}`}
@@ -2010,6 +2015,36 @@ export default function ClientDetail() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Tab Confirmation Dialog */}
+        <AlertDialog open={deleteTabDialogOpen} onOpenChange={setDeleteTabDialogOpen}>
+          <AlertDialogContent data-testid="dialog-delete-tab-confirm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer l'onglet "{tabToDelete?.name}" ? 
+                Tous les champs personnalisés et les données associées à cet onglet seront définitivement supprimés. 
+                Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-tab">Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (tabToDelete) {
+                    deleteCustomTabMutation.mutate(tabToDelete.id);
+                    setDeleteTabDialogOpen(false);
+                    setTabToDelete(null);
+                  }
+                }}
+                data-testid="button-confirm-delete-tab"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Create Custom Field Dialog */}
         <Dialog open={isCreateFieldDialogOpen} onOpenChange={setIsCreateFieldDialogOpen}>
