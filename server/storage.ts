@@ -59,6 +59,7 @@ export interface IStorage {
   // Client Comments
   getClientComments(accountId: string, clientId: string): Promise<ClientComment[]>;
   createClientComment(comment: InsertClientComment): Promise<ClientComment>;
+  deleteClientComment(accountId: string, commentId: string): Promise<boolean>;
 
   // Client Custom Tabs
   getClientCustomTabsByAccountId(accountId: string): Promise<ClientCustomTab[]>;
@@ -331,6 +332,14 @@ export class DatabaseStorage implements IStorage {
       .values(insertComment)
       .returning();
     return comment;
+  }
+
+  async deleteClientComment(accountId: string, commentId: string): Promise<boolean> {
+    const result = await db
+      .delete(clientComments)
+      .where(and(eq(clientComments.id, commentId), eq(clientComments.accountId, accountId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Client Custom Tabs

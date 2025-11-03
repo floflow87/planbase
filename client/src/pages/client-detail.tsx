@@ -284,6 +284,20 @@ export default function ClientDetail() {
     },
   });
 
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      await apiRequest("DELETE", `/api/clients/${id}/comments/${commentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
+      toast({ title: "Commentaire supprimé", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression du commentaire", variant: "destructive" });
+    },
+  });
+
   const createTaskMutation = useMutation({
     mutationFn: async (data: any) => {
       // Prepare task data
@@ -654,9 +668,9 @@ export default function ClientDetail() {
             <TabsList className="w-full sm:w-auto inline-flex h-auto">
               <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
               <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
-              <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
               <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
               <TabsTrigger value="projets" data-testid="tab-projets" className="text-xs sm:text-sm">Projets</TabsTrigger>
+              <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
               <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
               {customTabs.map((tab) => (
                 <TabsTrigger 
@@ -1013,8 +1027,20 @@ export default function ClientDetail() {
                                 {format(new Date(comment.createdAt), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                               </p>
                             </div>
-                            <p className="text-foreground whitespace-pre-wrap">{comment.content}</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{comment.content}</p>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Êtes-vous sûr de vouloir supprimer ce commentaire ?")) {
+                                deleteCommentMutation.mutate(comment.id);
+                              }
+                            }}
+                            data-testid={`button-delete-comment-${comment.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" />
+                          </Button>
                         </div>
                       );
                     })}

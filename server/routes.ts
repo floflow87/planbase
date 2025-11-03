@@ -406,6 +406,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/clients/:clientId/comments/:commentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      // First verify the client belongs to this account (security check)
+      const client = await storage.getClient(req.accountId!, req.params.clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      await storage.deleteClientComment(req.accountId!, req.params.commentId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // CLIENT CUSTOM TABS & FIELDS - Protected Routes
   // ============================================
