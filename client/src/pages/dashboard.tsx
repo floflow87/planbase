@@ -162,6 +162,20 @@ export default function Dashboard() {
     },
   });
 
+  // Update task status mutation
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
+      return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Tâche mise à jour", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+  });
+
   // Form for client creation
   const clientForm = useForm<InsertClient>({
     resolver: zodResolver(insertClientSchema),
@@ -246,6 +260,28 @@ export default function Dashboard() {
   const totalRevenue = projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
+
+  // Helper function to normalize any date value to local YYYY-MM-DD string
+  const normalizeToLocalDate = (dateValue: any): string => {
+    // Handle bare YYYY-MM-DD strings without timezone adjustment
+    const dateStr = String(dateValue);
+    if (dateStr.length === 10 && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateStr; // Bare date - use as-is (universal calendar day)
+    }
+    // For timestamps (ISO with time/timezone), adjust for viewer's timezone offset
+    const d = new Date(dateValue);
+    const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 10);
+  };
+
+  // Calculate today's tasks (tasks due today) using local time
+  const todayStr = normalizeToLocalDate(new Date()); // Format: YYYY-MM-DD in local time
+  const todaysTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    // Normalize dueDate to local date string (YYYY-MM-DD) to handle all formats
+    const dueDateStr = normalizeToLocalDate(t.dueDate);
+    return dueDateStr === todayStr && t.status !== "done";
+  });
 
   // KPI data from real data
   const kpis: Array<{
@@ -624,6 +660,77 @@ export default function Dashboard() {
             );
           })}
         </div>
+
+        {/* Ma Journée Widget - Today's Tasks */}
+        {todaysTasks.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-base font-heading font-semibold">
+                Ma Journée
+              </CardTitle>
+              <Badge variant="secondary" data-testid="badge-today-tasks-count">
+                {todaysTasks.length} tâche{todaysTasks.length > 1 ? 's' : ''}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {todaysTasks.map((task) => {
+                  const client = clients.find(c => c.id === task.clientId);
+                  const project = projects.find(p => p.id === task.projectId);
+                  const priorityColors: Record<string, string> = {
+                    low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                    high: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                  };
+                  const priorityLabels: Record<string, string> = {
+                    low: "Basse",
+                    medium: "Moyenne",
+                    high: "Haute",
+                  };
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-3 p-3 rounded-md border hover-elevate"
+                      data-testid={`today-task-${task.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" })}
+                        className="mt-1 h-4 w-4 shrink-0"
+                        data-testid={`checkbox-task-${task.id}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-foreground">{task.title}</h4>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge className={priorityColors[task.priority]} data-testid={`badge-priority-${task.id}`}>
+                            {priorityLabels[task.priority]}
+                          </Badge>
+                          {client && (
+                            <Badge variant="outline" data-testid={`badge-client-${task.id}`}>
+                              {client.name}
+                            </Badge>
+                          )}
+                          {project && (
+                            <Badge variant="outline" data-testid={`badge-project-${task.id}`}>
+                              {project.name}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
