@@ -136,6 +136,7 @@ export default function NoteNew() {
       toast({
         title: "Note supprimée",
         description: "La note a été supprimée avec succès",
+        variant: "success",
       });
       navigate("/notes");
     } catch (error: any) {
@@ -184,6 +185,7 @@ export default function NoteNew() {
       toast({
         title: "Brouillon enregistré",
         description: "La note a été enregistrée en brouillon",
+        variant: "success",
       });
     } else {
       // Create note with draft status
@@ -197,6 +199,7 @@ export default function NoteNew() {
       toast({
         title: "Brouillon enregistré",
         description: "La note a été créée en brouillon",
+        variant: "success",
       });
     }
   }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);
@@ -239,6 +242,7 @@ export default function NoteNew() {
       toast({
         title: "Note publiée",
         description: "La note est maintenant active",
+        variant: "success",
       });
     } else {
       // Create note with active status
@@ -252,6 +256,7 @@ export default function NoteNew() {
       toast({
         title: "Note publiée",
         description: "La note a été créée et publiée",
+        variant: "success",
       });
     }
   }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);

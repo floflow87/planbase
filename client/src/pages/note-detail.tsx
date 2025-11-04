@@ -130,6 +130,7 @@ export default function NoteDetail() {
       toast({
         title: "Note supprimée",
         description: "La note a été supprimée avec succès",
+        variant: "success",
       });
       navigate("/notes");
     } catch (error: any) {
@@ -171,6 +172,7 @@ export default function NoteDetail() {
     toast({
       title: "Brouillon enregistré",
       description: "La note a été enregistrée en brouillon",
+      variant: "success",
     });
   }, [title, content, visibility, updateMutation, toast]);
 
@@ -209,6 +211,7 @@ export default function NoteDetail() {
       description: newStatus === "active" 
         ? "La note est maintenant active" 
         : "La note est de retour en brouillon",
+      variant: "success",
     });
   }, [title, content, visibility, status, updateMutation, toast]);
 

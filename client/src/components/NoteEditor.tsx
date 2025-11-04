@@ -13,6 +13,7 @@ import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
+import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { 
   Bold, 
@@ -43,6 +44,10 @@ import {
   ListTodo,
   Smile,
   Upload,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -139,6 +144,9 @@ export default function NoteEditor({
         HTMLAttributes: {
           class: 'text-primary underline cursor-pointer',
         },
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
       }),
       ResizableImageExtension.configure({
         inline: false,
@@ -315,7 +323,7 @@ export default function NoteEditor({
               />
             </div>
           )}
-          <div className="border-b border-border p-2 flex items-center gap-0.5 flex-wrap bg-muted/30">
+          <div className="border-b border-border p-2 flex items-center gap-px flex-wrap bg-muted/30">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -517,6 +525,66 @@ export default function NoteEditor({
               </TooltipTrigger>
               <TooltipContent>Bloc de code</TooltipContent>
             </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive({ textAlign: 'left' }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                  data-testid="button-align-left"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Aligner à gauche</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive({ textAlign: 'center' }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                  data-testid="button-align-center"
+                >
+                  <AlignCenter className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Centrer</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive({ textAlign: 'right' }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                  data-testid="button-align-right"
+                >
+                  <AlignRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Aligner à droite</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                  data-testid="button-align-justify"
+                >
+                  <AlignJustify className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Justifier</TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
 
             <Popover>
               <PopoverTrigger asChild>
