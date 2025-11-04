@@ -202,39 +202,7 @@ export default function Notes() {
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {selectedNotes.size > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="button-actions">
-                    <MoreVertical className="w-4 h-4 mr-2" />
-                    Actions ({selectedNotes.size})
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem
-                    onClick={handleBulkPublish}
-                    disabled={bulkPublishMutation.isPending}
-                    data-testid="dropdown-bulk-publish"
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Publier
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleBulkDelete}
-                    disabled={bulkDeleteMutation.isPending}
-                    className="text-destructive"
-                    data-testid="dropdown-bulk-delete"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Supprimer
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+        <div className="flex items-center justify-end">
           <Link href="/notes/new">
             <Button className="gap-2" data-testid="button-nouvelle-note">
               <Plus className="w-4 h-4" />
@@ -243,7 +211,7 @@ export default function Notes() {
           </Link>
         </div>
 
-        {/* Filters & View Controls */}
+        {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -267,6 +235,39 @@ export default function Notes() {
               <option value="active">Actives</option>
               <option value="archived">Archivées</option>
             </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {selectedNotes.size > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-actions">
+                    <MoreVertical className="w-4 h-4 mr-2" />
+                    Actions ({selectedNotes.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={handleBulkPublish}
+                    disabled={bulkPublishMutation.isPending}
+                    data-testid="dropdown-bulk-publish"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Publier
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteMutation.isPending}
+                    className="text-destructive"
+                    data-testid="dropdown-bulk-delete"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 

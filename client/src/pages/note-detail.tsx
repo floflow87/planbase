@@ -4,6 +4,8 @@ import { ArrowLeft, Save, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +29,7 @@ export default function NoteDetail() {
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
@@ -76,7 +79,7 @@ export default function NoteDetail() {
 
   // Autosave effect
   useEffect(() => {
-    if (!note || !isEditMode) return;
+    if (!note || !isEditMode || !autoSaveEnabled) return;
     
     // Check if anything changed
     const titleChanged = debouncedTitle !== note.title;
@@ -116,7 +119,7 @@ export default function NoteDetail() {
       status,
       visibility,
     });
-  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode]);
+  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode, autoSaveEnabled]);
 
   const handleDelete = useCallback(async () => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
@@ -282,7 +285,20 @@ export default function NoteDetail() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            {/* Auto Save Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="autosave"
+                checked={autoSaveEnabled}
+                onCheckedChange={setAutoSaveEnabled}
+                data-testid="switch-autosave"
+              />
+              <Label htmlFor="autosave" className="text-sm cursor-pointer">
+                Auto save {autoSaveEnabled ? "ON" : "OFF"}
+              </Label>
+            </div>
+            
             <Button
               variant="outline"
               onClick={() => setIsEditMode(!isEditMode)}
