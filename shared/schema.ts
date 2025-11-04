@@ -243,6 +243,7 @@ export const activities = pgTable("activities", {
 export const notes = pgTable("notes", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   title: text("title").notNull().default(""),
   content: jsonb("content").notNull().default([]), // blocks
@@ -254,6 +255,7 @@ export const notes = pgTable("notes", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountVisibilityIdx: index().on(table.accountId, table.visibility),
+  projectIdx: index().on(table.projectId),
 }));
 
 export const noteLinks = pgTable("note_links", {
