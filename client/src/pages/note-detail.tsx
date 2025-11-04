@@ -23,10 +23,13 @@ import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, InsertNote } from "@shared/schema";
+import type { Note, InsertNote, Project, NoteLink } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,12 +47,28 @@ export default function NoteDetail() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
     queryKey: ["/api/notes", id],
     enabled: !!id,
   });
+
+  // Fetch projects
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  // Fetch note links
+  const { data: noteLinks = [] } = useQuery<NoteLink[]>({
+    queryKey: ["/api/notes", id, "links"],
+    enabled: !!id,
+  });
+
+  // Find linked project
+  const linkedProject = noteLinks.find(link => link.targetType === "project");
+  const currentProject = linkedProject ? projects.find(p => p.id === linkedProject.targetId) : null;
 
   // Initialize form with note data ONLY on first load, not during autosave
   useEffect(() => {
@@ -233,6 +252,74 @@ export default function NoteDetail() {
     });
   }, [title, content, visibility, status, updateMutation, toast]);
 
+  // Project link mutation
+  const linkProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const response = await apiRequest(`/api/notes/${id}/links`, "POST", {
+        targetType: "project",
+        targetId: projectId,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Projet lié",
+        description: "La note a été liée au projet avec succès",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de lier le projet",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unlinkProjectMutation = useMutation({
+    mutationFn: async () => {
+      if (!linkedProject) return;
+      const response = await apiRequest(
+        `/api/notes/${id}/links/${linkedProject.targetType}/${linkedProject.targetId}`,
+        "DELETE"
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Projet délié",
+        description: "La note n'est plus liée au projet",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de délier le projet",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSelectProject = useCallback(async (projectId: string) => {
+    try {
+      // If already linked to a project, unlink first
+      if (linkedProject) {
+        await unlinkProjectMutation.mutateAsync();
+      }
+      // Link to new project
+      await linkProjectMutation.mutateAsync(projectId);
+      setProjectSelectorOpen(false);
+    } catch (error) {
+      // Errors are already handled by the mutations
+    }
+  }, [linkedProject, linkProjectMutation, unlinkProjectMutation]);
+
+  const handleUnlinkProject = useCallback(() => {
+    unlinkProjectMutation.mutate();
+  }, [unlinkProjectMutation]);
+
   if (isLoading) {
     return (
       <div className="h-full overflow-auto">
@@ -389,6 +476,64 @@ export default function NoteDetail() {
                 <TooltipContent>Supprimer</TooltipContent>
               </Tooltip>
             </div>
+          </div>
+
+          {/* Project Selector */}
+          <div className="flex items-center gap-2">
+            <Label className="text-sm text-muted-foreground">Projet:</Label>
+            <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={projectSelectorOpen}
+                  className="justify-between min-w-[200px]"
+                  data-testid="button-select-project"
+                >
+                  {currentProject ? currentProject.name : "Sélectionner un projet"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0">
+                <Command>
+                  <CommandInput placeholder="Rechercher un projet..." />
+                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                  <CommandGroup className="max-h-[300px] overflow-y-auto">
+                    {projects.map((project) => (
+                      <CommandItem
+                        key={project.id}
+                        onSelect={() => handleSelectProject(project.id)}
+                        data-testid={`option-project-${project.id}`}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            currentProject?.id === project.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{project.name}</div>
+                          {project.description && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {project.description}
+                            </div>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {currentProject && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUnlinkProject}
+                data-testid="button-unlink-project"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

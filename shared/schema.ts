@@ -565,6 +565,7 @@ export const insertFeatureSchema = createInsertSchema(features).omit({ id: true,
 export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
+export const insertNoteLinkSchema = createInsertSchema(noteLinks);
 
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
@@ -591,6 +592,7 @@ export type InsertFeature = z.infer<typeof insertFeatureSchema>;
 export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
 export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
+export type InsertNoteLink = z.infer<typeof insertNoteLinkSchema>;
 
 // Select types
 export type Account = typeof accounts.$inferSelect;
@@ -617,3 +619,4 @@ export type Feature = typeof features.$inferSelect;
 export type Roadmap = typeof roadmaps.$inferSelect;
 export type RoadmapItem = typeof roadmapItems.$inferSelect;
 export type ClientComment = typeof clientComments.$inferSelect;
+export type NoteLink = typeof noteLinks.$inferSelect;

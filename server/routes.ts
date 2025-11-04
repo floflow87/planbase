@@ -15,6 +15,7 @@ import {
   updateClientCustomFieldValueSchema,
   insertProjectSchema,
   insertNoteSchema,
+  insertNoteLinkSchema,
   insertFolderSchema,
   insertFileSchema,
   insertActivitySchema,
@@ -1230,6 +1231,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const success = await storage.deleteNote(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Note Links
+  app.get("/api/notes/:id/links", requireAuth, async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const links = await storage.getNoteLinksByNoteId(req.params.id);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/notes/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { targetType, targetId } = insertNoteLinkSchema.parse(req.body);
+      
+      // Verify the target entity exists and belongs to the same account
+      if (targetType === "project") {
+        const project = await storage.getProject(targetId);
+        if (!project || project.accountId !== req.accountId) {
+          return res.status(404).json({ error: "Project not found or access denied" });
+        }
+      } else if (targetType === "task") {
+        const task = await storage.getTask(targetId);
+        if (!task || task.accountId !== req.accountId) {
+          return res.status(404).json({ error: "Task not found or access denied" });
+        }
+      } else if (targetType === "client") {
+        const client = await storage.getClient(req.accountId!, targetId);
+        if (!client) {
+          return res.status(404).json({ error: "Client not found or access denied" });
+        }
+      }
+
+      const link = await storage.createNoteLink({
+        noteId: req.params.id,
+        targetType,
+        targetId,
+      });
+      res.json(link);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/notes/:id/links/:targetType/:targetId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (note.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteNoteLink(
+        req.params.id,
+        req.params.targetType,
+        req.params.targetId
+      );
+      
+      if (!success) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -12,6 +12,7 @@ import {
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
+  type NoteLink, type InsertNoteLink,
   type Folder, type InsertFolder,
   type File, type InsertFile,
   type Activity, type InsertActivity,
@@ -21,7 +22,7 @@ import {
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, taskColumns, tasks, notes, folders, files, activities,
+  projects, taskColumns, tasks, notes, noteLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
@@ -112,6 +113,11 @@ export interface IStorage {
   createNote(note: InsertNote): Promise<Note>;
   updateNote(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<boolean>;
+
+  // Note Links
+  getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
+  createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
+  deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
 
   // Folders
   getFolder(id: string): Promise<Folder | undefined>;
@@ -658,6 +664,27 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNote(id: string): Promise<boolean> {
     const result = await db.delete(notes).where(eq(notes.id, id));
+    return result.length > 0;
+  }
+
+  // Note Links
+  async getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]> {
+    return await db.select().from(noteLinks).where(eq(noteLinks.noteId, noteId));
+  }
+
+  async createNoteLink(insertNoteLink: InsertNoteLink): Promise<NoteLink> {
+    const [noteLink] = await db.insert(noteLinks).values(insertNoteLink).returning();
+    return noteLink;
+  }
+
+  async deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean> {
+    const result = await db.delete(noteLinks).where(
+      and(
+        eq(noteLinks.noteId, noteId),
+        eq(noteLinks.targetType, targetType),
+        eq(noteLinks.targetId, targetId)
+      )
+    ).returning();
     return result.length > 0;
   }
 
