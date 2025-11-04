@@ -19,7 +19,7 @@ export default function NoteDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [isEditMode, setIsEditMode] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");

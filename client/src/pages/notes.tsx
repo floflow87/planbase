@@ -1,21 +1,27 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Notes() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
+  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
 
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
@@ -65,11 +71,143 @@ export default function Notes() {
     return variants[status as keyof typeof variants] || variants.active;
   };
 
+  const toggleNoteSelection = (noteId: string) => {
+    const newSelection = new Set(selectedNotes);
+    if (newSelection.has(noteId)) {
+      newSelection.delete(noteId);
+    } else {
+      newSelection.add(noteId);
+    }
+    setSelectedNotes(newSelection);
+  };
+
+  const toggleAllNotes = () => {
+    if (selectedNotes.size === filteredNotes.length) {
+      setSelectedNotes(new Set());
+    } else {
+      setSelectedNotes(new Set(filteredNotes.map(n => n.id)));
+    }
+  };
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      return apiRequest(`/api/notes/${noteId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      toast({
+        title: "Note supprimée",
+        description: "La note a été supprimée avec succès",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer la note",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkPublishMutation = useMutation({
+    mutationFn: async (noteIds: string[]) => {
+      return Promise.all(noteIds.map(id => 
+        apiRequest(`/api/notes/${id}`, "PATCH", { status: "active" })
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      setSelectedNotes(new Set());
+      toast({
+        title: "Notes publiées",
+        description: `${selectedNotes.size} note(s) ont été publiées`,
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de publier les notes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (noteIds: string[]) => {
+      return Promise.all(noteIds.map(id => 
+        apiRequest(`/api/notes/${id}`, "DELETE")
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      setSelectedNotes(new Set());
+      toast({
+        title: "Notes supprimées",
+        description: `${selectedNotes.size} note(s) ont été supprimées`,
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer les notes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteNote = async (noteId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
+      return;
+    }
+    deleteNoteMutation.mutate(noteId);
+  };
+
+  const handleBulkPublish = () => {
+    if (selectedNotes.size === 0) return;
+    if (!confirm(`Publier ${selectedNotes.size} note(s) ?`)) return;
+    bulkPublishMutation.mutate(Array.from(selectedNotes));
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedNotes.size === 0) return;
+    if (!confirm(`Supprimer ${selectedNotes.size} note(s) ?`)) return;
+    bulkDeleteMutation.mutate(Array.from(selectedNotes));
+  };
+
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {selectedNotes.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkPublish}
+                  disabled={bulkPublishMutation.isPending}
+                  data-testid="button-bulk-publish"
+                >
+                  Publier ({selectedNotes.size})
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteMutation.isPending}
+                  data-testid="button-bulk-delete"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer ({selectedNotes.size})
+                </Button>
+              </>
+            )}
+          </div>
           <Link href="/notes/new">
             <Button className="gap-2" data-testid="button-nouvelle-note">
               <Plus className="w-4 h-4" />
@@ -121,12 +259,20 @@ export default function Notes() {
           <div className="border border-border rounded-md overflow-hidden">
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-3">
-              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground">
-                <div className="col-span-4">Titre</div>
+              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground items-center">
+                <div className="col-span-1 flex items-center">
+                  <Checkbox
+                    checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
+                    onCheckedChange={toggleAllNotes}
+                    data-testid="checkbox-select-all"
+                  />
+                </div>
+                <div className="col-span-3">Titre</div>
                 <div className="col-span-2">Statut</div>
                 <div className="col-span-2">Visibilité</div>
                 <div className="col-span-2">Dernière modification</div>
-                <div className="col-span-2">Auteur</div>
+                <div className="col-span-1">Auteur</div>
+                <div className="col-span-1"></div>
               </div>
             </div>
 
@@ -142,16 +288,29 @@ export default function Notes() {
             ) : (
               filteredNotes.map((note) => {
                 const author = getUserById(note.createdBy);
+                const isSelected = selectedNotes.has(note.id);
                 
                 return (
                   <div
                     key={note.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border last:border-b-0 hover-elevate cursor-pointer"
+                    className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border last:border-b-0 hover-elevate items-center"
                     data-testid={`row-note-${note.id}`}
-                    onClick={() => navigate(`/notes/${note.id}`)}
                   >
+                    {/* Checkbox */}
+                    <div className="col-span-1 flex items-center">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleNoteSelection(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid={`checkbox-note-${note.id}`}
+                      />
+                    </div>
+
                     {/* Title */}
-                    <div className="col-span-4 flex flex-col gap-1">
+                    <div 
+                      className="col-span-3 flex flex-col gap-1 cursor-pointer"
+                      onClick={() => navigate(`/notes/${note.id}`)}
+                    >
                       <div className="font-medium text-sm text-foreground truncate">
                         {note.title || "Sans titre"}
                       </div>
@@ -190,7 +349,7 @@ export default function Notes() {
                     </div>
 
                     {/* Author */}
-                    <div className="col-span-2 flex items-center gap-2">
+                    <div className="col-span-1 flex items-center gap-2">
                       {author ? (
                         <>
                           <Avatar className="w-6 h-6">
@@ -199,13 +358,23 @@ export default function Notes() {
                               {author.fullName?.split(' ').map((n: string) => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {author.fullName || 'Utilisateur'}
-                          </span>
                         </>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
+                    </div>
+
+                    {/* Delete Button */}
+                    <div className="col-span-1 flex items-center justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => handleDeleteNote(note.id, e)}
+                        className="h-8 w-8"
+                        data-testid={`button-delete-note-${note.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                 );

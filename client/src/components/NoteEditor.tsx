@@ -26,8 +26,6 @@ import {
   Heading2,
   Heading3,
   Heading4,
-  Heading5,
-  Heading6,
   List,
   ListOrdered,
   CheckSquare,
@@ -410,34 +408,6 @@ export default function NoteEditor({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Titre 4</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 5 }) ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
-                  data-testid="button-h5"
-                >
-                  <Heading5 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 5</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 6 }) ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
-                  data-testid="button-h6"
-                >
-                  <Heading6 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 6</TooltipContent>
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
