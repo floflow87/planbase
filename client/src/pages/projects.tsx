@@ -2360,14 +2360,31 @@ export default function Projects() {
                     </SelectTrigger>
                     <SelectContent className="bg-white">
                       <SelectItem value="all">Tous les statuts</SelectItem>
-                      {taskColumns
-                        .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
-                        .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order)
-                        .map((column: TaskColumn) => (
+                      {(() => {
+                        const filteredColumns = taskColumns
+                          .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
+                          .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order);
+                        
+                        if (selectedProjectId === "all") {
+                          const uniqueNames = new Map<string, TaskColumn>();
+                          filteredColumns.forEach((col: TaskColumn) => {
+                            if (!uniqueNames.has(col.name)) {
+                              uniqueNames.set(col.name, col);
+                            }
+                          });
+                          return Array.from(uniqueNames.values()).map((column: TaskColumn) => (
+                            <SelectItem key={column.id} value={column.id}>
+                              {column.name}
+                            </SelectItem>
+                          ));
+                        }
+                        
+                        return filteredColumns.map((column: TaskColumn) => (
                           <SelectItem key={column.id} value={column.id}>
                             {column.name}
                           </SelectItem>
-                        ))}
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 )}
