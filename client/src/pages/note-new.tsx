@@ -137,6 +137,19 @@ export default function NoteNew() {
     }
   }, [noteId, navigate, queryClient, toast]);
 
+  const handleSaveDraft = useCallback(() => {
+    if (noteId) {
+      updateMutation.mutate({ 
+        id: noteId, 
+        data: { status: "draft" } 
+      });
+      toast({
+        title: "Brouillon enregistré",
+        description: "La note a été enregistrée en brouillon",
+      });
+    }
+  }, [noteId, updateMutation, toast]);
+
   const handlePublish = useCallback(() => {
     setStatus("active");
     if (noteId) {
@@ -201,10 +214,16 @@ export default function NoteNew() {
               <option value="client_ro">Partagée (client)</option>
             </select>
             {status === "draft" && (
-              <Button onClick={handlePublish} data-testid="button-publish">
-                <Save className="w-4 h-4 mr-2" />
-                Publier
-              </Button>
+              <>
+                <Button variant="outline" onClick={handleSaveDraft} data-testid="button-save-draft">
+                  <Save className="w-4 h-4 mr-2" />
+                  Enregistrer
+                </Button>
+                <Button onClick={handlePublish} data-testid="button-publish">
+                  <Save className="w-4 h-4 mr-2" />
+                  Publier
+                </Button>
+              </>
             )}
             <Button variant="destructive" onClick={handleDelete} data-testid="button-delete">
               <Trash2 className="w-4 h-4 mr-2" />
