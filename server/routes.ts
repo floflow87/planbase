@@ -1255,6 +1255,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Note Links
+  app.get("/api/note-links", requireAuth, async (req, res) => {
+    try {
+      const links = await storage.getNoteLinksByAccountId(req.accountId!);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/notes/:id/links", requireAuth, async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);

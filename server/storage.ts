@@ -117,6 +117,7 @@ export interface IStorage {
   // Note Links
   getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
   getNotesByProjectId(projectId: string): Promise<Note[]>;
+  getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]>;
   createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
   deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
 
@@ -691,6 +692,21 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(notes)
       .where(inArray(notes.id, noteIds));
+  }
+
+  async getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]> {
+    const accountNotes = await db
+      .select()
+      .from(notes)
+      .where(eq(notes.accountId, accountId));
+    
+    if (accountNotes.length === 0) return [];
+    
+    const noteIds = accountNotes.map(note => note.id);
+    return await db
+      .select()
+      .from(noteLinks)
+      .where(inArray(noteLinks.noteId, noteIds));
   }
 
   async createNoteLink(insertNoteLink: InsertNoteLink): Promise<NoteLink> {

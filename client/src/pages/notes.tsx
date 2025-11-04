@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, AppUser } from "@shared/schema";
+import type { Note, AppUser, Project, NoteLink } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -42,6 +42,14 @@ export default function Notes() {
 
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: noteLinks = [] } = useQuery<NoteLink[]>({
+    queryKey: ["/api/note-links"],
   });
 
   // Save pageSize to localStorage when it changes
@@ -91,6 +99,14 @@ export default function Notes() {
 
   const getUserById = (userId: string) => {
     return users.find((u) => u.id === userId);
+  };
+
+  const getLinkedProject = (noteId: string) => {
+    const projectLink = noteLinks.find(
+      (link) => link.noteId === noteId && link.targetType === "project"
+    );
+    if (!projectLink) return null;
+    return projects.find((p) => p.id === projectLink.targetId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -385,7 +401,7 @@ export default function Notes() {
                 <div className="col-span-1">Visibilité</div>
                 <div className="col-span-2">Date de création</div>
                 <div className="col-span-2">Dernière modification</div>
-                <div className="col-span-1">Auteur</div>
+                <div className="col-span-1">Projet rattaché</div>
                 <div className="col-span-1"></div>
               </div>
             </div>
@@ -401,7 +417,7 @@ export default function Notes() {
               </div>
             ) : (
               paginatedNotes.map((note) => {
-                const author = getUserById(note.createdBy);
+                const linkedProject = getLinkedProject(note.id);
                 const isSelected = selectedNotes.has(note.id);
                 
                 return (
@@ -476,20 +492,14 @@ export default function Notes() {
                       })}
                     </div>
 
-                    {/* Author */}
+                    {/* Linked Project */}
                     <div className="col-span-1 flex items-center gap-2">
-                      {author ? (
-                        <>
-                          <Avatar className="w-6 h-6">
-                            <AvatarImage src={author.avatarUrl || undefined} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
-                              {author.fullName?.split(' ').map((n: string) => n[0]).join('') || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {author.fullName || author.email}
-                          </span>
-                        </>
+                      {linkedProject ? (
+                        <Link href={`/projects/${linkedProject.id}`} onClick={(e) => e.stopPropagation()}>
+                          <Badge variant="outline" className="text-xs hover-elevate cursor-pointer">
+                            {linkedProject.name}
+                          </Badge>
+                        </Link>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
