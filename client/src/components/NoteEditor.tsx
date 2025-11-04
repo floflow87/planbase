@@ -36,10 +36,21 @@ import {
   Redo,
   Link as LinkIcon,
   Image as ImageIcon,
+  Highlighter,
+  Palette,
+  FolderKanban,
+  Users,
+  ListTodo,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useCallback, useEffect } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 interface NoteEditorProps {
   content: any;
@@ -50,6 +61,28 @@ interface NoteEditorProps {
   title?: string;
 }
 
+// Color palette for text and highlights
+const TEXT_COLORS = [
+  { name: 'Noir', value: '#000000' },
+  { name: 'Gris', value: '#6B7280' },
+  { name: 'Rouge', value: '#EF4444' },
+  { name: 'Orange', value: '#F97316' },
+  { name: 'Jaune', value: '#EAB308' },
+  { name: 'Vert', value: '#10B981' },
+  { name: 'Bleu', value: '#3B82F6' },
+  { name: 'Violet', value: '#8B5CF6' },
+  { name: 'Rose', value: '#EC4899' },
+];
+
+const HIGHLIGHT_COLORS = [
+  { name: 'Jaune', value: '#FEF08A' },
+  { name: 'Vert', value: '#BBF7D0' },
+  { name: 'Bleu', value: '#BFDBFE' },
+  { name: 'Rose', value: '#FBCFE8' },
+  { name: 'Orange', value: '#FED7AA' },
+  { name: 'Violet', value: '#DDD6FE' },
+];
+
 export default function NoteEditor({ 
   content, 
   onChange, 
@@ -58,6 +91,18 @@ export default function NoteEditor({
   onTitleChange,
   title = "",
 }: NoteEditorProps) {
+  // Dialogue states
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  
+  // Entity link states
+  const [entityDialogOpen, setEntityDialogOpen] = useState(false);
+  const [entityType, setEntityType] = useState<'project' | 'task' | 'client' | null>(null);
+  const [entitySearch, setEntitySearch] = useState('');
+  
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -108,6 +153,22 @@ export default function NoteEditor({
     },
   });
 
+  // Fetch entities for linking
+  const { data: projects = [] } = useQuery<any[]>({
+    queryKey: ['/api/projects'],
+    enabled: entityType === 'project',
+  });
+
+  const { data: tasks = [] } = useQuery<any[]>({
+    queryKey: ['/api/tasks'],
+    enabled: entityType === 'task',
+  });
+
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ['/api/clients'],
+    enabled: entityType === 'client',
+  });
+
   useEffect(() => {
     if (editor && content) {
       // Deep compare the content to avoid resetting the editor unnecessarily
@@ -120,33 +181,82 @@ export default function NoteEditor({
     }
   }, [content, editor]);
 
-  const setLink = useCallback(() => {
+  // New dialog-based link handler
+  const openLinkDialog = useCallback(() => {
     if (!editor) return;
-
     const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL', previousUrl);
-
-    if (url === null) {
-      return;
-    }
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to, '');
+    
+    setLinkUrl(previousUrl || '');
+    setLinkText(text);
+    setLinkDialogOpen(true);
   }, [editor]);
 
-  const addImage = useCallback(() => {
+  const handleSetLink = useCallback(() => {
     if (!editor) return;
 
-    const url = window.prompt('URL de l\'image');
-
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+    if (linkUrl === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
     }
+    
+    setLinkDialogOpen(false);
+    setLinkUrl('');
+    setLinkText('');
+  }, [editor, linkUrl]);
+
+  // New dialog-based image handler
+  const openImageDialog = useCallback(() => {
+    if (!editor) return;
+    setImageDialogOpen(true);
   }, [editor]);
+
+  const handleAddImage = useCallback(() => {
+    if (!editor || !imageUrl) return;
+    
+    editor.chain().focus().setImage({ src: imageUrl }).run();
+    setImageDialogOpen(false);
+    setImageUrl('');
+  }, [editor, imageUrl]);
+
+  // Entity linking handlers
+  const openEntityDialog = useCallback((type: 'project' | 'task' | 'client') => {
+    setEntityType(type);
+    setEntitySearch('');
+    setEntityDialogOpen(true);
+  }, []);
+
+  const handleEntityLink = useCallback((entity: any) => {
+    if (!editor || !entityType) return;
+    
+    const entityLabel = entityType === 'project' 
+      ? entity.name 
+      : entityType === 'task' 
+      ? entity.title 
+      : entity.name;
+    
+    const entityUrl = `/${entityType === 'client' ? 'clients' : entityType === 'project' ? 'projects' : 'tasks'}/${entity.id}`;
+    
+    editor.chain().focus().insertContent({
+      type: 'text',
+      marks: [
+        { 
+          type: 'link', 
+          attrs: { 
+            href: entityUrl,
+            class: 'text-primary underline cursor-pointer font-medium',
+          } 
+        }
+      ],
+      text: `🔗 ${entityLabel}`,
+    }).run();
+    
+    setEntityDialogOpen(false);
+    setEntityType(null);
+    setEntitySearch('');
+  }, [editor, entityType]);
 
   if (!editor) {
     return null;
@@ -169,195 +279,585 @@ export default function NoteEditor({
             </div>
           )}
           <div className="border-b border-border p-2 flex items-center gap-1 flex-wrap bg-muted/30">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => editor.chain().focus().undo().run()}
-              disabled={!editor.can().undo()}
-              data-testid="button-undo"
-            >
-              <Undo className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => editor.chain().focus().redo().run()}
-              disabled={!editor.can().redo()}
-              data-testid="button-redo"
-            >
-              <Redo className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => editor.chain().focus().undo().run()}
+                  disabled={!editor.can().undo()}
+                  data-testid="button-undo"
+                >
+                  <Undo className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Annuler</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => editor.chain().focus().redo().run()}
+                  disabled={!editor.can().redo()}
+                  data-testid="button-redo"
+                >
+                  <Redo className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rétablir</TooltipContent>
+            </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Button
-              variant={editor.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              data-testid="button-h1"
-            >
-              <Heading1 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              data-testid="button-h2"
-            >
-              <Heading2 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              data-testid="button-h3"
-            >
-              <Heading3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('heading', { level: 4 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-              data-testid="button-h4"
-            >
-              <Heading4 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('heading', { level: 5 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
-              data-testid="button-h5"
-            >
-              <Heading5 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('heading', { level: 6 }) ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
-              data-testid="button-h6"
-            >
-              <Heading6 className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                  data-testid="button-h1"
+                >
+                  <Heading1 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 1</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                  data-testid="button-h2"
+                >
+                  <Heading2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 2</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                  data-testid="button-h3"
+                >
+                  <Heading3 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 3</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 4 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+                  data-testid="button-h4"
+                >
+                  <Heading4 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 4</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 5 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
+                  data-testid="button-h5"
+                >
+                  <Heading5 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 5</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('heading', { level: 6 }) ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
+                  data-testid="button-h6"
+                >
+                  <Heading6 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Titre 6</TooltipContent>
+            </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Button
-              variant={editor.isActive('bold') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              data-testid="button-bold"
-            >
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('italic') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              data-testid="button-italic"
-            >
-              <Italic className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              data-testid="button-underline"
-            >
-              <UnderlineIcon className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              data-testid="button-strike"
-            >
-              <Strikethrough className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('code') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              data-testid="button-code"
-            >
-              <Code className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              data-testid="button-code-block"
-            >
-              <FileCode2 className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('bold') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  data-testid="button-bold"
+                >
+                  <Bold className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Gras</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('italic') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  data-testid="button-italic"
+                >
+                  <Italic className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Italique</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                  data-testid="button-underline"
+                >
+                  <UnderlineIcon className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Souligner</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleStrike().run()}
+                  data-testid="button-strike"
+                >
+                  <Strikethrough className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Barrer</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('code') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleCode().run()}
+                  data-testid="button-code"
+                >
+                  <Code className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Code inline</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                  data-testid="button-code-block"
+                >
+                  <FileCode2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Bloc de code</TooltipContent>
+            </Tooltip>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="button-text-color"
+                    >
+                      <Palette className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Couleur du texte</TooltipContent>
+                </Tooltip>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
+                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                  {TEXT_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
+                      style={{ backgroundColor: color.value }}
+                      onClick={() => editor.chain().focus().setColor(color.value).run()}
+                      title={color.name}
+                    />
+                  ))}
+                  <button
+                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
+                    onClick={() => editor.chain().focus().unsetColor().run()}
+                    title="Réinitialiser"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={editor.isActive('highlight') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      data-testid="button-highlight"
+                    >
+                      <Highlighter className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Surligner</TooltipContent>
+                </Tooltip>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2">
+                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                  {HIGHLIGHT_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
+                      style={{ backgroundColor: color.value }}
+                      onClick={() => editor.chain().focus().toggleHighlight({ color: color.value }).run()}
+                      title={color.name}
+                    />
+                  ))}
+                  <button
+                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
+                    onClick={() => editor.chain().focus().unsetHighlight().run()}
+                    title="Réinitialiser"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Button
-              variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              data-testid="button-bullet-list"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              data-testid="button-ordered-list"
-            >
-              <ListOrdered className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={editor.isActive('taskList') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleTaskList().run()}
-              data-testid="button-task-list"
-            >
-              <CheckSquare className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  data-testid="button-bullet-list"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Liste à puces</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  data-testid="button-ordered-list"
+                >
+                  <ListOrdered className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Liste numérotée</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('taskList') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleTaskList().run()}
+                  data-testid="button-task-list"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Liste de tâches</TooltipContent>
+            </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Button
-              variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              data-testid="button-blockquote"
-            >
-              <Quote className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => editor.chain().focus().setHorizontalRule().run()}
-              data-testid="button-hr"
-            >
-              <Minus className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                  data-testid="button-blockquote"
+                >
+                  <Quote className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Citation</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                  data-testid="button-hr"
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Séparateur</TooltipContent>
+            </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Button
-              variant={editor.isActive('link') ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={setLink}
-              data-testid="button-link"
-            >
-              <LinkIcon className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={addImage}
-              data-testid="button-image"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={editor.isActive('link') ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={openLinkDialog}
+                  data-testid="button-link"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ajouter un lien</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openImageDialog}
+                  data-testid="button-image"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ajouter une image</TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEntityDialog('project')}
+                  data-testid="button-link-project"
+                >
+                  <FolderKanban className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Lier à un projet</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEntityDialog('task')}
+                  data-testid="button-link-task"
+                >
+                  <ListTodo className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Lier à une tâche</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openEntityDialog('client')}
+                  data-testid="button-link-client"
+                >
+                  <Users className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Lier à un client</TooltipContent>
+            </Tooltip>
           </div>
         </>
       )}
+      
       <EditorContent editor={editor} />
+
+      {/* Link Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent data-testid="dialog-link">
+          <DialogHeader>
+            <DialogTitle>Ajouter un lien</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="link-url">URL</Label>
+              <Input
+                id="link-url"
+                type="url"
+                placeholder="https://example.com"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                data-testid="input-link-url"
+              />
+            </div>
+            {linkText && (
+              <div>
+                <Label>Texte sélectionné</Label>
+                <p className="text-sm text-muted-foreground">{linkText}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)} data-testid="button-cancel-link">
+              Annuler
+            </Button>
+            <Button onClick={handleSetLink} data-testid="button-save-link">
+              {linkUrl ? 'Ajouter' : 'Supprimer le lien'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Dialog */}
+      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+        <DialogContent data-testid="dialog-image">
+          <DialogHeader>
+            <DialogTitle>Ajouter une image</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="image-url">URL de l'image</Label>
+              <Input
+                id="image-url"
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                data-testid="input-image-url"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImageDialogOpen(false)} data-testid="button-cancel-image">
+              Annuler
+            </Button>
+            <Button onClick={handleAddImage} disabled={!imageUrl} data-testid="button-save-image">
+              Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Entity Link Dialog */}
+      <Dialog open={entityDialogOpen} onOpenChange={setEntityDialogOpen}>
+        <DialogContent data-testid="dialog-entity">
+          <DialogHeader>
+            <DialogTitle>
+              Lier à {entityType === 'project' ? 'un projet' : entityType === 'task' ? 'une tâche' : 'un client'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="entity-search">Rechercher</Label>
+              <Input
+                id="entity-search"
+                type="text"
+                placeholder="Tapez pour rechercher..."
+                value={entitySearch}
+                onChange={(e) => setEntitySearch(e.target.value)}
+                data-testid="input-entity-search"
+              />
+            </div>
+            <div className="max-h-[300px] overflow-y-auto space-y-1">
+              {entityType === 'project' && projects
+                .filter((p: any) => 
+                  !entitySearch || 
+                  p.name.toLowerCase().includes(entitySearch.toLowerCase())
+                )
+                .map((project: any) => (
+                  <button
+                    key={project.id}
+                    className="w-full text-left px-3 py-2 rounded hover-elevate active-elevate-2 border border-border"
+                    onClick={() => handleEntityLink(project)}
+                    data-testid={`button-select-project-${project.id}`}
+                  >
+                    <div className="font-medium">{project.name}</div>
+                    {project.description && (
+                      <div className="text-sm text-muted-foreground">{project.description}</div>
+                    )}
+                  </button>
+                ))}
+              {entityType === 'task' && tasks
+                .filter((t: any) => 
+                  !entitySearch || 
+                  t.title.toLowerCase().includes(entitySearch.toLowerCase())
+                )
+                .map((task: any) => (
+                  <button
+                    key={task.id}
+                    className="w-full text-left px-3 py-2 rounded hover-elevate active-elevate-2 border border-border"
+                    onClick={() => handleEntityLink(task)}
+                    data-testid={`button-select-task-${task.id}`}
+                  >
+                    <div className="font-medium">{task.title}</div>
+                    {task.description && (
+                      <div className="text-sm text-muted-foreground">{task.description}</div>
+                    )}
+                  </button>
+                ))}
+              {entityType === 'client' && clients
+                .filter((c: any) => 
+                  !entitySearch || 
+                  c.name.toLowerCase().includes(entitySearch.toLowerCase())
+                )
+                .map((client: any) => (
+                  <button
+                    key={client.id}
+                    className="w-full text-left px-3 py-2 rounded hover-elevate active-elevate-2 border border-border"
+                    onClick={() => handleEntityLink(client)}
+                    data-testid={`button-select-client-${client.id}`}
+                  >
+                    <div className="font-medium">{client.name}</div>
+                    {client.email && (
+                      <div className="text-sm text-muted-foreground">{client.email}</div>
+                    )}
+                  </button>
+                ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEntityDialogOpen(false)} data-testid="button-cancel-entity">
+              Annuler
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
