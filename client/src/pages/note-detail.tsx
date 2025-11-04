@@ -263,147 +263,161 @@ export default function NoteDetail() {
   }
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4 flex-1 min-w-0">
-            <Link href="/notes">
-              <Button variant="ghost" size="icon" data-testid="button-back" className="mt-1">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant="outline" 
-                  className={
-                    status === "draft" 
-                      ? "bg-gray-100 text-gray-700 border-gray-200"
-                      : status === "archived"
-                      ? "bg-orange-50 text-orange-700 border-orange-200"
-                      : "bg-green-50 text-green-700 border-green-200"
-                  }
-                >
-                  {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
-                </Badge>
-                {isSaving ? (
-                  <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
-                ) : lastSaved ? (
-                  <span className="text-xs text-muted-foreground">
-                    Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
-                  </span>
-                )}
+    <div className="h-full flex flex-col">
+      {/* Fixed Header */}
+      <div className="flex-none border-b border-border bg-background">
+        <div className="p-6 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <Link href="/notes">
+                <Button variant="ghost" size="icon" data-testid="button-back" className="mt-1">
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+              </Link>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-foreground truncate mb-2">
+                  {title || "Sans titre"}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      status === "draft" 
+                        ? "bg-gray-100 text-gray-700 border-gray-200"
+                        : status === "archived"
+                        ? "bg-orange-50 text-orange-700 border-orange-200"
+                        : "bg-green-50 text-green-700 border-green-200"
+                    }
+                  >
+                    {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
+                  </Badge>
+                  {isSaving ? (
+                    <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
+                  ) : lastSaved ? (
+                    <span className="text-xs text-muted-foreground">
+                      Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
             {/* Auto Save Toggle */}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="autosave"
-                checked={autoSaveEnabled}
-                onCheckedChange={setAutoSaveEnabled}
-                data-testid="switch-autosave"
-              />
-              <Label htmlFor="autosave" className="text-sm cursor-pointer">
-                Auto save {autoSaveEnabled ? "ON" : "OFF"}
-              </Label>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="autosave"
+                  checked={autoSaveEnabled}
+                  onCheckedChange={setAutoSaveEnabled}
+                  data-testid="switch-autosave"
+                />
+                <Label htmlFor="autosave" className="text-sm cursor-pointer">
+                  Auto save {autoSaveEnabled ? "ON" : "OFF"}
+                </Label>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => setIsEditMode(!isEditMode)}
+                data-testid="button-toggle-edit"
+              >
+                {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                {isEditMode ? "Aperçu" : "Modifier"}
+              </Button>
+              
+              <select
+                value={visibility}
+                onChange={(e) => {
+                  const newVisibility = e.target.value as any;
+                  setVisibility(newVisibility);
+                  updateMutation.mutate({ visibility: newVisibility });
+                }}
+                className="border border-border rounded-md px-3 h-9 text-sm bg-background"
+                data-testid="select-visibility"
+              >
+                <option value="private">Privée</option>
+                <option value="account">Partagée (équipe)</option>
+                <option value="client_ro">Partagée (client)</option>
+              </select>
+              
+              {status === "draft" && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleSaveDraft} 
+                        size="icon"
+                        className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                        data-testid="button-save-draft"
+                      >
+                        <Save className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Enregistrer</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={handlePublish} 
+                        size="icon"
+                        data-testid="button-publish"
+                      >
+                        <Globe className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Publier</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleDeleteClick} 
+                    size="icon"
+                    data-testid="button-delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Supprimer</TooltipContent>
+              </Tooltip>
             </div>
-            
-            <Button
-              variant="outline"
-              onClick={() => setIsEditMode(!isEditMode)}
-              data-testid="button-toggle-edit"
-            >
-              {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-              {isEditMode ? "Aperçu" : "Modifier"}
-            </Button>
-            <select
-              value={visibility}
-              onChange={(e) => {
-                const newVisibility = e.target.value as any;
-                setVisibility(newVisibility);
-                updateMutation.mutate({ visibility: newVisibility });
-              }}
-              className="border border-border rounded-md px-3 h-9 text-sm bg-background"
-              data-testid="select-visibility"
-            >
-              <option value="private">Privée</option>
-              <option value="account">Partagée (équipe)</option>
-              <option value="client_ro">Partagée (client)</option>
-            </select>
-            {status === "draft" && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSaveDraft} 
-                      size="icon"
-                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                      data-testid="button-save-draft"
-                    >
-                      <Save className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Enregistrer</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      onClick={handlePublish} 
-                      size="icon"
-                      data-testid="button-publish"
-                    >
-                      <Globe className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Publier</TooltipContent>
-                </Tooltip>
-              </>
-            )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDeleteClick} 
-                  size="icon"
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Supprimer</TooltipContent>
-            </Tooltip>
           </div>
         </div>
+      </div>
 
-        {/* Editor */}
-        <NoteEditor
-          content={content}
-          onChange={setContent}
-          title={title}
-          onTitleChange={setTitle}
-          editable={isEditMode}
-          placeholder="Commencez à écrire votre note..."
-        />
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-6">
+          {/* Editor */}
+          <NoteEditor
+            content={content}
+            onChange={setContent}
+            title={title}
+            onTitleChange={setTitle}
+            editable={isEditMode}
+            placeholder="Commencez à écrire votre note..."
+          />
 
-        {/* AI Summary */}
-        {note.summary && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2">
-                <Badge variant="secondary" className="text-[10px]">Résumé IA</Badge>
-                <p className="text-sm text-muted-foreground flex-1">{note.summary}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          {/* AI Summary */}
+          {note.summary && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-2">
+                  <Badge variant="secondary" className="text-[10px]">Résumé IA</Badge>
+                  <p className="text-sm text-muted-foreground flex-1">{note.summary}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
