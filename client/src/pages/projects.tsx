@@ -1118,7 +1118,20 @@ function ListView({
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-green-600 hover:text-green-700"
-                                    onClick={() => onUpdateTask(task.id, { status: "done" } as any)}
+                                    onClick={() => {
+                                      // Find the "done" column
+                                      const doneColumn = columns.find(c => 
+                                        c.name.toLowerCase().includes("terminé") || 
+                                        c.name.toLowerCase().includes("done") || 
+                                        c.name.toLowerCase().includes("complété")
+                                      );
+                                      
+                                      // Update status and move to done column if found
+                                      onUpdateTask(task.id, { 
+                                        status: "done",
+                                        ...(doneColumn && { columnId: doneColumn.id })
+                                      } as any);
+                                    }}
                                     data-testid={`button-complete-task-${task.id}`}
                                     title="Marquer comme terminée"
                                   >

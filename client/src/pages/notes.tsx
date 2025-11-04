@@ -502,37 +502,115 @@ export default function Notes() {
                     </div>
 
                     {/* Status */}
-                    <div className="col-span-1 flex items-center">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] ${
-                          note.status === "draft"
-                            ? "bg-gray-50 text-gray-700 border-gray-200"
-                            : note.status === "active"
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-orange-50 text-orange-700 border-orange-200"
-                        }`}
-                        data-testid={`badge-status-${note.id}`}
-                      >
-                        {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Active" : "Archivée"}
-                      </Badge>
+                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] cursor-pointer hover-elevate ${
+                              note.status === "draft"
+                                ? "bg-gray-50 text-gray-700 border-gray-200"
+                                : note.status === "active"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-orange-50 text-orange-700 border-orange-200"
+                            }`}
+                            data-testid={`badge-status-${note.id}`}
+                          >
+                            {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Active" : "Archivée"}
+                          </Badge>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-white dark:bg-background">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { status: "draft" }
+                              });
+                            }}
+                          >
+                            Brouillon
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { status: "active" }
+                              });
+                            }}
+                          >
+                            Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { status: "archived" }
+                              });
+                            }}
+                          >
+                            Archivée
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {/* Visibility */}
-                    <div className="col-span-1 flex items-center">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] ${
-                          note.visibility === "private"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : note.visibility === "account"
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : "bg-cyan-50 text-cyan-700 border-cyan-200"
-                        }`}
-                        data-testid={`badge-visibility-${note.id}`}
-                      >
-                        {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
-                      </Badge>
+                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] cursor-pointer hover-elevate ${
+                              note.visibility === "private"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : note.visibility === "account"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-cyan-50 text-cyan-700 border-cyan-200"
+                            }`}
+                            data-testid={`badge-visibility-${note.id}`}
+                          >
+                            {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
+                          </Badge>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-white dark:bg-background">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { visibility: "private" }
+                              });
+                            }}
+                          >
+                            Privée
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { visibility: "account" }
+                              });
+                            }}
+                          >
+                            Équipe
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ 
+                                noteId: note.id, 
+                                data: { visibility: "client_ro" }
+                              });
+                            }}
+                          >
+                            Client
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {/* Created Date */}
@@ -549,18 +627,56 @@ export default function Notes() {
                     </div>
 
                     {/* Linked Project */}
-                    <div className="col-span-1 flex items-center gap-2">
-                      {linkedProject ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] bg-violet-50 text-violet-700 border-violet-200"
-                          data-testid={`badge-project-${note.id}`}
-                        >
-                          {linkedProject.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">—</span>
-                      )}
+                    <div className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          {linkedProject ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] bg-violet-50 text-violet-700 border-violet-200 cursor-pointer hover-elevate"
+                              data-testid={`badge-project-${note.id}`}
+                            >
+                              {linkedProject.name}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] bg-gray-50 text-gray-600 border-gray-200 cursor-pointer hover-elevate"
+                              data-testid={`badge-project-${note.id}`}
+                            >
+                              Aucun
+                            </Badge>
+                          )}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-white dark:bg-background max-h-[300px] overflow-y-auto">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              linkProjectMutation.mutate({ 
+                                noteId: note.id, 
+                                projectId: null
+                              });
+                            }}
+                          >
+                            Aucun
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {projects.map((project) => (
+                            <DropdownMenuItem
+                              key={project.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                linkProjectMutation.mutate({ 
+                                  noteId: note.id, 
+                                  projectId: project.id
+                                });
+                              }}
+                            >
+                              {project.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {/* Actions Menu */}
