@@ -1150,7 +1150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjectId: note.id,
         kind: "note",
         payload: { description: `Nouvelle note créée: ${note.title || 'Sans titre'}` },
-        createdBy: req.userId!,
+        createdBy: req.userId || undefined,
       });
       
       res.json(note);

@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2 } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser } from "@shared/schema";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Notes() {
@@ -22,6 +24,10 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkPublishDialogOpen, setBulkPublishDialogOpen] = useState(false);
 
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
@@ -158,24 +164,38 @@ export default function Notes() {
     },
   });
 
-  const handleDeleteNote = async (noteId: string, e: React.MouseEvent) => {
+  const handleDeleteNote = (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
-      return;
+    setDeleteNoteId(noteId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteNote = () => {
+    if (deleteNoteId) {
+      deleteNoteMutation.mutate(deleteNoteId);
+      setDeleteDialogOpen(false);
+      setDeleteNoteId(null);
     }
-    deleteNoteMutation.mutate(noteId);
   };
 
   const handleBulkPublish = () => {
     if (selectedNotes.size === 0) return;
-    if (!confirm(`Publier ${selectedNotes.size} note(s) ?`)) return;
+    setBulkPublishDialogOpen(true);
+  };
+
+  const confirmBulkPublish = () => {
     bulkPublishMutation.mutate(Array.from(selectedNotes));
+    setBulkPublishDialogOpen(false);
   };
 
   const handleBulkDelete = () => {
     if (selectedNotes.size === 0) return;
-    if (!confirm(`Supprimer ${selectedNotes.size} note(s) ?`)) return;
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const confirmBulkDelete = () => {
     bulkDeleteMutation.mutate(Array.from(selectedNotes));
+    setBulkDeleteDialogOpen(false);
   };
 
   return (
@@ -185,27 +205,34 @@ export default function Notes() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {selectedNotes.size > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkPublish}
-                  disabled={bulkPublishMutation.isPending}
-                  data-testid="button-bulk-publish"
-                >
-                  Publier ({selectedNotes.size})
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleteMutation.isPending}
-                  data-testid="button-bulk-delete"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Supprimer ({selectedNotes.size})
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-actions">
+                    <MoreVertical className="w-4 h-4 mr-2" />
+                    Actions ({selectedNotes.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onClick={handleBulkPublish}
+                    disabled={bulkPublishMutation.isPending}
+                    data-testid="dropdown-bulk-publish"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Publier
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleteMutation.isPending}
+                    className="text-destructive"
+                    data-testid="dropdown-bulk-delete"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
           <Link href="/notes/new">
@@ -268,8 +295,9 @@ export default function Notes() {
                   />
                 </div>
                 <div className="col-span-3">Titre</div>
-                <div className="col-span-2">Statut</div>
-                <div className="col-span-2">Visibilité</div>
+                <div className="col-span-1">Statut</div>
+                <div className="col-span-1">Visibilité</div>
+                <div className="col-span-2">Date de création</div>
                 <div className="col-span-2">Dernière modification</div>
                 <div className="col-span-1">Auteur</div>
                 <div className="col-span-1"></div>
@@ -323,14 +351,14 @@ export default function Notes() {
                     </div>
 
                     {/* Status */}
-                    <div className="col-span-2 flex items-center">
+                    <div className="col-span-1 flex items-center">
                       <Badge className={getStatusBadge(note.status)} variant="outline">
                         {note.status === "draft" ? "Brouillon" : note.status === "archived" ? "Archivée" : "Active"}
                       </Badge>
                     </div>
 
                     {/* Visibility */}
-                    <div className="col-span-2 flex items-center">
+                    <div className="col-span-1 flex items-center">
                       <Badge variant="secondary" className="text-xs">
                         {note.visibility === "private" 
                           ? "Privée" 
@@ -338,6 +366,11 @@ export default function Notes() {
                           ? "Équipe" 
                           : "Client"}
                       </Badge>
+                    </div>
+
+                    {/* Created Date */}
+                    <div className="col-span-2 flex items-center text-xs text-muted-foreground">
+                      {format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}
                     </div>
 
                     {/* Last Modified */}
@@ -383,6 +416,92 @@ export default function Notes() {
           </div>
         )}
       </div>
+
+      {/* Delete Single Note Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-note">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid="button-cancel-delete"
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteNote}
+              disabled={deleteNoteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Publish Dialog */}
+      <Dialog open={bulkPublishDialogOpen} onOpenChange={setBulkPublishDialogOpen}>
+        <DialogContent data-testid="dialog-bulk-publish">
+          <DialogHeader>
+            <DialogTitle>Publier les notes</DialogTitle>
+            <DialogDescription>
+              Voulez-vous publier {selectedNotes.size} note(s) sélectionnée(s) ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkPublishDialogOpen(false)}
+              data-testid="button-cancel-publish"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={confirmBulkPublish}
+              disabled={bulkPublishMutation.isPending}
+              data-testid="button-confirm-publish"
+            >
+              Publier
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-bulk-delete">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer {selectedNotes.size} note(s) sélectionnée(s) ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDeleteDialogOpen(false)}
+              data-testid="button-cancel-bulk-delete"
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-confirm-bulk-delete"
+            >
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
