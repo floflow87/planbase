@@ -69,8 +69,10 @@ export default function NoteNew() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertNote> }) => {
       return apiRequest(`/api/notes/${id}`, "PATCH", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+    onSuccess: (response, variables) => {
+      // Only invalidate the individual note query during autosave
+      // This prevents unnecessary reloads of the notes list
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", variables.id] });
       setLastSaved(new Date());
       setIsSaving(false);
       setIsManualSaving(false);

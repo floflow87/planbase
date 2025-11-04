@@ -53,7 +53,8 @@ export default function NoteDetail() {
       return apiRequest(`/api/notes/${id}`, "PATCH", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      // Only invalidate the individual note query, not the entire list
+      // This prevents unnecessary reloads of the notes list during autosave
       queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
       setLastSaved(new Date());
       setIsSaving(false);
