@@ -78,7 +78,7 @@ export default function ProjectDetail() {
   const updateProjectMutation = {
     mutate: async ({ data }: { data: Partial<Project> }) => {
       try {
-        await apiRequest("PATCH", `/api/projects/${id}`, data);
+        await apiRequest(`/api/projects/${id}`, "PATCH", data);
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
         toast({
@@ -100,7 +100,7 @@ export default function ProjectDetail() {
   const deleteProjectMutation = {
     mutate: async () => {
       try {
-        await apiRequest("DELETE", `/api/projects/${id}`);
+        await apiRequest(`/api/projects/${id}`, "DELETE");
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         toast({
           title: "Projet supprimé",
@@ -120,7 +120,7 @@ export default function ProjectDetail() {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      return await apiRequest("DELETE", `/api/tasks/${taskId}`);
+      return await apiRequest(`/api/tasks/${taskId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
@@ -136,7 +136,7 @@ export default function ProjectDetail() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }: { taskId: string; data: Partial<Task> }) => {
-      return await apiRequest("PATCH", `/api/tasks/${taskId}`, data);
+      return await apiRequest(`/api/tasks/${taskId}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });

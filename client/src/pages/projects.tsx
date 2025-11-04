@@ -693,7 +693,7 @@ function ListView({
 
       const firstColumn = projectColumns.sort((a, b) => a.order - b.order)[0];
 
-      await apiRequest("PATCH", "/api/tasks/bulk-update-project", {
+      await apiRequest("/api/tasks/bulk-update-project", "PATCH", {
         taskIds: Array.from(selectedTasks),
         projectId: attachProjectId,
         newColumnId: firstColumn.id,
@@ -1619,7 +1619,7 @@ export default function Projects() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
-      const response = await apiRequest("PATCH", `/api/tasks/${id}`, data);
+      const response = await apiRequest(`/api/tasks/${id}`, "PATCH", data);
       return response.json();
     },
     onSuccess: () => {
@@ -1638,7 +1638,7 @@ export default function Projects() {
 
   const duplicateTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      const response = await apiRequest("POST", `/api/tasks/${taskId}/duplicate`, {});
+      const response = await apiRequest(`/api/tasks/${taskId}/duplicate`, "POST", {});
       return response.json();
     },
     onSuccess: () => {
@@ -1657,7 +1657,7 @@ export default function Projects() {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      const response = await apiRequest("DELETE", `/api/tasks/${taskId}`, {});
+      const response = await apiRequest(`/api/tasks/${taskId}`, "DELETE");
       return response.json();
     },
     onSuccess: () => {
@@ -1678,7 +1678,7 @@ export default function Projects() {
 
   const bulkUpdatePositionsMutation = useMutation({
     mutationFn: async (updates: Array<{ id: string; columnId: string; positionInColumn: number }>) => {
-      const response = await apiRequest("PATCH", "/api/tasks/bulk-update-positions", { updates });
+      const response = await apiRequest("/api/tasks/bulk-update-positions", "PATCH", { updates });
       return response.json();
     },
     onSuccess: () => {
@@ -1701,7 +1701,7 @@ export default function Projects() {
 
   const createColumnMutation = useMutation({
     mutationFn: async (data: InsertTaskColumn) => {
-      const response = await apiRequest("POST", "/api/task-columns", data);
+      const response = await apiRequest("/api/task-columns", "POST", data);
       return response.json();
     },
     onSuccess: () => {
@@ -1722,7 +1722,7 @@ export default function Projects() {
 
   const updateColumnMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<TaskColumn> }) => {
-      const response = await apiRequest("PATCH", `/api/task-columns/${id}`, data);
+      const response = await apiRequest(`/api/task-columns/${id}`, "PATCH", data);
       return response.json();
     },
     onSuccess: () => {
@@ -1744,7 +1744,7 @@ export default function Projects() {
 
   const deleteColumnMutation = useMutation({
     mutationFn: async (columnId: string) => {
-      const response = await apiRequest("DELETE", `/api/task-columns/${columnId}`, {});
+      const response = await apiRequest(`/api/task-columns/${columnId}`, "DELETE");
       return response.json();
     },
     onSuccess: () => {
@@ -1768,8 +1768,8 @@ export default function Projects() {
       // Map columnIds to { id, order } format expected by backend
       const columnOrders = columnIds.map((id, index) => ({ id, order: index }));
       const response = await apiRequest(
-        "PATCH",
         `/api/projects/${selectedProjectId}/task-columns/reorder`,
+        "PATCH",
         { columnOrders }
       );
       return response.json();
@@ -1789,7 +1789,7 @@ export default function Projects() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/projects", data);
+      const response = await apiRequest("/api/projects", "POST", data);
       return response.json();
     },
     onSuccess: () => {
@@ -1818,7 +1818,7 @@ export default function Projects() {
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiRequest("PATCH", `/api/projects/${id}`, data);
+      const response = await apiRequest(`/api/projects/${id}`, "PATCH", data);
       return response.json();
     },
     onSuccess: () => {
@@ -1848,7 +1848,7 @@ export default function Projects() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiRequest("DELETE", `/api/projects/${projectId}`, {});
+      const response = await apiRequest(`/api/projects/${projectId}`, "DELETE");
       return response.json();
     },
     onSuccess: () => {

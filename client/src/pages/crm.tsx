@@ -166,7 +166,7 @@ export default function CRM() {
   // Create client mutation
   const createMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      return await apiRequest("POST", "/api/clients", data);
+      return await apiRequest("/api/clients", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -181,7 +181,7 @@ export default function CRM() {
   // Update client mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClient> }) => {
-      return await apiRequest("PATCH", `/api/clients/${id}`, data);
+      return await apiRequest(`/api/clients/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -193,7 +193,7 @@ export default function CRM() {
   // Delete client mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/clients/${id}`);
+      return await apiRequest(`/api/clients/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -204,7 +204,7 @@ export default function CRM() {
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      await Promise.all(ids.map(id => apiRequest("DELETE", `/api/clients/${id}`)));
+      await Promise.all(ids.map(id => apiRequest(`/api/clients/${id}`, "DELETE")));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
@@ -216,7 +216,7 @@ export default function CRM() {
   // Bulk update status mutation
   const bulkUpdateStatusMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
-      await Promise.all(ids.map(id => apiRequest("PATCH", `/api/clients/${id}`, { status })));
+      await Promise.all(ids.map(id => apiRequest(`/api/clients/${id}`, "PATCH", { status })));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });

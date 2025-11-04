@@ -181,7 +181,7 @@ export default function Dashboard() {
   // Update task status mutation
   const updateTaskStatusMutation = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
-      return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+      return await apiRequest(`/api/tasks/${taskId}`, "PATCH", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   const handleTaskSave = async (updates: Partial<Task>) => {
     try {
-      await apiRequest("PATCH", `/api/tasks/${updates.id}`, updates);
+      await apiRequest(`/api/tasks/${updates.id}`, "PATCH", updates);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       if (firstProject?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });
@@ -214,7 +214,7 @@ export default function Dashboard() {
 
   const handleTaskDelete = async (task: Task) => {
     try {
-      await apiRequest("DELETE", `/api/tasks/${task.id}`);
+      await apiRequest(`/api/tasks/${task.id}`, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       if (firstProject?.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });

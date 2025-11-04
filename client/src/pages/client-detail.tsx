@@ -242,7 +242,7 @@ export default function ClientDetail() {
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      return await apiRequest("PATCH", `/api/clients/${id}`, data);
+      return await apiRequest(`/api/clients/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
@@ -257,7 +257,7 @@ export default function ClientDetail() {
 
   const deleteClientMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/clients/${id}`);
+      await apiRequest(`/api/clients/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
@@ -272,7 +272,7 @@ export default function ClientDetail() {
   const createContactMutation = useMutation({
     mutationFn: async (data: any) => {
       const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
-      return await apiRequest("POST", "/api/contacts", { 
+      return await apiRequest("/api/contacts", "POST", { 
         ...data, 
         clientId: id,
         fullName,
@@ -293,7 +293,7 @@ export default function ClientDetail() {
   const updateContactMutation = useMutation({
     mutationFn: async ({ id: contactId, data }: { id: string; data: any }) => {
       const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
-      return await apiRequest("PATCH", `/api/contacts/${contactId}`, { ...data, fullName });
+      return await apiRequest(`/api/contacts/${contactId}`, "PATCH", { ...data, fullName });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -306,7 +306,7 @@ export default function ClientDetail() {
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      await apiRequest("DELETE", `/api/contacts/${contactId}`);
+      await apiRequest(`/api/contacts/${contactId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -411,7 +411,7 @@ export default function ClientDetail() {
 
   const deleteCustomTabMutation = useMutation({
     mutationFn: async (tabId: string) => {
-      return await apiRequest("DELETE", `/api/client-custom-tabs/${tabId}`);
+      return await apiRequest(`/api/client-custom-tabs/${tabId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
@@ -425,7 +425,7 @@ export default function ClientDetail() {
 
   const updateCustomTabMutation = useMutation({
     mutationFn: async (data: { tabId: string; name: string }) => {
-      return await apiRequest("PATCH", `/api/client-custom-tabs/${data.tabId}`, {
+      return await apiRequest(`/api/client-custom-tabs/${data.tabId}`, "PATCH", {
         name: data.name,
       });
     },
@@ -444,7 +444,7 @@ export default function ClientDetail() {
     mutationFn: async (data: { tabId: string; name: string; fieldType: string; options?: string }) => {
       const tabFields = customFields.filter(f => f.tabId === data.tabId);
       const maxOrder = tabFields.length > 0 ? Math.max(...tabFields.map(f => f.order)) : -1;
-      return await apiRequest("POST", "/api/client-custom-fields", {
+      return await apiRequest("/api/client-custom-fields", "POST", {
         tabId: data.tabId,
         name: data.name,
         fieldType: data.fieldType,
@@ -465,7 +465,7 @@ export default function ClientDetail() {
 
   const deleteCustomFieldMutation = useMutation({
     mutationFn: async (fieldId: string) => {
-      return await apiRequest("DELETE", `/api/client-custom-fields/${fieldId}`);
+      return await apiRequest(`/api/client-custom-fields/${fieldId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
@@ -481,7 +481,7 @@ export default function ClientDetail() {
 
   const upsertFieldValueMutation = useMutation<ClientCustomFieldValue, Error, { fieldId: string; value: any }>({
     mutationFn: async (data: { fieldId: string; value: any }) => {
-      const response = await apiRequest("POST", `/api/clients/${id}/field-values`, {
+      const response = await apiRequest(`/api/clients/${id}/field-values`, "POST", {
         fieldId: data.fieldId,
         value: data.value,
       });
@@ -563,7 +563,7 @@ export default function ClientDetail() {
 
   const saveClientInfo = async () => {
     try {
-      await apiRequest("PATCH", `/api/clients/${id}`, clientInfoForm);
+      await apiRequest(`/api/clients/${id}`, "PATCH", clientInfoForm);
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
       setIsEditingClientInfo(false);
@@ -575,7 +575,7 @@ export default function ClientDetail() {
 
   const updateClientStatus = async (newStatus: string) => {
     try {
-      await apiRequest("PATCH", `/api/clients/${id}`, { status: newStatus });
+      await apiRequest(`/api/clients/${id}`, "PATCH", { status: newStatus });
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
       setIsStatusPopoverOpen(false);
