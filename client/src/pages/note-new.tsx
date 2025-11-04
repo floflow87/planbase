@@ -41,9 +41,11 @@ export default function NoteNew() {
   // Create note mutation
   const createMutation = useMutation({
     mutationFn: async (data: Partial<InsertNote>) => {
-      return apiRequest("/api/notes", "POST", data);
+      const response = await apiRequest("/api/notes", "POST", data);
+      return await response.json();
     },
     onSuccess: (data) => {
+      // Set noteIdRef FIRST before updating any state
       noteIdRef.current = data.id;
       setNoteId(data.id);
       isCreatingRef.current = false;
@@ -51,6 +53,9 @@ export default function NoteNew() {
       setLastSaved(new Date());
       setIsSaving(false);
       setIsManualSaving(false);
+      
+      // Redirect to edit mode to prevent duplicate creation
+      navigate(`/notes/${data.id}`);
     },
     onError: (error: any) => {
       isCreatingRef.current = false;
@@ -67,7 +72,8 @@ export default function NoteNew() {
   // Update note mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertNote> }) => {
-      return apiRequest(`/api/notes/${id}`, "PATCH", data);
+      const response = await apiRequest(`/api/notes/${id}`, "PATCH", data);
+      return await response.json();
     },
     onSuccess: (response, variables) => {
       // Only invalidate the individual note query during autosave
