@@ -13,6 +13,7 @@ import CRM from "@/pages/crm";
 import ClientDetail from "@/pages/client-detail";
 import Projects from "@/pages/projects";
 import ProjectDetail from "@/pages/project-detail";
+import Tasks from "@/pages/tasks";
 import Notes from "@/pages/notes";
 import NoteNew from "@/pages/note-new";
 import NoteDetail from "@/pages/note-detail";
@@ -51,6 +52,9 @@ function Router() {
       </Route>
       <Route path="/projects">
         <ProtectedRoute><Projects /></ProtectedRoute>
+      </Route>
+      <Route path="/tasks">
+        <ProtectedRoute><Tasks /></ProtectedRoute>
       </Route>
       <Route path="/notes/new">
         <ProtectedRoute><NoteNew /></ProtectedRoute>
@@ -140,7 +144,8 @@ function AppLayout() {
   const getPageTitle = (path: string) => {
     if (path === "/" || path === "/home") return "Tableau de bord";
     if (path === "/crm") return "CRM";
-    if (path === "/projects" || path.startsWith("/projects/")) return "Projets et tâches";
+    if (path === "/projects" || path.startsWith("/projects/")) return "Projets";
+    if (path === "/tasks") return "Tâches";
     if (path === "/notes/new") return "Nouvelle note";
     if (path.startsWith("/notes/")) return "Note";
     if (path === "/notes") return "Notes";

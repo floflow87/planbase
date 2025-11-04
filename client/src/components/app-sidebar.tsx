@@ -1,4 +1,4 @@
-import { Home, FolderKanban, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Briefcase, Scale, Settings } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Briefcase, Scale, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -26,7 +26,8 @@ export function AppSidebar() {
   ];
 
   const projectsNav = [
-    { title: "Projets et tâches", url: "/projects", icon: FolderKanban },
+    { title: "Projets", url: "/projects", icon: FolderKanban },
+    { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Product", url: "/product", icon: Package },
   ];

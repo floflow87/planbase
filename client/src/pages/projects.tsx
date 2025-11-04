@@ -1472,6 +1472,7 @@ export default function Projects() {
   const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
   const [projectComboboxOpen, setProjectComboboxOpen] = useState(false);
   const [columnComboboxOpen, setColumnComboboxOpen] = useState(false);
+  const [editClientComboboxOpen, setEditClientComboboxOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("rgba(229, 231, 235, 0.4)");
@@ -1614,7 +1615,7 @@ export default function Projects() {
   const createTaskMutation = useMutation({
     mutationFn: async (data: InsertTask & { keepOpen?: boolean }) => {
       const { keepOpen, ...taskData } = data;
-      const response = await apiRequest("POST", "/api/tasks", taskData);
+      const response = await apiRequest("/api/tasks", "POST", taskData);
       return { data: await response.json(), keepOpen };
     },
     onSuccess: (result, variables) => {
@@ -3670,21 +3671,53 @@ export default function Projects() {
             </div>
             <div>
               <Label htmlFor="edit-project-client">Client</Label>
-              <Select
-                value={projectFormData.clientId}
-                onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
-              >
-                <SelectTrigger id="edit-project-client" data-testid="select-edit-project-client">
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id} className="cursor-pointer">
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={editClientComboboxOpen} onOpenChange={setEditClientComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={editClientComboboxOpen}
+                    className="w-full justify-between"
+                    id="edit-project-client"
+                    data-testid="select-edit-project-client"
+                  >
+                    {projectFormData.clientId
+                      ? (() => {
+                          const selectedClient = clients.find((c) => c.id === projectFormData.clientId);
+                          return selectedClient?.company || selectedClient?.name || "Sélectionner un client";
+                        })()
+                      : "Sélectionner un client"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-white" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher une société..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {clients.map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={client.company || client.name || ""}
+                            onSelect={() => {
+                              setProjectFormData({ ...projectFormData, clientId: client.id });
+                              setEditClientComboboxOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                projectFormData.clientId === client.id ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            {client.company || client.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

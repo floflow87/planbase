@@ -382,7 +382,7 @@ export default function Notes() {
             >
               <option value="all">Tous les statuts</option>
               <option value="draft">Brouillons</option>
-              <option value="active">Actives</option>
+              <option value="active">Publiées</option>
               <option value="archived">Archivées</option>
             </select>
           </div>
@@ -516,7 +516,7 @@ export default function Notes() {
                             }`}
                             data-testid={`badge-status-${note.id}`}
                           >
-                            {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Active" : "Archivée"}
+                            {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Publiée" : "Archivée"}
                           </Badge>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-white dark:bg-background">
@@ -540,7 +540,7 @@ export default function Notes() {
                               });
                             }}
                           >
-                            Active
+                            Publiée
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => {
