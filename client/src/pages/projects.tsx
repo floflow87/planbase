@@ -1105,6 +1105,16 @@ function ListView({
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="h-8 w-8 text-green-600 hover:text-green-700"
+                                  onClick={() => onUpdateTask(task.id, { status: "done" } as any)}
+                                  data-testid={`button-complete-task-${task.id}`}
+                                  title="Marquer comme terminée"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-8 w-8"
                                   onClick={() => onEditTask(task)}
                                   data-testid={`button-edit-task-${task.id}`}
