@@ -22,6 +22,7 @@ export default function NoteNew() {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isManualSaving, setIsManualSaving] = useState(false);
 
   // Debounced values for autosave
   const debouncedTitle = useDebounce(title, 1000);
@@ -37,6 +38,7 @@ export default function NoteNew() {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setLastSaved(new Date());
       setIsSaving(false);
+      setIsManualSaving(false);
     },
     onError: (error: any) => {
       toast({
@@ -45,6 +47,7 @@ export default function NoteNew() {
         variant: "destructive",
       });
       setIsSaving(false);
+      setIsManualSaving(false);
     },
   });
 
@@ -57,6 +60,7 @@ export default function NoteNew() {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setLastSaved(new Date());
       setIsSaving(false);
+      setIsManualSaving(false);
     },
     onError: (error: any) => {
       toast({
@@ -65,11 +69,17 @@ export default function NoteNew() {
         variant: "destructive",
       });
       setIsSaving(false);
+      setIsManualSaving(false);
     },
   });
 
   // Autosave effect
   useEffect(() => {
+    // Skip autosave if manual save is in progress
+    if (isManualSaving) {
+      return;
+    }
+
     if (!debouncedTitle && !debouncedContent.content?.length) {
       return;
     }
@@ -108,7 +118,7 @@ export default function NoteNew() {
     } else {
       createMutation.mutate(noteData);
     }
-  }, [debouncedTitle, debouncedContent, status, visibility]);
+  }, [debouncedTitle, debouncedContent, status, visibility, isManualSaving]);
 
   const handleDelete = useCallback(async () => {
     if (!noteId) {
@@ -138,31 +148,113 @@ export default function NoteNew() {
   }, [noteId, navigate, queryClient, toast]);
 
   const handleSaveDraft = useCallback(() => {
+    setIsManualSaving(true);
+    
+    // Extract plain text from content for search
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      
+      const getText = (node: any): string => {
+        if (node.type === "text") {
+          return node.text || "";
+        }
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map(getText).join(" ");
+        }
+        return "";
+      };
+
+      return getText(content);
+    };
+
+    const plainText = extractPlainText(content);
+
     if (noteId) {
+      // Update existing note with all fields including content
       updateMutation.mutate({ 
         id: noteId, 
-        data: { status: "draft" } 
+        data: { 
+          title: title || "Sans titre",
+          content,
+          plainText,
+          status: "draft",
+          visibility,
+        } 
       });
       toast({
         title: "Brouillon enregistré",
         description: "La note a été enregistrée en brouillon",
       });
+    } else {
+      // Create note with draft status
+      createMutation.mutate({
+        title: title || "Sans titre",
+        content,
+        plainText,
+        status: "draft",
+        visibility,
+      });
+      toast({
+        title: "Brouillon enregistré",
+        description: "La note a été créée en brouillon",
+      });
     }
-  }, [noteId, updateMutation, toast]);
+  }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);
 
   const handlePublish = useCallback(() => {
+    setIsManualSaving(true);
     setStatus("active");
+    
+    // Extract plain text from content for search
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      
+      const getText = (node: any): string => {
+        if (node.type === "text") {
+          return node.text || "";
+        }
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map(getText).join(" ");
+        }
+        return "";
+      };
+
+      return getText(content);
+    };
+
+    const plainText = extractPlainText(content);
+
     if (noteId) {
+      // Update existing note with all fields including content
       updateMutation.mutate({ 
         id: noteId, 
-        data: { status: "active" } 
+        data: { 
+          title: title || "Sans titre",
+          content,
+          plainText,
+          status: "active",
+          visibility,
+        } 
       });
       toast({
         title: "Note publiée",
         description: "La note est maintenant active",
       });
+    } else {
+      // Create note with active status
+      createMutation.mutate({
+        title: title || "Sans titre",
+        content,
+        plainText,
+        status: "active",
+        visibility,
+      });
+      toast({
+        title: "Note publiée",
+        description: "La note a été créée et publiée",
+      });
     }
-  }, [noteId, updateMutation, toast]);
+  }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);
 
   return (
     <div className="h-full overflow-auto">

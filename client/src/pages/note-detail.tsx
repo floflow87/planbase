@@ -142,24 +142,75 @@ export default function NoteDetail() {
   }, [id, navigate, queryClient, toast]);
 
   const handleSaveDraft = useCallback(() => {
-    updateMutation.mutate({ status: "draft" });
+    // Extract plain text from content for search
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      
+      const getText = (node: any): string => {
+        if (node.type === "text") {
+          return node.text || "";
+        }
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map(getText).join(" ");
+        }
+        return "";
+      };
+
+      return getText(content);
+    };
+
+    const plainText = extractPlainText(content);
+
+    updateMutation.mutate({ 
+      title: title || "Sans titre",
+      content,
+      plainText,
+      status: "draft",
+      visibility,
+    });
     toast({
       title: "Brouillon enregistré",
       description: "La note a été enregistrée en brouillon",
     });
-  }, [updateMutation, toast]);
+  }, [title, content, visibility, updateMutation, toast]);
 
   const handlePublish = useCallback(() => {
     const newStatus = status === "active" ? "draft" : "active";
     setStatus(newStatus);
-    updateMutation.mutate({ status: newStatus });
+    
+    // Extract plain text from content for search
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      
+      const getText = (node: any): string => {
+        if (node.type === "text") {
+          return node.text || "";
+        }
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map(getText).join(" ");
+        }
+        return "";
+      };
+
+      return getText(content);
+    };
+
+    const plainText = extractPlainText(content);
+
+    updateMutation.mutate({ 
+      title: title || "Sans titre",
+      content,
+      plainText,
+      status: newStatus,
+      visibility,
+    });
     toast({
       title: newStatus === "active" ? "Note publiée" : "Note en brouillon",
       description: newStatus === "active" 
         ? "La note est maintenant active" 
         : "La note est de retour en brouillon",
     });
-  }, [status, updateMutation, toast]);
+  }, [title, content, visibility, status, updateMutation, toast]);
 
   if (isLoading) {
     return (

@@ -20,6 +20,7 @@ import {
   Underline as UnderlineIcon,
   Strikethrough,
   Code,
+  FileCode2,
   Heading1,
   Heading2,
   Heading3,
@@ -279,6 +280,14 @@ export default function NoteEditor({
               data-testid="button-code"
             >
               <Code className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              data-testid="button-code-block"
+            >
+              <FileCode2 className="w-4 h-4" />
             </Button>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
