@@ -23,10 +23,11 @@ import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, InsertNote } from "@shared/schema";
+import type { Note, InsertNote, Project } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,11 +45,17 @@ export default function NoteDetail() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
     queryKey: ["/api/notes", id],
     enabled: !!id,
+  });
+
+  // Fetch projects for project selector
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
   });
 
   // Initialize form with note data ONLY on first load, not during autosave
@@ -77,17 +84,35 @@ export default function NoteDetail() {
       setLastSaved(new Date());
       setIsSaving(false);
       
+      // Show success toast for specific actions (not autosave)
+      if (pendingAction === "project-change") {
+        toast({
+          title: "Projet mis à jour",
+          description: updatedNote.projectId 
+            ? "La note a été associée au projet" 
+            : "La note n'est plus associée à un projet",
+          variant: "success",
+        });
+        setPendingAction(null);
+      }
+      
       // Invalidate both the individual note and the list (for status/visibility changes)
       queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
     onError: (error: any) => {
+      // Show appropriate error message based on pending action
+      const errorMessage = pendingAction === "project-change"
+        ? "Impossible de mettre à jour le projet"
+        : "Impossible de sauvegarder la note";
+      
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de sauvegarder la note",
+        description: error.message || errorMessage,
         variant: "destructive",
       });
       setIsSaving(false);
+      setPendingAction(null);
     },
   });
 
@@ -232,6 +257,13 @@ export default function NoteDetail() {
       variant: "success",
     });
   }, [title, content, visibility, status, updateMutation, toast]);
+
+  const handleProjectChange = useCallback((projectId: string | null) => {
+    setPendingAction("project-change");
+    updateMutation.mutate({ 
+      projectId: projectId === "none" ? null : projectId 
+    });
+  }, [updateMutation]);
 
   if (isLoading) {
     return (
@@ -396,6 +428,33 @@ export default function NoteDetail() {
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto">
         <div className="p-6 space-y-6">
+          {/* Project Selector */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="project-select" className="text-sm font-medium whitespace-nowrap">
+                  Projet associé
+                </Label>
+                <Select
+                  value={note.projectId || "none"}
+                  onValueChange={handleProjectChange}
+                >
+                  <SelectTrigger id="project-select" className="flex-1" data-testid="select-project">
+                    <SelectValue placeholder="Aucun projet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun projet</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Editor */}
           <NoteEditor
             content={content}
