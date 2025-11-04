@@ -177,7 +177,7 @@ export default function NoteNew() {
             </Link>
             <div>
               <h1 className="text-3xl font-heading font-bold text-foreground">
-                Nouvelle note
+                {title || "Nouvelle note"}
               </h1>
               <div className="flex items-center gap-2 mt-2">
                 <Badge 
