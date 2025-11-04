@@ -1,0 +1,219 @@
+Contexte
+Construire dans Planbase un éditeur de notes à blocs avec commandes /, mise en forme riche et liens contextuels (projet, tâche, client), conforme au modèle de données déjà défini (notes, note_links, note_versions, note_files, tags, RLS Supabase). Stack cible : Next.js + Supabase + (TipTap/ProseMirror ou Lexical).
+
+1) Objectif UX
+
+Une page “Nouvelle note” où l’utilisateur peut taper, formater, structurer et relier son contenu en quelques secondes.
+
+UX fluide, slash menu instantané, autosave, et aperçu propre côté lecture.
+
+Compatibilité clavier totale (raccourcis), et partage en lecture seule côté client.
+
+2) Périmètre (MVP+)
+2.1 Blocs pris en charge
+
+Texte/Paragraphe, Titres (H1/H2/H3)
+
+Listes (puces, numérotées), Checklist
+
+Citation, Encadré / Callout (icône + fond)
+
+Séparateur (divider)
+
+Code (inline + block)
+
+Table des matières (générée à partir des Hx)
+
+Image (upload → Supabase Storage, drag & drop, resize)
+
+Lien URL (auto-détection, carte d’aperçu simple si possible)
+
+Table simple (colonnes/lignes basiques)
+
+2.2 Mise en forme inline
+
+Gras, Italique, Souligné, Barré, Code
+
+Lien inline, couleur de surlignage (palette limitée)
+
+Multi-sélection et commandes contextuelles (mini toolbar flottante)
+
+2.3 Commandes / (slash menu)
+
+Quand l’utilisateur tape /, afficher un menu de commandes filtrable avec icônes.
+
+Structure : /h1, /h2, /h3, /divider, /toc (table des matières)
+
+Texte : /paragraphe, /citation, /callout
+
+Listes : /liste, /liste numérotée, /checklist
+
+Code : /code (bloc), /code inline
+
+Média : /image, /lien, /embed (placeholder pour V1+)
+
+Liens Planbase :
+
+/lien projet → ouvre un picker “Projets” (recherche) puis insère un bloc “Référence : Projet X”
+
+/lien tâche → picker “Tâches”
+
+/lien client → picker “Clients”
+
+Modèles : /template meeting, /template cr, /template idea
+
+IA (option V1+) : /résumer, /actions, /insights (appelle endpoints existants)
+
+Chaque insertion “lien Planbase” crée/maintient une entrée dans note_links.
+
+2.4 Liens contextuels (entités)
+
+Bloc de référence compact (icône + titre + type + lien) pour Projet/Tâche/Client.
+
+Backlinks : panneau latéral droit “Référencé par…” si d’autres notes pointent vers celle-ci.
+
+2.5 Gestion des fichiers
+
+Upload d’images (et fichiers simples) vers Supabase Storage.
+
+Associer les fichiers à la note via note_files.
+
+Bouton “Joindre un fichier” (aperçu vignettes pour images).
+
+2.6 Organisation & métadonnées
+
+Titre de la note (inline), tags (multi), statut (draft/active/archived).
+
+Visibilité : private | account | client_ro.
+
+Affichage des liens (client/projet/tâche) dans la sidebar droite.
+
+Versioning : sauvegarde automatique de versions (manuelle via bouton “Créer version”) → note_versions.
+
+3) Comportements essentiels
+
+Autosave (debounce 800–1200 ms) + indicateur “Enregistré”.
+
+Undo/Redo (Ctrl/Cmd+Z / Shift+Cmd+Z).
+
+Coller depuis le presse-papier (texte + basique HTML → blocs).
+
+Drag & drop des blocs (grip visible au hover).
+
+Raccourcis :
+
+# + espace → H1, ## H2, ### H3
+
+- + espace → liste, 1. + espace → liste num, [] → checklist
+
+> + espace → citation, ````` + entrée → code block
+
+Ctrl/Cmd+B/I/U gras/italique/souligné
+
+/ ouvre les commandes
+
+Aperçu lecture (mode read-only) fidèle au rendu d’édition.
+
+4) Recherche & IA (MVP compatible)
+
+Recherche plein texte sur notes.title + notes.plain_text.
+
+Préparer le hook pour embeddings (pgvector) sans blocage du MVP.
+
+Bouton “Résumer” (si IA activée) → remplit notes.summary.
+
+5) Permissions / Partage
+
+Respecter RLS Supabase : une note n’est visible/éditable que si account_id correspond.
+
+Partage client (lecture seule) si visibility='client_ro' ou via note_shares.
+
+État read-only : masquer la barre d’outils, garder la table des matières et les liens actifs.
+
+6) Non-fonctionnel / Qualité
+
+Performances : éditeur réactif pour 20–30k caractères (100+ blocs).
+
+Accessibilité : rôles ARIA, tab nav, contrastes AA.
+
+i18n : FR/EN (clé/valeur).
+
+Logs : événements “note_saved”, “slash_used”, “block_added”, “link_added”.
+
+Tests : snapshot rendu lecture, tests d’édition bloc par bloc.
+
+Sécurité : nettoyage HTML/links, taille max images (compress côté client).
+
+7) API (contract fonctionnel)
+
+GET /api/notes/:id → retourne note (title, content JSON de blocs, tags, summary, visibility, links, files).
+
+PATCH /api/notes/:id → met à jour titre, contenu, tags, meta, visibility (respect RLS).
+
+POST /api/notes → crée note (titre, tags init).
+
+POST /api/notes/:id/version → snapshot → note_versions.
+
+POST /api/notes/:id/links → {target_type, target_id} (maj note_links).
+
+POST /api/notes/:id/files → associe un fichier uploadé → note_files.
+
+POST /api/notes/:id/summary (option IA) → renseigne summary.
+
+GET /api/search?query= → notes (FTS), prévoir extension sémantique.
+
+8) Modèle de données (rappel d’alignement)
+
+Utiliser les tables existantes :
+notes(content jsonb), note_links(note_id, target_type, target_id),
+note_files(note_id, file_id), note_versions, note_shares, tags, note_tags.
+
+Maintenir plain_text (pour FTS) à chaque save (extraction basique depuis les blocs).
+
+RLS : account_id = auth.jwt().account_id; visibilité client client_ro.
+
+9) Templates intégrés (slash)
+
+/template meeting : objectifs, participants, décisions, actions.
+
+/template cr : contexte, faits marquants, risques, next steps.
+
+/template idea : problème, hypothèse, pistes, liens.
+
+10) Critères d’acceptation
+
+Taper texte + titres + listes + checklist + callout + citation + code + divider + images fonctionne sans bug.
+
+/ ouvre le menu, filtrage en temps réel, insertion du bon bloc.
+
+Picker projet/tâche/client opérationnel, crée note_links et rend un bloc de référence.
+
+Autosave + version manuelle OK, restauration depuis note_versions OK.
+
+Upload image → Storage Supabase → rendu responsive avec cap de largeur.
+
+Partage client RO : rendu lecture-only sans outils d’édition.
+
+Recherche plein texte renvoie la note attendue.
+
+RLS vérifiée : un user d’un autre account_id ne voit pas la note.
+
+11) Étapes de livraison (MVP)
+
+Intégrer éditeur à blocs (TipTap/ProseMirror ou Lexical) + toolbar inline.
+
+Slash menu + mapping de toutes les commandes listées.
+
+Sérialisation JSON des blocs → notes.content; extraction → notes.plain_text.
+
+Upload image → Supabase Storage + bloc Image.
+
+Pickers (projet/tâche/client) + note_links + rendu bloc Référence.
+
+Autosave + versioning + restore.
+
+Mode lecture (read-only) + partage client RO.
+
+Recherche FTS (title + plain_text).
+
+QA raccourcis clavier, A11y, perfs, tests essentiels.
