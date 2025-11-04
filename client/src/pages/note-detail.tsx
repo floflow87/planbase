@@ -266,6 +266,7 @@ export default function NoteDetail() {
       toast({
         title: "Projet lié",
         description: "La note a été liée au projet avec succès",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
       });
     },
     onError: (error: any) => {
@@ -494,7 +495,7 @@ export default function NoteDetail() {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0">
+              <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
                 <Command>
                   <CommandInput placeholder="Rechercher un projet..." />
                   <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
