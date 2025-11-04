@@ -102,6 +102,51 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            "--tw-prose-bold": "inherit",
+            color: "inherit",
+            maxWidth: "none",
+            strong: {
+              color: "inherit",
+              fontWeight: "700",
+            },
+            em: {
+              color: "inherit",
+            },
+            code: {
+              color: "inherit",
+            },
+            a: {
+              color: "inherit",
+              textDecoration: "underline",
+              fontWeight: "500",
+            },
+            h1: {
+              color: "inherit",
+            },
+            h2: {
+              color: "inherit",
+            },
+            h3: {
+              color: "inherit",
+            },
+            h4: {
+              color: "inherit",
+            },
+            h5: {
+              color: "inherit",
+            },
+            h6: {
+              color: "inherit",
+            },
+            blockquote: {
+              color: "inherit",
+            },
+          },
+        },
+      },
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],

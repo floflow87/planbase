@@ -105,101 +105,109 @@ export default function Notes() {
           </div>
         </div>
 
-        {/* Notes Grid */}
+        {/* Notes List */}
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="border border-border rounded-md">
             {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-4 bg-muted rounded w-1/4"></div>
-                    <div className="h-6 bg-muted rounded w-3/4"></div>
-                    <div className="h-4 bg-muted rounded w-full"></div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={i} className="border-b border-border last:border-b-0 p-4">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-1/3"></div>
+                  <div className="h-3 bg-muted rounded w-1/4"></div>
+                </div>
+              </div>
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="border border-border rounded-md overflow-hidden">
+            {/* Table Header */}
+            <div className="bg-muted/50 border-b border-border px-4 py-3">
+              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground">
+                <div className="col-span-4">Titre</div>
+                <div className="col-span-2">Statut</div>
+                <div className="col-span-2">Visibilité</div>
+                <div className="col-span-2">Dernière modification</div>
+                <div className="col-span-2">Auteur</div>
+              </div>
+            </div>
+
+            {/* Table Body */}
             {filteredNotes.length === 0 ? (
-              <Card>
-                <CardContent className="py-12">
-                  <div className="text-center text-muted-foreground">
-                    {notes.length === 0 
-                      ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
-                      : "Aucune note ne correspond à votre recherche."}
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="py-12 px-4">
+                <div className="text-center text-muted-foreground">
+                  {notes.length === 0 
+                    ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
+                    : "Aucune note ne correspond à votre recherche."}
+                </div>
+              </div>
             ) : (
               filteredNotes.map((note) => {
                 const author = getUserById(note.createdBy);
-                const preview = note.plainText?.slice(0, 150) || note.summary?.slice(0, 150) || "";
                 
                 return (
-                  <Card 
-                    key={note.id} 
-                    className="hover-elevate cursor-pointer transition-shadow" 
-                    data-testid={`card-note-${note.id}`}
+                  <div
+                    key={note.id}
+                    className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border last:border-b-0 hover-elevate cursor-pointer"
+                    data-testid={`row-note-${note.id}`}
                     onClick={() => navigate(`/notes/${note.id}`)}
                   >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Badge className={getStatusBadge(note.status)} variant="outline">
-                              {note.status === "draft" ? "Brouillon" : note.status === "archived" ? "Archivée" : "Active"}
-                            </Badge>
-                            {note.visibility !== "private" && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {note.visibility === "account" ? "Partagée (équipe)" : "Partagée (client)"}
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div>
-                            <h3 className="font-heading font-semibold text-base text-foreground mb-2">
-                              {note.title || "Sans titre"}
-                            </h3>
-                            {preview && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">
-                                {preview}
-                              </p>
-                            )}
-                            {note.summary && (
-                              <p className="text-xs text-muted-foreground/80 italic mt-2 line-clamp-1">
-                                Résumé IA: {note.summary}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <span>
-                                {formatDistanceToNow(new Date(note.updatedAt), { 
-                                  addSuffix: true, 
-                                  locale: fr 
-                                })}
-                              </span>
-                            </div>
-
-                            {author && (
-                              <div className="flex items-center gap-2">
-                                <Avatar className="w-6 h-6">
-                                  <AvatarImage src={author.avatarUrl || undefined} />
-                                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
-                                    {author.fullName?.split(' ').map((n: string) => n[0]).join('') || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-xs text-muted-foreground">{author.fullName || 'Utilisateur'}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                    {/* Title */}
+                    <div className="col-span-4 flex flex-col gap-1">
+                      <div className="font-medium text-sm text-foreground truncate">
+                        {note.title || "Sans titre"}
                       </div>
-                    </CardContent>
-                  </Card>
+                      {note.summary && (
+                        <div className="text-xs text-muted-foreground italic truncate flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{note.summary}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div className="col-span-2 flex items-center">
+                      <Badge className={getStatusBadge(note.status)} variant="outline">
+                        {note.status === "draft" ? "Brouillon" : note.status === "archived" ? "Archivée" : "Active"}
+                      </Badge>
+                    </div>
+
+                    {/* Visibility */}
+                    <div className="col-span-2 flex items-center">
+                      <Badge variant="secondary" className="text-xs">
+                        {note.visibility === "private" 
+                          ? "Privée" 
+                          : note.visibility === "account" 
+                          ? "Équipe" 
+                          : "Client"}
+                      </Badge>
+                    </div>
+
+                    {/* Last Modified */}
+                    <div className="col-span-2 flex items-center text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(note.updatedAt), { 
+                        addSuffix: true, 
+                        locale: fr 
+                      })}
+                    </div>
+
+                    {/* Author */}
+                    <div className="col-span-2 flex items-center gap-2">
+                      {author ? (
+                        <>
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={author.avatarUrl || undefined} />
+                            <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
+                              {author.fullName?.split(' ').map((n: string) => n[0]).join('') || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {author.fullName || 'Utilisateur'}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
                 );
               })
             )}
