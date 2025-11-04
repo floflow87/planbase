@@ -109,7 +109,6 @@ export interface IStorage {
   // Notes
   getNote(id: string): Promise<Note | undefined>;
   getNotesByAccountId(accountId: string): Promise<Note[]>;
-  getNotesByProjectId(projectId: string): Promise<Note[]>;
   createNote(note: InsertNote): Promise<Note>;
   updateNote(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<boolean>;
@@ -638,10 +637,6 @@ export class DatabaseStorage implements IStorage {
 
   async getNotesByAccountId(accountId: string): Promise<Note[]> {
     return await db.select().from(notes).where(eq(notes.accountId, accountId));
-  }
-
-  async getNotesByProjectId(projectId: string): Promise<Note[]> {
-    return await db.select().from(notes).where(eq(notes.projectId, projectId));
   }
 
   async createNote(insertNote: InsertNote): Promise<Note> {

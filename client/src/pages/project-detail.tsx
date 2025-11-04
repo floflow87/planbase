@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,10 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn } from "@shared/schema";
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -67,11 +66,6 @@ export default function ProjectDetail() {
 
   const { data: columns = [] } = useQuery<TaskColumn[]>({
     queryKey: ['/api/projects', id, 'task-columns'],
-    enabled: !!id,
-  });
-
-  const { data: notes = [], isLoading: notesLoading } = useQuery<Note[]>({
-    queryKey: ['/api/projects', id, 'notes'],
     enabled: !!id,
   });
 
@@ -395,176 +389,111 @@ export default function ProjectDetail() {
           </Card>
         )}
 
-        <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-[400px]" data-testid="tabs-project-content">
-            <TabsTrigger value="tasks" data-testid="tab-tasks">
-              <Users className="h-4 w-4 mr-2" />
-              Tâches
-              <Badge variant="secondary" className="ml-2" data-testid="tasks-count">
-                {projectTasks.length}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Tâches associées
+              </CardTitle>
+              <Badge variant="secondary" data-testid="tasks-count">
+                {projectTasks.length} tâche{projectTasks.length !== 1 ? 's' : ''}
               </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="notes" data-testid="tab-notes">
-              <FileText className="h-4 w-4 mr-2" />
-              Notes
-              <Badge variant="secondary" className="ml-2" data-testid="notes-count">
-                {notes.length}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tasks" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Tâches associées
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {projectTasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Aucune tâche associée à ce projet.
-                  </div>
-                ) : (
-                  <Accordion type="multiple" defaultValue={columns.map(c => c.id)} className="space-y-2">
-                    {columns.map((column) => {
-                      const columnTasks = tasksByStatus[column.id] || [];
-                      if (columnTasks.length === 0) return null;
-                      
-                      return (
-                        <AccordionItem key={column.id} value={column.id} className="border rounded-md">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: column.color }}
-                              />
-                              <h3 className="text-sm font-semibold">{column.name}</h3>
-                              <Badge variant="outline">{columnTasks.length}</Badge>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3">
-                            <div className="space-y-2">
-                              {columnTasks.map((task) => {
-                                const assignedUser = users.find(u => u.id === task.assignedToId);
-                                
-                                return (
-                                  <div 
-                                    key={task.id}
-                                    className="p-3 border rounded-md hover-elevate cursor-pointer"
-                                    onClick={() => {
-                                      setSelectedTask(task);
-                                      setIsTaskDetailDialogOpen(true);
-                                    }}
-                                    data-testid={`task-${task.id}`}
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex-1">
-                                        <h4 
-                                          className="text-sm font-medium mb-1"
-                                          data-testid={`title-task-${task.id}`}
-                                        >
-                                          {task.title}
-                                        </h4>
-                                        {task.description && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {task.description}
-                                          </p>
-                                        )}
-                                        {task.dueDate && (
-                                          <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
-                                            <CalendarIcon className="h-3 w-3" />
-                                            {format(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        {assignedUser && (
-                                          <Avatar className="h-8 w-8">
-                                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                              {assignedUser.firstName?.[0]}{assignedUser.lastName?.[0]}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                        )}
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-8 w-8"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteTaskId(task.id);
-                                            setIsDeleteTaskDialogOpen(true);
-                                          }}
-                                          data-testid={`button-delete-task-${task.id}`}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="notes" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Notes associées
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {notesLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Chargement des notes...
-                  </div>
-                ) : notes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Aucune note associée à ce projet.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {notes.map((note) => (
-                      <Link key={note.id} href={`/notes/${note.id}`}>
-                        <div 
-                          className="p-4 border rounded-md hover-elevate cursor-pointer"
-                          data-testid={`note-${note.id}`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <h4 
-                                className="text-sm font-medium mb-1"
-                                data-testid={`title-note-${note.id}`}
-                              >
-                                {note.title}
-                              </h4>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>
-                                  Modifiée le {format(new Date(note.updatedAt || note.createdAt), "dd MMM yyyy à HH:mm", { locale: fr })}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {projectTasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune tâche associée à ce projet.
+              </div>
+            ) : (
+              <Accordion type="multiple" defaultValue={columns.map(c => c.id)} className="space-y-2">
+                {columns.map((column) => {
+                  const columnTasks = tasksByStatus[column.id] || [];
+                  if (columnTasks.length === 0) return null;
+                  
+                  return (
+                    <AccordionItem key={column.id} value={column.id} className="border rounded-md">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: column.color }}
+                          />
+                          <h3 className="text-sm font-semibold">{column.name}</h3>
+                          <Badge variant="outline">{columnTasks.length}</Badge>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-3">
+                        <div className="space-y-2">
+                          {columnTasks.map((task) => {
+                            const assignedUser = users.find(u => u.id === task.assignedToId);
+                            
+                            return (
+                              <div 
+                                key={task.id}
+                                className="p-3 border rounded-md hover-elevate cursor-pointer"
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setIsTaskDetailDialogOpen(true);
+                                }}
+                                data-testid={`task-${task.id}`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <h4 
+                                      className="text-sm font-medium mb-1"
+                                      data-testid={`title-task-${task.id}`}
+                                    >
+                                      {task.title}
+                                    </h4>
+                                    {task.description && (
+                                      <p className="text-xs text-muted-foreground line-clamp-2">
+                                        {task.description}
+                                      </p>
+                                    )}
+                                    {task.dueDate && (
+                                      <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
+                                        <CalendarIcon className="h-3 w-3" />
+                                        {format(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {assignedUser && (
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                          {assignedUser.firstName?.[0]}{assignedUser.lastName?.[0]}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteTaskId(task.id);
+                                        setIsDeleteTaskDialogOpen(true);
+                                      }}
+                                      data-testid={`button-delete-task-${task.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
