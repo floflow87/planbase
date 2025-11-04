@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
@@ -135,6 +136,23 @@ export default function Notes() {
       setSelectedNotes(new Set(filteredNotes.map(n => n.id)));
     }
   };
+
+  const updateNoteMutation = useMutation({
+    mutationFn: async ({ noteId, data }: { noteId: string; data: Partial<Note> }) => {
+      return apiRequest(`/api/notes/${noteId}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/note-links"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour la note",
+        variant: "destructive",
+      });
+    },
+  });
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
@@ -266,6 +284,37 @@ export default function Notes() {
     bulkDeleteMutation.mutate(Array.from(selectedNotes));
     setBulkDeleteDialogOpen(false);
   };
+
+  const linkProjectMutation = useMutation({
+    mutationFn: async ({ noteId, projectId }: { noteId: string; projectId: string | null }) => {
+      if (projectId === null) {
+        // Remove existing link
+        const existingLink = noteLinks.find(
+          (link) => link.noteId === noteId && link.targetType === "project"
+        );
+        if (existingLink) {
+          return apiRequest(`/api/notes/${noteId}/links/${existingLink.id}`, "DELETE");
+        }
+      } else {
+        // Create or update link
+        return apiRequest(`/api/notes/${noteId}/links`, "POST", {
+          targetType: "project",
+          targetId: projectId,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/note-links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de lier le projet",
+        variant: "destructive",
+      });
+    },
+  });
 
   const createNoteMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -453,30 +502,49 @@ export default function Notes() {
                     </div>
 
                     {/* Status */}
-                    <div className="col-span-1 flex items-center">
-                      <Badge className={getStatusBadge(note.status)} variant="outline">
-                        {note.status === "draft" ? "Brouillon" : note.status === "archived" ? "Archivée" : "Active"}
-                      </Badge>
+                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={note.status}
+                        onValueChange={(value) => updateNoteMutation.mutate({ 
+                          noteId: note.id, 
+                          data: { status: value as "draft" | "active" | "archived" }
+                        })}
+                      >
+                        <SelectTrigger 
+                          className="h-7 text-xs bg-white dark:bg-background border-border"
+                          data-testid={`select-status-${note.id}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-background">
+                          <SelectItem value="draft">Brouillon</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="archived">Archivée</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Visibility */}
-                    <div className="col-span-1 flex items-center">
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${
-                          note.visibility === "private" 
-                            ? "bg-yellow-50 text-yellow-700 border-yellow-200" 
-                            : note.visibility === "account" 
-                            ? "bg-cyan-50 text-cyan-700 border-cyan-200" 
-                            : "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}
+                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={note.visibility}
+                        onValueChange={(value) => updateNoteMutation.mutate({ 
+                          noteId: note.id, 
+                          data: { visibility: value as "private" | "account" | "client_ro" }
+                        })}
                       >
-                        {note.visibility === "private" 
-                          ? "Privée" 
-                          : note.visibility === "account" 
-                          ? "Équipe" 
-                          : "Client"}
-                      </Badge>
+                        <SelectTrigger 
+                          className="h-7 text-xs bg-white dark:bg-background border-border"
+                          data-testid={`select-visibility-${note.id}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-background">
+                          <SelectItem value="private">Privée</SelectItem>
+                          <SelectItem value="account">Équipe</SelectItem>
+                          <SelectItem value="client_ro">Client</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Created Date */}
@@ -493,16 +561,29 @@ export default function Notes() {
                     </div>
 
                     {/* Linked Project */}
-                    <div className="col-span-1 flex items-center gap-2">
-                      {linkedProject ? (
-                        <Link href={`/projects/${linkedProject.id}`} onClick={(e) => e.stopPropagation()}>
-                          <Badge variant="outline" className="text-xs hover-elevate cursor-pointer">
-                            {linkedProject.name}
-                          </Badge>
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                    <div className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={linkedProject?.id || "none"}
+                        onValueChange={(value) => linkProjectMutation.mutate({ 
+                          noteId: note.id, 
+                          projectId: value === "none" ? null : value
+                        })}
+                      >
+                        <SelectTrigger 
+                          className="h-7 text-xs bg-white dark:bg-background border-border"
+                          data-testid={`select-project-${note.id}`}
+                        >
+                          <SelectValue placeholder="Aucun" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-background">
+                          <SelectItem value="none">Aucun</SelectItem>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Actions Menu */}
@@ -518,7 +599,18 @@ export default function Notes() {
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="bg-white dark:bg-background">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateNoteMutation.mutate({ noteId: note.id, data: { status: "active" } });
+                            }}
+                            data-testid={`dropdown-publish-note-${note.id}`}
+                          >
+                            <Globe className="w-4 h-4 mr-2" />
+                            Publier
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
