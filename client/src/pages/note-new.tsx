@@ -1,67 +1,60 @@
 import { useState, useCallback, useEffect } from "react";
-import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import NoteEditor from "@/components/NoteEditor";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, InsertNote } from "@shared/schema";
+import type { InsertNote } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
 
-export default function NoteDetail() {
-  const { id } = useParams<{ id: string }>();
+export default function NoteNew() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [isEditMode, setIsEditMode] = useState(true);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
+  const [noteId, setNoteId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-
-  // Fetch note
-  const { data: note, isLoading } = useQuery<Note>({
-    queryKey: ["/api/notes", id],
-    queryFn: async () => {
-      const response = await fetch(`/api/notes/${id}`);
-      if (!response.ok) {
-        throw new Error("Note not found");
-      }
-      return response.json();
-    },
-    enabled: !!id,
-  });
-
-  // Initialize form with note data
-  useEffect(() => {
-    if (note) {
-      setTitle(note.title || "");
-      setContent(note.content || { type: 'doc', content: [] });
-      setStatus(note.status as any);
-      setVisibility(note.visibility as any);
-    }
-  }, [note]);
 
   // Debounced values for autosave
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedContent = useDebounce(content, 1000);
 
+  // Create note mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: Partial<InsertNote>) => {
+      return apiRequest("/api/notes", "POST", data);
+    },
+    onSuccess: (data) => {
+      setNoteId(data.id);
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      setLastSaved(new Date());
+      setIsSaving(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer la note",
+        variant: "destructive",
+      });
+      setIsSaving(false);
+    },
+  });
+
   // Update note mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: Partial<InsertNote>) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertNote> }) => {
       return apiRequest(`/api/notes/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
       setLastSaved(new Date());
       setIsSaving(false);
     },
@@ -77,15 +70,7 @@ export default function NoteDetail() {
 
   // Autosave effect
   useEffect(() => {
-    if (!note || !isEditMode) return;
-    
-    // Check if anything changed
-    const titleChanged = debouncedTitle !== note.title;
-    const contentChanged = JSON.stringify(debouncedContent) !== JSON.stringify(note.content);
-    const statusChanged = status !== note.status;
-    const visibilityChanged = visibility !== note.visibility;
-    
-    if (!titleChanged && !contentChanged && !statusChanged && !visibilityChanged) {
+    if (!debouncedTitle && !debouncedContent.content?.length) {
       return;
     }
 
@@ -110,22 +95,33 @@ export default function NoteDetail() {
 
     const plainText = extractPlainText(debouncedContent);
 
-    updateMutation.mutate({
+    const noteData = {
       title: debouncedTitle || "Sans titre",
       content: debouncedContent,
       plainText,
       status,
       visibility,
-    });
-  }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode]);
+    };
+
+    if (noteId) {
+      updateMutation.mutate({ id: noteId, data: noteData });
+    } else {
+      createMutation.mutate(noteData);
+    }
+  }, [debouncedTitle, debouncedContent, status, visibility]);
 
   const handleDelete = useCallback(async () => {
+    if (!noteId) {
+      navigate("/notes");
+      return;
+    }
+
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
       return;
     }
 
     try {
-      await apiRequest(`/api/notes/${id}`, "DELETE");
+      await apiRequest(`/api/notes/${noteId}`, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Note supprimée",
@@ -139,48 +135,21 @@ export default function NoteDetail() {
         variant: "destructive",
       });
     }
-  }, [id, navigate, queryClient, toast]);
+  }, [noteId, navigate, queryClient, toast]);
 
   const handlePublish = useCallback(() => {
-    const newStatus = status === "active" ? "draft" : "active";
-    setStatus(newStatus);
-    updateMutation.mutate({ status: newStatus });
-    toast({
-      title: newStatus === "active" ? "Note publiée" : "Note en brouillon",
-      description: newStatus === "active" 
-        ? "La note est maintenant active" 
-        : "La note est de retour en brouillon",
-    });
-  }, [status, updateMutation, toast]);
-
-  if (isLoading) {
-    return (
-      <div className="h-full overflow-auto">
-        <div className="p-6 space-y-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="h-64 bg-muted rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!note) {
-    return (
-      <div className="h-full overflow-auto">
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center text-muted-foreground">
-                Note introuvable
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+    setStatus("active");
+    if (noteId) {
+      updateMutation.mutate({ 
+        id: noteId, 
+        data: { status: "active" } 
+      });
+      toast({
+        title: "Note publiée",
+        description: "La note est maintenant active",
+      });
+    }
+  }, [noteId, updateMutation, toast]);
 
   return (
     <div className="h-full overflow-auto">
@@ -194,6 +163,9 @@ export default function NoteDetail() {
               </Button>
             </Link>
             <div>
+              <h1 className="text-3xl font-heading font-bold text-foreground">
+                Nouvelle note
+              </h1>
               <div className="flex items-center gap-2 mt-2">
                 <Badge 
                   variant="outline" 
@@ -211,32 +183,16 @@ export default function NoteDetail() {
                   <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
                 ) : lastSaved ? (
                   <span className="text-xs text-muted-foreground">
-                    Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
+                    Sauvegardé à {lastSaved.toLocaleTimeString()}
                   </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
-                  </span>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditMode(!isEditMode)}
-              data-testid="button-toggle-edit"
-            >
-              {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-              {isEditMode ? "Aperçu" : "Modifier"}
-            </Button>
             <select
               value={visibility}
-              onChange={(e) => {
-                const newVisibility = e.target.value as any;
-                setVisibility(newVisibility);
-                updateMutation.mutate({ visibility: newVisibility });
-              }}
+              onChange={(e) => setVisibility(e.target.value as any)}
               className="border border-border rounded-md px-3 h-9 text-sm bg-background"
               data-testid="select-visibility"
             >
@@ -263,21 +219,8 @@ export default function NoteDetail() {
           onChange={setContent}
           title={title}
           onTitleChange={setTitle}
-          editable={isEditMode}
           placeholder="Commencez à écrire votre note..."
         />
-
-        {/* AI Summary */}
-        {note.summary && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-2">
-                <Badge variant="secondary" className="text-[10px]">Résumé IA</Badge>
-                <p className="text-sm text-muted-foreground flex-1">{note.summary}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
