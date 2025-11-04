@@ -30,13 +30,6 @@ export default function NoteDetail() {
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
     queryKey: ["/api/notes", id],
-    queryFn: async () => {
-      const response = await fetch(`/api/notes/${id}`);
-      if (!response.ok) {
-        throw new Error("Note not found");
-      }
-      return response.json();
-    },
     enabled: !!id,
   });
 

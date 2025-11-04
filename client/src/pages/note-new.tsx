@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,16 @@ export default function NoteNew() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isManualSaving, setIsManualSaving] = useState(false);
 
+  // Stable ref for noteId to avoid autosave race conditions
+  const noteIdRef = useRef<string | null>(null);
+  const isCreatingRef = useRef(false);
+
+  // Reset noteId ref on component mount
+  useEffect(() => {
+    noteIdRef.current = null;
+    isCreatingRef.current = false;
+  }, []);
+
   // Debounced values for autosave
   const debouncedTitle = useDebounce(title, 1000);
   const debouncedContent = useDebounce(content, 1000);
@@ -34,13 +44,16 @@ export default function NoteNew() {
       return apiRequest("/api/notes", "POST", data);
     },
     onSuccess: (data) => {
+      noteIdRef.current = data.id;
       setNoteId(data.id);
+      isCreatingRef.current = false;
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setLastSaved(new Date());
       setIsSaving(false);
       setIsManualSaving(false);
     },
     onError: (error: any) => {
+      isCreatingRef.current = false;
       toast({
         title: "Erreur",
         description: error.message || "Impossible de créer la note",
@@ -80,6 +93,11 @@ export default function NoteNew() {
       return;
     }
 
+    // Skip if a mutation is already in progress
+    if (createMutation.isPending || updateMutation.isPending || isCreatingRef.current) {
+      return;
+    }
+
     if (!debouncedTitle && !debouncedContent.content?.length) {
       return;
     }
@@ -113,9 +131,10 @@ export default function NoteNew() {
       visibility,
     };
 
-    if (noteId) {
-      updateMutation.mutate({ id: noteId, data: noteData });
+    if (noteIdRef.current) {
+      updateMutation.mutate({ id: noteIdRef.current, data: noteData });
     } else {
+      isCreatingRef.current = true;
       createMutation.mutate(noteData);
     }
   }, [debouncedTitle, debouncedContent, status, visibility, isManualSaving]);
@@ -132,6 +151,8 @@ export default function NoteNew() {
 
     try {
       await apiRequest(`/api/notes/${noteId}`, "DELETE");
+      noteIdRef.current = null;
+      setNoteId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Note supprimée",
@@ -149,6 +170,11 @@ export default function NoteNew() {
   }, [noteId, navigate, queryClient, toast]);
 
   const handleSaveDraft = useCallback(() => {
+    // Block if a creation is in progress
+    if (isCreatingRef.current || createMutation.isPending) {
+      return;
+    }
+
     setIsManualSaving(true);
     
     // Extract plain text from content for search
@@ -170,10 +196,10 @@ export default function NoteNew() {
 
     const plainText = extractPlainText(content);
 
-    if (noteId) {
+    if (noteIdRef.current) {
       // Update existing note with all fields including content
       updateMutation.mutate({ 
-        id: noteId, 
+        id: noteIdRef.current, 
         data: { 
           title: title || "Sans titre",
           content,
@@ -189,6 +215,7 @@ export default function NoteNew() {
       });
     } else {
       // Create note with draft status
+      isCreatingRef.current = true;
       createMutation.mutate({
         title: title || "Sans titre",
         content,
@@ -202,9 +229,14 @@ export default function NoteNew() {
         variant: "success",
       });
     }
-  }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);
+  }, [title, content, visibility, updateMutation, createMutation, toast]);
 
   const handlePublish = useCallback(() => {
+    // Block if a creation is in progress
+    if (isCreatingRef.current || createMutation.isPending) {
+      return;
+    }
+
     setIsManualSaving(true);
     setStatus("active");
     
@@ -227,10 +259,10 @@ export default function NoteNew() {
 
     const plainText = extractPlainText(content);
 
-    if (noteId) {
+    if (noteIdRef.current) {
       // Update existing note with all fields including content
       updateMutation.mutate({ 
-        id: noteId, 
+        id: noteIdRef.current, 
         data: { 
           title: title || "Sans titre",
           content,
@@ -246,6 +278,7 @@ export default function NoteNew() {
       });
     } else {
       // Create note with active status
+      isCreatingRef.current = true;
       createMutation.mutate({
         title: title || "Sans titre",
         content,
@@ -259,7 +292,7 @@ export default function NoteNew() {
         variant: "success",
       });
     }
-  }, [noteId, title, content, visibility, updateMutation, createMutation, toast]);
+  }, [title, content, visibility, updateMutation, createMutation, toast]);
 
   return (
     <div className="h-full overflow-auto">
