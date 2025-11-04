@@ -13,7 +13,7 @@ import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
-import { Image } from '@tiptap/extension-image';
+import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { 
   Bold, 
   Italic, 
@@ -140,8 +140,8 @@ export default function NoteEditor({
           class: 'text-primary underline cursor-pointer',
         },
       }),
-      Image.configure({
-        inline: true,
+      ResizableImageExtension.configure({
+        inline: false,
         allowBase64: true,
       }),
     ],
