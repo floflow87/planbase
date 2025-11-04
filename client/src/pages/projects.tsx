@@ -1102,16 +1102,29 @@ function ListView({
                           return (
                             <TableCell key={columnId}>
                               <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-green-600 hover:text-green-700"
-                                  onClick={() => onUpdateTask(task.id, { status: "done" } as any)}
-                                  data-testid={`button-complete-task-${task.id}`}
-                                  title="Marquer comme terminée"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
+                                {task.status === "done" ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground cursor-default"
+                                    disabled
+                                    data-testid={`button-complete-task-${task.id}`}
+                                    title="Terminée"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-green-600 hover:text-green-700"
+                                    onClick={() => onUpdateTask(task.id, { status: "done" } as any)}
+                                    data-testid={`button-complete-task-${task.id}`}
+                                    title="Marquer comme terminée"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"

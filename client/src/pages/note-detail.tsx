@@ -541,7 +541,7 @@ export default function NoteDetail() {
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto">
-        <div className="p-6 space-y-6">
+        <div className="p-6">
           {/* Editor */}
           <NoteEditor
             content={content}
@@ -551,9 +551,11 @@ export default function NoteDetail() {
             editable={isEditMode}
             placeholder="Commencez à écrire votre note..."
           />
+        </div>
 
-          {/* AI Summary */}
-          {note.summary && (
+        {/* AI Summary */}
+        {note.summary && (
+          <div className="px-6 pb-6">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-start gap-2">
@@ -562,8 +564,8 @@ export default function NoteDetail() {
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

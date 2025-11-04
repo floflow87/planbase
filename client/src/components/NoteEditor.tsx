@@ -306,7 +306,7 @@ export default function NoteEditor({
   }
 
   return (
-    <div className="border border-border rounded-md overflow-hidden bg-background">
+    <div className="border border-border rounded-md bg-background">
       {editable && (
         <>
           {onTitleChange && (
@@ -321,7 +321,7 @@ export default function NoteEditor({
               />
             </div>
           )}
-          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-background shadow-sm">
+          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-background shadow-sm overflow-x-auto">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

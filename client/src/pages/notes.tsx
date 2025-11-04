@@ -436,8 +436,8 @@ export default function Notes() {
         ) : (
           <div className="border border-border rounded-md overflow-hidden">
             {/* Table Header */}
-            <div className="bg-muted/50 border-b border-border px-4 py-3">
-              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground items-center">
+            <div className="bg-muted/50 border-b border-border px-4 py-2.5">
+              <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-muted-foreground items-center">
                 <div className="col-span-1 flex items-center">
                   <Checkbox
                     checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
@@ -472,7 +472,7 @@ export default function Notes() {
                 return (
                   <div
                     key={note.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border last:border-b-0 hover-elevate items-center"
+                    className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate items-center"
                     data-testid={`row-note-${note.id}`}
                   >
                     {/* Checkbox */}
@@ -490,11 +490,11 @@ export default function Notes() {
                       className="col-span-3 flex flex-col gap-1 cursor-pointer"
                       onClick={() => navigate(`/notes/${note.id}`)}
                     >
-                      <div className="font-medium text-sm text-foreground truncate">
+                      <div className="font-medium text-[11px] text-foreground truncate">
                         {note.title || "Sans titre"}
                       </div>
                       {note.summary && (
-                        <div className="text-xs text-muted-foreground italic truncate flex items-center gap-1">
+                        <div className="text-[10px] text-muted-foreground italic truncate flex items-center gap-1">
                           <Sparkles className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate">{note.summary}</span>
                         </div>
@@ -502,58 +502,46 @@ export default function Notes() {
                     </div>
 
                     {/* Status */}
-                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={note.status}
-                        onValueChange={(value) => updateNoteMutation.mutate({ 
-                          noteId: note.id, 
-                          data: { status: value as "draft" | "active" | "archived" }
-                        })}
+                    <div className="col-span-1 flex items-center">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${
+                          note.status === "draft"
+                            ? "bg-gray-50 text-gray-700 border-gray-200"
+                            : note.status === "active"
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-orange-50 text-orange-700 border-orange-200"
+                        }`}
+                        data-testid={`badge-status-${note.id}`}
                       >
-                        <SelectTrigger 
-                          className="h-7 text-xs bg-white dark:bg-background border-border"
-                          data-testid={`select-status-${note.id}`}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-background">
-                          <SelectItem value="draft">Brouillon</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="archived">Archivée</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Active" : "Archivée"}
+                      </Badge>
                     </div>
 
                     {/* Visibility */}
-                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={note.visibility}
-                        onValueChange={(value) => updateNoteMutation.mutate({ 
-                          noteId: note.id, 
-                          data: { visibility: value as "private" | "account" | "client_ro" }
-                        })}
+                    <div className="col-span-1 flex items-center">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${
+                          note.visibility === "private"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : note.visibility === "account"
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-cyan-50 text-cyan-700 border-cyan-200"
+                        }`}
+                        data-testid={`badge-visibility-${note.id}`}
                       >
-                        <SelectTrigger 
-                          className="h-7 text-xs bg-white dark:bg-background border-border"
-                          data-testid={`select-visibility-${note.id}`}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-background">
-                          <SelectItem value="private">Privée</SelectItem>
-                          <SelectItem value="account">Équipe</SelectItem>
-                          <SelectItem value="client_ro">Client</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
+                      </Badge>
                     </div>
 
                     {/* Created Date */}
-                    <div className="col-span-2 flex items-center text-xs text-muted-foreground">
+                    <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}
                     </div>
 
                     {/* Last Modified */}
-                    <div className="col-span-2 flex items-center text-xs text-muted-foreground">
+                    <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {formatDistanceToNow(new Date(note.updatedAt), { 
                         addSuffix: true, 
                         locale: fr 
@@ -561,29 +549,18 @@ export default function Notes() {
                     </div>
 
                     {/* Linked Project */}
-                    <div className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={linkedProject?.id || "none"}
-                        onValueChange={(value) => linkProjectMutation.mutate({ 
-                          noteId: note.id, 
-                          projectId: value === "none" ? null : value
-                        })}
-                      >
-                        <SelectTrigger 
-                          className="h-7 text-xs bg-white dark:bg-background border-border"
-                          data-testid={`select-project-${note.id}`}
+                    <div className="col-span-1 flex items-center gap-2">
+                      {linkedProject ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-violet-50 text-violet-700 border-violet-200"
+                          data-testid={`badge-project-${note.id}`}
                         >
-                          <SelectValue placeholder="Aucun" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-background">
-                          <SelectItem value="none">Aucun</SelectItem>
-                          {projects.map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          {linkedProject.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
                     </div>
 
                     {/* Actions Menu */}
