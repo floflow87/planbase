@@ -321,7 +321,7 @@ export default function NoteEditor({
               />
             </div>
           )}
-          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-muted/30">
+          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-background shadow-sm">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -816,7 +816,9 @@ export default function NoteEditor({
         data-testid="input-file-upload"
       />
       
-      <EditorContent editor={editor} />
+      <div className="bg-white dark:bg-background">
+        <EditorContent editor={editor} />
+      </div>
 
       {/* Link Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
