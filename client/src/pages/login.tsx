@@ -35,7 +35,7 @@ export default function Login() {
           // Wait a bit to ensure Supabase session is established
           await new Promise(resolve => setTimeout(resolve, 500));
           
-          const response = await apiRequest("GET", "/api/me");
+          const response = await apiRequest("/api/me", "GET");
           const userData = await response.json();
           localStorage.setItem("demo_account_id", userData.accountId);
           localStorage.setItem("demo_user_id", userData.id);
