@@ -1,11 +1,24 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,6 +43,7 @@ export default function NoteDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
@@ -121,11 +135,11 @@ export default function NoteDetail() {
     });
   }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode, autoSaveEnabled]);
 
-  const handleDelete = useCallback(async () => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
-      return;
-    }
+  const handleDeleteClick = useCallback(() => {
+    setDeleteDialogOpen(true);
+  }, []);
 
+  const handleDeleteConfirm = useCallback(async () => {
     try {
       await apiRequest(`/api/notes/${id}`, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
@@ -141,6 +155,8 @@ export default function NoteDetail() {
         description: error.message || "Impossible de supprimer la note",
         variant: "destructive",
       });
+    } finally {
+      setDeleteDialogOpen(false);
     }
   }, [id, navigate, queryClient, toast]);
 
@@ -250,15 +266,15 @@ export default function NoteDetail() {
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4 flex-1 min-w-0">
             <Link href="/notes">
-              <Button variant="ghost" size="icon" data-testid="button-back">
+              <Button variant="ghost" size="icon" data-testid="button-back" className="mt-1">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div>
-              <div className="flex items-center gap-2 mt-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
                 <Badge 
                   variant="outline" 
                   className={
@@ -323,20 +339,47 @@ export default function NoteDetail() {
             </select>
             {status === "draft" && (
               <>
-                <Button variant="outline" onClick={handleSaveDraft} data-testid="button-save-draft">
-                  <Save className="w-4 h-4 mr-2" />
-                  Enregistrer
-                </Button>
-                <Button onClick={handlePublish} data-testid="button-publish">
-                  <Save className="w-4 h-4 mr-2" />
-                  Publier
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSaveDraft} 
+                      size="icon"
+                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                      data-testid="button-save-draft"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Enregistrer</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handlePublish} 
+                      size="icon"
+                      data-testid="button-publish"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Publier</TooltipContent>
+                </Tooltip>
               </>
             )}
-            <Button variant="destructive" onClick={handleDelete} data-testid="button-delete">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteClick} 
+                  size="icon"
+                  data-testid="button-delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Supprimer</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -362,6 +405,34 @@ export default function NoteDetail() {
           </Card>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-note">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid="button-cancel-delete"
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              data-testid="button-confirm-delete"
+            >
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

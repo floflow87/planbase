@@ -321,7 +321,7 @@ export default function NoteEditor({
               />
             </div>
           )}
-          <div className="border-b border-border p-2 flex items-center gap-px flex-wrap bg-muted/30">
+          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-muted/30">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

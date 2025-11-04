@@ -1142,6 +1142,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.userId || req.body.createdBy,
       });
       const note = await storage.createNote(data);
+
+      // Create activity for note creation
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "note",
+        subjectId: note.id,
+        kind: "note",
+        payload: { description: `Nouvelle note créée: ${note.title || "Sans titre"}` },
+        createdBy: req.userId || null,
+      });
+
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1175,6 +1186,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const note = await storage.updateNote(req.params.id, req.body);
       res.json(note);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/notes/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getNote(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Create a duplicate with "(copie 1)" suffix
+      const data = insertNoteSchema.parse({
+        title: `${existing.title} (copie 1)`,
+        content: existing.content,
+        plainText: existing.plainText,
+        status: "draft", // Always create as draft
+        visibility: existing.visibility,
+        accountId: req.accountId!,
+        createdBy: req.userId!,
+      });
+
+      const duplicatedNote = await storage.createNote(data);
+      res.json(duplicatedNote);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

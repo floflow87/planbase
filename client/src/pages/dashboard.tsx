@@ -83,6 +83,7 @@ const translateActivityDescription = (description: string) => {
     "Contact created:": "Contact créé :",
     "Contact updated:": "Contact mis à jour :",
     "Contact deleted:": "Contact supprimé :",
+    "Nouvelle note créée:": "Nouvelle note créée :",
   };
   
   // Try to translate known patterns

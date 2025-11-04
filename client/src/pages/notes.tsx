@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2 } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
@@ -28,6 +28,13 @@ export default function Notes() {
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkPublishDialogOpen, setBulkPublishDialogOpen] = useState(false);
+  const [quickAddNoteTitle, setQuickAddNoteTitle] = useState("");
+  const [isQuickAddingNote, setIsQuickAddingNote] = useState(false);
+  const [pageSize, setPageSize] = useState(() => {
+    const saved = localStorage.getItem('noteListPageSize');
+    return saved ? parseInt(saved) : 20;
+  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
@@ -36,6 +43,16 @@ export default function Notes() {
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
   });
+
+  // Save pageSize to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('noteListPageSize', pageSize.toString());
+  }, [pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
 
   // Filter and search notes
   const filteredNotes = useMemo(() => {
@@ -63,6 +80,14 @@ export default function Notes() {
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }, [notes, searchQuery, statusFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredNotes.length / pageSize);
+  const paginatedNotes = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    return filteredNotes.slice(startIdx, endIdx);
+  }, [filteredNotes, currentPage, pageSize]);
 
   const getUserById = (userId: string) => {
     return users.find((u) => u.id === userId);
@@ -116,6 +141,29 @@ export default function Notes() {
     },
   });
 
+  const duplicateNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      const response = await apiRequest(`/api/notes/${noteId}/duplicate`, "POST");
+      return await response.json();
+    },
+    onSuccess: (duplicatedNote) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      toast({
+        title: "Note dupliquée",
+        description: "La note a été dupliquée avec succès",
+        variant: "success",
+      });
+      navigate(`/notes/${duplicatedNote.id}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de dupliquer la note",
+        variant: "destructive",
+      });
+    },
+  });
+
   const bulkPublishMutation = useMutation({
     mutationFn: async (noteIds: string[]) => {
       return Promise.all(noteIds.map(id => 
@@ -164,10 +212,15 @@ export default function Notes() {
     },
   });
 
-  const handleDeleteNote = (noteId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteNote = (noteId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setDeleteNoteId(noteId);
     setDeleteDialogOpen(true);
+  };
+
+  const handleDuplicateNote = (noteId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    duplicateNoteMutation.mutate(noteId);
   };
 
   const confirmDeleteNote = () => {
@@ -197,6 +250,38 @@ export default function Notes() {
     bulkDeleteMutation.mutate(Array.from(selectedNotes));
     setBulkDeleteDialogOpen(false);
   };
+
+  const createNoteMutation = useMutation({
+    mutationFn: async (title: string) => {
+      const response = await apiRequest("/api/notes", "POST", {
+        title,
+        content: { type: 'doc', content: [] },
+        plainText: "",
+        status: "draft",
+        visibility: "private",
+      });
+      return await response.json();
+    },
+    onSuccess: (newNote) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      setQuickAddNoteTitle("");
+      setIsQuickAddingNote(false);
+      toast({
+        title: "Note créée",
+        description: "La note a été créée avec succès",
+        variant: "success",
+      });
+      navigate(`/notes/${newNote.id}`);
+    },
+    onError: (error: any) => {
+      setIsQuickAddingNote(false);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer la note",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="h-full overflow-auto">
@@ -315,7 +400,7 @@ export default function Notes() {
                 </div>
               </div>
             ) : (
-              filteredNotes.map((note) => {
+              paginatedNotes.map((note) => {
                 const author = getUserById(note.createdBy);
                 const isSelected = selectedNotes.has(note.id);
                 
@@ -401,28 +486,129 @@ export default function Notes() {
                               {author.fullName?.split(' ').map((n: string) => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {author.fullName || author.email}
+                          </span>
                         </>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
 
-                    {/* Delete Button */}
+                    {/* Actions Menu */}
                     <div className="col-span-1 flex items-center justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => handleDeleteNote(note.id, e)}
-                        className="h-8 w-8"
-                        data-testid={`button-delete-note-${note.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            data-testid={`button-actions-note-${note.id}`}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDuplicateNote(note.id);
+                            }}
+                            data-testid={`dropdown-duplicate-note-${note.id}`}
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Dupliquer
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNote(note.id);
+                            }}
+                            className="text-destructive"
+                            data-testid={`dropdown-delete-note-${note.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 );
               })
             )}
+
+            {/* Quick add note row */}
+            {filteredNotes.length > 0 && (
+              <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border items-center bg-muted/20">
+                <div className="col-span-1"></div>
+                <div className="col-span-11 flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Créer une nouvelle note..."
+                    value={quickAddNoteTitle}
+                    onChange={(e) => setQuickAddNoteTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && quickAddNoteTitle.trim()) {
+                        setIsQuickAddingNote(true);
+                        createNoteMutation.mutate(quickAddNoteTitle.trim());
+                      } else if (e.key === "Escape") {
+                        setQuickAddNoteTitle("");
+                      }
+                    }}
+                    disabled={isQuickAddingNote}
+                    className="border-0 focus-visible:ring-0 text-sm h-8"
+                    data-testid="input-quick-add-note"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {filteredNotes.length > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {filteredNotes.length} note{filteredNotes.length > 1 ? 's' : ''}
+              </span>
+              <select
+                className="border border-border rounded-md px-2 h-8 text-sm bg-background"
+                value={pageSize}
+                onChange={(e) => setPageSize(parseInt(e.target.value))}
+                data-testid="select-page-size"
+              >
+                <option value="10">10 par page</option>
+                <option value="20">20 par page</option>
+                <option value="50">50 par page</option>
+                <option value="100">100 par page</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                data-testid="button-previous-page"
+              >
+                Précédent
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} sur {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="button-next-page"
+              >
+                Suivant
+              </Button>
+            </div>
           </div>
         )}
       </div>
