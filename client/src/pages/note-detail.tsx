@@ -19,7 +19,8 @@ export default function NoteDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [isEditMode, setIsEditMode] = useState(false);
+  // Start in edit mode by default (notes created from /notes/new should be editable immediately)
+  const [isEditMode, setIsEditMode] = useState(true);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
@@ -33,9 +34,10 @@ export default function NoteDetail() {
     enabled: !!id,
   });
 
-  // Initialize form with note data
+  // Initialize form with note data ONLY on first load, not during autosave
   useEffect(() => {
-    if (note) {
+    if (note && !title && !content.content?.length) {
+      // Only initialize if form is empty (first load)
       setTitle(note.title || "");
       setContent(note.content || { type: 'doc', content: [] });
       setStatus(note.status as any);
@@ -50,14 +52,17 @@ export default function NoteDetail() {
   // Update note mutation
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<InsertNote>) => {
-      return apiRequest(`/api/notes/${id}`, "PATCH", data);
+      const response = await apiRequest(`/api/notes/${id}`, "PATCH", data);
+      return await response.json();
     },
-    onSuccess: () => {
-      // Only invalidate the individual note query, not the entire list
-      // This prevents unnecessary reloads of the notes list during autosave
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    onSuccess: (updatedNote) => {
+      // Update local state to match server response to avoid UI flicker
       setLastSaved(new Date());
       setIsSaving(false);
+      
+      // Invalidate both the individual note and the list (for status/visibility changes)
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
     onError: (error: any) => {
       toast({

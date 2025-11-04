@@ -359,7 +359,16 @@ export default function Notes() {
 
                     {/* Visibility */}
                     <div className="col-span-1 flex items-center">
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          note.visibility === "private" 
+                            ? "bg-yellow-50 text-yellow-700 border-yellow-200" 
+                            : note.visibility === "account" 
+                            ? "bg-cyan-50 text-cyan-700 border-cyan-200" 
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}
+                      >
                         {note.visibility === "private" 
                           ? "Privée" 
                           : note.visibility === "account" 
