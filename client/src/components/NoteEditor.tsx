@@ -41,6 +41,8 @@ import {
   FolderKanban,
   Users,
   ListTodo,
+  Smile,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -49,8 +51,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { supabase } from '@/lib/supabase';
 
 interface NoteEditorProps {
   content: any;
@@ -93,10 +97,10 @@ export default function NoteEditor({
 }: NoteEditorProps) {
   // Dialogue states
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [linkText, setLinkText] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Entity link states
   const [entityDialogOpen, setEntityDialogOpen] = useState(false);
@@ -113,7 +117,6 @@ export default function NoteEditor({
       Placeholder.configure({
         placeholder,
       }),
-      Underline,
       Typography,
       TaskList,
       TaskItem.configure({
@@ -130,6 +133,7 @@ export default function NoteEditor({
       }),
       TextStyle,
       Color,
+      Underline,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -207,19 +211,47 @@ export default function NoteEditor({
     setLinkText('');
   }, [editor, linkUrl]);
 
-  // New dialog-based image handler
-  const openImageDialog = useCallback(() => {
-    if (!editor) return;
-    setImageDialogOpen(true);
+  // Image upload handler
+  const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !editor) return;
+
+    setUploading(true);
+    try {
+      // Upload to Supabase Storage
+      const fileName = `${Date.now()}-${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('note-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('note-images')
+        .getPublicUrl(fileName);
+
+      // Insert image into editor
+      editor.chain().focus().setImage({ src: publicUrl }).run();
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      alert('Échec de l\'upload de l\'image: ' + error.message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   }, [editor]);
 
-  const handleAddImage = useCallback(() => {
-    if (!editor || !imageUrl) return;
-    
-    editor.chain().focus().setImage({ src: imageUrl }).run();
-    setImageDialogOpen(false);
-    setImageUrl('');
-  }, [editor, imageUrl]);
+  // Emoji picker handler
+  const handleEmojiClick = useCallback((emojiData: EmojiClickData) => {
+    if (!editor) return;
+    editor.chain().focus().insertContent(emojiData.emoji).run();
+  }, [editor]);
 
   // Entity linking handlers
   const openEntityDialog = useCallback((type: 'project' | 'task' | 'client') => {
@@ -283,7 +315,7 @@ export default function NoteEditor({
               />
             </div>
           )}
-          <div className="border-b border-border p-2 flex items-center gap-1 flex-wrap bg-muted/30">
+          <div className="border-b border-border p-2 flex items-center gap-0.5 flex-wrap bg-muted/30">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -659,14 +691,35 @@ export default function NoteEditor({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={openImageDialog}
-                  data-testid="button-image"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  data-testid="button-upload-image"
                 >
-                  <ImageIcon className="w-4 h-4" />
+                  {uploading ? <Upload className="w-4 h-4 animate-pulse" /> : <Upload className="w-4 h-4" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Ajouter une image</TooltipContent>
+              <TooltipContent>{uploading ? 'Upload en cours...' : 'Upload image'}</TooltipContent>
             </Tooltip>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="button-emoji"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Ajouter un emoji</TooltipContent>
+                </Tooltip>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <EmojiPicker onEmojiClick={handleEmojiClick} />
+              </PopoverContent>
+            </Popover>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -715,6 +768,16 @@ export default function NoteEditor({
         </>
       )}
       
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+        data-testid="input-file-upload"
+      />
+      
       <EditorContent editor={editor} />
 
       {/* Link Dialog */}
@@ -748,36 +811,6 @@ export default function NoteEditor({
             </Button>
             <Button onClick={handleSetLink} data-testid="button-save-link">
               {linkUrl ? 'Ajouter' : 'Supprimer le lien'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Image Dialog */}
-      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-        <DialogContent data-testid="dialog-image">
-          <DialogHeader>
-            <DialogTitle>Ajouter une image</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="image-url">URL de l'image</Label>
-              <Input
-                id="image-url"
-                type="url"
-                placeholder="https://example.com/image.jpg"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                data-testid="input-image-url"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImageDialogOpen(false)} data-testid="button-cancel-image">
-              Annuler
-            </Button>
-            <Button onClick={handleAddImage} disabled={!imageUrl} data-testid="button-save-image">
-              Ajouter
             </Button>
           </DialogFooter>
         </DialogContent>
