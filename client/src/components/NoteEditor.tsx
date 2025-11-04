@@ -23,6 +23,9 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
   List,
   ListOrdered,
   CheckSquare,
@@ -58,7 +61,7 @@ export default function NoteEditor({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3],
+          levels: [1, 2, 3, 4, 5, 6],
         },
       }),
       Placeholder.configure({
@@ -209,6 +212,30 @@ export default function NoteEditor({
               data-testid="button-h3"
             >
               <Heading3 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={editor.isActive('heading', { level: 4 }) ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+              data-testid="button-h4"
+            >
+              <Heading4 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={editor.isActive('heading', { level: 5 }) ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
+              data-testid="button-h5"
+            >
+              <Heading5 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={editor.isActive('heading', { level: 6 }) ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
+              data-testid="button-h6"
+            >
+              <Heading6 className="w-4 h-4" />
             </Button>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
