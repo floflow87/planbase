@@ -237,7 +237,12 @@ export default function NoteEditor({
       ? entity.title 
       : entity.name;
     
-    const entityUrl = `/${entityType === 'client' ? 'clients' : entityType === 'project' ? 'projects' : 'tasks'}/${entity.id}`;
+    // Correct URL routing based on actual routes in App.tsx
+    const entityUrl = entityType === 'client' 
+      ? `/crm/${entity.id}`
+      : entityType === 'project'
+      ? `/projects/${entity.id}`
+      : `/projects/${entity.projectId || entity.id}`; // Tasks link to their parent project
     
     editor.chain().focus().insertContent({
       type: 'text',
@@ -250,7 +255,7 @@ export default function NoteEditor({
           } 
         }
       ],
-      text: `🔗 ${entityLabel}`,
+      text: entityLabel,
     }).run();
     
     setEntityDialogOpen(false);
@@ -498,19 +503,21 @@ export default function NoteEditor({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2">
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {TEXT_COLORS.map((color) => (
+                  {TEXT_COLORS.map((color, index) => (
                     <button
                       key={color.value}
                       className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
                       style={{ backgroundColor: color.value }}
                       onClick={() => editor.chain().focus().setColor(color.value).run()}
                       title={color.name}
+                      data-testid={`button-text-color-${index}`}
                     />
                   ))}
                   <button
                     className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
                     onClick={() => editor.chain().focus().unsetColor().run()}
                     title="Réinitialiser"
+                    data-testid="button-text-color-reset"
                   >
                     ✕
                   </button>
@@ -535,19 +542,21 @@ export default function NoteEditor({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-2">
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {HIGHLIGHT_COLORS.map((color) => (
+                  {HIGHLIGHT_COLORS.map((color, index) => (
                     <button
                       key={color.value}
                       className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
                       style={{ backgroundColor: color.value }}
                       onClick={() => editor.chain().focus().toggleHighlight({ color: color.value }).run()}
                       title={color.name}
+                      data-testid={`button-highlight-color-${index}`}
                     />
                   ))}
                   <button
                     className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
                     onClick={() => editor.chain().focus().unsetHighlight().run()}
                     title="Réinitialiser"
+                    data-testid="button-highlight-reset"
                   >
                     ✕
                   </button>
