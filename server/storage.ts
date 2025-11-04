@@ -26,7 +26,7 @@ import {
   deals, products, features, roadmaps, roadmapItems,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, isNull, inArray } from "drizzle-orm";
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -116,6 +116,7 @@ export interface IStorage {
 
   // Note Links
   getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
+  getNotesByProjectId(projectId: string): Promise<Note[]>;
   createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
   deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
 
@@ -670,6 +671,26 @@ export class DatabaseStorage implements IStorage {
   // Note Links
   async getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]> {
     return await db.select().from(noteLinks).where(eq(noteLinks.noteId, noteId));
+  }
+
+  async getNotesByProjectId(projectId: string): Promise<Note[]> {
+    const links = await db
+      .select()
+      .from(noteLinks)
+      .where(
+        and(
+          eq(noteLinks.targetType, "project"),
+          eq(noteLinks.targetId, projectId)
+        )
+      );
+    
+    if (links.length === 0) return [];
+    
+    const noteIds = links.map(link => link.noteId);
+    return await db
+      .select()
+      .from(notes)
+      .where(inArray(notes.id, noteIds));
   }
 
   async createNoteLink(insertNoteLink: InsertNoteLink): Promise<NoteLink> {
