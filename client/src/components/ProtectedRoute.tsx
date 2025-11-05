@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader } from "@/components/Loader";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,10 +21,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement...</p>
-        </div>
+        <Loader size="lg" />
       </div>
     );
   }
@@ -34,10 +31,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-violet-600 mx-auto mb-4" />
-          <p className="text-gray-600">Redirection...</p>
-        </div>
+        <Loader size="lg" text="Redirection..." />
       </div>
     );
   }

@@ -18,6 +18,7 @@ import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, T
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { Loader } from "@/components/Loader";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
 const getStageColor = (stage: string) => {
@@ -297,7 +298,7 @@ export default function Dashboard() {
   if (!accountId || projectsLoading || clientsLoading || activitiesLoading || tasksLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }

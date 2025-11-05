@@ -95,6 +95,7 @@ import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
+import { Loader } from "@/components/Loader";
 
 // Helper function to derive task status from column name
 function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
@@ -2313,7 +2314,7 @@ export default function Projects() {
   if (projectsLoading || columnsLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }

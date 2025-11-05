@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader } from "@/components/Loader";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -232,7 +233,7 @@ export default function ProjectDetail() {
   if (projectLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }

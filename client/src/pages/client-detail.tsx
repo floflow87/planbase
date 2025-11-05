@@ -24,6 +24,7 @@ import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader } from "@/components/Loader";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -588,7 +589,7 @@ export default function ClientDetail() {
   if (clientLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }

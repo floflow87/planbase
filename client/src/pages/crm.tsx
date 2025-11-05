@@ -19,6 +19,7 @@ import { insertClientSchema, type InsertClient, type Client, type Contact, type 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader } from "@/components/Loader";
 import {
   DndContext,
   closestCenter,
@@ -484,7 +485,7 @@ export default function CRM() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }
