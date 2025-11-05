@@ -6,7 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Monitor } from "lucide-react";
+
+async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  return false;
+}
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -32,8 +44,12 @@ export default function Login() {
       } else {
         // Fetch user data to get accountId
         try {
-          // Wait a bit to ensure Supabase session is established
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Wait for Supabase session to be fully established (with retries)
+          const sessionReady = await waitForSession();
+          
+          if (!sessionReady) {
+            throw new Error("Session timeout - please try logging in again");
+          }
           
           const response = await apiRequest("/api/me", "GET");
           const userData = await response.json();
@@ -55,6 +71,7 @@ export default function Login() {
             description: "Impossible de charger votre profil. Veuillez réessayer.",
           });
           // Log out the user to reset state
+          await supabase.auth.signOut();
           setLoading(false);
           return;
         }
