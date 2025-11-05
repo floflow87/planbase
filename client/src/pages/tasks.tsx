@@ -261,6 +261,7 @@ interface SortableColumnProps {
   onAssign: (task: Task, userId: string) => void;
   onMarkComplete: (task: Task) => void;
   onTaskClick: (task: Task) => void;
+  dropIndicator: { columnId: string; position: 'before' | 'after'; type: 'task' | 'column' } | null;
 }
 
 function SortableColumn({
@@ -277,6 +278,7 @@ function SortableColumn({
   onAssign,
   onMarkComplete,
   onTaskClick,
+  dropIndicator,
 }: SortableColumnProps) {
   const {
     attributes,
@@ -306,10 +308,14 @@ function SortableColumn({
     (a, b) => a.positionInColumn - b.positionInColumn
   );
 
+  // Show ring indicator only for task drags, not column drags
+  // (Column drags use the before/after line indicators)
+  const showDropIndicator = dropIndicator?.columnId === column.id && dropIndicator?.type === 'task';
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <Card
-        className="flex flex-col h-full min-h-[500px]"
+        className={`flex flex-col h-full min-h-[500px] ${showDropIndicator ? 'ring-2 ring-primary ring-offset-2' : ''}`}
         style={{ backgroundColor: column.color }}
         data-testid={`column-${column.id}`}
       >
@@ -414,6 +420,7 @@ export default function Tasks() {
   const [dropIndicator, setDropIndicator] = useState<{
     columnId: string;
     position: 'before' | 'after';
+    type: 'task' | 'column';
   } | null>(null);
 
   const sensors = useSensors(
@@ -494,6 +501,11 @@ export default function Tasks() {
     if (selectedProjectId === "all") {
       setViewMode("list");
     }
+  }, [selectedProjectId]);
+
+  // Reset status filter to "all" when changing projects
+  useEffect(() => {
+    setStatusFilter("all");
   }, [selectedProjectId]);
 
   // Mutations
@@ -660,8 +672,34 @@ export default function Tasks() {
       if (activeIndex !== -1 && overIndex !== -1) {
         setDropIndicator({
           columnId: over.id as string,
-          position: activeIndex < overIndex ? 'after' : 'before'
+          position: activeIndex < overIndex ? 'after' : 'before',
+          type: 'column'
         });
+      }
+    } else if (active.data.current?.type === 'task') {
+      // When dragging a task, show indicator on the target column
+      const task = filteredTasks.find(t => t.id === active.id);
+      let targetColumnId: string | null = null;
+      
+      // Determine the target column based on what we're hovering over
+      if (over.data.current?.type === 'column' && over.data.current?.columnId) {
+        targetColumnId = over.data.current.columnId as string;
+      } else if (over.data.current?.type === 'task') {
+        const overTask = filteredTasks.find(t => t.id === over.id);
+        if (overTask) {
+          targetColumnId = overTask.columnId;
+        }
+      }
+      
+      // Show indicator if we're dragging to a different column
+      if (targetColumnId && task && targetColumnId !== task.columnId) {
+        setDropIndicator({
+          columnId: targetColumnId,
+          position: 'before', // Use 'before' to indicate we're targeting this column
+          type: 'task'
+        });
+      } else {
+        setDropIndicator(null);
       }
     } else {
       setDropIndicator(null);
@@ -1216,6 +1254,7 @@ export default function Tasks() {
                                 onAssign={handleAssignTask}
                                 onMarkComplete={handleMarkComplete}
                                 onTaskClick={handleTaskClick}
+                                dropIndicator={dropIndicator}
                               />
                             </div>
                             {showAfterIndicator && (
