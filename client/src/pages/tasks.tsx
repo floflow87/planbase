@@ -128,7 +128,10 @@ function SortableTaskCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    data: { type: 'task' }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -282,7 +285,10 @@ function SortableColumn({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: column.id });
+  } = useSortable({ 
+    id: column.id,
+    data: { type: 'column' }
+  });
 
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `droppable-${column.id}`,
