@@ -521,6 +521,7 @@ export default function Tasks() {
       }
       
       toast({
+        variant: "success",
         title: "Tâche créée",
         description: "La tâche a été créée avec succès.",
       });
@@ -546,6 +547,7 @@ export default function Tasks() {
       setIsDeleteTaskDialogOpen(false);
       setSelectedTask(null);
       toast({
+        variant: "success",
         title: "Tâche supprimée",
         description: "La tâche a été supprimée avec succès.",
       });
@@ -571,6 +573,7 @@ export default function Tasks() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
+        variant: "success",
         title: "Tâche dupliquée",
         description: "La tâche a été dupliquée avec succès.",
       });
@@ -588,6 +591,7 @@ export default function Tasks() {
       setIsCreateColumnDialogOpen(false);
       setNewColumnName("");
       toast({
+        variant: "success",
         title: "Colonne créée",
         description: "La colonne a été créée avec succès.",
       });
@@ -606,6 +610,7 @@ export default function Tasks() {
       setIsColorColumnDialogOpen(false);
       setSelectedColumn(null);
       toast({
+        variant: "success",
         title: "Colonne mise à jour",
         description: "La colonne a été mise à jour avec succès.",
       });
@@ -622,6 +627,7 @@ export default function Tasks() {
       setIsDeleteColumnDialogOpen(false);
       setSelectedColumn(null);
       toast({
+        variant: "success",
         title: "Colonne supprimée",
         description: "La colonne a été supprimée avec succès.",
       });
