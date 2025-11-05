@@ -1485,8 +1485,8 @@ export default function Projects() {
   const [quickAddProjectName, setQuickAddProjectName] = useState("");
   const [isQuickAddingProject, setIsQuickAddingProject] = useState(false);
 
-  // Check for tab query parameter
-  const [activeTab, setActiveTab] = useState<string>("tasks");
+  // Check for tab query parameter - default to projects instead of tasks
+  const [activeTab, setActiveTab] = useState<string>("projects");
 
   // Update activeTab when URL changes
   useEffect(() => {
@@ -2325,11 +2325,8 @@ export default function Projects() {
       <div className="p-6 space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
-            <TabsTrigger value="tasks" data-testid="tab-tasks">
-              Tâches
-            </TabsTrigger>
             <TabsTrigger value="projects" data-testid="tab-projects">
-              Projets
+              Aperçu
             </TabsTrigger>
           </TabsList>
 
