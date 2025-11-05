@@ -203,7 +203,20 @@ export function ListView({
     }
     
     if (statusFilter && statusFilter !== "all") {
-      filtered = filtered.filter(task => task.columnId === statusFilter);
+      // When "all projects" is selected, filter by column name instead of ID
+      // since different projects have different column IDs for the same status
+      if (selectedProjectId === "all") {
+        const filterColumn = columns.find(c => c.id === statusFilter);
+        if (filterColumn) {
+          filtered = filtered.filter(task => {
+            const taskColumn = columns.find(c => c.id === task.columnId);
+            return taskColumn?.name === filterColumn.name;
+          });
+        }
+      } else {
+        // For a specific project, filter by column ID
+        filtered = filtered.filter(task => task.columnId === statusFilter);
+      }
     }
     
     if (!sortConfig) return filtered;
