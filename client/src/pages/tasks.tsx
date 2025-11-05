@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,9 +81,6 @@ import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
-import { useAuth } from "@/contexts/AuthContext";
-
-// Import ListView component
 import { ListView } from "@/components/ListView";
 
 // Helper function to derive task status from column name
@@ -100,7 +97,6 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
     return "review";
   }
   
-  // Default to in_progress for custom columns
   return "in_progress";
 }
 
@@ -365,53 +361,44 @@ function SortableColumn({
 }
 
 export default function Tasks() {
-  const { accountId, userId } = useAuth();
+  const accountId = localStorage.getItem("demo_account_id");
+  const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
   
   // Main states
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  // Quick add task state
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
 
   // Dialog states
   const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
-  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
-  const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false);
   const [isCreateColumnDialogOpen, setIsCreateColumnDialogOpen] = useState(false);
   const [isRenameColumnDialogOpen, setIsRenameColumnDialogOpen] = useState(false);
   const [isColorColumnDialogOpen, setIsColorColumnDialogOpen] = useState(false);
   const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false);
+  const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
 
   // Selected items
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<TaskColumn | null>(null);
 
-  // Form states
-  const [taskFormData, setTaskFormData] = useState<InsertTask>({
-    title: "",
-    description: "",
-    priority: "medium",
-    status: "todo",
-    projectId: "",
-    columnId: "",
-    positionInColumn: 0,
-    accountId: accountId || "",
-  });
+  // New task form states
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>();
+  const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
+  const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
+  const [createTaskColumnId, setCreateTaskColumnId] = useState<string | null>(null);
+  const [projectComboboxOpen, setProjectComboboxOpen] = useState(false);
+  const [columnComboboxOpen, setColumnComboboxOpen] = useState(false);
 
-  const [columnFormData, setColumnFormData] = useState<InsertTaskColumn>({
-    name: "",
-    color: "#ffffff",
-    order: 0,
-    projectId: "",
-    isLocked: false,
-    accountId: accountId || "",
-  });
-
+  // New column form
+  const [newColumnName, setNewColumnName] = useState("");
   const [renameColumnName, setRenameColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#ffffff");
 
@@ -450,8 +437,32 @@ export default function Tasks() {
   });
 
   const { data: users = [] } = useQuery<AppUser[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/accounts", accountId, "users"],
+    enabled: !!accountId,
   });
+
+  // Get columns for the project selected in the form
+  const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/projects", newTaskProjectId, "task-columns"],
+    enabled: !!newTaskProjectId && newTaskProjectId !== "none" && isCreateTaskDialogOpen,
+  });
+
+  // Get global columns for tasks without a project
+  const { data: globalTaskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
+    enabled: isCreateTaskDialogOpen,
+  });
+
+  // Auto-set column when project changes
+  useEffect(() => {
+    if (!isCreateTaskDialogOpen) return;
+    
+    const columnsToUse = newTaskProjectId === "none" ? globalTaskColumns : newTaskProjectColumns;
+    if (columnsToUse.length > 0 && !createTaskColumnId) {
+      const firstColumn = columnsToUse.sort((a, b) => a.order - b.order)[0];
+      setCreateTaskColumnId(firstColumn.id);
+    }
+  }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
 
   // Filter tasks based on selected project
   const filteredTasks = selectedProjectId === "all"
@@ -481,23 +492,28 @@ export default function Tasks() {
 
   // Mutations
   const createTaskMutation = useMutation({
-    mutationFn: async (data: InsertTask) => {
-      const response = await apiRequest("/api/tasks", "POST", data);
+    mutationFn: async (data: InsertTask & { keepOpen?: boolean }) => {
+      const { keepOpen, ...taskData } = data;
+      const response = await apiRequest("/api/tasks", "POST", taskData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      setIsCreateTaskDialogOpen(false);
-      setTaskFormData({
-        title: "",
-        description: "",
-        priority: "medium",
-        status: "todo",
-        projectId: "",
-        columnId: "",
-        positionInColumn: 0,
-        accountId: accountId || "",
-      });
+      
+      if (!variables.keepOpen) {
+        setIsCreateTaskDialogOpen(false);
+        setNewTaskTitle("");
+        setNewTaskDescription("");
+        setNewTaskPriority("medium");
+        setNewTaskAssignedTo(undefined);
+        setNewTaskDueDate(undefined);
+        setNewTaskEffort(null);
+        setNewTaskProjectId("");
+      } else {
+        // Keep open - just clear title
+        setNewTaskTitle("");
+      }
+      
       toast({
         title: "Tâche créée",
         description: "La tâche a été créée avec succès.",
@@ -530,6 +546,31 @@ export default function Tasks() {
     },
   });
 
+  const duplicateTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) throw new Error("Task not found");
+
+      const columnTasks = tasks.filter((t) => t.columnId === task.columnId);
+      const response = await apiRequest("/api/tasks", "POST", {
+        ...task,
+        id: undefined,
+        title: `${task.title} (copie)`,
+        positionInColumn: columnTasks.length,
+        accountId: accountId!,
+        createdBy: userId!,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Tâche dupliquée",
+        description: "La tâche a été dupliquée avec succès.",
+      });
+    },
+  });
+
   const createColumnMutation = useMutation({
     mutationFn: async (data: InsertTaskColumn) => {
       const response = await apiRequest("/api/task-columns", "POST", data);
@@ -539,14 +580,7 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsCreateColumnDialogOpen(false);
-      setColumnFormData({
-        name: "",
-        color: "#ffffff",
-        order: 0,
-        projectId: "",
-        isLocked: false,
-        accountId: accountId || "",
-      });
+      setNewColumnName("");
       toast({
         title: "Colonne créée",
         description: "La colonne a été créée avec succès.",
@@ -607,7 +641,6 @@ export default function Tasks() {
       return;
     }
 
-    // Handle column reordering indicators
     if (active.data.current?.type === 'column' && over.data.current?.type === 'column') {
       const activeIndex = sortedColumns.findIndex(c => c.id === active.id);
       const overIndex = sortedColumns.findIndex(c => c.id === over.id);
@@ -640,7 +673,6 @@ export default function Tasks() {
       let newColumnId = task.columnId;
       let newPosition = task.positionInColumn;
 
-      // Determine new column
       if (over.data.current?.type === 'column') {
         newColumnId = over.data.current.columnId;
       } else if (over.data.current?.type === 'task') {
@@ -650,7 +682,6 @@ export default function Tasks() {
         }
       }
 
-      // Calculate new position
       const columnTasks = tasks
         .filter((t) => t.columnId === newColumnId)
         .sort((a, b) => a.positionInColumn - b.positionInColumn);
@@ -662,11 +693,9 @@ export default function Tasks() {
         newPosition = columnTasks.length;
       }
 
-      // Get the new column and derive status from its name
       const newColumn = taskColumns.find(c => c.id === newColumnId);
       const newStatus = newColumn ? getStatusFromColumnName(newColumn.name) : task.status;
 
-      // Update task
       if (newColumnId !== task.columnId || newPosition !== task.positionInColumn) {
         await updateTaskMutation.mutateAsync({
           id: taskId,
@@ -687,7 +716,6 @@ export default function Tasks() {
       if (activeIndex !== overIndex) {
         const newColumns = arrayMove(sortedColumns, activeIndex, overIndex);
         
-        // Update column orders
         for (let i = 0; i < newColumns.length; i++) {
           if (newColumns[i].order !== i) {
             await updateColumnMutation.mutateAsync({
@@ -700,49 +728,88 @@ export default function Tasks() {
     }
   };
 
-  const handleAddTask = (columnId: string) => {
-    const column = taskColumns.find((c) => c.id === columnId);
-    const columnTasks = tasks.filter((t) => t.columnId === columnId);
+  const handleCreateTask = (keepOpen = false) => {
+    if (!newTaskTitle.trim() || !accountId || !userId) return;
+
+    let targetColumns: TaskColumn[];
+    if (newTaskProjectId === "none") {
+      targetColumns = globalTaskColumns;
+    } else if (newTaskProjectId && newTaskProjectId !== selectedProjectId) {
+      targetColumns = newTaskProjectColumns;
+    } else {
+      targetColumns = taskColumns;
+    }
     
-    setTaskFormData({
-      title: "",
-      description: "",
-      priority: "medium",
-      status: column ? getStatusFromColumnName(column.name) : "todo",
+    const sortedTargetColumns = [...targetColumns].sort((a, b) => a.order - b.order);
+    const targetColumnId = createTaskColumnId || sortedTargetColumns[0]?.id;
+    
+    if (!targetColumnId) {
+      toast({ title: "Erreur: Aucune colonne trouvée", variant: "destructive" });
+      return;
+    }
+
+    const targetColumn = targetColumns.find((c) => c.id === targetColumnId);
+    const taskStatus = targetColumn ? getStatusFromColumnName(targetColumn.name) : "todo";
+
+    const targetProjectId = newTaskProjectId === "none" ? null : (newTaskProjectId || selectedProjectId);
+    const tasksInColumn = tasks
+      .filter((t) => t.columnId === targetColumnId && t.projectId === targetProjectId);
+    const maxPosition = tasksInColumn.length > 0
+      ? Math.max(...tasksInColumn.map((t) => t.positionInColumn))
+      : -1;
+
+    createTaskMutation.mutate({
+      accountId,
+      projectId: targetProjectId,
+      columnId: targetColumnId,
+      title: newTaskTitle,
+      description: newTaskDescription || null,
+      priority: newTaskPriority,
+      status: taskStatus,
+      assignedToId: newTaskAssignedTo || null,
+      assignees: [],
+      progress: 0,
+      positionInColumn: maxPosition + 1,
+      order: 0,
+      dueDate: (newTaskDueDate 
+        ? (typeof newTaskDueDate === 'string' ? newTaskDueDate : formatDateForStorage(newTaskDueDate))
+        : null) as any,
+      effort: newTaskEffort,
+      createdBy: userId,
+      keepOpen,
+    } as InsertTask & { keepOpen?: boolean });
+  };
+
+  const handleCreateColumn = () => {
+    if (!newColumnName.trim() || !accountId) return;
+
+    const maxOrder = taskColumns.length > 0
+      ? Math.max(...taskColumns.map((c) => c.order))
+      : -1;
+
+    createColumnMutation.mutate({
+      accountId,
       projectId: selectedProjectId,
-      columnId: columnId,
-      positionInColumn: columnTasks.length,
-      accountId: accountId || "",
+      name: newColumnName,
+      color: "rgba(229, 231, 235, 0.4)",
+      order: maxOrder + 1,
+      isLocked: 0,
     });
+  };
+
+  const handleAddTask = (columnId: string) => {
+    setCreateTaskColumnId(columnId);
+    setNewTaskProjectId(selectedProjectId);
     setIsCreateTaskDialogOpen(true);
   };
 
   const handleDuplicateTask = (task: Task) => {
-    const columnTasks = tasks.filter((t) => t.columnId === task.columnId);
-    createTaskMutation.mutate({
-      ...task,
-      id: undefined as any,
-      title: `${task.title} (copie)`,
-      positionInColumn: columnTasks.length,
-      accountId: accountId || "",
-    });
+    duplicateTaskMutation.mutate(task.id);
   };
 
   const handleEditTask = (task: Task) => {
     setSelectedTask(task);
-    setTaskFormData({
-      title: task.title,
-      description: task.description || "",
-      priority: task.priority,
-      status: task.status,
-      projectId: task.projectId,
-      columnId: task.columnId,
-      positionInColumn: task.positionInColumn,
-      assignedToId: task.assignedToId || undefined,
-      dueDate: task.dueDate || undefined,
-      accountId: accountId || "",
-    });
-    setIsEditTaskDialogOpen(true);
+    setIsTaskDetailOpen(true);
   };
 
   const handleDeleteTask = (task: Task) => {
@@ -753,38 +820,68 @@ export default function Tasks() {
   const handleAssignTask = (task: Task, userId: string) => {
     updateTaskMutation.mutate({
       id: task.id,
-      data: { assignedToId: userId === task.assignedToId ? null : userId },
+      data: { assignedToId: userId },
     });
   };
 
-  const handleMarkComplete = async (task: Task) => {
-    // Find the "done" column
-    const doneColumn = taskColumns
-      .filter(c => c.projectId === task.projectId)
-      .find(c => {
-        const lowerName = c.name.toLowerCase();
-        return lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété");
-      });
+  const handleMarkComplete = (task: Task) => {
+    const doneColumn = taskColumns.find((c) => c.name.toLowerCase().includes("terminé"));
+    if (doneColumn && task.columnId !== doneColumn.id) {
+      const tasksInDoneColumn = tasks.filter((t) => t.columnId === doneColumn.id);
+      const maxPosition = tasksInDoneColumn.length > 0
+        ? Math.max(...tasksInDoneColumn.map((t) => t.positionInColumn))
+        : -1;
 
-    if (doneColumn) {
-      // Count tasks in done column to get position
-      const doneColumnTasks = tasks.filter(t => t.columnId === doneColumn.id);
-      
-      await updateTaskMutation.mutateAsync({
+      updateTaskMutation.mutate({
         id: task.id,
-        data: { 
-          status: "done",
+        data: {
           columnId: doneColumn.id,
-          positionInColumn: doneColumnTasks.length,
+          positionInColumn: maxPosition + 1,
+          status: "done",
+          progress: 100,
         },
       });
-    } else {
-      // If no done column, just update status
-      await updateTaskMutation.mutateAsync({
-        id: task.id,
-        data: { status: "done" },
-      });
     }
+  };
+
+  const handleQuickCreateTask = () => {
+    if (!quickAddTaskTitle.trim() || !accountId || !userId) return;
+    
+    const firstColumn = sortedColumns[0];
+    if (!firstColumn) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Aucune colonne disponible",
+      });
+      return;
+    }
+
+    const targetProjectId = selectedProjectId === "all" ? null : selectedProjectId;
+    const columnTasks = tasks.filter((t) => t.columnId === firstColumn.id && t.projectId === targetProjectId);
+
+    createTaskMutation.mutate({
+      accountId,
+      projectId: targetProjectId,
+      columnId: firstColumn.id,
+      title: quickAddTaskTitle,
+      description: null,
+      priority: "medium",
+      status: getStatusFromColumnName(firstColumn.name),
+      assignedToId: null,
+      assignees: [],
+      progress: 0,
+      positionInColumn: columnTasks.length,
+      order: 0,
+      dueDate: null,
+      effort: null,
+      createdBy: userId,
+    } as InsertTask, {
+      onSuccess: () => {
+        setQuickAddTaskTitle("");
+        setIsQuickAddingTask(false);
+      },
+    });
   };
 
   const handleTaskClick = (task: Task) => {
@@ -792,50 +889,28 @@ export default function Tasks() {
     setIsTaskDetailOpen(true);
   };
 
-  const handleQuickCreateTask = async () => {
-    if (!quickAddTaskTitle.trim() || !selectedProjectId || selectedProjectId === "all") return;
+  const handleSaveTaskDetail = (data: Partial<Task>) => {
+    if (!selectedTask) return;
     
-    setIsQuickAddingTask(true);
-    try {
-      // Find first column for this project
-      const firstColumn = sortedColumns[0];
-      if (!firstColumn) {
-        toast({
-          variant: "destructive",
-          title: "Erreur",
-          description: "Aucune colonne disponible pour ce projet",
-        });
-        return;
-      }
-
-      const columnTasks = tasks.filter((t) => t.columnId === firstColumn.id);
-      const taskData: InsertTask = {
-        title: quickAddTaskTitle,
-        description: "",
-        priority: "medium",
-        status: getStatusFromColumnName(firstColumn.name),
-        projectId: selectedProjectId,
-        columnId: firstColumn.id,
-        positionInColumn: columnTasks.length,
-        accountId: accountId || "",
-      };
-
-      await apiRequest("/api/tasks", "POST", taskData);
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      setQuickAddTaskTitle("");
-      toast({
-        title: "Tâche créée",
-        description: "La tâche a été créée avec succès.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de créer la tâche",
-      });
-    } finally {
-      setIsQuickAddingTask(false);
+    const updatedData = { ...data };
+    if (updatedData.dueDate && typeof updatedData.dueDate !== 'string') {
+      updatedData.dueDate = formatDateForStorage(updatedData.dueDate as Date) as any;
     }
+    
+    if (updatedData.columnId && updatedData.columnId !== selectedTask.columnId) {
+      const tasksInTargetColumn = tasks.filter((t) => t.columnId === updatedData.columnId);
+      const maxPosition = tasksInTargetColumn.length > 0
+        ? Math.max(...tasksInTargetColumn.map((t) => t.positionInColumn))
+        : -1;
+      updatedData.positionInColumn = maxPosition + 1;
+    }
+    
+    updateTaskMutation.mutate({
+      id: selectedTask.id,
+      data: updatedData,
+    });
+    setIsTaskDetailOpen(false);
+    setSelectedTask(null);
   };
 
   const handleRenameColumn = (column: TaskColumn) => {
@@ -898,6 +973,7 @@ export default function Tasks() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
+        {/* Header with project selector and buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">
             {projects.length > 0 && (
@@ -1004,6 +1080,7 @@ export default function Tasks() {
           </div>
         </div>
 
+        {/* Progress bar */}
         {selectedProjectId === "all" ? (
           <Card>
             <CardContent className="p-4">
@@ -1054,6 +1131,7 @@ export default function Tasks() {
           );
         })()}
 
+        {/* Views */}
         {tasksLoading ? (
           <div className="text-center py-12 text-muted-foreground">
             Chargement des tâches...
@@ -1070,7 +1148,7 @@ export default function Tasks() {
                 columns={taskColumns}
                 users={users}
                 projects={projects}
-                onEditTask={handleEditTask}
+                onEditTask={handleTaskClick}
                 onDeleteTask={handleDeleteTask}
                 onUpdateTask={(taskId, data) => {
                   updateTaskMutation.mutate({ id: taskId, data });
@@ -1163,201 +1241,317 @@ export default function Tasks() {
           </>
         )}
 
-        {/* Dialogs */}
+        {/* Create Task Dialog */}
         <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <DialogContent className="bg-white">
+          <DialogContent data-testid="dialog-create-task" className="bg-white">
             <DialogHeader>
-              <DialogTitle>Créer une nouvelle tâche</DialogTitle>
+              <DialogTitle>Nouvelle tâche</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="task-title">Titre</Label>
+                <Label>Projet</Label>
+                <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={projectComboboxOpen}
+                      className="w-full justify-between"
+                      data-testid="button-select-project"
+                    >
+                      {newTaskProjectId === "none"
+                        ? "Aucun projet"
+                        : newTaskProjectId
+                        ? projects.find((p) => p.id === newTaskProjectId)?.name
+                        : "Sélectionner un projet..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-white">
+                    <Command>
+                      <CommandInput placeholder="Rechercher un projet..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="Aucun projet"
+                            onSelect={() => {
+                              setNewTaskProjectId("none");
+                              setProjectComboboxOpen(false);
+                              setCreateTaskColumnId(null);
+                            }}
+                            data-testid="project-option-none"
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                newTaskProjectId === "none" ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            Aucun projet
+                          </CommandItem>
+                          {projects.map((project) => (
+                            <CommandItem
+                              key={project.id}
+                              value={project.name}
+                              onSelect={() => {
+                                setNewTaskProjectId(project.id);
+                                setProjectComboboxOpen(false);
+                                setCreateTaskColumnId(null);
+                              }}
+                              data-testid={`project-option-${project.id}`}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  newTaskProjectId === project.id ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              {project.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="task-title">Titre *</Label>
                 <Input
                   id="task-title"
-                  value={taskFormData.title}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                  data-testid="input-task-title"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  data-testid="input-new-task-title"
                 />
               </div>
               <div>
                 <Label htmlFor="task-description">Description</Label>
                 <Textarea
                   id="task-description"
-                  value={taskFormData.description}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
-                  data-testid="input-task-description"
+                  value={newTaskDescription}
+                  onChange={(e) => setNewTaskDescription(e.target.value)}
+                  rows={3}
+                  data-testid="textarea-new-task-description"
                 />
               </div>
-              <div>
-                <Label htmlFor="task-priority">Priorité</Label>
-                <Select
-                  value={taskFormData.priority}
-                  onValueChange={(value: any) => setTaskFormData({ ...taskFormData, priority: value })}
-                >
-                  <SelectTrigger id="task-priority" className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="low">Basse</SelectItem>
-                    <SelectItem value="medium">Moyenne</SelectItem>
-                    <SelectItem value="high">Haute</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {selectedProjectId === "all" && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="task-project">Projet</Label>
+                  <Label htmlFor="task-priority">Priorité</Label>
                   <Select
-                    value={taskFormData.projectId}
-                    onValueChange={(value) => {
-                      const firstColumn = taskColumns.find(c => c.projectId === value);
-                      setTaskFormData({ 
-                        ...taskFormData, 
-                        projectId: value,
-                        columnId: firstColumn?.id || "",
-                      });
-                    }}
+                    value={newTaskPriority}
+                    onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
                   >
-                    <SelectTrigger id="task-project" className="bg-white">
-                      <SelectValue placeholder="Sélectionner un projet" />
+                    <SelectTrigger id="task-priority" className="bg-white" data-testid="select-new-task-priority">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
+                      <SelectItem value="low">Basse</SelectItem>
+                      <SelectItem value="medium">Moyenne</SelectItem>
+                      <SelectItem value="high">Haute</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="task-assigned">Assigné à</Label>
+                  <Select
+                    value={newTaskAssignedTo || "unassigned"}
+                    onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
+                  >
+                    <SelectTrigger id="task-assigned" className="bg-white" data-testid="select-new-task-assigned">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="unassigned">Non assigné</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}` 
+                            : user.email}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              </div>
+              <div>
+                <Label>Effort / Complexité</Label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(rating => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setNewTaskEffort(rating)}
+                      className="focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                      data-testid={`button-new-task-effort-${rating}`}
+                    >
+                      <Star
+                        className={`h-6 w-6 transition-colors ${(newTaskEffort ?? 0) >= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                      />
+                    </button>
+                  ))}
+                  {newTaskEffort !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskEffort(null)}
+                      className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                      data-testid="button-clear-new-task-effort"
+                    >
+                      Effacer
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label>Colonne *</Label>
+                <Popover open={columnComboboxOpen} onOpenChange={setColumnComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={columnComboboxOpen}
+                      className="w-full justify-between"
+                      data-testid="button-select-column"
+                    >
+                      {createTaskColumnId
+                        ? (() => {
+                            const columnsToDisplay = newTaskProjectId === "none" 
+                              ? globalTaskColumns 
+                              : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
+                            return columnsToDisplay.find((c) => c.id === createTaskColumnId)?.name;
+                          })()
+                        : "Sélectionner une colonne..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-white">
+                    <Command>
+                      <CommandInput placeholder="Rechercher une colonne..." />
+                      <CommandList>
+                        <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
+                        <CommandGroup>
+                          {(() => {
+                            const columnsToDisplay = newTaskProjectId === "none" 
+                              ? globalTaskColumns 
+                              : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
+                            return columnsToDisplay
+                              .sort((a, b) => a.order - b.order)
+                              .map((column) => (
+                                <CommandItem
+                                  key={column.id}
+                                  value={column.name}
+                                  onSelect={() => {
+                                    setCreateTaskColumnId(column.id);
+                                    setColumnComboboxOpen(false);
+                                  }}
+                                  data-testid={`column-option-${column.id}`}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  {column.name}
+                                </CommandItem>
+                              ));
+                          })()}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label>Date d'échéance</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-new-task-due-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newTaskDueDate ? (
+                        formatDate(newTaskDueDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white">
+                    <Calendar
+                      mode="single"
+                      selected={newTaskDueDate}
+                      onSelect={setNewTaskDueDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateTaskDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateTaskDialogOpen(false);
+                  setNewTaskTitle("");
+                  setNewTaskDescription("");
+                  setNewTaskPriority("medium");
+                  setNewTaskAssignedTo(undefined);
+                  setNewTaskDueDate(undefined);
+                  setNewTaskEffort(null);
+                  setNewTaskProjectId("");
+                }}
+                data-testid="button-cancel-create-task"
+              >
                 Annuler
               </Button>
-              <Button onClick={() => createTaskMutation.mutate(taskFormData)} data-testid="button-confirm-create-task">
+              <Button
+                variant="outline"
+                onClick={() => handleCreateTask(true)}
+                disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
+                data-testid="button-create-and-add-task"
+              >
+                Créer et ajouter
+              </Button>
+              <Button
+                onClick={() => handleCreateTask(false)}
+                disabled={!newTaskTitle.trim() || createTaskMutation.isPending}
+                data-testid="button-submit-create-task"
+              >
                 Créer
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isEditTaskDialogOpen} onOpenChange={setIsEditTaskDialogOpen}>
-          <DialogContent className="bg-white">
-            <DialogHeader>
-              <DialogTitle>Modifier la tâche</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-task-title">Titre</Label>
-                <Input
-                  id="edit-task-title"
-                  value={taskFormData.title}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-task-description">Description</Label>
-                <Textarea
-                  id="edit-task-description"
-                  value={taskFormData.description}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-task-priority">Priorité</Label>
-                <Select
-                  value={taskFormData.priority}
-                  onValueChange={(value: any) => setTaskFormData({ ...taskFormData, priority: value })}
-                >
-                  <SelectTrigger id="edit-task-priority" className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="low">Basse</SelectItem>
-                    <SelectItem value="medium">Moyenne</SelectItem>
-                    <SelectItem value="high">Haute</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditTaskDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button
-                onClick={() => {
-                  if (selectedTask) {
-                    updateTaskMutation.mutate({
-                      id: selectedTask.id,
-                      data: taskFormData,
-                    });
-                    setIsEditTaskDialogOpen(false);
-                  }
-                }}
-              >
-                Enregistrer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
-          <AlertDialogContent className="bg-white">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer la tâche</AlertDialogTitle>
-              <AlertDialogDescription>
-                Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDeleteTask}>
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
+        {/* Create Column Dialog */}
         <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
-          <DialogContent className="bg-white">
+          <DialogContent data-testid="dialog-create-column" className="bg-white">
             <DialogHeader>
-              <DialogTitle>Créer une nouvelle colonne</DialogTitle>
+              <DialogTitle>Nouvelle colonne</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="column-name">Nom</Label>
+                <Label htmlFor="column-name">Nom de la colonne *</Label>
                 <Input
                   id="column-name"
-                  value={columnFormData.name}
-                  onChange={(e) => setColumnFormData({ ...columnFormData, name: e.target.value })}
-                  data-testid="input-column-name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="column-color">Couleur</Label>
-                <ColorPicker
-                  color={columnFormData.color}
-                  onChange={(color) => setColumnFormData({ ...columnFormData, color })}
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  data-testid="input-new-column-name"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateColumnDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateColumnDialogOpen(false)}
+                data-testid="button-cancel-create-column"
+              >
                 Annuler
               </Button>
               <Button
-                onClick={() => {
-                  const newColumn: InsertTaskColumn = {
-                    ...columnFormData,
-                    projectId: selectedProjectId,
-                    order: sortedColumns.length,
-                    accountId: accountId || "",
-                  };
-                  createColumnMutation.mutate(newColumn);
-                }}
-                data-testid="button-confirm-create-column"
+                onClick={handleCreateColumn}
+                disabled={!newColumnName.trim() || createColumnMutation.isPending}
+                data-testid="button-submit-create-column"
               >
                 Créer
               </Button>
@@ -1365,86 +1559,137 @@ export default function Tasks() {
           </DialogContent>
         </Dialog>
 
+        {/* Rename Column Dialog */}
         <Dialog open={isRenameColumnDialogOpen} onOpenChange={setIsRenameColumnDialogOpen}>
-          <DialogContent className="bg-white">
+          <DialogContent data-testid="dialog-rename-column" className="bg-white">
             <DialogHeader>
               <DialogTitle>Renommer la colonne</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="rename-column-name">Nom</Label>
+                <Label htmlFor="rename-column">Nom de la colonne *</Label>
                 <Input
-                  id="rename-column-name"
+                  id="rename-column"
                   value={renameColumnName}
                   onChange={(e) => setRenameColumnName(e.target.value)}
+                  data-testid="input-rename-column"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsRenameColumnDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsRenameColumnDialogOpen(false)}
+                data-testid="button-cancel-rename"
+              >
                 Annuler
               </Button>
-              <Button onClick={handleSaveRename}>
+              <Button
+                onClick={handleSaveRename}
+                disabled={!renameColumnName.trim() || updateColumnMutation.isPending}
+                data-testid="button-submit-rename"
+              >
                 Enregistrer
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
+        {/* Change Color Dialog */}
         <Dialog open={isColorColumnDialogOpen} onOpenChange={setIsColorColumnDialogOpen}>
-          <DialogContent className="bg-white">
+          <DialogContent data-testid="dialog-color-column" className="bg-white">
             <DialogHeader>
-              <DialogTitle>Changer la couleur de la colonne</DialogTitle>
+              <DialogTitle>Changer la couleur</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="color-picker">Couleur</Label>
-                <ColorPicker
-                  color={columnColor}
-                  onChange={setColumnColor}
-                />
+                <Label>Sélectionner une couleur</Label>
+                <div className="mt-2">
+                  <ColorPicker value={columnColor} onChange={setColumnColor} />
+                </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsColorColumnDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsColorColumnDialogOpen(false)}
+                data-testid="button-cancel-color"
+              >
                 Annuler
               </Button>
-              <Button onClick={handleSaveColor}>
+              <Button
+                onClick={handleSaveColor}
+                disabled={updateColumnMutation.isPending}
+                data-testid="button-submit-color"
+              >
                 Enregistrer
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
+        {/* Delete Column Dialog */}
         <AlertDialog open={isDeleteColumnDialogOpen} onOpenChange={setIsDeleteColumnDialogOpen}>
-          <AlertDialogContent className="bg-white">
+          <AlertDialogContent data-testid="dialog-delete-column" className="bg-white">
             <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer la colonne</AlertDialogTitle>
+              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>
-                Êtes-vous sûr de vouloir supprimer cette colonne ? Toutes les tâches associées seront également supprimées. Cette action est irréversible.
+                Êtes-vous sûr de vouloir supprimer cette colonne ? Cette action est irréversible.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDeleteColumn}>
+              <AlertDialogCancel data-testid="button-cancel-delete-column">
+                Annuler
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDeleteColumn}
+                data-testid="button-confirm-delete-column"
+              >
                 Supprimer
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Delete Task Dialog */}
+        <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
+          <AlertDialogContent data-testid="dialog-delete-task" className="bg-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-task">
+                Annuler
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDeleteTask}
+                data-testid="button-confirm-delete-task"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Task Detail Modal */}
         {selectedTask && (
           <TaskDetailModal
             task={selectedTask}
+            users={users}
+            projects={projects}
+            columns={sortedColumns}
             isOpen={isTaskDetailOpen}
             onClose={() => {
               setIsTaskDetailOpen(false);
               setSelectedTask(null);
             }}
-            users={users}
-            columns={taskColumns}
-            onUpdate={(data) => {
-              updateTaskMutation.mutate({ id: selectedTask.id, data });
+            onSave={handleSaveTaskDetail}
+            onDelete={(task) => {
+              setSelectedTask(task);
+              setIsDeleteTaskDialogOpen(true);
             }}
           />
         )}
