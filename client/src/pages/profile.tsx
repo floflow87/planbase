@@ -87,8 +87,9 @@ export default function Profile() {
       const response = await apiRequest("/api/me", "PATCH", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+    onSuccess: (updatedUser) => {
+      // Update the cache with the new data returned from the server
+      queryClient.setQueryData(["/api/me"], updatedUser);
       toast({
         title: "Profil mis à jour",
         description: "Vos informations ont été enregistrées avec succès",
@@ -147,11 +148,6 @@ export default function Profile() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>
-        </div>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
