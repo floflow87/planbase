@@ -228,13 +228,13 @@ export default function Profile() {
                   </p>
                 </div>
 
-                {/* Sexe */}
+                {/* Civilité */}
                 <FormField
                   control={form.control}
                   name="gender"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sexe</FormLabel>
+                      <FormLabel>Civilité</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
@@ -245,13 +245,14 @@ export default function Profile() {
                             <SelectValue placeholder="Sélectionner" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-background">
                           <SelectItem value="male">Homme</SelectItem>
                           <SelectItem value="female">Femme</SelectItem>
                           <SelectItem value="other">Autre</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      <div className="h-5" />
                     </FormItem>
                   )}
                 />
