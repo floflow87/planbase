@@ -966,29 +966,36 @@ function ListView({
                                 </PopoverTrigger>
                                 <PopoverContent className="w-56 p-2 bg-white">
                                   <div className="space-y-1">
-                                    {[...columns].sort((a, b) => a.order - b.order).map(col => (
-                                      <button
-                                        key={col.id}
-                                        onClick={() => {
-                                          const tasksInNewColumn = tasks.filter(t => t.columnId === col.id);
-                                          const maxPosition = tasksInNewColumn.length > 0
-                                            ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
-                                            : -1;
-                                          onUpdateTask(task.id, {
-                                            columnId: col.id,
-                                            positionInColumn: maxPosition + 1,
-                                          });
-                                          setEditingCell(null);
-                                        }}
-                                        className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
-                                      >
-                                        <div
-                                          className="w-3 h-3 rounded-full"
-                                          style={{ backgroundColor: col.color }}
-                                        />
-                                        <span className="text-xs">{col.name}</span>
-                                      </button>
-                                    ))}
+                                    {(() => {
+                                      // Only show columns from the task's project to prevent cross-project moves
+                                      const taskProjectColumns = columns
+                                        .filter(col => col.projectId === task.projectId)
+                                        .sort((a, b) => a.order - b.order);
+                                      
+                                      return taskProjectColumns.map(col => (
+                                        <button
+                                          key={col.id}
+                                          onClick={() => {
+                                            const tasksInNewColumn = tasks.filter(t => t.columnId === col.id);
+                                            const maxPosition = tasksInNewColumn.length > 0
+                                              ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
+                                              : -1;
+                                            onUpdateTask(task.id, {
+                                              columnId: col.id,
+                                              positionInColumn: maxPosition + 1,
+                                            });
+                                            setEditingCell(null);
+                                          }}
+                                          className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
+                                        >
+                                          <div
+                                            className="w-3 h-3 rounded-full"
+                                            style={{ backgroundColor: col.color }}
+                                          />
+                                          <span className="text-xs">{col.name}</span>
+                                        </button>
+                                      ));
+                                    })()}
                                   </div>
                                 </PopoverContent>
                               </Popover>
@@ -2715,39 +2722,33 @@ export default function Projects() {
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-48 p-0 bg-white" align="start">
-                                      <Command>
-                                        <CommandList>
-                                          <CommandGroup>
-                                            {[
-                                              { value: "prospection", label: "Prospection" },
-                                              { value: "signe", label: "Signé" },
-                                              { value: "en_cours", label: "En cours" },
-                                              { value: "termine", label: "Terminé" }
-                                            ].map((stage) => (
-                                              <CommandItem
-                                                key={stage.value}
-                                                onSelect={() => {
-                                                  updateProjectMutation.mutate({
-                                                    id: project.id,
-                                                    data: { stage: stage.value }
-                                                  });
-                                                  setStagePopoverOpen(false);
-                                                  setEditingStageProjectId(null);
-                                                }}
-                                                data-testid={`item-stage-${stage.value}`}
-                                              >
-                                                <Check
-                                                  className={`mr-2 h-4 w-4 ${
-                                                    project.stage === stage.value ? 'opacity-100' : 'opacity-0'
-                                                  }`}
-                                                />
-                                                {stage.label}
-                                              </CommandItem>
-                                            ))}
-                                          </CommandGroup>
-                                        </CommandList>
-                                      </Command>
+                                    <PopoverContent className="w-56 p-2 bg-white" align="start">
+                                      <div className="space-y-1">
+                                        {[
+                                          { value: "prospection", label: "Prospection" },
+                                          { value: "signe", label: "Signé" },
+                                          { value: "en_cours", label: "En cours" },
+                                          { value: "termine", label: "Terminé" }
+                                        ].map((stage) => (
+                                          <button
+                                            key={stage.value}
+                                            onClick={() => {
+                                              updateProjectMutation.mutate({
+                                                id: project.id,
+                                                data: { stage: stage.value }
+                                              });
+                                              setStagePopoverOpen(false);
+                                              setEditingStageProjectId(null);
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded hover-elevate"
+                                            data-testid={`item-stage-${stage.value}`}
+                                          >
+                                            <Badge className={`${getStageColor(stage.value)} text-xs`}>
+                                              {stage.label}
+                                            </Badge>
+                                          </button>
+                                        ))}
+                                      </div>
                                     </PopoverContent>
                                   </Popover>
                                 </TableCell>
