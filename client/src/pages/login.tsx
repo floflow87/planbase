@@ -107,7 +107,7 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="floflow87@planbase.com"
+                  placeholder="votre-email@exemple.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
