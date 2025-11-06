@@ -21,6 +21,14 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
 
+  // Sections restreintes pour le plan "starter"
+  const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/marketing", "/finance", "/commercial", "/legal"];
+  const isStarterPlan = userProfile?.account?.plan === "starter";
+  
+  const isRestricted = (url: string) => {
+    return isStarterPlan && starterRestrictedUrls.includes(url);
+  };
+
   const mainNav = [
     { title: "Tableau de bord", url: "/", icon: Home },
   ];
@@ -82,16 +90,32 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {projectsNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {projectsNav.map((item) => {
+                const restricted = isRestricted(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild={!restricted}
+                      isActive={location === item.url} 
+                      disabled={restricted}
+                      className={restricted ? "opacity-50 cursor-not-allowed" : ""}
+                      data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {restricted ? (
+                        <div>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </div>
+                      ) : (
+                        <Link href={item.url}>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -99,16 +123,32 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {contentNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase()}`}>
-                    <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {contentNav.map((item) => {
+                const restricted = isRestricted(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild={!restricted}
+                      isActive={location === item.url} 
+                      disabled={restricted}
+                      className={restricted ? "opacity-50 cursor-not-allowed" : ""}
+                      data-testid={`link-${item.title.toLowerCase()}`}
+                    >
+                      {restricted ? (
+                        <div>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </div>
+                      ) : (
+                        <Link href={item.url}>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -119,16 +159,32 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {businessNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase()}`}>
-                    <Link href={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {businessNav.map((item) => {
+                const restricted = isRestricted(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild={!restricted}
+                      isActive={location === item.url} 
+                      disabled={restricted}
+                      className={restricted ? "opacity-50 cursor-not-allowed" : ""}
+                      data-testid={`link-${item.title.toLowerCase()}`}
+                    >
+                      {restricted ? (
+                        <div>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </div>
+                      ) : (
+                        <Link href={item.url}>
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

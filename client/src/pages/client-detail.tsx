@@ -13,6 +13,7 @@ import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, 
 import { insertClientSchema } from "@shared/schema";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -1766,13 +1767,13 @@ export default function ClientDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Contact Form Dialog */}
-        <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingContact ? "Modifier le contact" : "Nouveau contact"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
+        {/* Contact Form Sheet */}
+        <Sheet open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-contact">
+            <SheetHeader>
+              <SheetTitle>{editingContact ? "Modifier le contact" : "Nouveau contact"}</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 flex-1 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Prénom *</Label>
@@ -1817,7 +1818,7 @@ export default function ClientDetail() {
                   data-testid="input-contact-position"
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 border-t pt-4">
                 <Button variant="outline" onClick={() => setIsContactDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -1830,8 +1831,8 @@ export default function ClientDetail() {
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Delete Contact Confirmation Dialog */}
         <Dialog open={isDeleteContactDialogOpen} onOpenChange={setIsDeleteContactDialogOpen}>

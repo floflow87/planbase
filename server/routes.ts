@@ -99,7 +99,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      res.json(user);
+      // Also fetch account information including plan
+      const account = await storage.getAccount(user.accountId);
+      res.json({
+        ...user,
+        account: account || null,
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -114,7 +119,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user profile (only validated fields)
       const updatedUser = await storage.updateUser(req.userId!, validatedData);
       
-      res.json(updatedUser);
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Also fetch account information to keep consistency with GET /api/me
+      const account = await storage.getAccount(updatedUser.accountId);
+      
+      res.json({
+        ...updatedUser,
+        account: account || null,
+      });
     } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid profile data", details: error.errors });
