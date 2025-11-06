@@ -3198,12 +3198,12 @@ export default function Projects() {
             })()}
       </div>
 
-      <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
-        <DialogContent data-testid="dialog-create-project">
-          <DialogHeader>
-            <DialogTitle>Créer un nouveau projet</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
+          <SheetHeader>
+            <SheetTitle>Créer un nouveau projet</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 flex-1 py-4">
             <div>
               <Label htmlFor="project-name">Nom du projet *</Label>
               <Input
@@ -3232,7 +3232,7 @@ export default function Projects() {
                 <SelectTrigger id="project-client" data-testid="select-project-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
-                <SelectContent className="bg-white">
+                <SelectContent className="bg-white dark:bg-gray-950">
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                       {client.company || client.name}
@@ -3251,7 +3251,7 @@ export default function Projects() {
                   <SelectTrigger id="project-stage" data-testid="select-project-stage">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
+                  <SelectContent className="bg-white dark:bg-gray-950">
                     <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
                     <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
                     <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
@@ -3336,47 +3336,49 @@ export default function Projects() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCreateProjectDialogOpen(false);
-                setProjectFormData({
-                  name: "",
-                  description: "",
-                  clientId: "",
-                  stage: "prospection",
-                  category: "",
-                  startDate: undefined,
-                  endDate: undefined,
-                  budget: "",
-                });
-              }}
-              data-testid="button-cancel-create-project"
-            >
-              Annuler
-            </Button>
-            <Button
-              onClick={() => {
-                createProjectMutation.mutate({
-                  name: projectFormData.name.trim(),
-                  description: projectFormData.description?.trim() || null,
-                  clientId: projectFormData.clientId || null,
-                  stage: projectFormData.stage,
-                  category: projectFormData.category?.trim() || null,
-                  startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
-                  endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
-                  budget: projectFormData.budget?.trim() || null,
-                });
-              }}
-              disabled={!projectFormData.name.trim() || createProjectMutation.isPending}
-              data-testid="button-submit-create-project"
-            >
-              Créer le projet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="border-t pt-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateProjectDialogOpen(false);
+                  setProjectFormData({
+                    name: "",
+                    description: "",
+                    clientId: "",
+                    stage: "prospection",
+                    category: "",
+                    startDate: undefined,
+                    endDate: undefined,
+                    budget: "",
+                  });
+                }}
+                data-testid="button-cancel-create-project"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => {
+                  createProjectMutation.mutate({
+                    name: projectFormData.name.trim(),
+                    description: projectFormData.description?.trim() || null,
+                    clientId: projectFormData.clientId || null,
+                    stage: projectFormData.stage,
+                    category: projectFormData.category?.trim() || null,
+                    startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
+                    endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+                    budget: projectFormData.budget?.trim() || null,
+                  });
+                }}
+                disabled={!projectFormData.name.trim() || createProjectMutation.isPending}
+                data-testid="button-submit-create-project"
+              >
+                Créer le projet
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
