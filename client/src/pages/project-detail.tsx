@@ -15,6 +15,7 @@ import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn, Note } from "@shared/schema";
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -556,15 +557,12 @@ export default function ProjectDetail() {
         </Tabs>
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-project">
-          <DialogHeader>
-            <DialogTitle>Modifier le projet</DialogTitle>
-            <DialogDescription>
-              Modifiez les informations du projet ci-dessous.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Sheet open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
+          <SheetHeader>
+            <SheetTitle>Modifier le projet</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 flex-1 py-4">
             <div>
               <Label htmlFor="edit-name">Nom du projet *</Label>
               <Input
@@ -596,7 +594,7 @@ export default function ProjectDetail() {
                 <SelectContent>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.name}
+                      {client.company || client.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -667,16 +665,16 @@ export default function ProjectDetail() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex gap-2 justify-end border-t pt-4">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} data-testid="button-cancel-edit">
               Annuler
             </Button>
             <Button onClick={handleSubmitEdit} data-testid="button-submit-edit">
               Enregistrer
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-project">
