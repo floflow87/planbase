@@ -334,7 +334,7 @@ export default function ProjectDetail() {
                 <CardTitle>Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground" data-testid="project-description">
+                <p className="text-sm text-muted-foreground" data-testid="project-description">
                   {project.description}
                 </p>
               </CardContent>
@@ -351,7 +351,7 @@ export default function ProjectDetail() {
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Début:</span>
-                    <span data-testid="project-start-date">
+                    <span className="text-sm" data-testid="project-start-date">
                       {project.startDate 
                         ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                         : "Non définie"}
@@ -362,7 +362,7 @@ export default function ProjectDetail() {
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Fin:</span>
-                    <span data-testid="project-end-date">
+                    <span className="text-sm" data-testid="project-end-date">
                       {project.endDate 
                         ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
                         : "Non définie"}
@@ -422,7 +422,7 @@ export default function ProjectDetail() {
                     Aucune tâche associée à ce projet.
                   </div>
                 ) : (
-                  <Accordion type="multiple" defaultValue={columns.map(c => c.id)} className="space-y-2">
+                  <Accordion type="multiple" defaultValue={[]} className="space-y-2">
                     {columns.map((column) => {
                       const columnTasks = tasksByStatus[column.id] || [];
                       if (columnTasks.length === 0) return null;
@@ -515,7 +515,7 @@ export default function ProjectDetail() {
             <Card>
               <CardContent className="pt-6">
                 {projectNotes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-sm text-muted-foreground">
                     Aucune note liée à ce projet.
                   </div>
                 ) : (
