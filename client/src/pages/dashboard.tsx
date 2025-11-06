@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -105,6 +111,16 @@ export default function Dashboard() {
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [projectFormData, setProjectFormData] = useState({
+    name: "",
+    description: "",
+    clientId: "",
+    stage: "prospection",
+    category: "",
+    startDate: undefined as Date | undefined,
+    endDate: undefined as Date | undefined,
+    budget: "",
+  });
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -172,7 +188,16 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsCreateProjectDialogOpen(false);
-      projectForm.reset();
+      setProjectFormData({
+        name: "",
+        description: "",
+        clientId: "",
+        stage: "prospection",
+        category: "",
+        startDate: undefined,
+        endDate: undefined,
+        budget: "",
+      });
       toast({ title: "Projet créé avec succès", variant: "success" });
     },
     onError: () => {
@@ -501,20 +526,18 @@ export default function Dashboard() {
                     </FormItem>
                   )}
                 />
-                <div className="border-t pt-4">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateClientDialogOpen(false)}
-                      data-testid="button-cancel"
-                    >
-                      Annuler
-                    </Button>
-                    <Button type="submit" disabled={createClientMutation.isPending} data-testid="button-submit-client">
-                      Créer
-                    </Button>
-                  </div>
+                <div className="flex justify-end gap-2 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateClientDialogOpen(false)}
+                    data-testid="button-cancel"
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={createClientMutation.isPending} data-testid="button-submit-client">
+                    Créer
+                  </Button>
                 </div>
               </form>
             </Form>
@@ -527,111 +550,183 @@ export default function Dashboard() {
             <SheetHeader>
               <SheetTitle>Créer un nouveau projet</SheetTitle>
             </SheetHeader>
-            <Form {...projectForm}>
-              <form onSubmit={projectForm.handleSubmit(onProjectSubmit)} className="space-y-4 flex-1 py-4">
-                <FormField
-                  control={projectForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nom du projet</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-project-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+            <div className="space-y-4 flex-1 py-4">
+              <div>
+                <Label htmlFor="project-name">Nom du projet *</Label>
+                <Input
+                  id="project-name"
+                  value={projectFormData.name}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, name: e.target.value })}
+                  data-testid="input-project-name"
                 />
-                <FormField
-                  control={projectForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} data-testid="input-project-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              </div>
+              <div>
+                <Label htmlFor="project-description">Description</Label>
+                <Textarea
+                  id="project-description"
+                  value={projectFormData.description}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
+                  rows={3}
+                  data-testid="textarea-project-description"
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={projectForm.control}
-                    name="stage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Étape</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "prospection"}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-project-stage">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="prospection">Prospection</SelectItem>
-                            <SelectItem value="en_cours">En cours</SelectItem>
-                            <SelectItem value="termine">Terminé</SelectItem>
-                            <SelectItem value="signe">Signé</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={projectForm.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Catégorie</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} data-testid="input-project-category" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+              </div>
+              <div>
+                <Label htmlFor="project-client">Client</Label>
+                <Select
+                  value={projectFormData.clientId}
+                  onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
+                >
+                  <SelectTrigger id="project-client" data-testid="select-project-client">
+                    <SelectValue placeholder="Sélectionner un client" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-950">
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id} className="cursor-pointer">
+                        {client.company || client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="project-stage">Étape</Label>
+                  <Select
+                    value={projectFormData.stage}
+                    onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
+                  >
+                    <SelectTrigger id="project-stage" data-testid="select-project-stage">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-950">
+                      <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
+                      <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
+                      <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                      <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="project-category">Catégorie</Label>
+                  <Input
+                    id="project-category"
+                    value={projectFormData.category}
+                    onChange={(e) => setProjectFormData({ ...projectFormData, category: e.target.value })}
+                    data-testid="input-project-category"
                   />
                 </div>
-                <FormField
-                  control={projectForm.control}
-                  name="budget"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Budget (€)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value || 0}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                          disabled={field.disabled}
-                          data-testid="input-project-budget"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="border-t pt-4">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateProjectDialogOpen(false)}
-                      data-testid="button-cancel-project"
-                    >
-                      Annuler
-                    </Button>
-                    <Button type="submit" disabled={createProjectMutation.isPending} data-testid="button-submit-project">
-                      Créer
-                    </Button>
-                  </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Date de début</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-project-start-date"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {projectFormData.startDate ? (
+                          formatDate(projectFormData.startDate, "PPP", { locale: fr })
+                        ) : (
+                          <span>Choisir une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={projectFormData.startDate}
+                        onSelect={(date) => setProjectFormData({ ...projectFormData, startDate: date })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </form>
-            </Form>
+                <div>
+                  <Label>Date de fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-project-end-date"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {projectFormData.endDate ? (
+                          formatDate(projectFormData.endDate, "PPP", { locale: fr })
+                        ) : (
+                          <span>Choisir une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={projectFormData.endDate}
+                        onSelect={(date) => setProjectFormData({ ...projectFormData, endDate: date })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="project-budget">Budget (€)</Label>
+                <Input
+                  id="project-budget"
+                  type="number"
+                  value={projectFormData.budget}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, budget: e.target.value })}
+                  data-testid="input-project-budget"
+                />
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateProjectDialogOpen(false);
+                    setProjectFormData({
+                      name: "",
+                      description: "",
+                      clientId: "",
+                      stage: "prospection",
+                      category: "",
+                      startDate: undefined,
+                      endDate: undefined,
+                      budget: "",
+                    });
+                  }}
+                  data-testid="button-cancel-project"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!accountId || !currentUser?.id) return;
+                    createProjectMutation.mutate({
+                      name: projectFormData.name.trim(),
+                      description: projectFormData.description?.trim() || null,
+                      clientId: projectFormData.clientId || null,
+                      stage: projectFormData.stage,
+                      category: projectFormData.category?.trim() || null,
+                      startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
+                      endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+                      budget: projectFormData.budget?.trim() || null,
+                      accountId: accountId,
+                      createdBy: currentUser.id,
+                    });
+                  }}
+                  disabled={!projectFormData.name.trim() || createProjectMutation.isPending || !accountId || !currentUser?.id}
+                  data-testid="button-submit-project"
+                >
+                  Créer le projet
+                </Button>
+              </div>
+            </div>
           </SheetContent>
         </Sheet>
 
