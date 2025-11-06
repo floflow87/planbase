@@ -351,16 +351,6 @@ export default function Notes() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-end">
-          <Link href="/notes/new">
-            <Button className="gap-2" data-testid="button-nouvelle-note">
-              <Plus className="w-4 h-4" />
-              Nouvelle note
-            </Button>
-          </Link>
-        </div>
-
         {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">
@@ -385,6 +375,12 @@ export default function Notes() {
               <option value="active">Publiées</option>
               <option value="archived">Archivées</option>
             </select>
+            <Link href="/notes/new">
+              <Button className="gap-2" data-testid="button-nouvelle-note">
+                <Plus className="w-4 h-4" />
+                Nouvelle note
+              </Button>
+            </Link>
           </div>
           
           <div className="flex items-center gap-2">
