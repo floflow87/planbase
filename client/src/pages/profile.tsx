@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -17,7 +18,6 @@ import type { appUsers } from "@shared/schema";
 const profileSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
   lastName: z.string().min(1, "Le nom est requis"),
-  email: z.string().email("Email invalide"),
   gender: z.enum(["male", "female", "other"]).optional(),
   position: z.string().optional(),
   phone: z.string().optional(),
@@ -53,7 +53,6 @@ export default function Profile() {
     defaultValues: {
       firstName: userProfile?.firstName || "",
       lastName: userProfile?.lastName || "",
-      email: userProfile?.email || "",
       gender: (userProfile?.gender as "male" | "female" | "other") || undefined,
       position: userProfile?.position || "",
       phone: userProfile?.phone || "",
@@ -75,7 +74,6 @@ export default function Profile() {
       form.reset({
         firstName: userProfile.firstName || "",
         lastName: userProfile.lastName || "",
-        email: userProfile.email || "",
         gender: userProfile.gender as "male" | "female" | "other" | undefined,
         position: userProfile.position || "",
         phone: userProfile.phone || "",
@@ -147,8 +145,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4 overflow-auto h-full">
-      <div className="mb-6 text-center">
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="mb-6">
         <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
         <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>
       </div>
@@ -211,28 +209,23 @@ export default function Profile() {
                   )}
                 />
 
-                {/* Email */}
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        Email *
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="jean.dupont@example.com"
-                          data-testid="input-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Email - Read only */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email *
+                  </Label>
+                  <Input
+                    type="email"
+                    value={userProfile?.email || ""}
+                    disabled
+                    className="bg-muted"
+                    data-testid="input-email"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    L'email ne peut pas être modifié depuis cette page
+                  </p>
+                </div>
 
                 {/* Sexe */}
                 <FormField
