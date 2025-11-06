@@ -1161,16 +1161,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const note = await storage.createNote(data);
 
-      // Create activity for note creation
-      await storage.createActivity({
-        accountId: req.accountId!,
-        subjectType: "note",
-        subjectId: note.id,
-        kind: "note",
-        payload: { description: `Nouvelle note créée: ${note.title || "Sans titre"}` },
-        createdBy: req.userId || null,
-      });
-
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
