@@ -81,6 +81,8 @@ create table app_users (
   last_name     text,
   gender        text,
   position      text,
+  phone         text,
+  company       text,
   role          text not null check (role in ('owner','collaborator','client_viewer')),
   avatar_url    text,
   profile       jsonb not null default '{}',

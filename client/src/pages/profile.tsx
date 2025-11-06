@@ -147,7 +147,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="container max-w-4xl mx-auto py-8 px-4 overflow-auto h-full">
       <div className="mb-6 text-center">
         <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
         <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>

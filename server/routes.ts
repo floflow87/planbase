@@ -179,6 +179,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to reset user password (for debugging purposes)
+  app.patch("/api/admin/reset-password", requireAuth, requireRole('owner'), async (req, res) => {
+    try {
+      const { userId, newPassword } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "L'ID de l'utilisateur est requis" });
+      }
+      
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères" });
+      }
+
+      // Security: Verify the target user belongs to the same account
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      
+      if (targetUser.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Vous n'avez pas les permissions pour réinitialiser ce mot de passe" });
+      }
+
+      // Update password using Supabase Auth Admin API
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password: newPassword }
+      );
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.json({ success: true, message: "Mot de passe réinitialisé avec succès" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // CLIENTS (CRM) - Protected Routes
   // ============================================
