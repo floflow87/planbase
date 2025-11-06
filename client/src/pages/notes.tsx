@@ -293,7 +293,7 @@ export default function Notes() {
           (link) => link.noteId === noteId && link.targetType === "project"
         );
         if (existingLink) {
-          return apiRequest(`/api/notes/${noteId}/links/${existingLink.id}`, "DELETE");
+          return apiRequest(`/api/notes/${noteId}/links/${existingLink.targetType}/${existingLink.targetId}`, "DELETE");
         }
       } else {
         // Create or update link
