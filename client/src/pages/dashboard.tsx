@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -410,14 +411,14 @@ export default function Dashboard() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        {/* Create Client Dialog */}
-        <Dialog open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>
-          <DialogContent data-testid="dialog-create-client">
-            <DialogHeader>
-              <DialogTitle>Créer un nouveau client</DialogTitle>
-            </DialogHeader>
+        {/* Create Client Sheet */}
+        <Sheet open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
+            <SheetHeader>
+              <SheetTitle>Créer un nouveau client</SheetTitle>
+            </SheetHeader>
             <Form {...clientForm}>
-              <form onSubmit={clientForm.handleSubmit(onClientSubmit)} className="space-y-4">
+              <form onSubmit={clientForm.handleSubmit(onClientSubmit)} className="space-y-4 flex-1 py-4">
                 <FormField
                   control={clientForm.control}
                   name="name"
@@ -500,32 +501,34 @@ export default function Dashboard() {
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateClientDialogOpen(false)}
-                    data-testid="button-cancel"
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={createClientMutation.isPending} data-testid="button-submit-client">
-                    Créer
-                  </Button>
+                <div className="border-t pt-4">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateClientDialogOpen(false)}
+                      data-testid="button-cancel"
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" disabled={createClientMutation.isPending} data-testid="button-submit-client">
+                      Créer
+                    </Button>
+                  </div>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
-        {/* Create Project Dialog */}
-        <Dialog open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
-          <DialogContent data-testid="dialog-create-project">
-            <DialogHeader>
-              <DialogTitle>Créer un nouveau projet</DialogTitle>
-            </DialogHeader>
+        {/* Create Project Sheet */}
+        <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
+            <SheetHeader>
+              <SheetTitle>Créer un nouveau projet</SheetTitle>
+            </SheetHeader>
             <Form {...projectForm}>
-              <form onSubmit={projectForm.handleSubmit(onProjectSubmit)} className="space-y-4">
+              <form onSubmit={projectForm.handleSubmit(onProjectSubmit)} className="space-y-4 flex-1 py-4">
                 <FormField
                   control={projectForm.control}
                   name="name"
@@ -612,23 +615,25 @@ export default function Dashboard() {
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateProjectDialogOpen(false)}
-                    data-testid="button-cancel-project"
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={createProjectMutation.isPending} data-testid="button-submit-project">
-                    Créer
-                  </Button>
+                <div className="border-t pt-4">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateProjectDialogOpen(false)}
+                      data-testid="button-cancel-project"
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" disabled={createProjectMutation.isPending} data-testid="button-submit-project">
+                      Créer
+                    </Button>
+                  </div>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
