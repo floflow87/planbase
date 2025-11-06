@@ -2791,7 +2791,7 @@ export default function Projects() {
                                       </button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-64 p-0 bg-white" align="start">
-                                      <Command>
+                                      <Command className="bg-white">
                                         <CommandInput
                                           placeholder="Rechercher ou créer..."
                                           value={categorySearchQuery}

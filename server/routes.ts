@@ -29,6 +29,7 @@ import {
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
 import { getDemoCredentials } from "./middleware/demo-helper";
+import { supabaseAdmin } from "./lib/supabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -118,6 +119,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid profile data", details: error.errors });
       }
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update user password
+  app.patch("/api/me/password", requireAuth, async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères" });
+      }
+
+      // Update password using Supabase Auth
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(
+        req.userId!,
+        { password: newPassword }
+      );
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.json({ success: true, message: "Mot de passe mis à jour avec succès" });
+    } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });

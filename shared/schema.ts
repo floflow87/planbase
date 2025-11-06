@@ -25,6 +25,8 @@ export const appUsers = pgTable("app_users", {
   lastName: text("last_name"),
   gender: text("gender"), // 'male', 'female', 'other'
   position: text("position"), // Job title/position
+  phone: text("phone"), // Telephone number
+  company: text("company"), // Company/organization name
   role: text("role").notNull(), // 'owner', 'collaborator', 'client_viewer'
   avatarUrl: text("avatar_url"),
   profile: jsonb("profile").notNull().default({}),
@@ -533,6 +535,8 @@ export const updateProfileSchema = z.object({
   email: z.string().email().optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
   position: z.string().optional(),
+  phone: z.string().optional(),
+  company: z.string().optional(),
   avatarUrl: z.string().url().optional().or(z.literal("")),
 });
 
