@@ -2717,7 +2717,7 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-stage-${project.id}`}
                                       >
-                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-xs`}>
+                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-[10px]`}>
                                           {getStageLabel(project.stage)}
                                         </Badge>
                                       </button>
@@ -2743,7 +2743,7 @@ export default function Projects() {
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
                                             data-testid={`item-stage-${stage.value}`}
                                           >
-                                            <Badge className={`${getStageColor(stage.value)} text-xs`}>
+                                            <Badge className={`${getStageColor(stage.value)} text-[10px]`}>
                                               {stage.label}
                                             </Badge>
                                           </button>
@@ -2782,7 +2782,7 @@ export default function Projects() {
                                         data-testid={`button-edit-category-${project.id}`}
                                       >
                                         {project.category ? (
-                                          <Badge variant="outline" className="cursor-pointer text-xs">
+                                          <Badge variant="outline" className="cursor-pointer text-[10px]">
                                             {project.category}
                                           </Badge>
                                         ) : (
