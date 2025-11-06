@@ -145,23 +145,24 @@ export default function Profile() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
-      <div className="mb-6">
-        <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
-        <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>
-      </div>
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-heading font-bold text-foreground">Mon Profil</h1>
+          <p className="text-muted-foreground mt-1">Gérez vos informations personnelles</p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCircle className="w-5 h-5" />
-            Informations personnelles
-          </CardTitle>
-          <CardDescription>
-            Ces informations seront visibles par les autres membres de votre équipe
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="w-5 h-5" />
+              Informations personnelles
+            </CardTitle>
+            <CardDescription>
+              Ces informations seront visibles par les autres membres de votre équipe
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -348,18 +349,18 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
-            Modifier le mot de passe
-          </CardTitle>
-          <CardDescription>
-            Changez votre mot de passe pour sécuriser votre compte
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...passwordForm}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5" />
+              Modifier le mot de passe
+            </CardTitle>
+            <CardDescription>
+              Changez votre mot de passe pour sécuriser votre compte
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...passwordForm}>
             <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Nouveau mot de passe */}
@@ -455,6 +456,7 @@ export default function Profile() {
           </Form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
