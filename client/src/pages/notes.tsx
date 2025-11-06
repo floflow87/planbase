@@ -375,12 +375,6 @@ export default function Notes() {
               <option value="active">Publiées</option>
               <option value="archived">Archivées</option>
             </select>
-            <Link href="/notes/new">
-              <Button className="gap-2" data-testid="button-nouvelle-note">
-                <Plus className="w-4 h-4" />
-                Nouvelle note
-              </Button>
-            </Link>
           </div>
           
           <div className="flex items-center gap-2">
@@ -414,6 +408,12 @@ export default function Notes() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Link href="/notes/new">
+              <Button className="gap-2" data-testid="button-nouvelle-note">
+                <Plus className="w-4 h-4" />
+                Nouvelle note
+              </Button>
+            </Link>
           </div>
         </div>
 

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,7 +80,7 @@ export function TaskDetailModal({
       description,
       priority,
       assignedToId: assignedToId || null,
-      dueDate: dueDate || null,
+      dueDate: dueDate ? dueDate.toISOString() : null,
       status,
       projectId: projectId || task.projectId,
       effort: effort,
@@ -113,11 +113,11 @@ export function TaskDetailModal({
   if (!task) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]" data-testid="dialog-task-detail">
-        <DialogHeader>
-          <DialogTitle>Détails de la tâche</DialogTitle>
-        </DialogHeader>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto" data-testid="dialog-task-detail">
+        <SheetHeader>
+          <SheetTitle>Détails de la tâche</SheetTitle>
+        </SheetHeader>
         
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
@@ -307,7 +307,7 @@ export function TaskDetailModal({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
