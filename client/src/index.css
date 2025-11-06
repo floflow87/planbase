@@ -75,6 +75,9 @@
   --chart-3: 188 94% 43%;
   --chart-4: 160 84% 39%;
   --chart-5: 37 92% 50%;
+  
+  --budget: 188 94% 43%;
+  --budget-foreground: 0 0% 100%;
 
   --font-sans: 'Montserrat', sans-serif;
   --font-heading: 'Montserrat', sans-serif;
@@ -194,6 +197,9 @@
   --chart-3: 188 94% 65%;
   --chart-4: 160 84% 65%;
   --chart-5: 37 92% 65%;
+  
+  --budget: 188 94% 65%;
+  --budget-foreground: 0 0% 100%;
 
   --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.20);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.25);

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -495,127 +496,127 @@ export default function CRM() {
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-end">
-          <Dialog open={isCreateDialogOpen || !!editingClient} onOpenChange={(open) => {
-            if (!open) {
-              setIsCreateDialogOpen(false);
-              setEditingClient(null);
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Nouveau Client</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingClient ? "Modifier le client" : "Nouveau client"}</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom *</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-client-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-client-type">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="company">Entreprise</SelectItem>
-                              <SelectItem value="person">Personne</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Statut</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-client-status">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="prospecting">Prospection</SelectItem>
-                              <SelectItem value="qualified">Qualifié</SelectItem>
-                              <SelectItem value="negotiation">Négociation</SelectItem>
-                              <SelectItem value="won">Gagné</SelectItem>
-                              <SelectItem value="lost">Perdu</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="budget"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Budget (€)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            value={field.value || 0}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            ref={field.ref}
-                            disabled={field.disabled}
-                            data-testid="input-client-budget"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsCreateDialogOpen(false);
-                        setEditingClient(null);
-                      }}
-                      data-testid="button-cancel"
-                    >
-                      Annuler
-                    </Button>
-                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-client">
-                      {editingClient ? "Mettre à jour" : "Créer"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nouveau Client</span>
+          </Button>
         </div>
+
+        {/* Sheet pour création/modification de client */}
+        <Sheet open={isCreateDialogOpen || !!editingClient} onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateDialogOpen(false);
+            setEditingClient(null);
+          }
+        }}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
+            <SheetHeader>
+              <SheetTitle>{editingClient ? "Modifier le client" : "Nouveau client"}</SheetTitle>
+            </SheetHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 py-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom *</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-client-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="company">Entreprise</SelectItem>
+                            <SelectItem value="person">Personne</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Statut</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-client-status">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="prospecting">Prospection</SelectItem>
+                            <SelectItem value="qualified">Qualifié</SelectItem>
+                            <SelectItem value="negotiation">Négociation</SelectItem>
+                            <SelectItem value="won">Gagné</SelectItem>
+                            <SelectItem value="lost">Perdu</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget (€)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value || 0}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          disabled={field.disabled}
+                          data-testid="input-client-budget"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2 border-t pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateDialogOpen(false);
+                      setEditingClient(null);
+                    }}
+                    data-testid="button-cancel"
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit-client">
+                    {editingClient ? "Mettre à jour" : "Créer"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </SheetContent>
+        </Sheet>
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
