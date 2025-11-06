@@ -2584,7 +2584,7 @@ export default function Projects() {
                                 {getStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
-                                <Badge variant="outline" data-testid={`badge-category-${project.id}`}>
+                                <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
                                   {project.category}
                                 </Badge>
                               )}
@@ -2781,7 +2781,7 @@ export default function Projects() {
                                         data-testid={`button-edit-category-${project.id}`}
                                       >
                                         {project.category ? (
-                                          <Badge variant="outline" className="cursor-pointer">
+                                          <Badge variant="outline" className="cursor-pointer text-xs">
                                             {project.category}
                                           </Badge>
                                         ) : (
