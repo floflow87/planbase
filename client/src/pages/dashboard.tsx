@@ -635,7 +635,6 @@ export default function Dashboard() {
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 
-              size="sm" 
               onClick={() => setIsCreateClientDialogOpen(true)}
               data-testid="button-new-client"
               className="flex-1 sm:flex-none"
@@ -644,7 +643,6 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Nouveau Client</span>
             </Button>
             <Button 
-              size="sm" 
               onClick={() => setIsCreateProjectDialogOpen(true)}
               data-testid="button-new-project"
               className="flex-1 sm:flex-none"

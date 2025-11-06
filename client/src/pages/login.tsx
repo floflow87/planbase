@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Monitor } from "lucide-react";
+import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
 
 async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
@@ -177,9 +178,16 @@ export default function Login() {
 
       {/* Right side - Branding */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
-        <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-          PlanBase
-        </h2>
+        <div className="flex flex-col items-center gap-8">
+          <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            PlanBase
+          </h2>
+          <img 
+            src={mockupImage} 
+            alt="PlanBase Preview" 
+            className="max-w-2xl w-full"
+          />
+        </div>
       </div>
     </div>
   );

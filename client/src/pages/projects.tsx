@@ -19,6 +19,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -3229,7 +3235,7 @@ export default function Projects() {
                 <SelectContent className="bg-white">
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id} className="cursor-pointer">
-                      {client.name}
+                      {client.company || client.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -3372,12 +3378,12 @@ export default function Projects() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
-        <DialogContent data-testid="dialog-edit-project">
-          <DialogHeader>
-            <DialogTitle>Modifier le projet</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Sheet open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
+          <SheetHeader>
+            <SheetTitle>Modifier le projet</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 flex-1 py-4">
             <div>
               <Label htmlFor="edit-project-name">Nom du projet *</Label>
               <Input
@@ -3542,7 +3548,8 @@ export default function Projects() {
               />
             </div>
           </div>
-          <DialogFooter>
+
+          <div className="flex gap-2 justify-end pt-4 border-t">
             <Button
               variant="outline"
               onClick={() => {
@@ -3585,9 +3592,9 @@ export default function Projects() {
             >
               Enregistrer les modifications
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-project">

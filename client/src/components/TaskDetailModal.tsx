@@ -114,12 +114,12 @@ export function TaskDetailModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto" data-testid="dialog-task-detail">
+      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-task-detail">
         <SheetHeader>
           <SheetTitle>Détails de la tâche</SheetTitle>
         </SheetHeader>
         
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 flex-1">
           <div className="grid gap-2">
             <Label htmlFor="title">Titre</Label>
             <Input
@@ -272,39 +272,39 @@ export function TaskDetailModal({
               </PopoverContent>
             </Popover>
           </div>
+        </div>
 
-          <div className="flex gap-2 justify-between pt-4">
-            {onDelete && (
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => {
-                  if (task) {
-                    onDelete(task);
-                    onClose();
-                  }
-                }}
-                data-testid="button-delete-task"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </Button>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <Button 
-                variant="outline" 
-                onClick={onClose}
-                data-testid="button-cancel"
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleSave}
-                data-testid="button-save-task"
-              >
-                Enregistrer
-              </Button>
-            </div>
+        <div className="flex gap-2 justify-between pt-4 border-t">
+          {onDelete && (
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => {
+                if (task) {
+                  onDelete(task);
+                  onClose();
+                }
+              }}
+              data-testid="button-delete-task"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              data-testid="button-cancel"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleSave}
+              data-testid="button-save-task"
+            >
+              Enregistrer
+            </Button>
           </div>
         </div>
       </SheetContent>
