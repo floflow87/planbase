@@ -13,8 +13,8 @@ export const accounts = pgTable("accounts", {
   ownerUserId: uuid("owner_user_id"), // auth.users.id from Supabase Auth
   plan: text("plan").default("starter"),
   settings: jsonb("settings").notNull().default({}),
-  googleClientId: text("google_client_id"), // OAuth Client ID for Google Calendar (per account)
-  googleClientSecret: text("google_client_secret"), // OAuth Client Secret for Google Calendar (per account)
+  googleClientId: text("google_client_id"),
+  googleClientSecret: text("google_client_secret"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
