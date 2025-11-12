@@ -25,6 +25,7 @@ import Finance from "@/pages/finance";
 import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import Profile from "@/pages/profile";
+import CalendarPage from "@/pages/calendar";
 import NotFound from "@/pages/not-found";
 import { Bell, LogOut, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,9 @@ function Router() {
       <Route path="/profile">
         <ProtectedRoute><Profile /></ProtectedRoute>
       </Route>
+      <Route path="/calendar">
+        <ProtectedRoute><CalendarPage /></ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -133,7 +137,7 @@ function UserMenu() {
 }
 
 function AppLayout() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const isLoginPage = location === "/login";
 
   const style = {
@@ -157,6 +161,7 @@ function AppLayout() {
     if (path === "/commercial") return "Commercial";
     if (path === "/legal") return "Légal";
     if (path === "/profile") return "Profil";
+    if (path === "/calendar") return "Calendrier";
     return "";
   };
 
@@ -180,7 +185,12 @@ function AppLayout() {
               <Button variant="ghost" size="sm" data-testid="button-mail">
                 <Mail className="w-5 h-5 text-primary" />
               </Button>
-              <Button variant="ghost" size="sm" data-testid="button-calendar">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setLocation("/calendar")}
+                data-testid="button-calendar"
+              >
                 <Calendar className="w-5 h-5 text-primary" />
               </Button>
               <Button variant="ghost" size="sm" className="relative" data-testid="button-notifications">
