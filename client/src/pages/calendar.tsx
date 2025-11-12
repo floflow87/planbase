@@ -1,13 +1,42 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from "lucide-react";
 
 type ViewMode = "month" | "week" | "day";
 
+interface Appointment {
+  id: string;
+  title: string;
+  startDateTime: string;
+  endDateTime: string | null;
+  clientId: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  notes: string | null;
+}
+
 export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Fetch appointments for the current month
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ["/api/appointments", firstDayOfMonth.toISOString(), lastDayOfMonth.toISOString()],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate: firstDayOfMonth.toISOString(),
+        endDate: lastDayOfMonth.toISOString(),
+      });
+      const response = await fetch(`/api/appointments?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch appointments");
+      return response.json();
+    },
+  });
 
   const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -55,6 +84,37 @@ export default function Calendar() {
         day: "numeric" 
       });
     }
+  };
+
+  // Generate calendar grid for month view
+  const generateMonthGrid = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    
+    // Start from Monday of the week containing the first day
+    startDate.setDate(firstDay.getDate() - (firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1));
+    
+    const days: Date[] = [];
+    const current = new Date(startDate);
+    
+    // Generate 6 weeks (42 days)
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const getAppointmentsForDay = (date: Date) => {
+    return appointments.filter(apt => {
+      const aptDate = new Date(apt.startDateTime);
+      return aptDate.toDateString() === date.toDateString();
+    });
   };
 
   return (
@@ -146,13 +206,77 @@ export default function Calendar() {
 
       {/* Calendar View */}
       <div className="flex-1 overflow-auto p-4">
-        <Card className="p-4">
-          <div className="text-center text-muted-foreground">
-            {viewMode === "month" && <p>Vue Mois - À implémenter</p>}
-            {viewMode === "week" && <p>Vue Semaine - À implémenter</p>}
-            {viewMode === "day" && <p>Vue Jour - À implémenter</p>}
+        {viewMode === "month" && (
+          <div className="bg-card rounded-lg border border-border">
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b border-border">
+              {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(day => (
+                <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground border-r border-border last:border-r-0">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7">
+              {generateMonthGrid().map((date, index) => {
+                const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dayAppointments = getAppointmentsForDay(date);
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-24 p-2 border-r border-b border-border last:border-r-0 ${
+                      !isCurrentMonth ? "bg-muted/30" : "bg-card"
+                    } ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}
+                  >
+                    <div className={`text-sm font-medium mb-1 ${
+                      isCurrentMonth ? "text-foreground" : "text-muted-foreground"
+                    } ${isToday ? "text-violet-600 dark:text-violet-400 font-bold" : ""}`}>
+                      {date.getDate()}
+                    </div>
+                    
+                    {/* Appointments */}
+                    <div className="space-y-1">
+                      {dayAppointments.map(apt => {
+                        const startTime = new Date(apt.startDateTime).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        return (
+                          <div
+                            key={apt.id}
+                            className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                            title={`${startTime} - ${apt.title}`}
+                          >
+                            <span className="font-medium">{startTime}</span> {apt.title}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </Card>
+        )}
+
+        {viewMode === "week" && (
+          <Card className="p-4">
+            <div className="text-center text-muted-foreground">
+              <p>Vue Semaine - À venir</p>
+            </div>
+          </Card>
+        )}
+
+        {viewMode === "day" && (
+          <Card className="p-4">
+            <div className="text-center text-muted-foreground">
+              <p>Vue Jour - À venir</p>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
