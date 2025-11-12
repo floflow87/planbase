@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSqua
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AppointmentPanel } from "@/components/appointment-panel";
+import { supabase } from "@/lib/supabase";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -36,6 +37,19 @@ interface Task {
   status: string | null;
 }
 
+// Helper to get auth headers from Supabase session
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (session?.access_token) {
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+    };
+  }
+  
+  return {};
+}
+
 export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,11 +63,12 @@ export default function Calendar() {
   const { data: appointments = [] } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments", firstDayOfMonth.toISOString(), lastDayOfMonth.toISOString()],
     queryFn: async () => {
+      const authHeaders = await getAuthHeaders();
       const params = new URLSearchParams({
         startDate: firstDayOfMonth.toISOString(),
         endDate: lastDayOfMonth.toISOString(),
       });
-      const response = await fetch(`/api/appointments?${params}`);
+      const response = await fetch(`/api/appointments?${params}`, { headers: authHeaders });
       if (!response.ok) throw new Error("Failed to fetch appointments");
       return response.json();
     },
@@ -63,7 +78,8 @@ export default function Calendar() {
   const { data: tasks = [] } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
     queryFn: async () => {
-      const response = await fetch("/api/tasks");
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch("/api/tasks", { headers: authHeaders });
       if (!response.ok) return [];
       const allTasks = await response.json();
       // Filter only tasks with due dates
@@ -74,6 +90,12 @@ export default function Calendar() {
   // Check Google Calendar connection status
   const { data: googleStatus } = useQuery<{ connected: boolean; email: string | null; configured: boolean }>({
     queryKey: ["/api/google/status"],
+    queryFn: async () => {
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch("/api/google/status", { headers: authHeaders });
+      if (!response.ok) return { connected: false, email: null, configured: false };
+      return response.json();
+    },
   });
 
   // Fetch Google Calendar events if connected
@@ -82,11 +104,12 @@ export default function Calendar() {
     queryFn: async () => {
       if (!googleStatus?.connected) return [];
       
+      const authHeaders = await getAuthHeaders();
       const params = new URLSearchParams({
         startDate: firstDayOfMonth.toISOString(),
         endDate: lastDayOfMonth.toISOString(),
       });
-      const response = await fetch(`/api/google/events?${params}`);
+      const response = await fetch(`/api/google/events?${params}`, { headers: authHeaders });
       if (!response.ok) return [];
       return response.json();
     },
@@ -96,7 +119,11 @@ export default function Calendar() {
   // Disconnect Google Calendar
   const disconnectMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/google/disconnect", { method: "DELETE" });
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch("/api/google/disconnect", { 
+        method: "DELETE",
+        headers: authHeaders 
+      });
       if (!response.ok) throw new Error("Failed to disconnect");
       return response.json();
     },
@@ -111,7 +138,8 @@ export default function Calendar() {
 
   const handleConnectGoogle = async () => {
     try {
-      const response = await fetch("/api/google/auth/start");
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch("/api/google/auth/start", { headers: authHeaders });
       const data = await response.json();
       
       if (response.ok && data.authUrl) {
@@ -119,7 +147,8 @@ export default function Calendar() {
         
         // Poll for connection status
         const pollInterval = setInterval(async () => {
-          const statusResponse = await fetch("/api/google/status");
+          const authHeaders = await getAuthHeaders();
+          const statusResponse = await fetch("/api/google/status", { headers: authHeaders });
           const status = await statusResponse.json();
           
           if (status.connected) {
@@ -244,48 +273,36 @@ export default function Calendar() {
     });
   };
 
+  // Generate week view grid (7 days starting from Monday)
+  const generateWeekGrid = () => {
+    const startOfWeek = new Date(currentDate);
+    const dayOfWeek = startOfWeek.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust to Monday
+    startOfWeek.setDate(startOfWeek.getDate() + diff);
+    
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  // Generate time slots for day/week views (7am to 9pm in 1-hour slots)
+  const generateTimeSlots = () => {
+    const slots: string[] = [];
+    for (let hour = 7; hour <= 21; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={() => setAppointmentDialogOpen(true)}
-            data-testid="button-new-appointment"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouveau rendez-vous
-          </Button>
-          {googleStatus?.connected ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
-              <CalendarIcon className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-muted-foreground">{googleStatus.email}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => disconnectMutation.mutate()}
-                data-testid="button-disconnect-google"
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleConnectGoogle}
-              disabled={!googleStatus?.configured}
-              data-testid="button-google-calendar"
-            >
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              {googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
-            </Button>
-          )}
-        </div>
-
+        {/* Left side: View selectors + Date */}
         <div className="flex items-center gap-2">
           {/* View Mode Toggles */}
           <div className="flex border border-border rounded-md">
@@ -347,6 +364,45 @@ export default function Calendar() {
           <div className="text-base font-semibold text-foreground ml-2">
             {getDisplayTitle()}
           </div>
+        </div>
+
+        {/* Right side: New appointment + Google button */}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => setAppointmentDialogOpen(true)}
+            data-testid="button-new-appointment"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nouveau rdv
+          </Button>
+          {googleStatus?.connected ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <CalendarIcon className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-muted-foreground">{googleStatus.email}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => disconnectMutation.mutate()}
+                data-testid="button-disconnect-google"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={handleConnectGoogle}
+              disabled={!googleStatus?.configured}
+              title={googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
+              data-testid="button-google-calendar"
+            >
+              <CalendarIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -458,19 +514,233 @@ export default function Calendar() {
         )}
 
         {viewMode === "week" && (
-          <Card className="p-4">
-            <div className="text-center text-muted-foreground">
-              <p>Vue Semaine - À venir</p>
+          <div className="bg-card rounded-lg border border-border overflow-auto">
+            <div className="grid grid-cols-8 min-w-[800px]">
+              {/* Time column */}
+              <div className="border-r border-border">
+                <div className="h-12 border-b border-border"></div>
+                {generateTimeSlots().map(time => (
+                  <div key={time} className="h-20 border-b border-border p-2 text-xs text-muted-foreground">
+                    {time}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day columns */}
+              {generateWeekGrid().map((date, dayIndex) => {
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dayAppointments = getAppointmentsForDay(date);
+                const dayGoogleEvents = getGoogleEventsForDay(date);
+                const dayTasks = getTasksForDay(date);
+
+                return (
+                  <div key={dayIndex} className="border-r border-border last:border-r-0">
+                    {/* Day header */}
+                    <div className={`h-12 border-b border-border p-2 text-center ${isToday ? "bg-violet-100 dark:bg-violet-900/30" : ""}`}>
+                      <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
+                      <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
+                        {date.getDate()}
+                      </div>
+                    </div>
+
+                    {/* Time slots */}
+                    {generateTimeSlots().map((time, timeIndex) => (
+                      <div key={timeIndex} className="h-20 border-b border-border p-1 relative">
+                        {/* Render appointments/events in this time slot */}
+                        {dayAppointments.map(apt => {
+                          const aptTime = new Date(apt.startDateTime);
+                          const aptHour = aptTime.getHours();
+                          const slotHour = parseInt(time.split(':')[0]);
+                          
+                          if (aptHour === slotHour) {
+                            return (
+                              <div
+                                key={apt.id}
+                                className="text-xs p-1 mb-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer"
+                                title={apt.title}
+                              >
+                                {aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {apt.title}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                        
+                        {dayGoogleEvents.map(event => {
+                          if (!event.start.dateTime) {
+                            // All-day events: show only in first time slot
+                            if (timeIndex === 0) {
+                              return (
+                                <div
+                                  key={event.id}
+                                  className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500"
+                                  title={event.summary}
+                                >
+                                  Toute la journée: {event.summary}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }
+                          
+                          const eventTime = new Date(event.start.dateTime);
+                          const eventHour = eventTime.getHours();
+                          const slotHour = parseInt(time.split(':')[0]);
+                          
+                          if (eventHour === slotHour) {
+                            return (
+                              <div
+                                key={event.id}
+                                className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500"
+                                title={event.summary}
+                              >
+                                {eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {event.summary}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+
+                        {/* Tasks: show only in first time slot since they have no specific time */}
+                        {timeIndex === 0 && dayTasks.map(task => (
+                          <div
+                            key={task.id}
+                            className={`text-xs p-1 mb-1 rounded truncate cursor-pointer ${
+                              task.priority === "high" ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500" :
+                              task.priority === "medium" ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500" :
+                              "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500"
+                            }`}
+                            title={task.title}
+                          >
+                            <CheckSquare className="w-3 h-3 inline mr-1" /> {task.title}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
-          </Card>
+          </div>
         )}
 
         {viewMode === "day" && (
-          <Card className="p-4">
-            <div className="text-center text-muted-foreground">
-              <p>Vue Jour - À venir</p>
+          <div className="bg-card rounded-lg border border-border overflow-auto max-w-4xl mx-auto">
+            <div className="grid grid-cols-2">
+              {/* Time column */}
+              <div className="border-r border-border col-span-2">
+                {/* Day header */}
+                <div className="h-16 border-b border-border p-4 bg-violet-50 dark:bg-violet-950/20">
+                  <div className="text-sm text-muted-foreground">
+                    {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][currentDate.getDay()]}
+                  </div>
+                  <div className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                    {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Time column */}
+              <div className="border-r border-border">
+                {generateTimeSlots().map(time => (
+                  <div key={time} className="h-20 border-b border-border p-2 text-sm text-muted-foreground font-medium">
+                    {time}
+                  </div>
+                ))}
+              </div>
+
+              {/* Events column */}
+              <div>
+                {generateTimeSlots().map((time, timeIndex) => {
+                  const dayAppointments = getAppointmentsForDay(currentDate);
+                  const dayGoogleEvents = getGoogleEventsForDay(currentDate);
+                  const dayTasks = getTasksForDay(currentDate);
+                  const slotHour = parseInt(time.split(':')[0]);
+
+                  return (
+                    <div key={timeIndex} className="h-20 border-b border-border p-2 space-y-1">
+                      {/* Render appointments in this time slot */}
+                      {dayAppointments.map(apt => {
+                        const aptTime = new Date(apt.startDateTime);
+                        const aptHour = aptTime.getHours();
+                        
+                        if (aptHour === slotHour) {
+                          return (
+                            <div
+                              key={apt.id}
+                              className="text-sm p-2 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                              title={apt.title}
+                            >
+                              <div className="font-semibold">{aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                              <div>{apt.title}</div>
+                              {apt.notes && <div className="text-xs mt-1 text-muted-foreground">{apt.notes}</div>}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+                      
+                      {dayGoogleEvents.map(event => {
+                        if (!event.start.dateTime) {
+                          // All-day event: show only in first time slot
+                          if (timeIndex === 0) {
+                            return (
+                              <div
+                                key={event.id}
+                                className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
+                                title={event.summary}
+                              >
+                                <div className="font-semibold">Toute la journée</div>
+                                <div>{event.summary}</div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
+                        
+                        const eventTime = new Date(event.start.dateTime);
+                        const eventHour = eventTime.getHours();
+                        
+                        if (eventHour === slotHour) {
+                          return (
+                            <div
+                              key={event.id}
+                              className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
+                              title={event.summary}
+                            >
+                              <div className="font-semibold">{eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                              <div>{event.summary}</div>
+                              {event.description && <div className="text-xs mt-1">{event.description}</div>}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      {/* Tasks for this day (shown at top of day) */}
+                      {timeIndex === 0 && dayTasks.map(task => (
+                        <div
+                          key={task.id}
+                          className={`text-sm p-2 rounded cursor-pointer ${
+                            task.priority === "high" ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-4 border-red-500" :
+                            task.priority === "medium" ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-4 border-yellow-500" :
+                            "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-4 border-green-500"
+                          }`}
+                          title={task.title}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CheckSquare className="w-4 h-4" />
+                            <span className="font-semibold">Tâche à faire</span>
+                          </div>
+                          <div>{task.title}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </Card>
+          </div>
         )}
       </div>
 
