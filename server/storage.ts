@@ -21,12 +21,15 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
+  type Appointment, type InsertAppointment,
+  type GoogleCalendarToken, type InsertGoogleCalendarToken,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, taskColumns, tasks, notes, noteLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
+  appointments, googleCalendarTokens,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql, isNull, inArray } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
 
 // Storage interface for all CRUD operations
 export interface IStorage {
@@ -182,6 +185,20 @@ export interface IStorage {
     notes: Note[];
     files: File[];
   }>;
+
+  // Appointments
+  getAppointment(accountId: string, id: string): Promise<Appointment | undefined>;
+  getAppointmentsByAccountId(accountId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]>;
+  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  updateAppointment(accountId: string, id: string, appointment: Partial<InsertAppointment>): Promise<Appointment | undefined>;
+  deleteAppointment(accountId: string, id: string): Promise<boolean>;
+  getAppointmentByGoogleEventId(accountId: string, googleEventId: string): Promise<Appointment | undefined>;
+
+  // Google Calendar Tokens (TODO: Implement encryption at rest using pgcrypto or KMS)
+  getGoogleTokenByUserId(accountId: string, userId: string): Promise<GoogleCalendarToken | undefined>;
+  upsertGoogleToken(token: InsertGoogleCalendarToken): Promise<GoogleCalendarToken>;
+  deleteGoogleToken(accountId: string, userId: string): Promise<boolean>;
+  updateGoogleTokenExpiry(accountId: string, userId: string, accessToken: string, expiresAt: Date): Promise<void>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -983,6 +1000,101 @@ export class DatabaseStorage implements IStorage {
       notes: noteResults,
       files: fileResults,
     };
+  }
+
+  // Appointments
+  async getAppointment(accountId: string, id: string): Promise<Appointment | undefined> {
+    const [appointment] = await db.select().from(appointments)
+      .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)));
+    return appointment || undefined;
+  }
+
+  async getAppointmentsByAccountId(accountId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]> {
+    const conditions = [eq(appointments.accountId, accountId)];
+    
+    if (startDate) {
+      conditions.push(gte(appointments.startDateTime, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(appointments.startDateTime, endDate));
+    }
+
+    return await db.select().from(appointments)
+      .where(and(...conditions))
+      .orderBy(asc(appointments.startDateTime));
+  }
+
+  async createAppointment(insertAppointment: InsertAppointment): Promise<Appointment> {
+    const [appointment] = await db.insert(appointments).values(insertAppointment).returning();
+    return appointment;
+  }
+
+  async updateAppointment(accountId: string, id: string, updateData: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const [appointment] = await db.update(appointments)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)))
+      .returning();
+    return appointment || undefined;
+  }
+
+  async deleteAppointment(accountId: string, id: string): Promise<boolean> {
+    const result = await db.delete(appointments)
+      .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getAppointmentByGoogleEventId(accountId: string, googleEventId: string): Promise<Appointment | undefined> {
+    const [appointment] = await db.select().from(appointments)
+      .where(and(
+        eq(appointments.googleEventId, googleEventId),
+        eq(appointments.accountId, accountId)
+      ));
+    return appointment || undefined;
+  }
+
+  // Google Calendar Tokens
+  async getGoogleTokenByUserId(accountId: string, userId: string): Promise<GoogleCalendarToken | undefined> {
+    const [token] = await db.select().from(googleCalendarTokens)
+      .where(and(eq(googleCalendarTokens.userId, userId), eq(googleCalendarTokens.accountId, accountId)));
+    return token || undefined;
+  }
+
+  async upsertGoogleToken(token: InsertGoogleCalendarToken): Promise<GoogleCalendarToken> {
+    const [upserted] = await db.insert(googleCalendarTokens)
+      .values(token)
+      .onConflictDoUpdate({
+        target: [googleCalendarTokens.accountId, googleCalendarTokens.userId],
+        set: {
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken,
+          email: token.email,
+          expiresAt: token.expiresAt,
+          scope: token.scope,
+          tokenType: token.tokenType,
+          updatedAt: new Date(),
+        }
+      })
+      .returning();
+    return upserted;
+  }
+
+  async deleteGoogleToken(accountId: string, userId: string): Promise<boolean> {
+    const result = await db.delete(googleCalendarTokens)
+      .where(and(eq(googleCalendarTokens.userId, userId), eq(googleCalendarTokens.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async updateGoogleTokenExpiry(accountId: string, userId: string, accessToken: string, expiresAt: Date): Promise<void> {
+    const result = await db.update(googleCalendarTokens)
+      .set({ accessToken, expiresAt, updatedAt: new Date() })
+      .where(and(eq(googleCalendarTokens.userId, userId), eq(googleCalendarTokens.accountId, accountId)))
+      .returning();
+    
+    if (result.length === 0) {
+      throw new Error(`Google token not found for user ${userId} in account ${accountId}`);
+    }
   }
 }
 

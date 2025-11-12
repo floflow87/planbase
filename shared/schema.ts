@@ -521,6 +521,45 @@ export const clientComments = pgTable("client_comments", {
 }));
 
 // ============================================
+// CALENDAR & APPOINTMENTS
+// ============================================
+
+export const appointments = pgTable("appointments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  title: text("title").notNull(), // Motif du rendez-vous
+  startDateTime: timestamp("start_date_time", { withTimezone: true }).notNull(),
+  endDateTime: timestamp("end_date_time", { withTimezone: true }),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  notes: text("notes"), // Remarques
+  googleEventId: text("google_event_id"), // ID de l'événement Google Calendar (pour sync bidirectionnel)
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }), // Nullable for FK compatibility
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountStartIdx: index().on(table.accountId, table.startDateTime),
+  uniqueGoogleEventIdx: uniqueIndex().on(table.accountId, table.googleEventId), // Prevent duplicate Google events per account
+}));
+
+export const googleCalendarTokens = pgTable("google_calendar_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  email: text("email").notNull(), // Google account email
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  tokenType: text("token_type").notNull().default("Bearer"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  scope: text("scope").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueAccountUserIdx: uniqueIndex().on(table.accountId, table.userId), // One Google Calendar per user per account
+}));
+
+// ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
 
@@ -570,6 +609,8 @@ export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true,
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
 export const insertNoteLinkSchema = createInsertSchema(noteLinks);
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertGoogleCalendarTokenSchema = createInsertSchema(googleCalendarTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
@@ -597,6 +638,8 @@ export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
 export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
 export type InsertNoteLink = z.infer<typeof insertNoteLinkSchema>;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type InsertGoogleCalendarToken = z.infer<typeof insertGoogleCalendarTokenSchema>;
 
 // Select types
 export type Account = typeof accounts.$inferSelect;
@@ -624,3 +667,5 @@ export type Roadmap = typeof roadmaps.$inferSelect;
 export type RoadmapItem = typeof roadmapItems.$inferSelect;
 export type ClientComment = typeof clientComments.$inferSelect;
 export type NoteLink = typeof noteLinks.$inferSelect;
+export type Appointment = typeof appointments.$inferSelect;
+export type GoogleCalendarToken = typeof googleCalendarTokens.$inferSelect;
