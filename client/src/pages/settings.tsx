@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Save, Key } from "lucide-react";
 
 interface Account {
@@ -27,11 +27,6 @@ export default function Settings() {
 
   const { data: account, isLoading } = useQuery<Account>({
     queryKey: ["/api/accounts", currentUser?.accountId],
-    queryFn: async () => {
-      const response = await fetch(`/api/accounts/${currentUser?.accountId}`);
-      if (!response.ok) throw new Error("Failed to fetch account");
-      return response.json();
-    },
     enabled: !!currentUser?.accountId,
   });
 
@@ -45,13 +40,7 @@ export default function Settings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { googleClientId: string; googleClientSecret: string }) => {
-      const response = await fetch(`/api/accounts/${currentUser?.accountId}/google-oauth`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!response.ok) throw new Error("Failed to update");
-      return response.json();
+      return apiRequest(`/api/accounts/${currentUser?.accountId}/google-oauth`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/accounts", currentUser?.accountId] });
