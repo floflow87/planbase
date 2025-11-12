@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -20,6 +22,7 @@ interface Appointment {
 export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { toast } = useToast();
 
   // Fetch appointments for the current month
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -37,6 +40,68 @@ export default function Calendar() {
       return response.json();
     },
   });
+
+  // Check Google Calendar connection status
+  const { data: googleStatus } = useQuery<{ connected: boolean; email: string | null; configured: boolean }>({
+    queryKey: ["/api/google/status"],
+  });
+
+  // Disconnect Google Calendar
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/google/disconnect", { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to disconnect");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/google/status"] });
+      toast({
+        title: "Déconnexion réussie",
+        description: "Votre Google Calendar a été déconnecté.",
+      });
+    },
+  });
+
+  const handleConnectGoogle = async () => {
+    try {
+      const response = await fetch("/api/google/auth/start");
+      const data = await response.json();
+      
+      if (response.ok && data.authUrl) {
+        window.open(data.authUrl, "_blank", "width=600,height=700");
+        
+        // Poll for connection status
+        const pollInterval = setInterval(async () => {
+          const statusResponse = await fetch("/api/google/status");
+          const status = await statusResponse.json();
+          
+          if (status.connected) {
+            clearInterval(pollInterval);
+            queryClient.invalidateQueries({ queryKey: ["/api/google/status"] });
+            toast({
+              title: "✅ Google Calendar connecté !",
+              description: "Vos événements seront synchronisés.",
+            });
+          }
+        }, 2000);
+
+        // Stop polling after 2 minutes
+        setTimeout(() => clearInterval(pollInterval), 120000);
+      } else {
+        toast({
+          title: "Configuration requise",
+          description: data.error || "Veuillez configurer vos credentials Google OAuth dans les paramètres.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de se connecter à Google Calendar.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -130,14 +195,32 @@ export default function Calendar() {
             <Plus className="w-4 h-4 mr-2" />
             Nouveau rendez-vous
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            data-testid="button-google-calendar"
-          >
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            Connecter Google Calendar
-          </Button>
+          {googleStatus?.connected ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <CalendarIcon className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-muted-foreground">{googleStatus.email}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => disconnectMutation.mutate()}
+                data-testid="button-disconnect-google"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleConnectGoogle}
+              disabled={!googleStatus?.configured}
+              data-testid="button-google-calendar"
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              {googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

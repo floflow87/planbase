@@ -32,6 +32,7 @@ import { summarizeText, extractActions, classifyDocument, suggestNextActions } f
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
 import { getDemoCredentials } from "./middleware/demo-helper";
 import { supabaseAdmin } from "./lib/supabase";
+import { google } from "googleapis";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -1974,6 +1975,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // GOOGLE CALENDAR OAUTH
+  // ============================================
+
+  // Start OAuth flow
+  app.get("/api/google/auth/start", requireAuth, async (req, res) => {
+    try {
+      const account = await storage.getAccount(req.accountId!);
+      
+      if (!account?.googleClientId || !account.googleClientSecret) {
+        return res.status(400).json({ 
+          error: "Google Calendar n'est pas configuré pour ce compte. Veuillez configurer vos credentials OAuth dans les paramètres." 
+        });
+      }
+
+      const { createOAuth2Client, getAuthUrl } = await import("./lib/google-calendar");
+      
+      const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
+      
+      const oauth2Client = createOAuth2Client({
+        clientId: account.googleClientId,
+        clientSecret: account.googleClientSecret,
+        redirectUri,
+      });
+
+      const state = JSON.stringify({
+        accountId: req.accountId,
+        userId: req.userId,
+      });
+
+      const authUrl = getAuthUrl(oauth2Client, state);
+      res.json({ authUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // OAuth callback
+  app.get("/api/google/auth/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || !state) {
+        return res.status(400).send("Missing code or state");
+      }
+
+      const { accountId, userId } = JSON.parse(state as string);
+      const account = await storage.getAccount(accountId);
+
+      if (!account?.googleClientId || !account.googleClientSecret) {
+        return res.status(400).send("Google OAuth not configured");
+      }
+
+      const { createOAuth2Client, exchangeCodeForTokens } = await import("./lib/google-calendar");
+      
+      const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
+      
+      const oauth2Client = createOAuth2Client({
+        clientId: account.googleClientId,
+        clientSecret: account.googleClientSecret,
+        redirectUri,
+      });
+
+      const tokens = await exchangeCodeForTokens(oauth2Client, code as string);
+
+      // Get user info to store email
+      oauth2Client.setCredentials(tokens);
+      const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+      const userInfo = await oauth2.userinfo.get();
+
+      await storage.upsertGoogleToken({
+        accountId,
+        userId,
+        email: userInfo.data.email || "",
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token!,
+        tokenType: tokens.token_type || "Bearer",
+        expiresAt: new Date(tokens.expiry_date!),
+        scope: tokens.scope!,
+      });
+
+      res.send(`
+        <html>
+          <body>
+            <h1>✅ Google Calendar connecté avec succès !</h1>
+            <p>Vous pouvez fermer cette fenêtre et retourner à Planbase.</p>
+            <script>
+              setTimeout(() => window.close(), 2000);
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      res.status(500).send(`Error: ${error.message}`);
+    }
+  });
+
+  // Disconnect Google Calendar
+  app.delete("/api/google/disconnect", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteGoogleToken(req.accountId!, req.userId!);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Google Calendar connection status
+  app.get("/api/google/status", requireAuth, async (req, res) => {
+    try {
+      const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
+      const account = await storage.getAccount(req.accountId!);
+      
+      res.json({
+        connected: !!token,
+        email: token?.email || null,
+        configured: !!(account?.googleClientId && account.googleClientSecret),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get Google Calendar events
+  app.get("/api/google/events", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const { getCalendarEvents } = await import("./lib/google-calendar");
+      
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const events = await getCalendarEvents(req.accountId!, req.userId!, start, end);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
