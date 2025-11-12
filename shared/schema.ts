@@ -610,6 +610,7 @@ export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ i
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
 export const insertNoteLinkSchema = createInsertSchema(noteLinks);
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateAppointmentSchema = insertAppointmentSchema.omit({ accountId: true, createdBy: true, googleEventId: true }).partial();
 export const insertGoogleCalendarTokenSchema = createInsertSchema(googleCalendarTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Insert types

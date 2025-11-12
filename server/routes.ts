@@ -25,6 +25,8 @@ import {
   insertRoadmapSchema,
   insertRoadmapItemSchema,
   insertClientCommentSchema,
+  insertAppointmentSchema,
+  updateAppointmentSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -1969,6 +1971,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const success = await storage.deleteRoadmapItem(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CALENDAR & APPOINTMENTS
+  // ============================================
+
+  // Get all appointments for the current account with optional date filters
+  app.get("/api/appointments", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      let start: Date | undefined;
+      let end: Date | undefined;
+      
+      if (startDate) {
+        start = new Date(startDate as string);
+        if (isNaN(start.getTime())) {
+          return res.status(400).json({ error: "Invalid startDate format" });
+        }
+      }
+      
+      if (endDate) {
+        end = new Date(endDate as string);
+        if (isNaN(end.getTime())) {
+          return res.status(400).json({ error: "Invalid endDate format" });
+        }
+      }
+      
+      const appointments = await storage.getAppointmentsByAccountId(req.accountId!, start, end);
+      res.json(appointments);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get a specific appointment
+  app.get("/api/appointments/:id", requireAuth, async (req, res) => {
+    try {
+      const appointment = await storage.getAppointment(req.accountId!, req.params.id);
+      if (!appointment) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+      res.json(appointment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new appointment
+  app.post("/api/appointments", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertAppointmentSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || null,
+      });
+      const appointment = await storage.createAppointment(data);
+      
+      // Create activity log
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "appointment",
+        subjectId: appointment.id,
+        kind: "note",
+        payload: { description: `New appointment: ${data.title}` },
+        createdBy: req.userId || null,
+      });
+      
+      res.json(appointment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update an appointment
+  app.patch("/api/appointments/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getAppointment(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+      
+      // Validate update data (prevents modifying accountId, createdBy, googleEventId)
+      const validatedData = updateAppointmentSchema.parse(req.body);
+      
+      const appointment = await storage.updateAppointment(req.accountId!, req.params.id, validatedData);
+      res.json(appointment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete an appointment
+  app.delete("/api/appointments/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getAppointment(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+      
+      const success = await storage.deleteAppointment(req.accountId!, req.params.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
