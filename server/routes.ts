@@ -27,6 +27,7 @@ import {
   insertClientCommentSchema,
   insertAppointmentSchema,
   updateAppointmentSchema,
+  type ClientCustomField,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -79,17 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/accounts/:id", async (req, res) => {
-    try {
-      const account = await storage.getAccount(req.params.id);
-      if (!account) {
-        return res.status(404).json({ error: "Account not found" });
-      }
-      res.json(account);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  // REMOVED: Unauthenticated route that exposed sensitive OAuth credentials
+  // Use the authenticated route at line ~1987 instead: GET /api/accounts/:accountId with requireAuth
 
   // ============================================
   // USERS
@@ -1973,6 +1965,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const success = await storage.deleteRoadmapItem(req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ACCOUNT SETTINGS ROUTES
+  // ============================================
+
+  // Get account details (OWNER ONLY - contains sensitive OAuth credentials)
+  app.get("/api/accounts/:accountId", requireAuth, requireRole("owner"), async (req, res) => {
+    try {
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+      
+      const account = await storage.getAccount(req.params.accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      res.json({
+        id: account.id,
+        name: account.name,
+        googleClientId: account.googleClientId,
+        googleClientSecret: account.googleClientSecret,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update Google OAuth credentials
+  app.patch("/api/accounts/:accountId/google-oauth", requireAuth, requireRole("owner"), async (req, res) => {
+    try {
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+
+      const { googleClientId, googleClientSecret } = req.body;
+
+      if (!googleClientId || !googleClientSecret) {
+        return res.status(400).json({ error: "Both googleClientId and googleClientSecret are required" });
+      }
+
+      // Update account with Google credentials
+      const { data, error } = await supabaseAdmin
+        .from("accounts")
+        .update({
+          google_client_id: googleClientId.trim(),
+          google_client_secret: googleClientSecret.trim(),
+        })
+        .eq("id", req.params.accountId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.json({ success: true, account: data });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

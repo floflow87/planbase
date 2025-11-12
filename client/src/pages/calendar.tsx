@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { AppointmentDialog } from "@/components/appointment-dialog";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -19,9 +20,18 @@ interface Appointment {
   notes: string | null;
 }
 
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  description?: string;
+}
+
 export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch appointments for the current month
@@ -44,6 +54,23 @@ export default function Calendar() {
   // Check Google Calendar connection status
   const { data: googleStatus } = useQuery<{ connected: boolean; email: string | null; configured: boolean }>({
     queryKey: ["/api/google/status"],
+  });
+
+  // Fetch Google Calendar events if connected
+  const { data: googleEvents = [] } = useQuery<GoogleEvent[]>({
+    queryKey: ["/api/google/events", firstDayOfMonth.toISOString(), lastDayOfMonth.toISOString()],
+    queryFn: async () => {
+      if (!googleStatus?.connected) return [];
+      
+      const params = new URLSearchParams({
+        startDate: firstDayOfMonth.toISOString(),
+        endDate: lastDayOfMonth.toISOString(),
+      });
+      const response = await fetch(`/api/google/events?${params}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!googleStatus?.connected,
   });
 
   // Disconnect Google Calendar
@@ -182,6 +209,13 @@ export default function Calendar() {
     });
   };
 
+  const getGoogleEventsForDay = (date: Date) => {
+    return googleEvents.filter(event => {
+      const eventDate = new Date(event.start.dateTime || event.start.date || "");
+      return eventDate.toDateString() === date.toDateString();
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -190,11 +224,18 @@ export default function Calendar() {
           <Button 
             variant="default" 
             size="sm"
+            onClick={() => setAppointmentDialogOpen(true)}
             data-testid="button-new-appointment"
           >
             <Plus className="w-4 h-4 mr-2" />
             Nouveau rendez-vous
           </Button>
+          
+          <AppointmentDialog
+            open={appointmentDialogOpen}
+            onOpenChange={setAppointmentDialogOpen}
+            selectedDate={currentDate}
+          />
           {googleStatus?.connected ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
               <CalendarIcon className="w-4 h-4 text-green-600" />
@@ -306,6 +347,7 @@ export default function Calendar() {
                 const isCurrentMonth = date.getMonth() === currentDate.getMonth();
                 const isToday = date.toDateString() === new Date().toDateString();
                 const dayAppointments = getAppointmentsForDay(date);
+                const dayGoogleEvents = getGoogleEventsForDay(date);
 
                 return (
                   <div
@@ -320,8 +362,9 @@ export default function Calendar() {
                       {date.getDate()}
                     </div>
                     
-                    {/* Appointments */}
+                    {/* Events */}
                     <div className="space-y-1">
+                      {/* Planbase Appointments */}
                       {dayAppointments.map(apt => {
                         const startTime = new Date(apt.startDateTime).toLocaleTimeString("fr-FR", {
                           hour: "2-digit",
@@ -332,8 +375,29 @@ export default function Calendar() {
                             key={apt.id}
                             className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
                             title={`${startTime} - ${apt.title}`}
+                            data-testid={`appointment-${apt.id}`}
                           >
                             <span className="font-medium">{startTime}</span> {apt.title}
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Google Calendar Events */}
+                      {dayGoogleEvents.map(event => {
+                        const startTime = event.start.dateTime 
+                          ? new Date(event.start.dateTime).toLocaleTimeString("fr-FR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Toute la journée";
+                        return (
+                          <div
+                            key={event.id}
+                            className="text-xs p-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer hover:bg-cyan-200 dark:hover:bg-cyan-900/50 border-l-2 border-cyan-500"
+                            title={`Google: ${startTime} - ${event.summary}`}
+                            data-testid={`google-event-${event.id}`}
+                          >
+                            <span className="font-medium">{startTime}</span> {event.summary}
                           </div>
                         );
                       })}

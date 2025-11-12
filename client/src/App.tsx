@@ -26,6 +26,7 @@ import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import Profile from "@/pages/profile";
 import CalendarPage from "@/pages/calendar";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 import { Bell, LogOut, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,9 @@ function Router() {
       </Route>
       <Route path="/calendar">
         <ProtectedRoute><CalendarPage /></ProtectedRoute>
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute><Settings /></ProtectedRoute>
       </Route>
       <Route component={NotFound} />
     </Switch>

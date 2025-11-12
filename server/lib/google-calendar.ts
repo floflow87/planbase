@@ -65,7 +65,7 @@ export async function refreshAccessToken(accountId: string, userId: string) {
 }
 
 export async function getCalendarEvents(accountId: string, userId: string, startDate?: Date, endDate?: Date) {
-  const token = await storage.getGoogleTokenByUserId(accountId, userId);
+  let token = await storage.getGoogleTokenByUserId(accountId, userId);
   if (!token) {
     return [];
   }
@@ -73,6 +73,11 @@ export async function getCalendarEvents(accountId: string, userId: string, start
   // Check if token is expired and refresh if needed
   if (new Date(token.expiresAt) < new Date()) {
     await refreshAccessToken(accountId, userId);
+    // Reload the refreshed token from storage
+    token = await storage.getGoogleTokenByUserId(accountId, userId);
+    if (!token) {
+      return [];
+    }
   }
 
   const account = await storage.getAccount(accountId);
