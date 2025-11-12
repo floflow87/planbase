@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, getGoogleClientId, getGoogleClientSecret } from "./storage";
 import {
   insertAccountSchema,
   insertAppUserSchema,
@@ -1989,8 +1989,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         id: account.id,
         name: account.name,
-        googleClientId: account.googleClientId,
-        googleClientSecret: account.googleClientSecret,
+        googleClientId: getGoogleClientId(account),
+        googleClientSecret: getGoogleClientSecret(account),
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -2010,20 +2010,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Both googleClientId and googleClientSecret are required" });
       }
 
-      // Update account with Google credentials
-      const { data, error } = await supabaseAdmin
-        .from("accounts")
-        .update({
-          google_client_id: googleClientId.trim(),
-          google_client_secret: googleClientSecret.trim(),
-        })
-        .eq("id", req.params.accountId)
-        .select()
-        .single();
+      // Update account with Google credentials in settings JSON
+      const account = await storage.getAccount(req.params.accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
 
-      if (error) throw error;
+      // Merge new credentials into existing settings
+      const currentSettings = (typeof account.settings === 'object' && account.settings !== null && !Array.isArray(account.settings)) 
+        ? account.settings as Record<string, unknown> 
+        : {};
+      
+      const updatedSettings = {
+        ...currentSettings,
+        googleClientId: googleClientId.trim(),
+        googleClientSecret: googleClientSecret.trim(),
+      };
 
-      res.json({ success: true, account: data });
+      const updatedAccount = await storage.updateAccount(req.params.accountId, {
+        settings: updatedSettings,
+      });
+
+      res.json({ success: true, account: updatedAccount });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -2037,8 +2045,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/auth/start", requireAuth, async (req, res) => {
     try {
       const account = await storage.getAccount(req.accountId!);
+      const clientId = getGoogleClientId(account);
+      const clientSecret = getGoogleClientSecret(account);
       
-      if (!account?.googleClientId || !account.googleClientSecret) {
+      if (!clientId || !clientSecret) {
         return res.status(400).json({ 
           error: "Google Calendar n'est pas configuré pour ce compte. Veuillez configurer vos credentials OAuth dans les paramètres." 
         });
@@ -2049,8 +2059,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
       
       const oauth2Client = createOAuth2Client({
-        clientId: account.googleClientId,
-        clientSecret: account.googleClientSecret,
+        clientId,
+        clientSecret,
         redirectUri,
       });
 
@@ -2077,8 +2087,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { accountId, userId } = JSON.parse(state as string);
       const account = await storage.getAccount(accountId);
+      const clientId = getGoogleClientId(account);
+      const clientSecret = getGoogleClientSecret(account);
 
-      if (!account?.googleClientId || !account.googleClientSecret) {
+      if (!clientId || !clientSecret) {
         return res.status(400).send("Google OAuth not configured");
       }
 
@@ -2087,8 +2099,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
       
       const oauth2Client = createOAuth2Client({
-        clientId: account.googleClientId,
-        clientSecret: account.googleClientSecret,
+        clientId,
+        clientSecret,
         redirectUri,
       });
 
@@ -2141,11 +2153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
       const account = await storage.getAccount(req.accountId!);
+      const clientId = getGoogleClientId(account);
+      const clientSecret = getGoogleClientSecret(account);
       
       res.json({
         connected: !!token,
         email: token?.email || null,
-        configured: !!(account?.googleClientId && account.googleClientSecret),
+        configured: !!(clientId && clientSecret),
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

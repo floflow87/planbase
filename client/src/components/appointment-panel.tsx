@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 
 interface AppointmentPanelProps {
@@ -35,12 +35,7 @@ export function AppointmentPanel({ open, onClose, selectedDate }: AppointmentPan
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to create appointment");
+      const response = await apiRequest("/api/appointments", "POST", data);
       return response.json();
     },
     onSuccess: () => {

@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { storage } from "../storage";
+import { storage, getGoogleClientId, getGoogleClientSecret } from "../storage";
 
 export interface GoogleCalendarConfig {
   clientId: string;
@@ -36,13 +36,16 @@ export async function refreshAccessToken(accountId: string, userId: string) {
   }
 
   const account = await storage.getAccount(accountId);
-  if (!account?.googleClientId || !account.googleClientSecret) {
+  const clientId = getGoogleClientId(account);
+  const clientSecret = getGoogleClientSecret(account);
+  
+  if (!clientId || !clientSecret) {
     throw new Error("Google OAuth not configured for this account");
   }
 
   const oauth2Client = createOAuth2Client({
-    clientId: account.googleClientId,
-    clientSecret: account.googleClientSecret,
+    clientId,
+    clientSecret,
     redirectUri: `${process.env.REPLIT_DEV_DOMAIN || "http://localhost:5000"}/api/google/auth/callback`,
   });
 
@@ -81,13 +84,16 @@ export async function getCalendarEvents(accountId: string, userId: string, start
   }
 
   const account = await storage.getAccount(accountId);
-  if (!account?.googleClientId || !account.googleClientSecret) {
+  const clientId = getGoogleClientId(account);
+  const clientSecret = getGoogleClientSecret(account);
+  
+  if (!clientId || !clientSecret) {
     throw new Error("Google OAuth not configured");
   }
 
   const oauth2Client = createOAuth2Client({
-    clientId: account.googleClientId,
-    clientSecret: account.googleClientSecret,
+    clientId,
+    clientSecret,
     redirectUri: `${process.env.REPLIT_DEV_DOMAIN || "http://localhost:5000"}/api/google/auth/callback`,
   });
 
