@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { AppointmentDialog } from "@/components/appointment-dialog";
+import { AppointmentPanel } from "@/components/appointment-panel";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -28,6 +28,14 @@ interface GoogleEvent {
   description?: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  priority: string | null;
+  status: string | null;
+}
+
 export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -48,6 +56,18 @@ export default function Calendar() {
       const response = await fetch(`/api/appointments?${params}`);
       if (!response.ok) throw new Error("Failed to fetch appointments");
       return response.json();
+    },
+  });
+
+  // Fetch tasks with due dates for the current month
+  const { data: tasks = [] } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+    queryFn: async () => {
+      const response = await fetch("/api/tasks");
+      if (!response.ok) return [];
+      const allTasks = await response.json();
+      // Filter only tasks with due dates
+      return allTasks.filter((task: Task) => task.dueDate);
     },
   });
 
@@ -216,6 +236,14 @@ export default function Calendar() {
     });
   };
 
+  const getTasksForDay = (date: Date) => {
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return taskDate.toDateString() === date.toDateString();
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -230,12 +258,6 @@ export default function Calendar() {
             <Plus className="w-4 h-4 mr-2" />
             Nouveau rendez-vous
           </Button>
-          
-          <AppointmentDialog
-            open={appointmentDialogOpen}
-            onOpenChange={setAppointmentDialogOpen}
-            selectedDate={currentDate}
-          />
           {googleStatus?.connected ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
               <CalendarIcon className="w-4 h-4 text-green-600" />
@@ -348,6 +370,7 @@ export default function Calendar() {
                 const isToday = date.toDateString() === new Date().toDateString();
                 const dayAppointments = getAppointmentsForDay(date);
                 const dayGoogleEvents = getGoogleEventsForDay(date);
+                const dayTasks = getTasksForDay(date);
 
                 return (
                   <div
@@ -401,6 +424,31 @@ export default function Calendar() {
                           </div>
                         );
                       })}
+                      
+                      {/* Tasks with Due Dates */}
+                      {dayTasks.map(task => {
+                        const getPriorityColor = (priority: string | null) => {
+                          if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
+                          switch (priority) {
+                            case "high": return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500";
+                            case "medium": return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500";
+                            case "low": return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500";
+                            default: return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
+                          }
+                        };
+                        
+                        return (
+                          <div
+                            key={task.id}
+                            className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                            title={`Tâche: ${task.title}`}
+                            data-testid={`task-${task.id}`}
+                          >
+                            <CheckSquare className="w-3 h-3 inline mr-1" />
+                            {task.title}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -425,6 +473,13 @@ export default function Calendar() {
           </Card>
         )}
       </div>
+
+      {/* Appointment Panel */}
+      <AppointmentPanel
+        open={appointmentDialogOpen}
+        onClose={() => setAppointmentDialogOpen(false)}
+        selectedDate={currentDate}
+      />
     </div>
   );
 }
