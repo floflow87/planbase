@@ -13,8 +13,10 @@ export const accounts = pgTable("accounts", {
   ownerUserId: uuid("owner_user_id"), // auth.users.id from Supabase Auth
   plan: text("plan").default("starter"),
   settings: jsonb("settings").notNull().default({}),
-  googleClientId: text("google_client_id"),
-  googleClientSecret: text("google_client_secret"),
+  // TODO: Google OAuth credentials - PostgreSQL pooler cache issue prevents these columns from being recognized
+  // Temporarily storing in settings JSON until cache issue resolved
+  // googleClientId: text("google_client_id"),
+  // googleClientSecret: text("google_client_secret"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
