@@ -18,7 +18,10 @@ export function createOAuth2Client(config: GoogleCalendarConfig) {
 export function getAuthUrl(oauth2Client: any, state: string) {
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/calendar.readonly"],
+    scope: [
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ],
     state, // state = JSON.stringify({ accountId, userId })
     prompt: "consent", // Force consent screen to get refresh_token
   });
