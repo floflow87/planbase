@@ -2056,7 +2056,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { createOAuth2Client, getAuthUrl } = await import("./lib/google-calendar");
       
-      const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
+      const domain = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const redirectUri = `${domain}/api/google/auth/callback`;
       
       const oauth2Client = createOAuth2Client({
         clientId,
@@ -2096,7 +2099,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { createOAuth2Client, exchangeCodeForTokens } = await import("./lib/google-calendar");
       
-      const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`}/api/google/auth/callback`;
+      const domain = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const redirectUri = `${domain}/api/google/auth/callback`;
       
       const oauth2Client = createOAuth2Client({
         clientId,

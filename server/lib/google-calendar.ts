@@ -43,10 +43,14 @@ export async function refreshAccessToken(accountId: string, userId: string) {
     throw new Error("Google OAuth not configured for this account");
   }
 
+  const domain = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+    : "http://localhost:5000";
+  
   const oauth2Client = createOAuth2Client({
     clientId,
     clientSecret,
-    redirectUri: `${process.env.REPLIT_DEV_DOMAIN || "http://localhost:5000"}/api/google/auth/callback`,
+    redirectUri: `${domain}/api/google/auth/callback`,
   });
 
   oauth2Client.setCredentials({
@@ -91,10 +95,14 @@ export async function getCalendarEvents(accountId: string, userId: string, start
     throw new Error("Google OAuth not configured");
   }
 
+  const domain = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+    : "http://localhost:5000";
+  
   const oauth2Client = createOAuth2Client({
     clientId,
     clientSecret,
-    redirectUri: `${process.env.REPLIT_DEV_DOMAIN || "http://localhost:5000"}/api/google/auth/callback`,
+    redirectUri: `${domain}/api/google/auth/callback`,
   });
 
   oauth2Client.setCredentials({
