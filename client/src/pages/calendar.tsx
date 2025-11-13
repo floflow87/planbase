@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { supabase } from "@/lib/supabase";
+import googleLogo from "@assets/png-clipart-google-logo-google-search-google-s-g-suite-google-text-trademark_1763028333519.png";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -400,7 +401,7 @@ export default function Calendar() {
               title={googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
               data-testid="button-google-calendar"
             >
-              <CalendarIcon className="w-4 h-4" />
+              <img src={googleLogo} alt="Google" className="w-5 h-5" />
             </Button>
           )}
         </div>
