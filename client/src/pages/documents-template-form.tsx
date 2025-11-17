@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { DocumentTemplate } from "@shared/schema";
+import { marked } from "marked";
 
 // Utility function to replace {{placeholders}} with values
 function replacePlaceholders(template: string, values: Record<string, string>): string {
@@ -17,6 +18,12 @@ function replacePlaceholders(template: string, values: Record<string, string>): 
     return values[key.trim()] || match;
   });
 }
+
+// Configure marked for better formatting
+marked.setOptions({
+  breaks: true, // Convert \n to <br>
+  gfm: true, // Enable GitHub Flavored Markdown
+});
 
 export default function DocumentTemplateForm() {
   const { id } = useParams<{ id: string }>();
@@ -35,14 +42,18 @@ export default function DocumentTemplateForm() {
       if (!template) throw new Error("Template not found");
       if (!documentTitle.trim()) throw new Error("Le titre est requis");
 
-      const content = replacePlaceholders(template.contentTemplate, formValues);
+      // Replace placeholders in the Markdown template
+      const markdownContent = replacePlaceholders(template.contentTemplate, formValues);
+      
+      // Convert Markdown to HTML
+      const htmlContent = await marked.parse(markdownContent);
       
       const document = {
         name: documentTitle,
         templateId: template.id,
         formData: formValues,
-        content,
-        plainText: content.replace(/<[^>]*>/g, ''),
+        content: htmlContent,
+        plainText: markdownContent.replace(/[#*_~`>\[\]]/g, ''), // Remove Markdown syntax for plain text
         status: "draft",
       };
 
