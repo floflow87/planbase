@@ -37,7 +37,7 @@ export default function DocumentTemplateForm() {
       const content = replacePlaceholders(template.contentTemplate, formValues);
       
       const document = {
-        title: documentTitle,
+        name: documentTitle,
         templateId: template.id,
         formData: formValues,
         content,
