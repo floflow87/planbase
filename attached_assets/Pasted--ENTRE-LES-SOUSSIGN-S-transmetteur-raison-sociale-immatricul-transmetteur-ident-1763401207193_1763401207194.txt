@@ -1,0 +1,83 @@
+**ENTRE LES SOUSSIGNÉS,**
+
+**{{transmetteur_raison_sociale}}**, immatriculé **{{transmetteur_identifiant}}**, dûment habilité pour la signature des présentes,
+
+Ci-après dénommée **"la Société"**
+
+**D’UNE PART,**
+
+ET
+
+**{{prestataire_nom}}**, né le **{{prestataire_date_naissance}}**, domicilié **{{prestataire_adresse}}**, immatriculé **{{prestataire_identifiant}}**,
+
+Ci-après dénommé **"le Prestataire"**
+
+**D’AUTRE PART,**
+
+---
+
+### 🟣 **Préambule**
+
+Dans le cadre du projet **{{projet_nom}}**, notamment relatif à **{{projet_description}}**, la Société souhaite transmettre au Prestataire des informations confidentielles aux fins de collaboration et d’analyse de faisabilité. Les Parties reconnaissent que la confidentialité constitue un élément essentiel du projet.
+
+---
+
+### **Article 1 — Définitions**
+
+Sont considérées comme *informations confidentielles* toutes informations ou données communiquées sous forme orale, écrite, numérique ou matérielle, incluant notamment : documents internes, feuilles de route, idées, maquettes, supports techniques, identifiants, accès, documents stratégiques, listes de clients, business plans et codes d’accès éventuels, y compris **{{support_information}}**.
+
+---
+
+### **Article 2 — Obligations du Prestataire**
+
+Le Prestataire s’engage notamment à :
+
+1. Protéger les informations avec la même rigueur que ses propres données sensibles
+2. Ne pas les divulguer ou transférer à des tiers sans accord écrit
+3. Ne pas les exploiter à son profit ou pour un client tiers
+4. Ne pas contourner, reproduire, désassembler ou imiter les éléments communiqués
+5. Ne pas créer d’accès détournés, outils d’extraction, mécanismes de copie ou re-vente
+
+L’accès technique fourni (ex: plateforme, dépôt, site, drive) :
+
+→ **{{autorisation_accès_plateforme}}**
+
+La Société peut révoquer cet accès **sans préavis ni justification**.
+
+---
+
+### **Article 3 — Durée**
+
+Le présent NDA prend effet à compter du **{{date_signature}}** et est valable **{{duree_confidentialite}}** à compter de la transmission de la dernière information.
+
+---
+
+### **Article 4 — Restitution et suppression**
+
+À première demande, le Prestataire doit :
+
+- Restituer l’ensemble des éléments remis
+- Supprimer irrévocablement copies, captures, backups ou dérivés
+- Fournir une confirmation de suppression si demandé
+
+---
+
+### **Article 5 — Propriété**
+
+La transmission n’emporte aucune cession de propriété ou de droit d’exploitation.
+
+Les informations demeurent la propriété exclusive de la Société.
+
+---
+
+### **Article 6 — Droit applicable**
+
+Le présent contrat est soumis au droit **{{juridiction}}**.
+
+---
+
+### **Article 7 — Signature**
+
+Fait à **{{lieu_signature}}**, le **{{date_signature}}**
+
+En deux exemplaires originaux.

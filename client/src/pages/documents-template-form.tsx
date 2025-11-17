@@ -2,6 +2,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
@@ -136,15 +137,27 @@ export default function DocumentTemplateForm() {
                     {field.label}
                     {field.required && " *"}
                   </Label>
-                  <Input
-                    id={field.name}
-                    type={field.type || "text"}
-                    value={formValues[field.name] || ""}
-                    onChange={(e) => setFormValues({ ...formValues, [field.name]: e.target.value })}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    data-testid={`input-${field.name}`}
-                  />
+                  {field.type === "textarea" ? (
+                    <Textarea
+                      id={field.name}
+                      value={formValues[field.name] || ""}
+                      onChange={(e) => setFormValues({ ...formValues, [field.name]: e.target.value })}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                      rows={4}
+                      data-testid={`input-${field.name}`}
+                    />
+                  ) : (
+                    <Input
+                      id={field.name}
+                      type={field.type || "text"}
+                      value={formValues[field.name] || ""}
+                      onChange={(e) => setFormValues({ ...formValues, [field.name]: e.target.value })}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                      data-testid={`input-${field.name}`}
+                    />
+                  )}
                 </div>
               ))}
 
