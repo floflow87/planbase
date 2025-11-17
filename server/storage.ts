@@ -31,14 +31,18 @@ import {
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
 
-// Helper functions to access Google OAuth credentials from environment variables
-// Global credentials shared across all accounts for multi-tenant SaaS
-export function getGoogleClientId(): string | undefined {
-  return process.env.GOOGLE_CLIENT_ID;
+// Helper functions to access Google OAuth credentials from settings JSON
+// (Due to PostgreSQL pooler cache issue, credentials are stored in settings instead of dedicated columns)
+export function getGoogleClientId(account: Account | undefined): string | undefined {
+  if (!account?.settings || typeof account.settings !== 'object') return undefined;
+  const settings = account.settings as Record<string, unknown>;
+  return typeof settings.googleClientId === 'string' ? settings.googleClientId : undefined;
 }
 
-export function getGoogleClientSecret(): string | undefined {
-  return process.env.GOOGLE_CLIENT_SECRET;
+export function getGoogleClientSecret(account: Account | undefined): string | undefined {
+  if (!account?.settings || typeof account.settings !== 'object') return undefined;
+  const settings = account.settings as Record<string, unknown>;
+  return typeof settings.googleClientSecret === 'string' ? settings.googleClientSecret : undefined;
 }
 
 // Storage interface for all CRUD operations

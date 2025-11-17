@@ -38,11 +38,12 @@ export async function refreshAccessToken(accountId: string, userId: string) {
     throw new Error("No Google token found");
   }
 
-  const clientId = getGoogleClientId();
-  const clientSecret = getGoogleClientSecret();
+  const account = await storage.getAccount(accountId);
+  const clientId = getGoogleClientId(account);
+  const clientSecret = getGoogleClientSecret(account);
   
   if (!clientId || !clientSecret) {
-    throw new Error("Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
+    throw new Error("Google OAuth not configured for this account");
   }
 
   const domain = process.env.REPLIT_DEV_DOMAIN 
@@ -89,11 +90,12 @@ export async function getCalendarEvents(accountId: string, userId: string, start
     }
   }
 
-  const clientId = getGoogleClientId();
-  const clientSecret = getGoogleClientSecret();
+  const account = await storage.getAccount(accountId);
+  const clientId = getGoogleClientId(account);
+  const clientSecret = getGoogleClientSecret(account);
   
   if (!clientId || !clientSecret) {
-    throw new Error("Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
+    throw new Error("Google OAuth not configured");
   }
 
   const domain = process.env.REPLIT_DEV_DOMAIN 
