@@ -1,0 +1,85 @@
+**NTRE LES SOUSSIGNÉS :**
+
+**{{identite_titulaire}}**, ci-après dénommé(e) **“l’Autorisé(e)”**,
+
+**D’UNE PART,**
+
+ET
+
+**{{identite_beneficiaire}}**, ci-après dénommé(e) **“Le Bénéficiaire”**,
+
+**D’AUTRE PART.**
+
+---
+
+### **Préambule**
+
+Dans le cadre du projet **{{nom_projet}}**, le Bénéficiaire souhaite utiliser l’image, la voix ou l’apparence de l’Autorisé(e). Les Parties conviennent des dispositions suivantes afin d’encadrer juridiquement l’exploitation de ces éléments dans un contexte conforme, respectueux et maitrisé.
+
+---
+
+### **Article 1 — Objet de l’autorisation**
+
+L’Autorisé(e) autorise le Bénéficiaire à utiliser, reproduire, enregistrer, conserver, diffuser, représenter publiquement son image, sa voix et/ou son apparence capturée dans le cadre du projet susmentionné.
+
+---
+
+### **Article 2 — Étendue des droits**
+
+L'autorisation couvre les éléments suivants :
+
+- **Supports** : **{{supports}}**
+- **Territoire** : **{{territoire}}**
+- **Durée d’exploitation** : **{{duree}}**
+- **Type d’exploitation** : **{{exploitation_commerciale}}**
+- **Modifications autorisées** : **{{modifications}}**
+
+Toute utilisation hors périmètre devra faire l’objet d’un **avenant écrit**.
+
+---
+
+### **Article 3 — Engagements du Bénéficiaire**
+
+Le Bénéficiaire s’engage à :
+
+1. Respecter l’intégrité, l’honneur et la dignité de l’Autorisé(e)
+2. Ne pas associer l’image ou la voix à des contenus sensibles ou contraires à l’éthique
+3. Respecter l’objet initial du projet et sa nature
+
+---
+
+### **Article 4 — Révocation**
+
+L’autorisation est **irrévocable** pour les exploitations engagées ou archivées, sauf manquement grave, intention malveillante ou atteinte à l’image.
+
+---
+
+### **Article 5 — Contrepartie**
+
+La présente autorisation est accordée :
+
+**{{gratuit_ou_remunere}}**
+
+Si rémunération : **{{modalites_paiement}}**
+
+---
+
+### **Article 6 — Droit applicable**
+
+Le présent contrat est soumis au droit **{{loi_applicable}}**, juridiction **{{juridiction}}**.
+
+---
+
+### **Article 7 — Signatures**
+
+Fait à **{{lieu}}**, le **{{date}}**
+
+En deux exemplaires.
+
+**L’Autorisé(e)**
+
+Signature : ___________________
+
+**Le Bénéficiaire**
+
+Signature : ___________________

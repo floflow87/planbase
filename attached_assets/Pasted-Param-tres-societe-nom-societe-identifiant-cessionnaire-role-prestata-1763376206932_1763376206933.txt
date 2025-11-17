@@ -1,0 +1,156 @@
+Paramètres
+
+{
+"societe_nom": "",
+"societe_identifiant": "",
+"cessionnaire_role": "",
+"prestataire_nom": "",
+"prestataire_date_naissance": "",
+"prestataire_adresse": "",
+"prestataire_identifiant": "",
+"objet_cede": "",
+"description_oeuvre": "",
+"date_signature": "",
+"lieu_signature": "",
+"montant_cession": "",
+"modalites_paiement": "",
+"droits_cedes": "",
+"territoires": "",
+"duree": "",
+"usage_autorise": "",
+"restrictions": "",
+"garanties": "",
+"mention_auteur": "",
+"juridiction": ""
+}
+
+**ENTRE LES SOUSSIGNÉS :**
+
+**{{societe_nom}}**, immatriculé **{{societe_identifiant}}**, dûment habilité à représenter l’entreprise,
+
+ci-après dénommée **“le Cessionnaire”**,
+
+**D’UNE PART,**
+
+ET
+
+**{{prestataire_nom}}**, né le **{{prestataire_date_naissance}}**, domicilié **{{prestataire_adresse}}**, immatriculé **{{prestataire_identifiant}}**,
+
+ci-après dénommé **“le Cédant”**,
+
+**D’AUTRE PART.**
+
+---
+
+### **Préambule**
+
+Dans le cadre des travaux réalisés par le Cédant, portant sur la création, conception, rédaction, design, développement, production ou livraison des éléments suivants :
+
+**{{description_oeuvre}}**, liés au projet **{{objet_cede}}**, les Parties conviennent de formaliser une **cession totale ou partielle des droits de propriété intellectuelle**, afin de clarifier l’exploitation, la diffusion, la reproduction et l’usage commercial de l’œuvre concernée.
+
+---
+
+### **Article 1 — Objet de la cession**
+
+Le présent contrat a pour objet la **cession des droits patrimoniaux** relatifs à **{{description_oeuvre}}**, au profit du Cessionnaire, dans le cadre professionnel et commercial de ses activités.
+
+---
+
+### **Article 2 — Étendue des droits cédés**
+
+La présente cession peut porter, selon les cas, sur tout ou partie des droits suivants :
+
+- Droit de reproduction
+- Droit de représentation
+- Droit d’adaptation, modification, traduction, dérivation
+- Droit de distribution ou diffusion
+- Droit de commercialisation
+- Droit de reproduction numérique et algorithmique
+
+Les droits cédés sont définis comme suit : **{{droits_cedes}}**.
+
+Toute extension postérieure devra faire l’objet d’un **avenant écrit et signé**.
+
+---
+
+### **Article 3 — Durée et territoire**
+
+- Durée de la cession : **{{duree}}**
+- Territoires concernés : **{{territoires}}**
+
+À défaut de précision, la cession est réputée :
+
+- **sans limitation territoriale**
+- **limitée dans la durée légale maximale autorisée par le droit applicable**
+
+---
+
+### **Article 4 — Usage, exploitation & modifications**
+
+Le Cessionnaire est autorisé à exploiter l’œuvre, la modifier, l'adapter, la combiner ou la distribuer, dans les limites suivantes :
+
+**{{usage_autorise}}**
+
+En cas de restrictions souhaitées par le Cédant, celles-ci doivent être précisées ici :
+
+**{{restrictions}}**
+
+---
+
+### **Article 5 — Contrepartie financière**
+
+Le Cessionnaire versera au Cédant :
+
+- Montant total : **{{montant_cession}}**
+- Modalités de paiement : **{{modalites_paiement}}**
+
+La signature du présent document vaut **renonciation à toute rémunération ultérieure**, sauf accord complémentaire.
+
+---
+
+### **Article 6 — Garanties du Cédant**
+
+Le Cédant **garantit expressément** que :
+
+1. Il est auteur ou détenteur légitime des droits cédés
+2. L’œuvre ne constitue pas une violation de droits tiers
+3. Aucun contrat antérieur ne contredit la présente cession
+
+Toute contestation ou litige lié à un droit tiers reste de la **responsabilité du Cédant**.
+
+---
+
+### **Article 7 — Droit moral**
+
+Le droit moral du Cédant demeure **inaliénable**, incluant :
+
+- Attribution (crédit créatif) : **{{mention_auteur}}**
+- Respect de l’intégrité de l’œuvre, sauf renonciation limitée
+
+---
+
+### **Article 8 — Droit applicable et juridiction**
+
+Le présent contrat est soumis au droit **{{juridiction}}**.
+
+En cas de litige, les Parties s’engagent à privilégier un règlement amiable avant recours judiciaire.
+
+---
+
+### **Signature**
+
+Fait à **{{lieu_signature}}**, le **{{date_signature}}**,
+
+En deux exemplaires originaux.
+
+**Le Cessionnaire**
+
+Nom : __________________
+
+Signature : _____________
+
+**Le Cédant**
+
+Nom : __________________
+
+Signature : _____________

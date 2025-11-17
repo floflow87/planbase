@@ -16,6 +16,10 @@ import {
   insertProjectSchema,
   insertNoteSchema,
   insertNoteLinkSchema,
+  insertDocumentTemplateSchema,
+  updateDocumentTemplateSchema,
+  insertDocumentSchema,
+  updateDocumentSchema,
   insertFolderSchema,
   insertFileSchema,
   insertActivitySchema,
@@ -1447,6 +1451,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const actions = await extractActions(text);
 
       res.json({ actions });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // DOCUMENT TEMPLATES - Protected Routes
+  // ============================================
+
+  app.get("/api/document-templates", requireAuth, async (req, res) => {
+    try {
+      const templates = await storage.getDocumentTemplates(req.accountId!);
+      res.json(templates);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/document-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getDocumentTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      // Check access: system templates (isSystem = 1) or account templates
+      if (template.isSystem !== 1 && template.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/document-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertDocumentTemplateSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+        isSystem: 0, // User templates are never system templates
+      });
+      const template = await storage.createDocumentTemplate(data);
+      res.json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/document-templates/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDocumentTemplate(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      // Only allow editing account templates, not system templates
+      if (existing.isSystem === 1) {
+        return res.status(403).json({ error: "Cannot edit system templates" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const data = updateDocumentTemplateSchema.parse(req.body);
+      const template = await storage.updateDocumentTemplate(req.params.id, req.accountId!, data);
+      res.json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/document-templates/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDocumentTemplate(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      // Only allow deleting account templates, not system templates
+      if (existing.isSystem === 1) {
+        return res.status(403).json({ error: "Cannot delete system templates" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteDocumentTemplate(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // DOCUMENTS - Protected Routes
+  // ============================================
+
+  app.get("/api/documents", requireAuth, async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsByAccountId(req.accountId!);
+      res.json(documents);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertDocumentSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || req.body.createdBy,
+      });
+      const document = await storage.createDocument(data);
+      res.json(document);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (document.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(document);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/documents/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const data = updateDocumentSchema.parse(req.body);
+      const document = await storage.updateDocument(req.params.id, req.accountId!, data);
+      res.json(document);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/documents/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteDocument(req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -1,0 +1,87 @@
+**ENTRE :**
+
+**{{partie_A}}**, ci-après dénommée **“Partie A”**,
+
+et
+
+**{{partie_B}}**, ci-après dénommée **“Partie B”**.
+
+---
+
+### **Préambule**
+
+Les Parties souhaitent collaborer sur un projet créatif lié à **{{nom_projet}}**, impliquant la conception, réalisation, contribution ou diffusion de contenus artistiques, audiovisuels, rédactionnels ou multimédia.
+
+---
+
+### **Article 1 — Objet**
+
+Le présent contrat a pour objet de définir clairement :
+
+- les conditions de collaboration
+- les contributions de chaque Partie
+- les droits d’exploitation
+- les responsabilités respectives
+
+---
+
+### **Article 2 — Contributions**
+
+- Partie A apporte : **{{apport_A}}**
+- Partie B apporte : **{{apport_B}}**
+    
+    Les Parties reconnaissent une **collaboration équilibrée et documentée**.
+    
+
+---
+
+### **Article 3 — Gouvernance et communication**
+
+- Une personne référente par partie est désignée
+- Les validations se font **par écrit ou plateforme partagée**
+- Les délais de réponse sont raisonnables, à défaut **{{delai_validation}}**
+
+---
+
+### **Article 4 — Propriété intellectuelle**
+
+- Chaque Partie conserve ses droits antérieurs
+- Les créations communes deviennent **co-créations**, sauf attribution explicite
+- Les droits d’exploitation sont définis comme suit :
+    - Durée : **{{duree}}**
+    - Territoires : **{{territoires}}**
+    - Supports : **{{supports}}**
+    - Nature d’exploitation : **{{type_exploitation}}**
+
+---
+
+### **Article 5 — Confidentialité**
+
+Renvoi possible à NDA complémentaire.
+
+---
+
+### **Article 6 — Monétisation et revenus**
+
+- Modèle de partage : **{{repartition}}**
+- Transparence comptable obligatoire
+- Périodicité du versement : **{{frequence}}**
+
+---
+
+### **Article 7 — Fin de collaboration**
+
+Suspension ou rupture possible en cas de :
+
+- manquement grave
+- non-collaboration
+- impossibilité technique
+- décision mutuelle
+
+Les contenus réalisés doivent faire l’objet d’un **avenant de sortie**.
+
+---
+
+### **Article 8 — Juridiction**
+
+Droit applicable **{{loi_applicable}}**, juridiction **{{juridiction}}**.

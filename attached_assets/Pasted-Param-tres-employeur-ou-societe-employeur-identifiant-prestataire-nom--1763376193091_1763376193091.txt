@@ -1,0 +1,136 @@
+Paramètres
+
+{
+"employeur_ou_societe": "",
+"employeur_identifiant": "",
+"prestataire_nom": "",
+"prestataire_date_naissance": "",
+"prestataire_adresse": "",
+"prestataire_identifiant": "",
+"projet_nom": "",
+"projet_description": "",
+"date_signature": "",
+"lieu_signature": "",
+"duree_non_concurrence": "",
+"duree_non_solicitation": "",
+"zone_geographique": "",
+"type_activite_interdite": "",
+"penalites_ou_indemnites": "",
+"juridiction": ""
+}
+
+**ENTRE LES SOUSSIGNÉS,**
+
+**{{employeur_ou_societe}}**, immatriculé **{{employeur_identifiant}}**, dûment habilité, ci-après dénommée **“la Société”**,
+
+**D’UNE PART,**
+
+ET
+
+**{{prestataire_nom}}**, né le **{{prestataire_date_naissance}}**, domicilié **{{prestataire_adresse}}**, immatriculé **{{prestataire_identifiant}}**,
+
+Ci-après dénommé **“le Prestataire”**,
+
+**D’AUTRE PART,**
+
+---
+
+### **Préambule**
+
+Dans le cadre du projet **{{projet_nom}}**, portant notamment sur **{{projet_description}}**, la Société et le Prestataire ont entrepris une relation professionnelle impliquant l’accès à des informations stratégiques, savoir-faire, ressources clients et méthodes commerciales.
+
+Afin de protéger la valeur économique, la réputation, les actifs immatériels et la relation commerciale de la Société, les Parties conviennent de formaliser les engagements de non-concurrence et de non-sollicitation dans les conditions suivantes.
+
+---
+
+### **Article 1 — Objet du présent accord**
+
+Le présent accord vise à :
+
+1. Empêcher toute **activité concurrente directe ou indirecte** au détriment de la Société
+2. Interdire la **sollicitation ou débauchage** de collaborateurs, prestataires, clients, affiliés ou prospects
+3. Garantir la **protection des actifs stratégiques, commerciaux et relationnels** de la Société
+
+---
+
+### **Article 2 — Engagement de non-concurrence**
+
+Le Prestataire s’engage à **ne pas exercer, créer, rejoindre, conseiller ou collaborer** avec une entité, produit ou activité susceptible de concurrencer la Société, directement ou indirectement, dans le domaine suivant :
+
+**{{type_activite_interdite}}**
+
+Cette interdiction s’applique :
+
+- Pendant la durée du projet ou contrat
+- Ainsi que **pendant {{duree_non_concurrence}}** après la fin de la relation professionnelle
+- Sur la zone géographique suivante : **{{zone_geographique}}**
+
+Cette clause **ne bloque pas le droit fondamental au travail**, mais vise uniquement les activités constituant une atteinte économique, stratégique ou commerciale.
+
+---
+
+### **Article 3 — Engagement de non-sollicitation**
+
+Pendant la durée du présent accord et **pendant {{duree_non_solicitation}}** suivant sa cessation, le Prestataire s’interdit de :
+
+1. Solliciter, démarcher, recruter ou employer :
+    - salariés
+    - indépendants
+    - partenaires commerciaux
+    - sous-traitants
+2. Démarcher, contacter ou traiter directement avec :
+    - clients actifs
+    - clients historiques
+    - prospects qualifiés
+    - leads transmis
+    - membres d’un programme, communauté, plateforme ou portefeuille
+
+Que ce soit **au profit de lui-même ou d’un tiers**.
+
+---
+
+### **Article 4 — Indemnités & responsabilité**
+
+En cas de violation constatée, le Prestataire pourra être redevable d’une **indemnité compensatoire**, indépendamment des recours potentiels, fixée contractuellement ou évaluée par un tribunal compétent.
+
+Indemnité prévue : **{{penalites_ou_indemnites}}**
+
+---
+
+### **Article 5 — Exceptions et limites**
+
+La présente clause ne s’applique pas si :
+
+- l’activité ne porte aucune atteinte commerciale ou réputationnelle
+- l’offre ou le projet n’est pas concurrent selon périmètre défini
+- l’accord fait l’objet d’un **avenant écrit signé**
+
+---
+
+### **Article 6 — Durée**
+
+La clause prend effet à compter de la signature du présent document et pour la durée définie aux articles précédents.
+
+---
+
+### **Article 7 — Droit applicable et juridiction**
+
+Le présent accord est soumis au droit **{{juridiction}}**.
+
+Tout litige sera soumis à la juridiction compétente.
+
+---
+
+### **Signature**
+
+Fait à **{{lieu_signature}}**, le **{{date_signature}}**
+
+En deux exemplaires originaux.
+
+**La Société**
+
+Nom : ___________________ | Signature : _______
+
+**Le Prestataire**
+
+Nom : ___________________ | Signature : _______

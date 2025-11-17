@@ -13,6 +13,8 @@ import {
   type Task, type InsertTask,
   type Note, type InsertNote,
   type NoteLink, type InsertNoteLink,
+  type DocumentTemplate, type InsertDocumentTemplate,
+  type Document, type InsertDocument,
   type Folder, type InsertFolder,
   type File, type InsertFile,
   type Activity, type InsertActivity,
@@ -24,7 +26,7 @@ import {
   type Appointment, type InsertAppointment,
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, taskColumns, tasks, notes, noteLinks, folders, files, activities,
+  projects, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens,
 } from "@shared/schema";
@@ -133,6 +135,21 @@ export interface IStorage {
   getNoteLinksByAccountId(accountId: string): Promise<NoteLink[]>;
   createNoteLink(noteLink: InsertNoteLink): Promise<NoteLink>;
   deleteNoteLink(noteId: string, targetType: string, targetId: string): Promise<boolean>;
+
+  // Document Templates
+  getDocumentTemplate(id: string): Promise<DocumentTemplate | undefined>;
+  getDocumentTemplates(accountId: string): Promise<DocumentTemplate[]>; // System templates + account templates
+  getDocumentTemplatesByAccountId(accountId: string): Promise<DocumentTemplate[]>;
+  createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate>;
+  updateDocumentTemplate(id: string, accountId: string, template: Partial<InsertDocumentTemplate>): Promise<DocumentTemplate | undefined>;
+  deleteDocumentTemplate(id: string): Promise<boolean>;
+
+  // Documents
+  getDocument(id: string): Promise<Document | undefined>;
+  getDocumentsByAccountId(accountId: string): Promise<Document[]>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  updateDocument(id: string, accountId: string, document: Partial<InsertDocument>): Promise<Document | undefined>;
+  deleteDocument(id: string): Promise<boolean>;
 
   // Folders
   getFolder(id: string): Promise<Folder | undefined>;
@@ -749,6 +766,108 @@ export class DatabaseStorage implements IStorage {
         eq(noteLinks.targetId, targetId)
       )
     ).returning();
+    return result.length > 0;
+  }
+
+  // Document Templates
+  async getDocumentTemplate(id: string): Promise<DocumentTemplate | undefined> {
+    const [template] = await db.select().from(documentTemplates).where(eq(documentTemplates.id, id));
+    return template || undefined;
+  }
+
+  async getDocumentTemplates(accountId: string): Promise<DocumentTemplate[]> {
+    // Return system templates (isSystem = 1) + account-specific templates
+    return await db
+      .select()
+      .from(documentTemplates)
+      .where(
+        or(
+          eq(documentTemplates.isSystem, 1),
+          eq(documentTemplates.accountId, accountId)
+        )
+      )
+      .orderBy(desc(documentTemplates.isSystem), asc(documentTemplates.name));
+  }
+
+  async getDocumentTemplatesByAccountId(accountId: string): Promise<DocumentTemplate[]> {
+    // Return only account-specific templates
+    return await db
+      .select()
+      .from(documentTemplates)
+      .where(eq(documentTemplates.accountId, accountId));
+  }
+
+  async createDocumentTemplate(insertTemplate: InsertDocumentTemplate): Promise<DocumentTemplate> {
+    const [template] = await db
+      .insert(documentTemplates)
+      .values(insertTemplate)
+      .returning();
+    return template;
+  }
+
+  async updateDocumentTemplate(id: string, accountId: string, updateData: Partial<InsertDocumentTemplate>): Promise<DocumentTemplate | undefined> {
+    // Defense-in-depth: strip immutable fields to prevent privilege escalation
+    const { accountId: _, createdBy: __, id: ___, createdAt: ____, updatedAt: _____, ...safeData } = updateData;
+    
+    const [template] = await db
+      .update(documentTemplates)
+      .set(safeData)
+      .where(
+        and(
+          eq(documentTemplates.id, id),
+          eq(documentTemplates.accountId, accountId)
+        )
+      )
+      .returning();
+    return template || undefined;
+  }
+
+  async deleteDocumentTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
+    return result.length > 0;
+  }
+
+  // Documents
+  async getDocument(id: string): Promise<Document | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document || undefined;
+  }
+
+  async getDocumentsByAccountId(accountId: string): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .where(eq(documents.accountId, accountId))
+      .orderBy(desc(documents.updatedAt));
+  }
+
+  async createDocument(insertDocument: InsertDocument): Promise<Document> {
+    const [document] = await db
+      .insert(documents)
+      .values(insertDocument)
+      .returning();
+    return document;
+  }
+
+  async updateDocument(id: string, accountId: string, updateData: Partial<InsertDocument>): Promise<Document | undefined> {
+    // Defense-in-depth: strip immutable fields to prevent privilege escalation
+    const { accountId: _, createdBy: __, id: ___, createdAt: ____, updatedAt: _____, signedAt: ______, ...safeData } = updateData;
+    
+    const [document] = await db
+      .update(documents)
+      .set(safeData)
+      .where(
+        and(
+          eq(documents.id, id),
+          eq(documents.accountId, accountId)
+        )
+      )
+      .returning();
+    return document || undefined;
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    const result = await db.delete(documents).where(eq(documents.id, id));
     return result.length > 0;
   }
 

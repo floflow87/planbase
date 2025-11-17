@@ -322,6 +322,64 @@ export const noteFiles = pgTable("note_files", {
 // });
 
 // ============================================
+// DOCUMENTS (Templates & Formal Documents)
+// ============================================
+
+export const documentTemplates = pgTable("document_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "cascade" }), // null = system template
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("legal"), // 'legal', 'contract', 'creative', 'business'
+  icon: text("icon").default("FileText"), // lucide-react icon name
+  isSystem: integer("is_system").notNull().default(0), // 0 = user template, 1 = system template
+  formSchema: jsonb("form_schema").notNull().default([]), // Array of form field definitions
+  contentTemplate: text("content_template").notNull(), // Template with {{placeholders}}
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountCategoryIdx: index().on(table.accountId, table.category),
+}));
+
+export const documents = pgTable("documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  templateId: uuid("template_id").references(() => documentTemplates.id, { onDelete: "set null" }), // null if created manually
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  title: text("title").notNull().default(""),
+  content: jsonb("content").notNull().default([]), // TipTap JSON content
+  plainText: text("plain_text"), // for FTS
+  status: text("status").notNull().default("draft"), // 'draft', 'review', 'signed', 'archived'
+  metadata: jsonb("metadata").notNull().default({}), // signatories, dates, reference numbers
+  visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+}, (table) => ({
+  accountStatusIdx: index().on(table.accountId, table.status),
+  templateIdx: index().on(table.templateId),
+}));
+
+export const documentLinks = pgTable("document_links", {
+  documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  targetType: text("target_type").notNull(), // 'project', 'client', 'deal'
+  targetId: uuid("target_id").notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.documentId, table.targetType, table.targetId] }),
+  targetIdx: index().on(table.targetType, table.targetId),
+}));
+
+export const documentShares = pgTable("document_shares", {
+  documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  subjectType: text("subject_type").notNull(), // 'user', 'client', 'role'
+  subjectId: uuid("subject_id").notNull(),
+  permission: text("permission").notNull(), // 'read', 'comment', 'edit'
+}, (table) => ({
+  pk: primaryKey({ columns: [table.documentId, table.subjectType, table.subjectId] }),
+}));
+
+// ============================================
 // FOLDERS / DOCUMENTATION (File Explorer)
 // ============================================
 
@@ -599,6 +657,15 @@ export const insertDealSchema = createInsertSchema(deals).omit({ id: true, creat
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  accountId: z.string().nullable().optional(), // System templates have null accountId
+});
+export const updateDocumentTemplateSchema = insertDocumentTemplateSchema.omit({ accountId: true, createdBy: true }).partial();
+
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true, signedAt: true }).extend({
+  templateId: z.string().nullable().optional(), // Free-form documents don't need templateId
+});
+export const updateDocumentSchema = insertDocumentSchema.omit({ accountId: true, createdBy: true }).partial();
 export const insertFolderSchema = createInsertSchema(folders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertFileSchema = createInsertSchema(files).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertMailAccountSchema = createInsertSchema(mailAccounts).omit({ id: true, createdAt: true, updatedAt: true });
@@ -629,6 +696,8 @@ export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
 export type InsertTag = z.infer<typeof insertTagSchema>;
+export type InsertDocumentTemplate = z.infer<typeof insertDocumentTemplateSchema>;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertFolder = z.infer<typeof insertFolderSchema>;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type InsertMailAccount = z.infer<typeof insertMailAccountSchema>;
@@ -658,6 +727,8 @@ export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+export type Document = typeof documents.$inferSelect;
 export type Folder = typeof folders.$inferSelect;
 export type File = typeof files.$inferSelect;
 export type MailAccount = typeof mailAccounts.$inferSelect;
