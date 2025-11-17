@@ -45,7 +45,7 @@ export default function DocumentTemplateForm() {
         status: "draft",
       };
 
-      return await apiRequest("POST", "/api/documents", document);
+      return await apiRequest("/api/documents", "POST", document);
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
