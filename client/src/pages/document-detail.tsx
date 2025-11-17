@@ -31,7 +31,7 @@ export default function DocumentDetail() {
 
   useEffect(() => {
     if (document) {
-      setTitle(document.title);
+      setTitle(document.name);
       setContent(document.content || { type: 'doc', content: [] });
       setStatus(document.status);
     }
@@ -41,7 +41,8 @@ export default function DocumentDetail() {
 
   const updateDocumentMutation = useMutation({
     mutationFn: async (data: Partial<Document>) => {
-      return await apiRequest("PATCH", `/api/documents/${id}`, data);
+      const response = await apiRequest(`/api/documents/${id}`, "PATCH", data);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents", id] });
@@ -60,7 +61,8 @@ export default function DocumentDetail() {
 
   const deleteDocumentMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/documents/${id}`);
+      const response = await apiRequest(`/api/documents/${id}`, "DELETE");
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -82,7 +84,7 @@ export default function DocumentDetail() {
   const handleSave = () => {
     setIsSaving(true);
     const plainText = typeof content === 'string' ? content : JSON.stringify(content);
-    updateDocumentMutation.mutate({ title, content, plainText });
+    updateDocumentMutation.mutate({ name: title, content, plainText });
   };
 
   const handleExportPDF = () => {
