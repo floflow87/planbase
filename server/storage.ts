@@ -150,6 +150,12 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: string, accountId: string, document: Partial<InsertDocument>): Promise<Document | undefined>;
   deleteDocument(id: string): Promise<boolean>;
+  duplicateDocument(id: string): Promise<Document | undefined>;
+
+  // Document Links
+  getDocumentLinksByDocumentId(documentId: string): Promise<DocumentLink[]>;
+  createDocumentLink(documentLink: InsertDocumentLink): Promise<DocumentLink>;
+  deleteDocumentLink(documentId: string, targetType: string, targetId: string): Promise<boolean>;
 
   // Folders
   getFolder(id: string): Promise<Folder | undefined>;
@@ -868,6 +874,68 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocument(id: string): Promise<boolean> {
     const result = await db.delete(documents).where(eq(documents.id, id));
+    return result.length > 0;
+  }
+
+  async duplicateDocument(id: string): Promise<Document | undefined> {
+    const original = await this.getDocument(id);
+    if (!original) return undefined;
+
+    // Find the highest copy number
+    const existingDocs = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.accountId, original.accountId));
+    
+    const copyPattern = new RegExp(`^${original.name.replace(/\s*\(copie\d*\)$/, '')}\\s*\\(copie(\\d*)\\)$`);
+    let maxCopyNumber = 0;
+    
+    for (const doc of existingDocs) {
+      const match = doc.name.match(copyPattern);
+      if (match) {
+        const num = match[1] ? parseInt(match[1]) : 1;
+        if (num > maxCopyNumber) maxCopyNumber = num;
+      }
+    }
+
+    const newName = `${original.name.replace(/\s*\(copie\d*\)$/, '')} (copie${maxCopyNumber > 0 ? maxCopyNumber + 1 : ''})`;
+
+    const [duplicate] = await db
+      .insert(documents)
+      .values({
+        accountId: original.accountId,
+        templateId: original.templateId,
+        createdBy: original.createdBy,
+        name: newName,
+        content: original.content,
+        formData: original.formData,
+        plainText: original.plainText,
+        status: 'draft',
+        version: 1,
+      })
+      .returning();
+
+    return duplicate;
+  }
+
+  // Document Links
+  async getDocumentLinksByDocumentId(documentId: string): Promise<DocumentLink[]> {
+    return await db.select().from(documentLinks).where(eq(documentLinks.documentId, documentId));
+  }
+
+  async createDocumentLink(insertDocumentLink: InsertDocumentLink): Promise<DocumentLink> {
+    const [documentLink] = await db.insert(documentLinks).values(insertDocumentLink).returning();
+    return documentLink;
+  }
+
+  async deleteDocumentLink(documentId: string, targetType: string, targetId: string): Promise<boolean> {
+    const result = await db.delete(documentLinks).where(
+      and(
+        eq(documentLinks.documentId, documentId),
+        eq(documentLinks.targetType, targetType),
+        eq(documentLinks.targetId, targetId)
+      )
+    ).returning();
     return result.length > 0;
   }
 

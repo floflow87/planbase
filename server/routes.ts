@@ -1622,6 +1622,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/documents/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const duplicate = await storage.duplicateDocument(req.params.id);
+      res.json(duplicate);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Document Links
+  app.get("/api/documents/:id/links", requireAuth, async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (document.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const links = await storage.getDocumentLinksByDocumentId(req.params.id);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/documents/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (document.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { insertDocumentLinkSchema } = await import("@shared/schema");
+      const { targetType, targetId } = insertDocumentLinkSchema.parse(req.body);
+      
+      // Verify the target entity exists and belongs to the same account
+      if (targetType === "project") {
+        const project = await storage.getProject(targetId);
+        if (!project || project.accountId !== req.accountId) {
+          return res.status(404).json({ error: "Project not found or access denied" });
+        }
+      } else if (targetType === "client") {
+        const client = await storage.getClient(req.accountId!, targetId);
+        if (!client) {
+          return res.status(404).json({ error: "Client not found or access denied" });
+        }
+      } else if (targetType === "deal") {
+        const deal = await storage.getDeal(targetId);
+        if (!deal || deal.accountId !== req.accountId) {
+          return res.status(404).json({ error: "Deal not found or access denied" });
+        }
+      }
+
+      const link = await storage.createDocumentLink({
+        documentId: req.params.id,
+        targetType,
+        targetId,
+      });
+      
+      res.json(link);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/documents/:id/links/:targetType/:targetId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (document.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteDocumentLink(
+        req.params.id,
+        req.params.targetType,
+        req.params.targetId
+      );
+      
+      if (!success) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // FOLDERS & FILES - Protected Routes
   // ============================================
