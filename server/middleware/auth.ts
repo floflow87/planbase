@@ -30,21 +30,40 @@ declare global {
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     // Development mode: Allow test headers for easier development
-    if (process.env.NODE_ENV === 'development') {
-      const testAccountId = req.headers["x-test-account-id"] as string;
-      const testUserId = req.headers["x-test-user-id"] as string;
+    const testAccountId = req.headers["x-test-account-id"] as string;
+    const testUserId = req.headers["x-test-user-id"] as string;
+    
+    console.log('🔐 Auth middleware:', { 
+      nodeEnv: process.env.NODE_ENV, 
+      hasTestHeaders: !!(testAccountId && testUserId),
+      testAccountId,
+      testUserId 
+    });
 
-      if (testAccountId && testUserId) {
-        // Verify test account and user exist
-        const account = await storage.getAccount(testAccountId);
-        const user = await storage.getUser(testUserId);
+    if (process.env.NODE_ENV === 'development' && testAccountId && testUserId) {
+      console.log('✅ Using test headers for dev auth');
+      // Verify test account and user exist
+      const account = await storage.getAccount(testAccountId);
+      const user = await storage.getUser(testUserId);
 
-        if (account && user && user.accountId === testAccountId) {
-          req.accountId = testAccountId;
-          req.userId = testUserId;
-          req.userRole = user.role as "owner" | "collaborator" | "client_viewer";
-          return next();
-        }
+      console.log('🔍 DB lookup results:', { 
+        account: account ? { id: account.id, name: account.name } : null,
+        user: user ? { id: user.id, email: user.email, accountId: user.accountId } : null,
+        match: user?.accountId === testAccountId
+      });
+
+      if (account && user && user.accountId === testAccountId) {
+        req.accountId = testAccountId;
+        req.userId = testUserId;
+        req.userRole = user.role as "owner" | "collaborator" | "client_viewer";
+        console.log('✅ Dev auth successful:', { accountId: req.accountId, userId: req.userId, role: req.userRole });
+        return next();
+      } else {
+        console.log('❌ Dev auth failed:', {
+          hasAccount: !!account,
+          hasUser: !!user,
+          accountMatch: user?.accountId === testAccountId
+        });
       }
     }
 
