@@ -30,12 +30,26 @@ export async function addDocumentTables() {
         name TEXT NOT NULL,
         content TEXT NOT NULL,
         form_data JSONB,
+        plain_text TEXT,
         status TEXT DEFAULT 'draft',
         version INTEGER DEFAULT 1,
         created_by UUID NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
+    `);
+
+    // Add missing plain_text column if it doesn't exist (for existing tables)
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'documents' AND column_name = 'plain_text'
+        ) THEN
+          ALTER TABLE documents ADD COLUMN plain_text TEXT;
+        END IF;
+      END $$;
     `);
 
     // Create indexes
