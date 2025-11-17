@@ -776,17 +776,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocumentTemplates(accountId: string): Promise<DocumentTemplate[]> {
-    // Return system templates (isSystem = 1) + account-specific templates
+    // Return system templates (isSystem = true) + account-specific templates
     return await db
       .select()
       .from(documentTemplates)
       .where(
         or(
-          eq(documentTemplates.isSystem, 1),
+          sql`${documentTemplates.isSystem} = true`,
           eq(documentTemplates.accountId, accountId)
         )
       )
-      .orderBy(desc(documentTemplates.isSystem), asc(documentTemplates.name));
+      .orderBy(sql`${documentTemplates.isSystem} DESC`, asc(documentTemplates.name));
   }
 
   async getDocumentTemplatesByAccountId(accountId: string): Promise<DocumentTemplate[]> {
