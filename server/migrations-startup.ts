@@ -1,11 +1,16 @@
 // Auto-run migrations at server startup to ensure schema is up-to-date
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { addDocumentTables, seedDocumentTemplates } from "./migrations/add-document-tables";
 
 export async function runStartupMigrations() {
   console.log("🔄 Running startup migrations...");
   
   try {
+    // Create document tables and seed templates
+    await addDocumentTables();
+    await seedDocumentTemplates();
+    
     // Add effort column if it doesn't exist
     await db.execute(sql`
       ALTER TABLE tasks 

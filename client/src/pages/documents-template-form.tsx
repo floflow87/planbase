@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,7 +26,7 @@ export default function DocumentTemplateForm() {
   const [documentTitle, setDocumentTitle] = useState("");
 
   const { data: template, isLoading } = useQuery<DocumentTemplate>({
-    queryKey: ["/api/document-templates", params.id],
+    queryKey: ["/api/document-templates", id],
   });
 
   const createDocumentMutation = useMutation({
