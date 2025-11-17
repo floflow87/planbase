@@ -1475,8 +1475,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!template) {
         return res.status(404).json({ error: "Template not found" });
       }
-      // Check access: system templates (isSystem = 1) or account templates
-      if (template.isSystem !== 1 && template.accountId !== req.accountId) {
+      // Check access: system templates (isSystem = true) or account templates
+      const isSystemTemplate = template.isSystem === true || template.isSystem === 'true' || template.isSystem === 1;
+      if (!isSystemTemplate && template.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
       }
       res.json(template);
@@ -1491,7 +1492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         accountId: req.accountId!,
         createdBy: req.userId || req.body.createdBy,
-        isSystem: 0, // User templates are never system templates
+        isSystem: 'false', // User templates are never system templates
       });
       const template = await storage.createDocumentTemplate(data);
       res.json(template);
@@ -1507,7 +1508,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Template not found" });
       }
       // Only allow editing account templates, not system templates
-      if (existing.isSystem === 1) {
+      const isSystemTemplate = existing.isSystem === true || existing.isSystem === 'true' || existing.isSystem === 1;
+      if (isSystemTemplate) {
         return res.status(403).json({ error: "Cannot edit system templates" });
       }
       if (existing.accountId !== req.accountId) {
