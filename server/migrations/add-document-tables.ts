@@ -106,7 +106,7 @@ Ci-après dénommée **"la Société"**
 
 **D'UNE PART,**
 
-ET
+**ET**
 
 **{{prestataire_nom}}**, né le **{{prestataire_date_naissance}}**, domicilié **{{prestataire_adresse}}**, immatriculé **{{prestataire_identifiant}}**,
 
@@ -116,71 +116,102 @@ Ci-après dénommé **"le Prestataire"**
 
 ---
 
-### 🟣 **Préambule**
+## **Préambule**
 
-Dans le cadre du projet **{{projet_nom}}**, notamment relatif à **{{projet_description}}**, la Société souhaite transmettre au Prestataire des informations confidentielles aux fins de collaboration et d'analyse de faisabilité. Les Parties reconnaissent que la confidentialité constitue un élément essentiel du projet.
+Dans le cadre du projet ***{{projet_nom}}***, notamment relatif à :
 
----
+***{{projet_description}}***
 
-### **Article 1 — Définitions**
+La Société souhaite transmettre au Prestataire des **informations confidentielles** aux fins de :
+- Collaboration
+- Analyse de faisabilité
 
-Sont considérées comme *informations confidentielles* toutes informations ou données communiquées sous forme orale, écrite, numérique ou matérielle, incluant notamment : documents internes, feuilles de route, idées, maquettes, supports techniques, identifiants, accès, documents stratégiques, listes de clients, business plans et codes d'accès éventuels, y compris **{{support_information}}**.
-
----
-
-### **Article 2 — Obligations du Prestataire**
-
-Le Prestataire s'engage notamment à :
-
-1. Protéger les informations avec la même rigueur que ses propres données sensibles
-2. Ne pas les divulguer ou transférer à des tiers sans accord écrit
-3. Ne pas les exploiter à son profit ou pour un client tiers
-4. Ne pas contourner, reproduire, désassembler ou imiter les éléments communiqués
-5. Ne pas créer d'accès détournés, outils d'extraction, mécanismes de copie ou re-vente
-
-L'accès technique fourni (ex: plateforme, dépôt, site, drive) :
-
-→ **{{autorisation_accès_plateforme}}**
-
-La Société peut révoquer cet accès **sans préavis ni justification**.
+Les Parties reconnaissent que **la confidentialité constitue un élément essentiel du projet**.
 
 ---
 
-### **Article 3 — Durée**
+## **Article 1 — Définitions**
 
-Le présent NDA prend effet à compter du **{{date_signature}}** et est valable **{{duree_confidentialite}}** à compter de la transmission de la dernière information.
+Sont considérées comme ***informations confidentielles*** toutes informations ou données communiquées sous forme :
+- Orale
+- Écrite
+- Numérique
+- Matérielle
+
+Incluant notamment :
+- Documents internes
+- Feuilles de route
+- Idées et maquettes
+- Supports techniques
+- Identifiants et accès
+- Documents stratégiques
+- Listes de clients
+- Business plans
+- Codes d'accès éventuels
+
+Y compris : **{{support_information}}**
 
 ---
 
-### **Article 4 — Restitution et suppression**
+## **Article 2 — Obligations du Prestataire**
+
+Le Prestataire s'engage ***expressément*** à :
+
+1. **Protéger** les informations avec la même rigueur que ses propres données sensibles
+2. **Ne pas divulguer** ou transférer à des tiers sans accord écrit préalable
+3. **Ne pas exploiter** à son profit ou pour un client tiers
+4. **Ne pas contourner**, reproduire, désassembler ou imiter les éléments communiqués
+5. **Ne pas créer** d'accès détournés, outils d'extraction, mécanismes de copie ou re-vente
+
+**Accès technique fourni :**
+
+→ {{autorisation_accès_plateforme}}
+
+***La Société peut révoquer cet accès sans préavis ni justification.***
+
+---
+
+## **Article 3 — Durée**
+
+Le présent NDA prend effet à compter du **{{date_signature}}**
+
+***Durée de validité : {{duree_confidentialite}}*** à compter de la transmission de la dernière information.
+
+---
+
+## **Article 4 — Restitution et suppression**
 
 À première demande, le Prestataire doit :
 
-- Restituer l'ensemble des éléments remis
-- Supprimer irrévocablement copies, captures, backups ou dérivés
-- Fournir une confirmation de suppression si demandé
+1. **Restituer** l'ensemble des éléments remis
+2. **Supprimer irrévocablement** :
+   - Copies
+   - Captures d'écran
+   - Backups
+   - Dérivés
+3. **Fournir une confirmation** de suppression si demandé
 
 ---
 
-### **Article 5 — Propriété**
+## **Article 5 — Propriété**
 
-La transmission n'emporte aucune cession de propriété ou de droit d'exploitation.
+***La transmission n'emporte aucune cession de propriété ou de droit d'exploitation.***
 
-Les informations demeurent la propriété exclusive de la Société.
-
----
-
-### **Article 6 — Droit applicable**
-
-Le présent contrat est soumis au droit **{{juridiction}}**.
+Les informations demeurent la **propriété exclusive** de la Société.
 
 ---
 
-### **Article 7 — Signature**
+## **Article 6 — Droit applicable**
+
+Le présent contrat est soumis au droit ***{{juridiction}}***.
+
+---
+
+## **Article 7 — Signature**
 
 Fait à **{{lieu_signature}}**, le **{{date_signature}}**
 
-En deux exemplaires originaux.`
+***En deux exemplaires originaux.***`
       },
       {
         id: '08a88fe3-0d3f-4042-916c-7d5de4d703f1',
