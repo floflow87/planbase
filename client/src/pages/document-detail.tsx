@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Eye, EyeOff, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Trash2, Download, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -68,9 +74,9 @@ export default function DocumentDetail() {
     queryKey: ["/api/projects"],
   });
 
-  // Fetch document links (we'll use the same note links table)
+  // Fetch document links
   const { data: documentLinks = [] } = useQuery<NoteLink[]>({
-    queryKey: ["/api/notes", id, "links"],
+    queryKey: ["/api/documents", id, "links"],
     enabled: !!id,
   });
 
@@ -199,14 +205,14 @@ export default function DocumentDetail() {
   // Project link mutations
   const linkProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiRequest(`/api/notes/${id}/links`, "POST", {
+      const response = await apiRequest(`/api/documents/${id}/links`, "POST", {
         targetType: "project",
         targetId: projectId,
       });
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
       toast({
         title: "Projet lié",
         description: "Le document a été lié au projet avec succès",
@@ -226,13 +232,13 @@ export default function DocumentDetail() {
     mutationFn: async () => {
       if (!linkedProject) return;
       const response = await apiRequest(
-        `/api/notes/${id}/links/${linkedProject.targetType}/${linkedProject.targetId}`,
+        `/api/documents/${id}/links/${linkedProject.targetType}/${linkedProject.targetId}`,
         "DELETE"
       );
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", id, "links"] });
       toast({
         title: "Projet délié",
         description: "Le document n'est plus lié au projet",
@@ -294,20 +300,46 @@ export default function DocumentDetail() {
                 </Button>
               </Link>
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-foreground truncate mb-2">
+                <h1 className="text-xl font-bold text-foreground truncate mb-2">
                   {title || "Nouveau document"}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      status === "draft" 
-                        ? "bg-gray-100 text-gray-700 border-gray-200"
-                        : "bg-green-50 text-green-700 border-green-200"
-                    }
-                  >
-                    {status === "draft" ? "Brouillon" : "Publié"}
-                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className={`cursor-pointer hover-elevate ${
+                          status === "draft" 
+                            ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                        }`}
+                        data-testid="badge-status"
+                      >
+                        {status === "draft" ? "Brouillon" : "Publié"}
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setStatus("draft");
+                          updateMutation.mutate({ status: "draft" });
+                        }}
+                        data-testid="menu-item-draft"
+                      >
+                        Brouillon
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setStatus("published");
+                          updateMutation.mutate({ status: "published" });
+                        }}
+                        data-testid="menu-item-published"
+                      >
+                        Publié
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {isSaving ? (
                     <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
                   ) : lastSaved ? (
@@ -345,21 +377,6 @@ export default function DocumentDetail() {
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}
               </Button>
-              
-              {/* Status Dropdown */}
-              <select
-                value={status}
-                onChange={(e) => {
-                  const newStatus = e.target.value as any;
-                  setStatus(newStatus);
-                  updateMutation.mutate({ status: newStatus });
-                }}
-                className="border border-border rounded-md px-3 h-9 text-sm bg-background"
-                data-testid="select-status"
-              >
-                <option value="draft">Brouillon</option>
-                <option value="published">Publié</option>
-              </select>
               
               {/* Export PDF */}
               <Tooltip>
