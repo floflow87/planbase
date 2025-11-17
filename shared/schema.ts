@@ -347,15 +347,14 @@ export const documents = pgTable("documents", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   templateId: uuid("template_id").references(() => documentTemplates.id, { onDelete: "set null" }), // null if created manually
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
-  title: text("title").notNull().default(""),
-  content: jsonb("content").notNull().default([]), // TipTap JSON content
+  name: text("name").notNull(),
+  content: text("content").notNull(),
+  formData: jsonb("form_data"),
   plainText: text("plain_text"), // for FTS
   status: text("status").notNull().default("draft"), // 'draft', 'review', 'signed', 'archived'
-  metadata: jsonb("metadata").notNull().default({}), // signatories, dates, reference numbers
-  visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
+  version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  signedAt: timestamp("signed_at", { withTimezone: true }),
 }, (table) => ({
   accountStatusIdx: index().on(table.accountId, table.status),
   templateIdx: index().on(table.templateId),
