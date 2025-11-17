@@ -423,15 +423,31 @@ export default function Dashboard() {
   // Activity feed from API
   const activityFeed = activities.slice(0, 5);
 
-  // Revenue data for chart (mock for now)
-  const revenueData = [
-    { month: "Jan", revenue: 12000 },
-    { month: "Fév", revenue: 15000 },
-    { month: "Mar", revenue: 18500 },
-    { month: "Avr", revenue: 20000 },
-    { month: "Mai", revenue: 22500 },
-    { month: "Juin", revenue: 24500 },
-  ];
+  // Revenue data for chart - based on project budgets by start month
+  const revenueData = (() => {
+    const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    const monthlyBudgets: Record<string, number> = {};
+    
+    // Initialize all 12 months with 0
+    monthNames.forEach(month => {
+      monthlyBudgets[month] = 0;
+    });
+    
+    // Sum budgets by project start month
+    projects.forEach(project => {
+      if (project.startDate && project.budget) {
+        const startDate = new Date(project.startDate);
+        const monthIndex = startDate.getMonth();
+        const monthName = monthNames[monthIndex];
+        monthlyBudgets[monthName] += project.budget;
+      }
+    });
+    
+    return monthNames.map(month => ({
+      month,
+      revenue: monthlyBudgets[month]
+    }));
+  })();
 
   return (
     <div className="h-full overflow-auto">
@@ -822,11 +838,6 @@ export default function Dashboard() {
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
-              <Button variant="ghost" size="sm" data-testid="button-view-all-revenue">
-                <span className="hidden sm:inline">Voir tout</span>
-                <span className="sm:hidden">Tout</span>
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
             </CardHeader>
             <CardContent className="min-w-0">
               <div className="w-full overflow-hidden">
