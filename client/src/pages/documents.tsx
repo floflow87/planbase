@@ -1,318 +1,276 @@
-import { Search, FileText, Plus, Trash2, MoreVertical, File, Calendar, User } from "lucide-react";
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Link, useLocation } from "wouter";
-import { useState, useMemo, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import type { Document, AppUser, DocumentTemplate } from "@shared/schema";
-import { formatDistanceToNow } from "date-fns";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Documents() {
-  const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "signed">("all");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteDocumentId, setDeleteDocumentId] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState(() => {
-    const saved = localStorage.getItem('documentListPageSize');
-    return saved ? parseInt(saved) : 20;
-  });
-  const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [, setLocation] = useLocation();
 
-  const { data: documents = [], isLoading } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-  });
+  const folders = [
+    {
+      id: "root",
+      name: "Racine",
+      icon: Home,
+      expanded: true,
+      children: [
+        { id: "clients", name: "Clients", count: 8, children: [] },
+        { id: "projects", name: "Projets internes", count: 12, children: [] },
+        {
+          id: "documentation",
+          name: "Documentation",
+          count: 24,
+          expanded: true,
+          children: [
+            { id: "product", name: "Produit", count: 8 },
+            { id: "technique", name: "Technique", count: 6 },
+            { id: "equipe", name: "Équipe", count: 4 },
+            { id: "fundraising", name: "Levée de fonds", count: 6 },
+          ],
+        },
+      ],
+    },
+  ];
 
-  useEffect(() => {
-    localStorage.setItem('documentListPageSize', pageSize.toString());
-  }, [pageSize]);
+  const files = [
+    {
+      id: "1",
+      name: "Product_Specs_v3.pdf",
+      type: "pdf",
+      size: "2.4 MB",
+      updatedAt: "Modifié il y a 2h",
+      author: { name: "P", color: "bg-violet-500" },
+    },
+    {
+      id: "2",
+      name: "MP_Requirements.doc",
+      type: "word",
+      size: "1.2 MB",
+      updatedAt: "Modifié il y a 1j",
+      author: { name: "T", color: "bg-blue-500" },
+    },
+    {
+      id: "3",
+      name: "Esture_Roadmap.xlsx",
+      type: "excel",
+      size: "856 KB",
+      updatedAt: "Modifié il y a 3j",
+      author: { name: "F", color: "bg-green-500" },
+    },
+    {
+      id: "4",
+      name: "UI_Mockups_v2.png",
+      type: "image",
+      size: "3.1 MB",
+      updatedAt: "Modifié il y a 1 sem",
+      author: { name: "D", color: "bg-orange-500" },
+    },
+    {
+      id: "5",
+      name: "AIGenerated_Analysis",
+      type: "note",
+      size: "Doc IA",
+      updatedAt: "Modifié il y a 2h",
+      author: { name: "AI", color: "bg-violet-500" },
+    },
+    {
+      id: "6",
+      name: "Figma Design System",
+      type: "link",
+      size: "Lien externe - figma.com",
+      updatedAt: "Modifié il y a 4h",
+      author: { name: "F", color: "bg-cyan-500" },
+    },
+    {
+      id: "7",
+      name: "Notes_Reunion_Equipe",
+      type: "note",
+      size: "Note - Modifié il y a 4h",
+      updatedAt: "",
+      author: { name: "N", color: "bg-indigo-500" },
+    },
+    {
+      id: "8",
+      name: "Assets_Export_v1.zip",
+      type: "zip",
+      size: "12.5 MB",
+      updatedAt: "Modifié il y a 1 sem",
+      author: { name: "A", color: "bg-pink-500" },
+    },
+  ];
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, statusFilter, pageSize]);
-
-  const filteredDocuments = useMemo(() => {
-    let result = [...documents];
-
-    if (statusFilter !== "all") {
-      result = result.filter((doc) => doc.status === statusFilter);
+  const getFileIcon = (type: string) => {
+    switch (type) {
+      case "pdf":
+        return <FileText className="w-8 h-8 text-red-600" />;
+      case "word":
+        return <FileType className="w-8 h-8 text-blue-600" />;
+      case "excel":
+        return <FileSpreadsheet className="w-8 h-8 text-green-600" />;
+      case "image":
+        return <Image className="w-8 h-8 text-orange-600" />;
+      case "link":
+        return <Link className="w-8 h-8 text-cyan-600" />;
+      case "note":
+        return <FileText className="w-8 h-8 text-violet-600" />;
+      case "audio":
+        return <Music className="w-8 h-8 text-purple-600" />;
+      case "zip":
+        return <Archive className="w-8 h-8 text-gray-600" />;
+      default:
+        return <File className="w-8 h-8 text-gray-600" />;
     }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (doc) =>
-          doc.title.toLowerCase().includes(query) ||
-          doc.plainText?.toLowerCase().includes(query)
-      );
-    }
-
-    return result.sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-  }, [documents, searchQuery, statusFilter]);
-
-  const totalPages = Math.ceil(filteredDocuments.length / pageSize);
-  const paginatedDocuments = useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = startIdx + pageSize;
-    return filteredDocuments.slice(startIdx, endIdx);
-  }, [filteredDocuments, currentPage, pageSize]);
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      draft: "bg-gray-100 text-gray-700 border-gray-200",
-      signed: "bg-green-50 text-green-700 border-green-200",
-    };
-    return variants[status as keyof typeof variants] || variants.draft;
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/documents/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Document supprimé",
-        description: "Le document a été supprimé avec succès",
-      });
-      setDeleteDialogOpen(false);
-      setDeleteDocumentId(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de supprimer le document",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleDeleteConfirm = () => {
-    if (deleteDocumentId) {
-      deleteMutation.mutate(deleteDocumentId);
-    }
-  };
-
-  const handleCreateNew = () => {
-    navigate("/documents/templates");
-  };
+  const FolderTree = ({ items, level = 0 }: any) => (
+    <div className={level > 0 ? "ml-4" : ""}>
+      {items.map((item: any) => (
+        <div key={item.id}>
+          <div className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer text-sm">
+            {item.icon ? <item.icon className="w-4 h-4 text-muted-foreground" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+            <span className="flex-1 text-foreground">{item.name}</span>
+            {item.count !== undefined && (
+              <Badge variant="secondary" className="text-xs">{item.count}</Badge>
+            )}
+          </div>
+          {item.children && item.expanded && (
+            <FolderTree items={item.children} level={level + 1} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b p-4">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-primary" data-testid="icon-documents" />
-            <h1 className="text-2xl font-semibold" data-testid="text-page-title">Documents</h1>
+    <div className="flex-1 overflow-hidden bg-background flex" data-testid="page-documents">
+      {/* Left Sidebar - Folder Explorer */}
+      <div className="w-72 border-r border-border flex flex-col">
+        <div className="p-4 border-b border-border">
+          <h2 className="font-heading font-semibold text-lg mb-3">Explorer</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search files..."
+              className="pl-9"
+              data-testid="input-search-files"
+            />
           </div>
-          <Button onClick={handleCreateNew} data-testid="button-create-document">
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau document
+          <Button variant="ghost" size="sm" className="w-full mt-2 justify-start gap-2" data-testid="button-filter">
+            <Filter className="w-4 h-4" />
+            Filtres
           </Button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher des documents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-documents"
-            />
+        <ScrollArea className="flex-1 p-4">
+          <FolderTree items={folders} />
+        </ScrollArea>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          {/* Breadcrumb & Actions */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <Home className="w-4 h-4 text-muted-foreground" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Documentation</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium text-foreground">Produit</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 border border-border rounded-md p-1">
+                <Button
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  data-testid="button-view-grille"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  data-testid="button-view-liste"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+              <Button variant="outline" className="gap-2" data-testid="button-importer">
+                <Upload className="w-4 h-4" />
+                Importer
+              </Button>
+              <Button 
+                variant="default" 
+                className="gap-2" 
+                onClick={() => setLocation("/documents/templates")}
+                data-testid="button-nouveau-document"
+              >
+                <FileEdit className="w-4 h-4" />
+                Nouveau Document
+              </Button>
+              <Button className="gap-2" data-testid="button-nouveau">
+                <FolderPlus className="w-4 h-4" />
+                Nouveau
+              </Button>
+            </div>
           </div>
 
-          <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-            <SelectTrigger className="w-48" data-testid="select-status-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="draft">Brouillon</SelectItem>
-              <SelectItem value="signed">Signé</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Files Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {files.map((file) => (
+              <Card key={file.id} className="hover-elevate cursor-pointer transition-shadow" data-testid={`card-file-${file.id}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      {getFileIcon(file.type)}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </div>
 
-          <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
-            <SelectTrigger className="w-32" data-testid="select-page-size">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 par page</SelectItem>
-              <SelectItem value="20">20 par page</SelectItem>
-              <SelectItem value="50">50 par page</SelectItem>
-              <SelectItem value="100">100 par page</SelectItem>
-            </SelectContent>
-          </Select>
+                  <div>
+                    <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{file.size}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    {file.updatedAt && (
+                      <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
+                    )}
+                    <div className={`w-6 h-6 rounded-full ${file.author.color} flex items-center justify-center text-xs text-white font-medium`}>
+                      {file.author.name}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Storage Indicator */}
+          <Card className="mt-8">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-foreground">Stockage:</span>
+                <span className="text-sm text-muted-foreground">21 GB / 5 GB</span>
+              </div>
+              <Progress value={42} className="h-2" indicatorClassName="bg-violet-600" />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-muted-foreground">24 éléments</span>
+                <span className="text-xs text-muted-foreground">Trié par date de modification</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      <div className="flex-1 overflow-auto p-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-muted-foreground">Chargement...</div>
-          </div>
-        ) : paginatedDocuments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <FileText className="h-16 w-16 text-muted-foreground/50" />
-            <div className="text-center">
-              <p className="text-muted-foreground font-medium mb-1">Aucun document</p>
-              <p className="text-sm text-muted-foreground">
-                {searchQuery || statusFilter !== "all"
-                  ? "Aucun document ne correspond à vos critères"
-                  : "Commencez par créer un nouveau document"}
-              </p>
-            </div>
-            {!searchQuery && statusFilter === "all" && (
-              <Button onClick={handleCreateNew} data-testid="button-create-first-document">
-                <Plus className="h-4 w-4 mr-2" />
-                Créer un document
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {paginatedDocuments.map((document) => {
-              return (
-                <Card
-                  key={document.id}
-                  className="hover-elevate cursor-pointer"
-                  onClick={() => navigate(`/documents/${document.id}`)}
-                  data-testid={`card-document-${document.id}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-2">
-                          <File className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-base mb-1 truncate" data-testid={`text-document-title-${document.id}`}>
-                              {document.title}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>Modifié {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true, locale: { localize: { day: () => 'jour' } } as any })}</span>
-                          </div>
-
-                          {document.signedAt && (
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-3.5 w-3.5" />
-                              <span>Signé le {new Date(document.signedAt).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge className={getStatusBadge(document.status)} data-testid={`badge-status-${document.id}`}>
-                          {document.status === "draft" ? "Brouillon" : "Signé"}
-                        </Badge>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" data-testid={`button-document-menu-${document.id}`}>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/documents/${document.id}`);
-                            }}>
-                              <File className="h-4 w-4 mr-2" />
-                              Ouvrir
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteDocumentId(document.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              data-testid={`button-delete-document-${document.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Supprimer
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-              data-testid="button-prev-page"
-            >
-              Précédent
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {currentPage} sur {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-              data-testid="button-next-page"
-            >
-              Suivant
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer le document</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete">
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteMutation.isPending}
-              data-testid="button-confirm-delete"
-            >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

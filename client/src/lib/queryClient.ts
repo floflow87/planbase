@@ -20,7 +20,7 @@ export function formatDateForStorage(date: Date): string {
 }
 
 /**
- * Get the current Supabase session token
+ * Get the current Supabase session token or development test headers
  */
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -28,6 +28,15 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   if (session?.access_token) {
     return {
       'Authorization': `Bearer ${session.access_token}`,
+    };
+  }
+  
+  // Development mode: Use test headers if no session
+  if (import.meta.env.DEV) {
+    // These should match the existing test user in the database
+    return {
+      'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
+      'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
     };
   }
   

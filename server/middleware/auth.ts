@@ -29,7 +29,26 @@ declare global {
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
-    // Extract JWT from Authorization header
+    // Development mode: Allow test headers for easier development
+    if (process.env.NODE_ENV === 'development') {
+      const testAccountId = req.headers["x-test-account-id"] as string;
+      const testUserId = req.headers["x-test-user-id"] as string;
+
+      if (testAccountId && testUserId) {
+        // Verify test account and user exist
+        const account = await storage.getAccount(testAccountId);
+        const user = await storage.getUser(testUserId);
+
+        if (account && user && user.accountId === testAccountId) {
+          req.accountId = testAccountId;
+          req.userId = testUserId;
+          req.userRole = user.role as "owner" | "collaborator" | "client_viewer";
+          return next();
+        }
+      }
+    }
+
+    // Production mode: Require Supabase JWT
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
