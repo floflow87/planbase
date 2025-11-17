@@ -83,7 +83,7 @@ export default function DocumentTemplateForm() {
     );
   }
 
-  const formSchema = template.formSchema as Array<{
+  const formSchema = ((template.formSchema as any)?.fields || []) as Array<{
     name: string;
     label: string;
     type: string;
