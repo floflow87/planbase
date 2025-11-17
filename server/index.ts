@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runStartupMigrations } from "./migrations-startup";
-import { detectSupabaseRegion } from "./detect-supabase-region";
 
 const app = express();
 
@@ -49,9 +48,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Detect Supabase region first
-  await detectSupabaseRegion();
-  
   // Run startup migrations
   await runStartupMigrations();
   

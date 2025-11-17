@@ -2,8 +2,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from "@shared/schema";
-import * as fs from 'fs';
-import * as path from 'path';
 
 if (!process.env.SUPABASE_URL) {
   throw new Error("SUPABASE_URL must be set");
@@ -16,21 +14,17 @@ if (!process.env.SUPABASE_DB_PASSWORD) {
 // Extract project reference from Supabase URL
 const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
 
-// Read the detected region from cache file
-const REGION_CACHE_FILE = path.join(process.cwd(), '.supabase-region');
-let region = 'eu-west-1'; // Default fallback
+// Try Transaction pooler (port 6543) which was in the original config
+// This pooler is IPv4 compatible and doesn't require prepared statements
+const regions = ['eu-central-1', 'eu-west-1', 'us-east-1', 'ap-southeast-1'];
+const region = process.env.SUPABASE_REGION || regions[0];
 
-if (fs.existsSync(REGION_CACHE_FILE)) {
-  region = fs.readFileSync(REGION_CACHE_FILE, 'utf-8').trim();
-  console.log(`🔗 Connecting to Supabase PostgreSQL (project: ${projectRef}, region: ${region})`);
-} else {
-  console.log(`⚠️  No cached region found, using default: ${region}`);
-}
+const connectionString = `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-${region}.pooler.supabase.com:6543/postgres`;
 
-// Supabase PostgreSQL Session pooler connection (IPv4 compatible)
-const connectionString = `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-${region}.pooler.supabase.com:5432/postgres`;
+console.log(`🔗 Connecting to Supabase (project: ${projectRef}, region: ${region}, port: 6543)`);
 
 // Create postgres connection
+// Transaction pooler requires prepare: false
 const client = postgres(connectionString, {
   prepare: false,
   max: 10,
