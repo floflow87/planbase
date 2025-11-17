@@ -191,35 +191,28 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="space-y-2">
-          <Link href="/settings">
-            <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="link-settings">
-              <Settings className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-sidebar-foreground">Paramètres</span>
+        <Link href="/profile">
+          <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-medium">
+                {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
+                {userProfile?.lastName?.[0] || ''}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">
+                {userProfile?.firstName && userProfile?.lastName 
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
+                  : user?.email || 'Utilisateur'}
+              </p>
+              <Badge variant="secondary" className="text-[10px] mt-0.5">
+                {userProfile?.position || 'Membre'}
+              </Badge>
             </div>
-          </Link>
-          <Link href="/profile">
-            <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer" data-testid="button-user-profile">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={userProfile?.avatarUrl || defaultAvatar} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-medium">
-                  {userProfile?.firstName?.[0] || user?.email?.[0].toUpperCase() || 'U'}
-                  {userProfile?.lastName?.[0] || ''}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-sidebar-foreground truncate">
-                  {userProfile?.firstName && userProfile?.lastName 
-                    ? `${userProfile.firstName} ${userProfile.lastName}`
-                    : user?.email || 'Utilisateur'}
-                </p>
-                <Badge variant="secondary" className="text-[10px] mt-0.5">
-                  {userProfile?.position || 'Membre'}
-                </Badge>
-              </div>
-            </div>
-          </Link>
-        </div>
+            <Settings className="w-4 h-4 text-muted-foreground flex-shrink-0" data-testid="icon-settings" />
+          </div>
+        </Link>
       </SidebarFooter>
     </Sidebar>
   );

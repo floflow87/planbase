@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, Settings as SettingsIcon, Puzzle } from "lucide-react";
 import type { appUsers } from "@shared/schema";
 
 const profileSchema = z.object({
@@ -37,6 +38,11 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 type PasswordFormData = z.infer<typeof passwordSchema>;
 type AppUser = typeof appUsers.$inferSelect;
 
+interface Account {
+  id: string;
+  name: string;
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,6 +53,12 @@ export default function Profile() {
   const { data: userProfile, isLoading } = useQuery<AppUser>({
     queryKey: ["/api/me"],
     enabled: !!user,
+  });
+
+  // Fetch account info for integrations tab
+  const { data: account, isLoading: accountLoading } = useQuery<Account>({
+    queryKey: ["/api/accounts", userProfile?.accountId],
+    enabled: !!userProfile?.accountId,
   });
 
   const form = useForm<ProfileFormData>({
@@ -89,7 +101,6 @@ export default function Profile() {
       return response.json();
     },
     onSuccess: (updatedUser) => {
-      // Update the cache with the new data returned from the server
       queryClient.setQueryData(["/api/me"], updatedUser);
       toast({
         title: "Profil mis à jour",
@@ -147,325 +158,386 @@ export default function Profile() {
   }
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="p-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CardTitle className="flex items-center gap-2">
-                  <UserCircle className="w-5 h-5" />
-                  Informations personnelles
-                </CardTitle>
-              </div>
-              {userProfile?.account?.plan && (
-                <Badge 
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold" 
-                  data-testid="badge-plan"
-                >
-                  {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
-                </Badge>
-              )}
-            </div>
-            <CardDescription>
-              Ces informations seront visibles par les autres membres de votre équipe
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Prénom */}
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        Prénom *
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Jean"
-                          data-testid="input-first-name"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+    <div className="h-full overflow-auto bg-background">
+      <div className="p-6">
+        <Tabs defaultValue="informations" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2" data-testid="tabs-profile">
+            <TabsTrigger value="informations" data-testid="tab-informations">
+              <UserCircle className="w-4 h-4 mr-2" />
+              Informations
+            </TabsTrigger>
+            <TabsTrigger value="integrations" data-testid="tab-integrations">
+              <Puzzle className="w-4 h-4 mr-2" />
+              Intégrations
+            </TabsTrigger>
+          </TabsList>
 
-                {/* Nom */}
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        Nom *
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Dupont"
-                          data-testid="input-last-name"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+          <TabsContent value="informations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <UserCircle className="w-5 h-5" />
+                      Informations personnelles
+                    </CardTitle>
+                  </div>
+                  {userProfile?.account?.plan && (
+                    <Badge 
+                      className="bg-green-600 hover:bg-green-700 text-white font-semibold" 
+                      data-testid="badge-plan"
+                    >
+                      {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
+                    </Badge>
                   )}
-                />
-
-                {/* Email - Read only */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Email *
-                  </Label>
-                  <Input
-                    type="email"
-                    value={userProfile?.email || ""}
-                    disabled
-                    className="bg-muted"
-                    data-testid="input-email"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    L'email ne peut pas être modifié depuis cette page
-                  </p>
                 </div>
+                <CardDescription>
+                  Ces informations seront visibles par les autres membres de votre équipe
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              Prénom *
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Jean"
+                                data-testid="input-first-name"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                {/* Civilité */}
-                <FormField
-                  control={form.control}
-                  name="gender"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Civilité</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        data-testid="select-gender"
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              Nom *
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Dupont"
+                                data-testid="input-last-name"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Mail className="w-4 h-4" />
+                          Email *
+                        </Label>
+                        <Input
+                          type="email"
+                          value={userProfile?.email || ""}
+                          disabled
+                          className="bg-muted"
+                          data-testid="input-email"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          L'email ne peut pas être modifié depuis cette page
+                        </p>
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="gender"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Civilité</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              data-testid="select-gender"
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Sélectionner" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-background">
+                                <SelectItem value="male">Homme</SelectItem>
+                                <SelectItem value="female">Femme</SelectItem>
+                                <SelectItem value="other">Autre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            <div className="h-5" />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="position"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Briefcase className="w-4 h-4" />
+                              Poste
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Développeur Full-Stack"
+                                data-testid="input-position"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Phone className="w-4 h-4" />
+                              Téléphone
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="+33 6 12 34 56 78"
+                                data-testid="input-phone"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="company"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4" />
+                              Nom de société
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ma Société"
+                                data-testid="input-company"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => form.reset()}
+                        data-testid="button-cancel"
                       >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-background">
-                          <SelectItem value="male">Homme</SelectItem>
-                          <SelectItem value="female">Femme</SelectItem>
-                          <SelectItem value="other">Autre</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      <div className="h-5" />
-                    </FormItem>
-                  )}
-                />
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateProfileMutation.isPending}
+                        data-testid="button-save-profile"
+                      >
+                        {updateProfileMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Enregistrer
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
 
-                {/* Poste */}
-                <FormField
-                  control={form.control}
-                  name="position"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4" />
-                        Poste
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Développeur Full-Stack"
-                          data-testid="input-position"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="w-5 h-5" />
+                  Modifier le mot de passe
+                </CardTitle>
+                <CardDescription>
+                  Changez votre mot de passe pour sécuriser votre compte
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...passwordForm}>
+                  <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={passwordForm.control}
+                        name="newPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nouveau mot de passe *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  type={showNewPassword ? "text" : "password"}
+                                  placeholder="Minimum 8 caractères"
+                                  data-testid="input-new-password"
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowNewPassword(!showNewPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                                  data-testid="button-toggle-new-password"
+                                >
+                                  {showNewPassword ? (
+                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                {/* Téléphone */}
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        Téléphone
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="tel"
-                          placeholder="+33 6 12 34 56 78"
-                          data-testid="input-phone"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={passwordForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirmer le mot de passe *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  placeholder="Retapez le mot de passe"
+                                  data-testid="input-confirm-password"
+                                  {...field}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                                  data-testid="button-toggle-confirm-password"
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                {/* Nom de société */}
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
-                        Nom de société
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Ma Société"
-                          data-testid="input-company"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => passwordForm.reset()}
+                        data-testid="button-cancel-password"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updatePasswordMutation.isPending}
+                        data-testid="button-save-password"
+                      >
+                        {updatePasswordMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Mettre à jour le mot de passe
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => form.reset()}
-                  data-testid="button-cancel"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending}
-                  data-testid="button-save-profile"
-                >
-                  {updateProfileMutation.isPending && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          <TabsContent value="integrations" className="space-y-6">
+            <div className="max-w-3xl">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-violet-100 dark:bg-violet-900/30">
+                      <SettingsIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <div>
+                      <CardTitle>Informations du compte</CardTitle>
+                      <CardDescription>
+                        Gérez les paramètres de votre compte
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {accountLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Nom du compte</p>
+                        <p className="text-sm text-muted-foreground mt-1">{account?.name || "Chargement..."}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">ID du compte</p>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono">{account?.id || "Chargement..."}</p>
+                      </div>
+                    </div>
                   )}
-                  Enregistrer
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5" />
-              Modifier le mot de passe
-            </CardTitle>
-            <CardDescription>
-              Changez votre mot de passe pour sécuriser votre compte
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...passwordForm}>
-            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nouveau mot de passe */}
-                <FormField
-                  control={passwordForm.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nouveau mot de passe *</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showNewPassword ? "text" : "password"}
-                            placeholder="Minimum 8 caractères"
-                            data-testid="input-new-password"
-                            {...field}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                            data-testid="button-toggle-new-password"
-                          >
-                            {showNewPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Confirmer le mot de passe */}
-                <FormField
-                  control={passwordForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmer le mot de passe *</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Retapez le mot de passe"
-                            data-testid="input-confirm-password"
-                            {...field}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                            data-testid="button-toggle-confirm-password"
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => passwordForm.reset()}
-                  data-testid="button-cancel-password"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updatePasswordMutation.isPending}
-                  data-testid="button-save-password"
-                >
-                  {updatePasswordMutation.isPending && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  Mettre à jour le mot de passe
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Intégrations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-muted-foreground">Google Calendar - Connectez votre calendrier depuis la page Calendrier</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Les credentials Google OAuth sont configurés au niveau de l'application.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
