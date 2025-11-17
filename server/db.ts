@@ -14,15 +14,15 @@ if (!supabaseUrl || !supabasePassword) {
 
 const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
-// Use Supabase Direct connection (port 6543) to bypass pooler cache
-const connectionString = `postgresql://postgres.${projectRef}:${supabasePassword}@aws-1-eu-north-1.pooler.supabase.com:6543/postgres`;
+// Use Supabase Session pooler (IPv4 compatible) - exact format from dashboard
+const connectionString = `postgresql://postgres.${projectRef}:${supabasePassword}@aws-1-eu-north-1.pooler.supabase.com:5432/postgres`;
 
 console.log(`🔗 Connecting to Supabase project: ${projectRef}`);
-console.log(`📡 Using Supabase Direct connection (port 6543) to bypass cache`);
+console.log(`📡 Using Supabase Session pooler (IPv4): aws-1-eu-north-1.pooler.supabase.com:5432`);
 
 // Create postgres connection
 const client = postgres(connectionString, {
-  prepare: false,
+  prepare: false, // Required for pooler
   max: 10,
   onnotice: () => {},
 });
