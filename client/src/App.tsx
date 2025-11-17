@@ -18,6 +18,9 @@ import Notes from "@/pages/notes";
 import NoteNew from "@/pages/note-new";
 import NoteDetail from "@/pages/note-detail";
 import Documents from "@/pages/documents";
+import DocumentTemplates from "@/pages/documents-templates";
+import DocumentTemplateForm from "@/pages/documents-template-form";
+import DocumentDetail from "@/pages/document-detail";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
 import Marketing from "@/pages/marketing";
@@ -66,6 +69,15 @@ function Router() {
       </Route>
       <Route path="/notes">
         <ProtectedRoute><Notes /></ProtectedRoute>
+      </Route>
+      <Route path="/documents/templates/:id">
+        <ProtectedRoute><DocumentTemplateForm /></ProtectedRoute>
+      </Route>
+      <Route path="/documents/templates">
+        <ProtectedRoute><DocumentTemplates /></ProtectedRoute>
+      </Route>
+      <Route path="/documents/:id">
+        <ProtectedRoute><DocumentDetail /></ProtectedRoute>
       </Route>
       <Route path="/documents">
         <ProtectedRoute><Documents /></ProtectedRoute>
