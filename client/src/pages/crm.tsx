@@ -575,28 +575,6 @@ export default function CRM() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="budget"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Budget (€)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value || 0}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                          disabled={field.disabled}
-                          data-testid="input-client-budget"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <div className="flex justify-end gap-2 border-t pt-4">
                   <Button
                     type="button"
