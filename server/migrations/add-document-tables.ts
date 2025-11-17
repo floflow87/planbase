@@ -362,7 +362,7 @@ Le Prestataire est responsable de la bonne exécution de la prestation dans les 
           ${template.category},
           ${JSON.stringify(template.formSchema)}::jsonb,
           ${template.contentTemplate},
-          1
+          true
         )
         ON CONFLICT (id) DO NOTHING
       `);
