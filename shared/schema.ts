@@ -351,7 +351,7 @@ export const documents = pgTable("documents", {
   content: text("content").notNull(),
   formData: jsonb("form_data"),
   plainText: text("plain_text"), // for FTS
-  status: text("status").notNull().default("draft"), // 'draft', 'review', 'signed', 'archived'
+  status: text("status").notNull().default("draft"), // 'draft', 'published', 'archived'
   version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -661,7 +661,7 @@ export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates
 });
 export const updateDocumentTemplateSchema = insertDocumentTemplateSchema.omit({ accountId: true, createdBy: true }).partial();
 
-export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true, signedAt: true }).extend({
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   templateId: z.string().nullable().optional(), // Free-form documents don't need templateId
 });
 export const updateDocumentSchema = insertDocumentSchema.omit({ accountId: true, createdBy: true }).partial();
