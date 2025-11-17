@@ -1,9 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runStartupMigrations } from "./migrations-startup";
 
 const app = express();
+
+// Configure CORS for production
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://app.planbase.io', 'https://www.planbase.io']
+    : true,
+  credentials: true,
+}));
 
 declare module 'http' {
   interface IncomingMessage {
