@@ -442,7 +442,14 @@ Le Prestataire est responsable de la bonne exécution de la prestation dans les 
           ${template.contentTemplate},
           true
         )
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          category = EXCLUDED.category,
+          form_schema = EXCLUDED.form_schema,
+          content_template = EXCLUDED.content_template,
+          is_system = EXCLUDED.is_system,
+          updated_at = NOW()
       `);
     }
 

@@ -7,10 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery } from "@tanstack/react-query";
+import type { Document } from "@shared/schema";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 
 export default function Documents() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [, setLocation] = useLocation();
+
+  const { data: documents = [], isLoading } = useQuery<Document[]>({
+    queryKey: ["/api/documents"],
+  });
 
   const folders = [
     {
@@ -37,72 +45,22 @@ export default function Documents() {
     },
   ];
 
-  const files = [
-    {
-      id: "1",
-      name: "Product_Specs_v3.pdf",
-      type: "pdf",
-      size: "2.4 MB",
-      updatedAt: "Modifié il y a 2h",
-      author: { name: "P", color: "bg-violet-500" },
-    },
-    {
-      id: "2",
-      name: "MP_Requirements.doc",
-      type: "word",
-      size: "1.2 MB",
-      updatedAt: "Modifié il y a 1j",
-      author: { name: "T", color: "bg-blue-500" },
-    },
-    {
-      id: "3",
-      name: "Esture_Roadmap.xlsx",
-      type: "excel",
-      size: "856 KB",
-      updatedAt: "Modifié il y a 3j",
-      author: { name: "F", color: "bg-green-500" },
-    },
-    {
-      id: "4",
-      name: "UI_Mockups_v2.png",
-      type: "image",
-      size: "3.1 MB",
-      updatedAt: "Modifié il y a 1 sem",
-      author: { name: "D", color: "bg-orange-500" },
-    },
-    {
-      id: "5",
-      name: "AIGenerated_Analysis",
-      type: "note",
-      size: "Doc IA",
-      updatedAt: "Modifié il y a 2h",
-      author: { name: "AI", color: "bg-violet-500" },
-    },
-    {
-      id: "6",
-      name: "Figma Design System",
-      type: "link",
-      size: "Lien externe - figma.com",
-      updatedAt: "Modifié il y a 4h",
-      author: { name: "F", color: "bg-cyan-500" },
-    },
-    {
-      id: "7",
-      name: "Notes_Reunion_Equipe",
-      type: "note",
-      size: "Note - Modifié il y a 4h",
-      updatedAt: "",
-      author: { name: "N", color: "bg-indigo-500" },
-    },
-    {
-      id: "8",
-      name: "Assets_Export_v1.zip",
-      type: "zip",
-      size: "12.5 MB",
-      updatedAt: "Modifié il y a 1 sem",
-      author: { name: "A", color: "bg-pink-500" },
-    },
-  ];
+  const getAuthorColor = (index: number) => {
+    const colors = [
+      "bg-violet-500", "bg-blue-500", "bg-green-500", "bg-orange-500",
+      "bg-pink-500", "bg-cyan-500", "bg-indigo-500", "bg-red-500"
+    ];
+    return colors[index % colors.length];
+  };
+
+  const files = documents.map((doc, index) => ({
+    id: doc.id,
+    name: doc.name,
+    type: doc.status === "signed" ? "pdf" : "note",
+    size: doc.status === "signed" ? "Signé" : "Brouillon",
+    updatedAt: formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true, locale: fr }),
+    author: { name: doc.createdBy?.substring(0, 2).toUpperCase() || "U", color: getAuthorColor(index) },
+  }));
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -216,59 +174,84 @@ export default function Documents() {
                 <FileEdit className="w-4 h-4" />
                 Nouveau Document
               </Button>
-              <Button className="gap-2" data-testid="button-nouveau">
-                <FolderPlus className="w-4 h-4" />
-                Nouveau
-              </Button>
             </div>
           </div>
 
           {/* Files Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {files.map((file) => (
-              <Card key={file.id} className="hover-elevate cursor-pointer transition-shadow" data-testid={`card-file-${file.id}`}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                      {getFileIcon(file.type)}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-muted-foreground">Chargement des documents...</div>
+            </div>
+          ) : files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <FileText className="w-16 h-16 text-muted-foreground/50" />
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-foreground">Aucun document</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Créez votre premier document pour commencer
+                </p>
+              </div>
+              <Button 
+                onClick={() => setLocation("/documents/templates")}
+                data-testid="button-create-first-document"
+              >
+                <FileEdit className="w-4 h-4 mr-2" />
+                Créer un document
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {files.map((file) => (
+                <Card 
+                  key={file.id} 
+                  className="hover-elevate cursor-pointer transition-shadow" 
+                  onClick={() => setLocation(`/documents/${file.id}`)}
+                  data-testid={`card-file-${file.id}`}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                        {getFileIcon(file.type)}
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                    </Button>
-                  </div>
 
-                  <div>
-                    <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">{file.size}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    {file.updatedAt && (
-                      <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
-                    )}
-                    <div className={`w-6 h-6 rounded-full ${file.author.color} flex items-center justify-center text-xs text-white font-medium`}>
-                      {file.author.name}
+                    <div>
+                      <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">{file.size}</p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                    <div className="flex items-center justify-between">
+                      {file.updatedAt && (
+                        <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
+                      )}
+                      <div className={`w-6 h-6 rounded-full ${file.author.color} flex items-center justify-center text-xs text-white font-medium`}>
+                        {file.author.name}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Storage Indicator */}
-          <Card className="mt-8">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Stockage:</span>
-                <span className="text-sm text-muted-foreground">21 GB / 5 GB</span>
-              </div>
-              <Progress value={42} className="h-2" indicatorClassName="bg-violet-600" />
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-muted-foreground">24 éléments</span>
-                <span className="text-xs text-muted-foreground">Trié par date de modification</span>
-              </div>
-            </CardContent>
-          </Card>
+          {files.length > 0 && (
+            <Card className="mt-8">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">Stockage:</span>
+                  <span className="text-sm text-muted-foreground">{files.length} document{files.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-muted-foreground">{files.length} élément{files.length > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-muted-foreground">Trié par date de modification</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
