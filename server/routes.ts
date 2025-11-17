@@ -1974,7 +1974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ACCOUNT SETTINGS ROUTES
   // ============================================
 
-  // Get account details (OWNER ONLY - contains sensitive OAuth credentials)
+  // Get account details (OWNER ONLY)
   app.get("/api/accounts/:accountId", requireAuth, requireRole("owner"), async (req, res) => {
     try {
       if (req.params.accountId !== req.accountId) {
@@ -1989,49 +1989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         id: account.id,
         name: account.name,
-        googleClientId: getGoogleClientId(account),
-        googleClientSecret: getGoogleClientSecret(account),
       });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  // Update Google OAuth credentials
-  app.patch("/api/accounts/:accountId/google-oauth", requireAuth, requireRole("owner"), async (req, res) => {
-    try {
-      if (req.params.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied to this account" });
-      }
-
-      const { googleClientId, googleClientSecret } = req.body;
-
-      if (!googleClientId || !googleClientSecret) {
-        return res.status(400).json({ error: "Both googleClientId and googleClientSecret are required" });
-      }
-
-      // Update account with Google credentials in settings JSON
-      const account = await storage.getAccount(req.params.accountId);
-      if (!account) {
-        return res.status(404).json({ error: "Account not found" });
-      }
-
-      // Merge new credentials into existing settings
-      const currentSettings = (typeof account.settings === 'object' && account.settings !== null && !Array.isArray(account.settings)) 
-        ? account.settings as Record<string, unknown> 
-        : {};
-      
-      const updatedSettings = {
-        ...currentSettings,
-        googleClientId: googleClientId.trim(),
-        googleClientSecret: googleClientSecret.trim(),
-      };
-
-      const updatedAccount = await storage.updateAccount(req.params.accountId, {
-        settings: updatedSettings,
-      });
-
-      res.json({ success: true, account: updatedAccount });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -2044,13 +2002,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start OAuth flow
   app.get("/api/google/auth/start", requireAuth, async (req, res) => {
     try {
-      const account = await storage.getAccount(req.accountId!);
-      const clientId = getGoogleClientId(account);
-      const clientSecret = getGoogleClientSecret(account);
+      const clientId = getGoogleClientId();
+      const clientSecret = getGoogleClientSecret();
       
       if (!clientId || !clientSecret) {
         return res.status(400).json({ 
-          error: "Google Calendar n'est pas configuré pour ce compte. Veuillez configurer vos credentials OAuth dans les paramètres." 
+          error: "Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables" 
         });
       }
 
@@ -2089,12 +2046,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { accountId, userId } = JSON.parse(state as string);
-      const account = await storage.getAccount(accountId);
-      const clientId = getGoogleClientId(account);
-      const clientSecret = getGoogleClientSecret(account);
+      const clientId = getGoogleClientId();
+      const clientSecret = getGoogleClientSecret();
 
       if (!clientId || !clientSecret) {
-        return res.status(400).send("Google OAuth not configured");
+        return res.status(400).send("Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
       }
 
       const { createOAuth2Client, exchangeCodeForTokens } = await import("./lib/google-calendar");
@@ -2158,9 +2114,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/status", requireAuth, async (req, res) => {
     try {
       const token = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
-      const account = await storage.getAccount(req.accountId!);
-      const clientId = getGoogleClientId(account);
-      const clientSecret = getGoogleClientSecret(account);
+      const clientId = getGoogleClientId();
+      const clientSecret = getGoogleClientSecret();
       
       res.json({
         connected: !!token,
