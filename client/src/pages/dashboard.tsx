@@ -91,6 +91,8 @@ const translateActivityDescription = (description: string) => {
     "Contact created:": "Contact créé :",
     "Contact updated:": "Contact mis à jour :",
     "Contact deleted:": "Contact supprimé :",
+    "Note created:": "Note créée :",
+    "Document created:": "Document créé :",
     "Nouvelle note créée:": "Nouvelle note créée :",
   };
   
@@ -423,27 +425,47 @@ export default function Dashboard() {
   // Activity feed from API
   const activityFeed = activities.slice(0, 5);
 
-  // Revenue data for chart - based on project budgets by start month
+  // Revenue data for chart - based on project budgets by start month (last 6 months)
   const revenueData = (() => {
     const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-    const monthlyBudgets: Record<string, number> = {};
+    const now = new Date();
+    const last6Months: Array<{ month: string; monthIndex: number; year: number }> = [];
     
-    // Initialize all 12 months with 0
-    monthNames.forEach(month => {
+    // Get the last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last6Months.push({
+        month: monthNames[d.getMonth()],
+        monthIndex: d.getMonth(),
+        year: d.getFullYear()
+      });
+    }
+    
+    // Initialize monthly budgets for last 6 months
+    const monthlyBudgets: Record<string, number> = {};
+    last6Months.forEach(({ month }) => {
       monthlyBudgets[month] = 0;
     });
     
-    // Sum budgets by project start month
+    // Sum budgets by project start month (only for last 6 months)
     projects.forEach(project => {
       if (project.startDate && project.budget) {
         const startDate = new Date(project.startDate);
-        const monthIndex = startDate.getMonth();
-        const monthName = monthNames[monthIndex];
-        monthlyBudgets[monthName] += project.budget;
+        const projectMonth = startDate.getMonth();
+        const projectYear = startDate.getFullYear();
+        
+        // Check if this project's start date is in the last 6 months
+        const matchingMonth = last6Months.find(
+          m => m.monthIndex === projectMonth && m.year === projectYear
+        );
+        
+        if (matchingMonth) {
+          monthlyBudgets[matchingMonth.month] += project.budget;
+        }
       }
     });
     
-    return monthNames.map(month => ({
+    return last6Months.map(({ month }) => ({
       month,
       revenue: monthlyBudgets[month]
     }));

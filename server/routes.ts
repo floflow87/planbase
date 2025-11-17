@@ -890,6 +890,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const task = await storage.createTask(data);
       console.log('Task created successfully:', task.id);
+      
+      // Create activity
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "task",
+        subjectId: task.id,
+        kind: "created",
+        payload: { description: `Task created: ${task.title}` },
+        createdBy: req.userId || null,
+      });
+      
       res.json(task);
     } catch (error: any) {
       console.error('Error creating task:', error.message);
@@ -1240,6 +1251,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const note = await storage.createNote(data);
 
+      // Create activity
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "note",
+        subjectId: note.id,
+        kind: "created",
+        payload: { description: `Note created: ${note.title}` },
+        createdBy: req.userId || null,
+      });
+
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1566,6 +1587,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.userId || req.body.createdBy,
       });
       const document = await storage.createDocument(data);
+      
+      // Create activity
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "document",
+        subjectId: document.id,
+        kind: "created",
+        payload: { description: `Document created: ${document.title}` },
+        createdBy: req.userId || null,
+      });
+      
       res.json(document);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
