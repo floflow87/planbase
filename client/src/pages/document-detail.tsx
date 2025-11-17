@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Eye, EyeOff, Trash2, LinkIcon, Download } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -294,13 +294,9 @@ export default function DocumentDetail() {
                 </Button>
               </Link>
               <div className="flex-1 min-w-0">
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Nouveau document"
-                  className="text-2xl font-bold border-0 p-0 h-auto focus-visible:ring-0 mb-2"
-                  data-testid="input-document-title"
-                />
+                <h1 className="text-2xl font-bold text-foreground truncate mb-2">
+                  {title || "Nouveau document"}
+                </h1>
                 <div className="flex items-center gap-2">
                   <Badge 
                     variant="outline" 
@@ -365,24 +361,6 @@ export default function DocumentDetail() {
                 <option value="published">Publié</option>
               </select>
               
-              {/* Link to Project */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => setProjectSelectorOpen(true)}
-                    className={currentProject ? "bg-violet-50 border-violet-200 text-violet-700" : ""}
-                    data-testid="button-link-project"
-                  >
-                    <LinkIcon className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {currentProject ? `Lié à ${currentProject.name}` : "Lier à un projet"}
-                </TooltipContent>
-              </Tooltip>
-              
               {/* Export PDF */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -417,18 +395,62 @@ export default function DocumentDetail() {
           </div>
 
           {/* Project Selector */}
-          {currentProject && (
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Projet:</Label>
-              <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
-                {currentProject.name}
-                <X 
-                  className="ml-2 h-3 w-3 cursor-pointer" 
-                  onClick={handleUnlinkProject}
-                />
-              </Badge>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Label className="text-sm text-muted-foreground">Projet:</Label>
+            <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={projectSelectorOpen}
+                  className="justify-between min-w-[200px]"
+                  data-testid="button-select-project"
+                >
+                  {currentProject ? currentProject.name : "Sélectionner un projet"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
+                <Command>
+                  <CommandInput placeholder="Rechercher un projet..." />
+                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                  <CommandGroup className="max-h-[300px] overflow-y-auto">
+                    {projects.map((project) => (
+                      <CommandItem
+                        key={project.id}
+                        onSelect={() => handleSelectProject(project.id)}
+                        data-testid={`option-project-${project.id}`}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            currentProject?.id === project.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{project.name}</div>
+                          {project.description && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {project.description}
+                            </div>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {currentProject && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUnlinkProject}
+                data-testid="button-unlink-project"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -438,47 +460,13 @@ export default function DocumentDetail() {
           <NoteEditor
             content={content}
             onChange={setContent}
+            title={title}
+            onTitleChange={setTitle}
             editable={isEditMode}
             placeholder="Commencez à rédiger votre document..."
           />
         </div>
       </div>
-
-      {/* Project Selector Dialog */}
-      <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-        <PopoverTrigger asChild>
-          <div className="hidden" />
-        </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0" align="end">
-          <Command>
-            <CommandInput placeholder="Rechercher un projet..." />
-            <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-            <CommandGroup className="max-h-[300px] overflow-y-auto">
-              {projects.map((project) => (
-                <CommandItem
-                  key={project.id}
-                  onSelect={() => handleSelectProject(project.id)}
-                  data-testid={`option-project-${project.id}`}
-                >
-                  <Check
-                    className={`mr-2 h-4 w-4 ${
-                      currentProject?.id === project.id ? "opacity-100" : "opacity-0"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{project.name}</div>
-                    {project.description && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {project.description}
-                      </div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
 
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
