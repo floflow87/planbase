@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document } from "@shared/schema";
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -74,6 +74,11 @@ export default function ProjectDetail() {
 
   const { data: projectNotes = [] } = useQuery<Note[]>({
     queryKey: ['/api/projects', id, 'notes'],
+    enabled: !!id,
+  });
+
+  const { data: projectDocuments = [] } = useQuery<Document[]>({
+    queryKey: ['/api/projects', id, 'documents'],
     enabled: !!id,
   });
 
@@ -413,6 +418,13 @@ export default function ProjectDetail() {
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Documents
+              <Badge variant="secondary" className="ml-1" data-testid="documents-count">
+                {projectDocuments.length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="mt-0">
@@ -541,6 +553,50 @@ export default function ProjectDetail() {
                                 {note.updatedAt && (
                                   <span className="text-[11px] text-muted-foreground">
                                     Modifié {format(new Date(note.updatedAt), "dd MMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-0">
+            <Card>
+              <CardContent className="pt-6">
+                {projectDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Aucun document lié à ce projet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {projectDocuments.map((document) => (
+                      <Link key={document.id} href={`/documents/${document.id}`}>
+                        <div className="p-4 border rounded-md hover-elevate cursor-pointer" data-testid={`document-${document.id}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium mb-1" data-testid={`title-document-${document.id}`}>
+                                {document.title || "Sans titre"}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge 
+                                  variant={document.status === "draft" ? "outline" : "default"}
+                                  className={document.status === "draft" ? "text-muted-foreground" : "bg-green-600 dark:bg-green-700 text-white"}
+                                  data-testid={`status-${document.id}`}
+                                >
+                                  {document.status === "draft" ? "Brouillon" : 
+                                   document.status === "review" ? "En révision" : 
+                                   document.status === "signed" ? "Signé" : "Archivé"}
+                                </Badge>
+                                {document.updatedAt && (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Modifié {format(new Date(document.updatedAt), "dd MMM yyyy", { locale: fr })}
                                   </span>
                                 )}
                               </div>

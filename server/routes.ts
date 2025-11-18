@@ -768,6 +768,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/projects/:id/documents", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const documents = await storage.getDocumentsByProjectId(req.params.id);
+      res.json(documents);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/projects/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const existing = await storage.getProject(req.params.id);

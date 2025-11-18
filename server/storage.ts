@@ -940,6 +940,26 @@ export class DatabaseStorage implements IStorage {
     return links;
   }
 
+  async getDocumentsByProjectId(projectId: string): Promise<Document[]> {
+    const links = await db
+      .select()
+      .from(documentLinks)
+      .where(
+        and(
+          eq(documentLinks.targetType, "project"),
+          eq(documentLinks.targetId, projectId)
+        )
+      );
+    
+    if (links.length === 0) return [];
+    
+    const documentIds = links.map(link => link.documentId);
+    return await db
+      .select()
+      .from(documents)
+      .where(inArray(documents.id, documentIds));
+  }
+
   async createDocumentLink(insertDocumentLink: InsertDocumentLink & { documentId: string }): Promise<DocumentLink> {
     const [documentLink] = await db.insert(documentLinks).values(insertDocumentLink).returning();
     return documentLink;
