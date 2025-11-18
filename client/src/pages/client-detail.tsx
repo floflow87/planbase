@@ -770,7 +770,7 @@ export default function ClientDetail() {
                     <PopoverContent className="w-48 p-0 bg-white" align="start">
                       <Command>
                         <CommandList>
-                          <CommandGroup>
+                          <CommandGroup className="bg-[#ffffff]">
                             {[
                               { value: "prospecting", label: "Prospection" },
                               { value: "qualified", label: "Qualifié" },
