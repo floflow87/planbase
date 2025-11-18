@@ -328,7 +328,7 @@ export default function ProjectDetail() {
               className="flex-1 sm:flex-none"
             >
               <Trash2 className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Supprimer</span>
+              <span className="hidden sm:inline text-[12px]">Supprimer</span>
             </Button>
           </div>
         </div>
