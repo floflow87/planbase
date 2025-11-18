@@ -790,7 +790,7 @@ export default function Dashboard() {
               className="flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Nouveau Projet</span>
+              <span className="hidden sm:inline text-[12px]">Nouveau Projet</span>
             </Button>
           </div>
         </div>
