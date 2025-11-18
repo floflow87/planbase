@@ -498,7 +498,7 @@ export default function CRM() {
         <div className="flex items-center justify-end">
           <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
             <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nouveau Client</span>
+            <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
           </Button>
         </div>
 
