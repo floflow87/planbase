@@ -268,6 +268,7 @@ export function TaskDetailModal({
                   selected={dueDate}
                   onSelect={setDueDate}
                   initialFocus
+                  className="bg-[#ffffff]"
                 />
               </PopoverContent>
             </Popover>
