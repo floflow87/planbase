@@ -170,7 +170,7 @@ for each row execute function set_updated_at();
 create table activities (
   id            uuid primary key default gen_random_uuid(),
   account_id    uuid not null references accounts(id) on delete cascade,
-  subject_type  text not null check (subject_type in ('client','deal','project')),
+  subject_type  text not null check (subject_type in ('client','deal','project','note','task','document')),
   subject_id    uuid not null,
   kind          text not null check (kind in ('email','call','meeting','note','task','file')),
   payload       jsonb not null default '{}',

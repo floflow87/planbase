@@ -228,9 +228,9 @@ export const deals = pgTable("deals", {
 export const activities = pgTable("activities", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  subjectType: text("subject_type").notNull(), // 'client', 'deal', 'project'
+  subjectType: text("subject_type", { enum: ['client', 'deal', 'project', 'note', 'task', 'document'] }).notNull(),
   subjectId: uuid("subject_id").notNull(),
-  kind: text("kind").notNull(), // 'email', 'call', 'meeting', 'note', 'task', 'file'
+  kind: text("kind", { enum: ['email', 'call', 'meeting', 'note', 'task', 'file'] }).notNull(),
   payload: jsonb("payload").notNull().default({}),
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

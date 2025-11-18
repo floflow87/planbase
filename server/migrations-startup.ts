@@ -108,6 +108,23 @@ export async function runStartupMigrations() {
       ALTER COLUMN created_by DROP NOT NULL;
     `);
     
+    // Update activities constraints to support note, task, document
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        -- Drop old constraint if it exists
+        ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_subject_type_check;
+        
+        -- Add new constraint with extended values
+        ALTER TABLE activities 
+        ADD CONSTRAINT activities_subject_type_check 
+        CHECK (subject_type IN ('client','deal','project','note','task','document'));
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL;
+      END $$;
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

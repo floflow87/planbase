@@ -935,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "task",
         subjectId: task.id,
-        kind: "created",
+        kind: "task",
         payload: { description: `Task created: ${task.title}` },
         createdBy: req.userId || null,
       });
@@ -1295,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "note",
         subjectId: note.id,
-        kind: "created",
+        kind: "note",
         payload: { description: `Note created: ${note.title}` },
         createdBy: req.userId || null,
       });
@@ -1633,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "document",
         subjectId: document.id,
-        kind: "created",
+        kind: "file",
         payload: { description: `Document created: ${document.name}` },
         createdBy: req.userId || null,
       });
