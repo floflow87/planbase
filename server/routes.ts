@@ -1673,6 +1673,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document Links
+  app.get("/api/document-links", requireAuth, async (req, res) => {
+    try {
+      const links = await storage.getDocumentLinksByAccountId(req.accountId!);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/documents/:id/links", requireAuth, async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);

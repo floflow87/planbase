@@ -52,6 +52,10 @@ export default function Documents() {
     queryKey: ["/api/projects"],
   });
 
+  const { data: documentLinks = [] } = useQuery<DocumentLink[]>({
+    queryKey: ["/api/document-links"],
+  });
+
   // Delete mutation
   const deleteDocumentMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -151,9 +155,26 @@ export default function Documents() {
       return acc;
     }, {} as Record<string, Project[]>);
 
-    // Count documents (for now showing total, will be refined when document links are available)
-    const totalDocs = documents.length;
-    const unlinkedDocs = documents.length; // Will be calculated properly once we have link data
+    // Count documents by project and by client
+    const docCountByProject = documentLinks.reduce((acc, link) => {
+      if (link.targetType === "project") {
+        acc[link.targetId] = (acc[link.targetId] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const docCountByClient = documentLinks.reduce((acc, link) => {
+      if (link.targetType === "client") {
+        acc[link.targetId] = (acc[link.targetId] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Get set of linked document IDs (any target type)
+    const linkedDocumentIds = new Set(documentLinks.map(link => link.documentId));
+    
+    // Count unlinked documents (documents not linked to anything)
+    const unlinkedDocs = documents.filter(doc => !linkedDocumentIds.has(doc.id)).length;
 
     // Build client nodes with their projects
     const clientNodes = clients.map(client => {
@@ -162,15 +183,20 @@ export default function Documents() {
         id: `project-${project.id}`,
         name: project.name,
         type: "project" as const,
-        count: 0, // Will show document count per project when links are available
+        count: docCountByProject[project.id] || 0,
         icon: Folder,
       }));
+
+      // Count total docs for this client: direct client links + sum of all project docs
+      const directClientDocs = docCountByClient[client.id] || 0;
+      const projectDocs = projectNodes.reduce((sum, p) => sum + (p.count || 0), 0);
+      const clientDocCount = directClientDocs + projectDocs;
 
       return {
         id: `client-${client.id}`,
         name: client.name,
         type: "client" as const,
-        count: projectNodes.length,
+        count: clientDocCount,
         icon: Building2,
         children: projectNodes,
       };
@@ -202,7 +228,7 @@ export default function Documents() {
         ],
       },
     ];
-  }, [clients, projects, documents]);
+  }, [clients, projects, documents, documentLinks]);
 
   const getAuthorColor = (index: number) => {
     const colors = [

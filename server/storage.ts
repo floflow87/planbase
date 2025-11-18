@@ -15,6 +15,7 @@ import {
   type NoteLink, type InsertNoteLink,
   type DocumentTemplate, type InsertDocumentTemplate,
   type Document, type InsertDocument,
+  type DocumentLink, type InsertDocumentLink,
   type Folder, type InsertFolder,
   type File, type InsertFile,
   type Activity, type InsertActivity,
@@ -26,7 +27,7 @@ import {
   type Appointment, type InsertAppointment,
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, folders, files, activities,
+  projects, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens,
 } from "@shared/schema";
@@ -154,7 +155,8 @@ export interface IStorage {
 
   // Document Links
   getDocumentLinksByDocumentId(documentId: string): Promise<DocumentLink[]>;
-  createDocumentLink(documentLink: InsertDocumentLink): Promise<DocumentLink>;
+  getDocumentLinksByAccountId(accountId: string): Promise<DocumentLink[]>;
+  createDocumentLink(documentLink: InsertDocumentLink & { documentId: string }): Promise<DocumentLink>;
   deleteDocumentLink(documentId: string, targetType: string, targetId: string): Promise<boolean>;
 
   // Folders
@@ -923,7 +925,22 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(documentLinks).where(eq(documentLinks.documentId, documentId));
   }
 
-  async createDocumentLink(insertDocumentLink: InsertDocumentLink): Promise<DocumentLink> {
+  async getDocumentLinksByAccountId(accountId: string): Promise<DocumentLink[]> {
+    // Join with documents to filter by accountId, select all columns from documentLinks
+    const links = await db
+      .select({
+        documentId: documentLinks.documentId,
+        targetType: documentLinks.targetType,
+        targetId: documentLinks.targetId,
+      })
+      .from(documentLinks)
+      .innerJoin(documents, eq(documentLinks.documentId, documents.id))
+      .where(eq(documents.accountId, accountId));
+    
+    return links;
+  }
+
+  async createDocumentLink(insertDocumentLink: InsertDocumentLink & { documentId: string }): Promise<DocumentLink> {
     const [documentLink] = await db.insert(documentLinks).values(insertDocumentLink).returning();
     return documentLink;
   }
