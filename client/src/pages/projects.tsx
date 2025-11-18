@@ -2396,7 +2396,7 @@ export default function Projects() {
                   }}
                 >
                   <Plus className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Nouveau projet</span>
+                  <span className="hidden sm:inline text-[12px]">Nouveau projet</span>
                 </Button>
               </div>
             </div>
