@@ -409,7 +409,7 @@ export default function Notes() {
               </DropdownMenu>
             )}
             <Link href="/notes/new">
-              <Button className="gap-2" data-testid="button-nouvelle-note">
+              <Button className="gap-2 text-[12px]" data-testid="button-nouvelle-note">
                 <Plus className="w-4 h-4" />
                 Nouvelle note
               </Button>
