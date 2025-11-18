@@ -571,7 +571,7 @@ export default function ProjectDetail() {
             <Card>
               <CardContent className="pt-6">
                 {projectDocuments.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucun document lié à ce projet.
                   </div>
                 ) : (
