@@ -675,7 +675,7 @@ export default function Documents() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-foreground">Stockage:</span>
-                  <span className="text-sm text-muted-foreground">{files.length} document{files.length > 1 ? 's' : ''}</span>
+                  <span className="text-muted-foreground text-[12px]">{files.length} document{files.length > 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-xs text-muted-foreground">{files.length} élément{files.length > 1 ? 's' : ''}</span>
