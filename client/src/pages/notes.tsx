@@ -454,7 +454,7 @@ export default function Notes() {
             {/* Table Body */}
             {filteredNotes.length === 0 ? (
               <div className="py-12 px-4">
-                <div className="text-center text-muted-foreground">
+                <div className="text-center text-muted-foreground text-[14px]">
                   {notes.length === 0 
                     ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
                     : "Aucune note ne correspond à votre recherche."}
