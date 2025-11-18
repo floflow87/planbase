@@ -809,7 +809,7 @@ export default function ClientDetail() {
               data-testid="button-delete"
               className="flex-1 sm:flex-none"
             >
-              <Trash2 className="w-4 h-4 sm:mr-2" />
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
