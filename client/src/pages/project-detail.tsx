@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
@@ -682,30 +684,58 @@ export default function ProjectDetail() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-start-date">Date de début</Label>
-                <Input
-                  id="edit-start-date"
-                  type="date"
-                  value={projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : ""}
-                  onChange={(e) => setProjectFormData({ 
-                    ...projectFormData, 
-                    startDate: e.target.value ? new Date(e.target.value) : undefined 
-                  })}
-                  data-testid="input-edit-start-date"
-                />
+                <Label>Date de début</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-edit-start-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {projectFormData.startDate ? (
+                        format(projectFormData.startDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white">
+                    <Calendar
+                      mode="single"
+                      selected={projectFormData.startDate}
+                      onSelect={(date) => setProjectFormData({ ...projectFormData, startDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
-                <Label htmlFor="edit-end-date">Date de fin</Label>
-                <Input
-                  id="edit-end-date"
-                  type="date"
-                  value={projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : ""}
-                  onChange={(e) => setProjectFormData({ 
-                    ...projectFormData, 
-                    endDate: e.target.value ? new Date(e.target.value) : undefined 
-                  })}
-                  data-testid="input-edit-end-date"
-                />
+                <Label>Date de fin</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-edit-end-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {projectFormData.endDate ? (
+                        format(projectFormData.endDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white">
+                    <Calendar
+                      mode="single"
+                      selected={projectFormData.endDate}
+                      onSelect={(date) => setProjectFormData({ ...projectFormData, endDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <div>
