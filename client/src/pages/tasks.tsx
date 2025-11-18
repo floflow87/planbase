@@ -1125,7 +1125,7 @@ export default function Tasks() {
                 className="flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Nouvelle Tâche</span>
+                <span className="hidden sm:inline text-[12px]">Nouvelle Tâche</span>
               </Button>
             )}
           </div>
