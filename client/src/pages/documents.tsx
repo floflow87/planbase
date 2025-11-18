@@ -417,13 +417,12 @@ export default function Documents() {
           <FolderTree items={folderTree} />
         </ScrollArea>
       </div>
-
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 space-y-6">
           {/* Breadcrumb & Actions */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-[12px]">
               <Home className="w-4 h-4 text-muted-foreground" />
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <span className="text-muted-foreground">Documentation</span>
@@ -687,7 +686,6 @@ export default function Documents() {
           )}
         </div>
       </div>
-
       {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
