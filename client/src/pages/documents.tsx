@@ -450,13 +450,13 @@ export default function Documents() {
                   <List className="w-4 h-4" />
                 </Button>
               </div>
-              <Button variant="outline" className="gap-2" data-testid="button-importer">
+              <Button variant="outline" className="gap-2 text-[12px]" data-testid="button-importer">
                 <Upload className="w-4 h-4" />
                 Importer
               </Button>
               <Button 
                 variant="default" 
-                className="gap-2" 
+                className="gap-2 text-[12px]" 
                 onClick={() => setLocation("/documents/templates")}
                 data-testid="button-nouveau-document"
               >
