@@ -357,6 +357,7 @@ export default function Profile() {
                         variant="outline"
                         onClick={() => form.reset()}
                         data-testid="button-cancel"
+                        className="text-[12px]"
                       >
                         Annuler
                       </Button>
@@ -364,6 +365,7 @@ export default function Profile() {
                         type="submit"
                         disabled={updateProfileMutation.isPending}
                         data-testid="button-save-profile"
+                        className="text-[12px]"
                       >
                         {updateProfileMutation.isPending && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -463,6 +465,7 @@ export default function Profile() {
                         variant="outline"
                         onClick={() => passwordForm.reset()}
                         data-testid="button-cancel-password"
+                        className="text-[12px]"
                       >
                         Annuler
                       </Button>
@@ -470,6 +473,7 @@ export default function Profile() {
                         type="submit"
                         disabled={updatePasswordMutation.isPending}
                         data-testid="button-save-password"
+                        className="text-[12px]"
                       >
                         {updatePasswordMutation.isPending && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />

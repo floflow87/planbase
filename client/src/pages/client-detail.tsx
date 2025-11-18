@@ -810,7 +810,6 @@ export default function ClientDetail() {
               className="flex-1 sm:flex-none"
             >
               <Trash2 className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Supprimer</span>
             </Button>
           </div>
         </div>
@@ -1065,7 +1064,7 @@ export default function ClientDetail() {
                 <CardTitle className="font-semibold tracking-tight text-[18px]">Contacts</CardTitle>
                 <Button onClick={() => openContactDialog()} data-testid="button-add-contact" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Ajouter un contact</span>
+                  <span className="hidden sm:inline text-[12px]">Ajouter un contact</span>
                 </Button>
               </CardHeader>
               <CardContent>
