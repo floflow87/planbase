@@ -582,7 +582,7 @@ export default function ProjectDetail() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <h4 className="text-sm font-medium mb-1" data-testid={`title-document-${document.id}`}>
-                                {document.title || "Sans titre"}
+                                {document.name || "Sans titre"}
                               </h4>
                               <div className="flex items-center gap-2 mt-2">
                                 <Badge 
@@ -591,8 +591,7 @@ export default function ProjectDetail() {
                                   data-testid={`status-${document.id}`}
                                 >
                                   {document.status === "draft" ? "Brouillon" : 
-                                   document.status === "review" ? "En révision" : 
-                                   document.status === "signed" ? "Signé" : "Archivé"}
+                                   document.status === "published" ? "Publié" : "Archivé"}
                                 </Badge>
                                 {document.updatedAt && (
                                   <span className="text-[11px] text-muted-foreground">
