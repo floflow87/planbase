@@ -251,7 +251,7 @@ export function TaskDetailModal({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="justify-start text-left font-normal"
+                  className="justify-start text-left font-normal text-[14px] pt-[0px] pb-[0px] pl-[16px] pr-[16px]"
                   data-testid="button-task-due-date"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
