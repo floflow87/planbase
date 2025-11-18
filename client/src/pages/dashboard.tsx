@@ -782,7 +782,7 @@ export default function Dashboard() {
               className="flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Nouveau Client</span>
+              <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
             </Button>
             <Button 
               onClick={() => setIsCreateProjectDialogOpen(true)}
@@ -1063,7 +1063,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-
       {/* Task Detail Modal */}
       <TaskDetailModal
         task={selectedTask}
