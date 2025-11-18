@@ -1166,6 +1166,7 @@ export default function ClientDetail() {
                     onClick={handleCommentSubmit}
                     disabled={createCommentMutation.isPending || !newComment.trim()}
                     data-testid="button-submit-comment"
+                    className="text-[12px]"
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Ajouter le commentaire
@@ -1359,7 +1360,7 @@ export default function ClientDetail() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="font-semibold tracking-tight text-[18px]">Tâches du client</CardTitle>
-                <Button onClick={() => setIsTaskDialogOpen(true)} data-testid="button-add-task">
+                <Button onClick={() => setIsTaskDialogOpen(true)} data-testid="button-add-task" className="text-[12px]">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvelle tâche
                 </Button>
