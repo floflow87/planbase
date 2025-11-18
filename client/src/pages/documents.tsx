@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -207,19 +208,19 @@ export default function Documents() {
 
     return [
       {
-        id: "all-documents",
-        name: "Tous les documents",
-        icon: FileText,
-        type: "all" as const,
-        count: documents.length,
-        children: [],
-      },
-      {
         id: "root",
         name: "Racine",
         icon: Home,
         type: "root" as const,
         children: [
+          {
+            id: "all-documents",
+            name: "Tous les documents",
+            icon: FileText,
+            type: "all" as const,
+            count: documents.length,
+            children: [],
+          },
           {
             id: "clients",
             name: "Clients",
@@ -313,6 +314,7 @@ export default function Documents() {
       updatedAt: formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true, locale: fr }),
       projectBadge: project ? {
         name: project.name.substring(0, 2).toUpperCase(),
+        fullName: project.name,
         color: getAuthorColor(index),
       } : null,
     };
@@ -321,23 +323,23 @@ export default function Documents() {
   const getFileIcon = (type: string) => {
     switch (type) {
       case "pdf":
-        return <FileText className="w-8 h-8 text-red-600" />;
+        return <FileText className="w-6 h-6 text-red-600" />;
       case "word":
-        return <FileType className="w-8 h-8 text-blue-600" />;
+        return <FileType className="w-6 h-6 text-blue-600" />;
       case "excel":
-        return <FileSpreadsheet className="w-8 h-8 text-green-600" />;
+        return <FileSpreadsheet className="w-6 h-6 text-green-600" />;
       case "image":
-        return <Image className="w-8 h-8 text-orange-600" />;
+        return <Image className="w-6 h-6 text-orange-600" />;
       case "link":
-        return <Link className="w-8 h-8 text-cyan-600" />;
+        return <Link className="w-6 h-6 text-cyan-600" />;
       case "note":
-        return <FileText className="w-8 h-8 text-violet-600" />;
+        return <FileText className="w-6 h-6 text-violet-600" />;
       case "audio":
-        return <Music className="w-8 h-8 text-purple-600" />;
+        return <Music className="w-6 h-6 text-purple-600" />;
       case "zip":
-        return <Archive className="w-8 h-8 text-gray-600" />;
+        return <Archive className="w-6 h-6 text-gray-600" />;
       default:
-        return <File className="w-8 h-8 text-gray-600" />;
+        return <File className="w-6 h-6 text-gray-600" />;
     }
   };
 
@@ -563,9 +565,16 @@ export default function Documents() {
                         <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
                       )}
                       {file.projectBadge && (
-                        <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium`}>
-                          {file.projectBadge.name}
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium cursor-help`}>
+                              {file.projectBadge.name}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{file.projectBadge.fullName}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </CardContent>
@@ -604,9 +613,16 @@ export default function Documents() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {file.projectBadge && (
-                          <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium`}>
-                            {file.projectBadge.name}
-                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium cursor-help`}>
+                                {file.projectBadge.name}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{file.projectBadge.fullName}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
