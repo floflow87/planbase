@@ -25,20 +25,31 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Document } from "@shared/schema";
+import type { Document, Client, Project, DocumentLink } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useMemo } from "react";
+import { Folder, ChevronDown, ChevronRight as ChevronRightIcon, Building2, FolderOpen } from "lucide-react";
 
 export default function Documents() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root", "clients"]));
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
+  });
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
   });
 
   // Delete mutation
@@ -115,30 +126,83 @@ export default function Documents() {
     });
   };
 
-  const folders = [
-    {
-      id: "root",
-      name: "Racine",
-      icon: Home,
-      expanded: true,
-      children: [
-        { id: "clients", name: "Clients", count: 8, children: [] },
-        { id: "projects", name: "Projets internes", count: 12, children: [] },
-        {
-          id: "documentation",
-          name: "Documentation",
-          count: 24,
-          expanded: true,
-          children: [
-            { id: "product", name: "Produit", count: 8 },
-            { id: "technique", name: "Technique", count: 6 },
-            { id: "equipe", name: "Équipe", count: 4 },
-            { id: "fundraising", name: "Levée de fonds", count: 6 },
-          ],
-        },
-      ],
-    },
-  ];
+  const toggleNode = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  };
+
+  // Build dynamic tree structure
+  const folderTree = useMemo(() => {
+    // Group projects by clientId
+    const projectsByClient = projects.reduce((acc, project) => {
+      if (project.clientId) {
+        if (!acc[project.clientId]) {
+          acc[project.clientId] = [];
+        }
+        acc[project.clientId].push(project);
+      }
+      return acc;
+    }, {} as Record<string, Project[]>);
+
+    // Count documents (for now showing total, will be refined when document links are available)
+    const totalDocs = documents.length;
+    const unlinkedDocs = documents.length; // Will be calculated properly once we have link data
+
+    // Build client nodes with their projects
+    const clientNodes = clients.map(client => {
+      const clientProjects = projectsByClient[client.id] || [];
+      const projectNodes = clientProjects.map(project => ({
+        id: `project-${project.id}`,
+        name: project.name,
+        type: "project" as const,
+        count: 0, // Will show document count per project when links are available
+        icon: Folder,
+      }));
+
+      return {
+        id: `client-${client.id}`,
+        name: client.name,
+        type: "client" as const,
+        count: projectNodes.length,
+        icon: Building2,
+        children: projectNodes,
+      };
+    });
+
+    return [
+      {
+        id: "root",
+        name: "Racine",
+        icon: Home,
+        type: "root" as const,
+        children: [
+          {
+            id: "clients",
+            name: "Clients",
+            type: "folder" as const,
+            count: clientNodes.length,
+            icon: FolderOpen,
+            children: clientNodes,
+          },
+          {
+            id: "other",
+            name: "Autre",
+            type: "folder" as const,
+            count: unlinkedDocs,
+            icon: Folder,
+            children: [],
+          },
+        ],
+      },
+    ];
+  }, [clients, projects, documents]);
 
   const getAuthorColor = (index: number) => {
     const colors = [
@@ -183,20 +247,37 @@ export default function Documents() {
 
   const FolderTree = ({ items, level = 0 }: any) => (
     <div className={level > 0 ? "ml-4" : ""}>
-      {items.map((item: any) => (
-        <div key={item.id}>
-          <div className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer text-sm">
-            {item.icon ? <item.icon className="w-4 h-4 text-muted-foreground" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
-            <span className="flex-1 text-foreground">{item.name}</span>
-            {item.count !== undefined && (
-              <Badge variant="secondary" className="text-xs">{item.count}</Badge>
+      {items.map((item: any) => {
+        const isExpanded = expandedNodes.has(item.id);
+        const hasChildren = item.children && item.children.length > 0;
+
+        return (
+          <div key={item.id}>
+            <div 
+              className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer text-sm"
+              onClick={() => hasChildren && toggleNode(item.id)}
+              data-testid={`folder-${item.id}`}
+            >
+              {hasChildren && (
+                isExpanded ? (
+                  <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <ChevronRightIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                )
+              )}
+              {!hasChildren && <div className="w-3" />}
+              {item.icon ? <item.icon className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+              <span className="flex-1 text-foreground truncate">{item.name}</span>
+              {item.count !== undefined && (
+                <Badge variant="secondary" className="text-xs flex-shrink-0">{item.count}</Badge>
+              )}
+            </div>
+            {hasChildren && isExpanded && (
+              <FolderTree items={item.children} level={level + 1} />
             )}
           </div>
-          {item.children && item.expanded && (
-            <FolderTree items={item.children} level={level + 1} />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -221,7 +302,7 @@ export default function Documents() {
         </div>
 
         <ScrollArea className="flex-1 p-4">
-          <FolderTree items={folders} />
+          <FolderTree items={folderTree} />
         </ScrollArea>
       </div>
 
