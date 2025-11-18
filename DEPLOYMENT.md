@@ -39,6 +39,63 @@ Pour vérifier que vous utilisez Supabase :
 
 ---
 
+## 🌱 Seed Automatique des Données
+
+### Premier Déploiement
+
+Lors du **premier démarrage en production** (base de données vide), l'application va **automatiquement** :
+
+1. ✅ Créer toutes les tables (migrations de schéma)
+2. ✅ Insérer des données de démonstration :
+   - 1 compte démo ("Demo Startup")
+   - 2 utilisateurs (owner + collaborateur)
+   - 3 clients (TechCorp, Sophie Bernard, Green Energy)
+   - 3 projets liés aux clients
+   - Notes et activités de démonstration
+   - Structure de dossiers
+
+### Logs de Seed
+
+Au démarrage, vous verrez dans les logs :
+
+```bash
+🔄 Running startup migrations...
+🌱 Database is empty, seeding demo data...
+🌱 Seeding Supabase database...
+✅ Account created: [uuid]
+✅ Owner created: [uuid]
+✅ Collaborator created: [uuid]
+✅ Client created: TechCorp Solutions
+✅ Client created: Sophie Bernard
+...
+🎉 Seeding completed successfully!
+```
+
+### Déploiements Ultérieurs
+
+Si la base contient déjà des données :
+
+```bash
+🔄 Running startup migrations...
+✅ Database already contains data, skipping seed
+✅ Startup migrations completed successfully
+```
+
+Le seed ne sera **jamais** ré-exécuté si des données existent déjà, préservant ainsi vos données de production.
+
+### Données de Démo
+
+Les identifiants de connexion créés :
+- **Owner** : `owner@demo.com`
+- **Collaborateur** : `collaborator@demo.com`
+
+**⚠️ Important** : Ces données sont à titre de démonstration. En production réelle, vous devrez :
+1. Créer vos propres utilisateurs via Supabase Auth
+2. Supprimer ou modifier les données de démo
+3. Configurer l'authentification OAuth (Google, GitHub, etc.)
+
+---
+
 ## 🔄 Keep-Alive : Maintenir l'Application Active
 
 ### Problème
