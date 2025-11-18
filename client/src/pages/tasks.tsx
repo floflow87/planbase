@@ -1486,31 +1486,40 @@ export default function Tasks() {
                       <CommandInput placeholder="Rechercher une colonne..." />
                       <CommandList>
                         <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
-                        <CommandGroup>
+                        <CommandGroup className="bg-[#ffffff]">
                           {(() => {
                             const columnsToDisplay = newTaskProjectId === "none" 
                               ? globalTaskColumns 
                               : (newTaskProjectId ? newTaskProjectColumns : taskColumns);
-                            return columnsToDisplay
+                            
+                            // Remove duplicates by name - keep first occurrence
+                            const uniqueColumns = new Map();
+                            columnsToDisplay
                               .sort((a, b) => a.order - b.order)
-                              .map((column) => (
-                                <CommandItem
-                                  key={column.id}
-                                  value={column.name}
-                                  onSelect={() => {
-                                    setCreateTaskColumnId(column.id);
-                                    setColumnComboboxOpen(false);
-                                  }}
-                                  data-testid={`column-option-${column.id}`}
-                                >
-                                  <Check
-                                    className={`mr-2 h-4 w-4 ${
-                                      createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
-                                    }`}
-                                  />
-                                  {column.name}
-                                </CommandItem>
-                              ));
+                              .forEach((column) => {
+                                if (!uniqueColumns.has(column.name)) {
+                                  uniqueColumns.set(column.name, column);
+                                }
+                              });
+                            
+                            return Array.from(uniqueColumns.values()).map((column) => (
+                              <CommandItem
+                                key={column.id}
+                                value={column.name}
+                                onSelect={() => {
+                                  setCreateTaskColumnId(column.id);
+                                  setColumnComboboxOpen(false);
+                                }}
+                                data-testid={`column-option-${column.id}`}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    createTaskColumnId === column.id ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                {column.name}
+                              </CommandItem>
+                            ));
                           })()}
                         </CommandGroup>
                       </CommandList>
