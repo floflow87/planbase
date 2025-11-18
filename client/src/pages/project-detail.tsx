@@ -337,7 +337,7 @@ export default function ProjectDetail() {
           {project.description && (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Description</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Description</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground" data-testid="project-description">
