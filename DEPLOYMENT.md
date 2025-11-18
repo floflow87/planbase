@@ -58,12 +58,16 @@ Pour que dev et production partagent les mêmes données :
 
 2. **Exécuter le script de configuration** :
    ```bash
-   npx tsx scripts/fix-production-account-id.ts <votre-email>
+   npx tsx scripts/fix-production-account-id.ts <votre-email> [account_id]
    ```
    
-   Exemple :
+   Exemples :
    ```bash
+   # Utilise l'account_id de dev par défaut
    npx tsx scripts/fix-production-account-id.ts floflow87@planbase.io
+   
+   # Spécifie un account_id différent
+   npx tsx scripts/fix-production-account-id.ts floflow87@planbase.io b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4
    ```
 
 3. **Se déconnecter puis se reconnecter en production**
