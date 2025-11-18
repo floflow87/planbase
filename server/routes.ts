@@ -42,6 +42,28 @@ import { google } from "googleapis";
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // ============================================
+  // HEALTH CHECK - Keep app awake
+  // ============================================
+  
+  /**
+   * Health check endpoint for uptime monitoring
+   * Returns 200 OK with basic app status
+   * Use with UptimeRobot or similar services to prevent auto-sleep
+   */
+  app.get("/healthz", async (req, res) => {
+    res.status(200).json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      service: "planbase",
+      uptime: process.uptime(),
+    });
+  });
+
+  app.get("/ping", async (req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+  
+  // ============================================
   // DEMO & AUTH HELPERS (Development Only)
   // ============================================
   
