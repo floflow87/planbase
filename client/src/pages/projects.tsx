@@ -3089,7 +3089,7 @@ export default function Projects() {
                                           }
                                         }}
                                         disabled={isQuickAddingProject}
-                                        className="border-0 focus-visible:ring-0 text-[11px] h-8"
+                                        className="border-0 focus-visible:ring-0 text-[12px] h-8"
                                         data-testid="input-quick-add-project"
                                       />
                                     </div>
