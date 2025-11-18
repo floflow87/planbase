@@ -356,8 +356,8 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Début:</span>
-                    <span className="text-sm" data-testid="project-start-date">
+                    <span className="text-muted-foreground text-[12px]">Début:</span>
+                    <span className="text-[12px]" data-testid="project-start-date">
                       {project.startDate 
                         ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                         : "Non définie"}
