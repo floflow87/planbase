@@ -377,7 +377,7 @@ export default function DocumentDetail() {
                   onCheckedChange={setAutoSaveEnabled}
                   data-testid="switch-autosave"
                 />
-                <Label htmlFor="autosave" className="text-sm cursor-pointer">
+                <Label htmlFor="autosave" className="cursor-pointer text-[12px]">
                   Auto save {autoSaveEnabled ? "ON" : "OFF"}
                 </Label>
               </div>
@@ -387,6 +387,7 @@ export default function DocumentDetail() {
                 variant="outline"
                 onClick={() => setIsEditMode(!isEditMode)}
                 data-testid="button-toggle-edit"
+                className="text-[12px]"
               >
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}
@@ -434,7 +435,7 @@ export default function DocumentDetail() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={projectSelectorOpen}
-                  className="justify-between min-w-[200px]"
+                  className="justify-between min-w-[200px] text-[12px]"
                   data-testid="button-select-project"
                 >
                   {currentProject ? currentProject.name : "Sélectionner un projet"}

@@ -429,7 +429,7 @@ export default function ProjectDetail() {
 
           <TabsContent value="tasks" className="mt-0">
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="p-6 pt-[4px] pb-[4px]">
                 {projectTasks.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucune tâche associée à ce projet.
