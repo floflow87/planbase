@@ -619,7 +619,7 @@ export function ListView({
                                       <PopoverTrigger asChild>
                                         <Badge 
                                           style={{ backgroundColor: taskColumn?.color || 'transparent' }}
-                                          className="text-foreground text-[10px] min-w-[80px] cursor-pointer hover-elevate"
+                                          className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[12px]"
                                           data-testid={`badge-status-${task.id}`}
                                         >
                                           {taskColumn?.name || '—'}
@@ -742,7 +742,7 @@ export function ListView({
                                       <PopoverTrigger asChild>
                                         <Badge
                                           variant="outline"
-                                          className="text-[10px] cursor-pointer hover-elevate min-w-[100px]"
+                                          className="cursor-pointer hover-elevate min-w-[100px] text-[12px]"
                                           data-testid={`badge-due-date-${task.id}`}
                                         >
                                           {task.dueDate 

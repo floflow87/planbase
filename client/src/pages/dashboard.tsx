@@ -865,7 +865,7 @@ export default function Dashboard() {
                 Revenus Mensuels
               </CardTitle>
             </CardHeader>
-            <CardContent className="min-w-0">
+            <CardContent className="min-w-0 text-[12px]">
               <div className="w-full overflow-hidden">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={revenueData}>

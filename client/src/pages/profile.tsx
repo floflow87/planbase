@@ -177,7 +177,7 @@ export default function Profile() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
                       <UserCircle className="w-5 h-5" />
                       Informations personnelles
                     </CardTitle>
@@ -378,7 +378,7 @@ export default function Profile() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
                   <Lock className="w-5 h-5" />
                   Modifier le mot de passe
                 </CardTitle>
@@ -492,7 +492,7 @@ export default function Profile() {
                       <SettingsIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                     </div>
                     <div>
-                      <CardTitle>Informations du compte</CardTitle>
+                      <CardTitle className="font-semibold tracking-tight text-[18px]">Informations du compte</CardTitle>
                       <CardDescription>
                         Gérez les paramètres de votre compte
                       </CardDescription>
