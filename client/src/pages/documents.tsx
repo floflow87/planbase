@@ -37,6 +37,7 @@ export default function Documents() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root", "clients"]));
+  const [selectedNodeId, setSelectedNodeId] = useState<string>("all-documents");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -185,6 +186,7 @@ export default function Documents() {
         type: "project" as const,
         count: docCountByProject[project.id] || 0,
         icon: Folder,
+        projectId: project.id,
       }));
 
       // Count total docs for this client: direct client links + sum of all project docs
@@ -199,10 +201,19 @@ export default function Documents() {
         count: clientDocCount,
         icon: Building2,
         children: projectNodes,
+        clientId: client.id,
       };
     });
 
     return [
+      {
+        id: "all-documents",
+        name: "Tous les documents",
+        icon: FileText,
+        type: "all" as const,
+        count: documents.length,
+        children: [],
+      },
       {
         id: "root",
         name: "Racine",
@@ -238,15 +249,74 @@ export default function Documents() {
     return colors[index % colors.length];
   };
 
-  const files = documents.map((doc, index) => ({
-    id: doc.id,
-    name: doc.name,
-    type: doc.status === "signed" ? "pdf" : "note",
-    status: doc.status as "draft" | "published" | "signed",
-    size: doc.status === "signed" ? "Signé" : doc.status === "published" ? "Publié" : "Brouillon",
-    updatedAt: formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true, locale: fr }),
-    author: { name: doc.createdBy?.substring(0, 2).toUpperCase() || "U", color: getAuthorColor(index) },
-  }));
+  // Get project info for a document
+  const getDocumentProject = (documentId: string) => {
+    const link = documentLinks.find(
+      link => link.documentId === documentId && link.targetType === "project"
+    );
+    if (!link) return null;
+    return projects.find(p => p.id === link.targetId);
+  };
+
+  // Filter documents based on selected node
+  const filteredDocuments = useMemo(() => {
+    if (selectedNodeId === "all-documents") {
+      return documents;
+    }
+    
+    if (selectedNodeId === "other") {
+      // Show only unlinked documents
+      const linkedDocumentIds = new Set(documentLinks.map(link => link.documentId));
+      return documents.filter(doc => !linkedDocumentIds.has(doc.id));
+    }
+    
+    if (selectedNodeId.startsWith("project-")) {
+      // Extract project ID and filter documents linked to this project
+      const projectId = selectedNodeId.replace("project-", "");
+      const projectDocIds = new Set(
+        documentLinks
+          .filter(link => link.targetType === "project" && link.targetId === projectId)
+          .map(link => link.documentId)
+      );
+      return documents.filter(doc => projectDocIds.has(doc.id));
+    }
+    
+    if (selectedNodeId.startsWith("client-")) {
+      // Extract client ID and filter documents linked to this client or its projects
+      const clientId = selectedNodeId.replace("client-", "");
+      const clientProjects = projects.filter(p => p.clientId === clientId);
+      const projectIds = new Set(clientProjects.map(p => p.id));
+      
+      const relevantDocIds = new Set(
+        documentLinks
+          .filter(link => 
+            (link.targetType === "client" && link.targetId === clientId) ||
+            (link.targetType === "project" && projectIds.has(link.targetId))
+          )
+          .map(link => link.documentId)
+      );
+      return documents.filter(doc => relevantDocIds.has(doc.id));
+    }
+    
+    // Default: show all documents
+    return documents;
+  }, [documents, documentLinks, projects, selectedNodeId]);
+
+  const files = filteredDocuments.map((doc, index) => {
+    const project = getDocumentProject(doc.id);
+    return {
+      id: doc.id,
+      name: doc.name,
+      type: doc.status === "signed" ? "pdf" : "note",
+      status: doc.status as "draft" | "published" | "signed",
+      size: doc.status === "signed" ? "Signé" : doc.status === "published" ? "Publié" : "Brouillon",
+      updatedAt: formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true, locale: fr }),
+      projectBadge: project ? {
+        name: project.name.substring(0, 2).toUpperCase(),
+        color: getAuthorColor(index),
+      } : null,
+    };
+  });
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -271,17 +341,31 @@ export default function Documents() {
     }
   };
 
+  const handleNodeClick = (item: any) => {
+    // Always select the node
+    setSelectedNodeId(item.id);
+    
+    // If it has children, also toggle expansion
+    const hasChildren = item.children && item.children.length > 0;
+    if (hasChildren) {
+      toggleNode(item.id);
+    }
+  };
+
   const FolderTree = ({ items, level = 0 }: any) => (
     <div className={level > 0 ? "ml-4" : ""}>
       {items.map((item: any) => {
         const isExpanded = expandedNodes.has(item.id);
         const hasChildren = item.children && item.children.length > 0;
+        const isSelected = selectedNodeId === item.id;
 
         return (
           <div key={item.id}>
             <div 
-              className="flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer text-sm"
-              onClick={() => hasChildren && toggleNode(item.id)}
+              className={`flex items-center gap-2 p-2 rounded-md hover-elevate cursor-pointer text-sm ${
+                isSelected ? "bg-accent" : ""
+              }`}
+              onClick={() => handleNodeClick(item)}
               data-testid={`folder-${item.id}`}
             >
               {hasChildren && (
@@ -478,9 +562,11 @@ export default function Documents() {
                       {file.updatedAt && (
                         <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
                       )}
-                      <div className={`w-6 h-6 rounded-full ${file.author.color} flex items-center justify-center text-xs text-white font-medium`}>
-                        {file.author.name}
-                      </div>
+                      {file.projectBadge && (
+                        <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium`}>
+                          {file.projectBadge.name}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -517,9 +603,11 @@ export default function Documents() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className={`w-6 h-6 rounded-full ${file.author.color} flex items-center justify-center text-xs text-white font-medium`}>
-                          {file.author.name}
-                        </div>
+                        {file.projectBadge && (
+                          <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium`}>
+                            {file.projectBadge.name}
+                          </div>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button 
