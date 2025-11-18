@@ -317,9 +317,9 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none text-[12px]">
+            <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none">
               <Edit className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-[12px]">Modifier</span>
+              <span className="hidden sm:inline">Modifier</span>
             </Button>
             <Button 
               variant="destructive" 

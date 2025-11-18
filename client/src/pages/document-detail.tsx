@@ -387,7 +387,6 @@ export default function DocumentDetail() {
                 variant="outline"
                 onClick={() => setIsEditMode(!isEditMode)}
                 data-testid="button-toggle-edit"
-                className="text-[12px]"
               >
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}

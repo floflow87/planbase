@@ -18,6 +18,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -1293,13 +1300,13 @@ export default function Tasks() {
           </>
         )}
 
-        {/* Create Task Dialog */}
-        <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <DialogContent data-testid="dialog-create-task" className="bg-white">
-            <DialogHeader>
-              <DialogTitle>Nouvelle tâche</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
+        {/* Create Task Sheet */}
+        <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="sheet-create-task">
+            <SheetHeader>
+              <SheetTitle>Nouvelle tâche</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 flex-1 py-4">
               <div>
                 <Label>Projet</Label>
                 <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
@@ -1539,7 +1546,7 @@ export default function Tasks() {
                 </Popover>
               </div>
             </div>
-            <DialogFooter>
+            <div className="flex gap-2 justify-end border-t pt-4">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1571,9 +1578,9 @@ export default function Tasks() {
               >
                 Créer
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Create Column Dialog */}
         <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
