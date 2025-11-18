@@ -39,60 +39,55 @@ Pour vérifier que vous utilisez Supabase :
 
 ---
 
-## 🌱 Seed Automatique des Données
+## 🏢 Multi-Tenancy : Partage des Données Dev/Production
 
-### Premier Déploiement
+### Problème Courant
 
-Lors du **premier démarrage en production** (base de données vide), l'application va **automatiquement** :
+**Symptôme** : En production, vous ne voyez pas vos données de développement, uniquement les nouvelles données créées.
 
-1. ✅ Créer toutes les tables (migrations de schéma)
-2. ✅ Insérer des données de démonstration :
-   - 1 compte démo ("Demo Startup")
-   - 2 utilisateurs (owner + collaborateur)
-   - 3 clients (TechCorp, Sophie Bernard, Green Energy)
-   - 3 projets liés aux clients
-   - Notes et activités de démonstration
-   - Structure de dossiers
+**Cause** : L'application utilise un système multi-tenant où chaque compte (`account_id`) a ses propres données isolées.
 
-### Logs de Seed
+- En **développement** : Utilise l'account_id par défaut `b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4`
+- En **production** : Crée automatiquement un nouveau compte lors de la première connexion
 
-Au démarrage, vous verrez dans les logs :
+### Solution : Unifier les Comptes
 
-```bash
-🔄 Running startup migrations...
-🌱 Database is empty, seeding demo data...
-🌱 Seeding Supabase database...
-✅ Account created: [uuid]
-✅ Owner created: [uuid]
-✅ Collaborator created: [uuid]
-✅ Client created: TechCorp Solutions
-✅ Client created: Sophie Bernard
-...
-🎉 Seeding completed successfully!
+Pour que dev et production partagent les mêmes données :
+
+1. **Identifier votre email de production** (celui utilisé pour se connecter)
+
+2. **Exécuter le script de configuration** :
+   ```bash
+   npx tsx scripts/fix-production-account-id.ts <votre-email>
+   ```
+   
+   Exemple :
+   ```bash
+   npx tsx scripts/fix-production-account-id.ts floflow87@planbase.io
+   ```
+
+3. **Se déconnecter puis se reconnecter en production**
+
+4. ✅ Toutes vos données dev sont maintenant visibles en production !
+
+### Comment ça marche
+
+Le script met à jour les métadonnées Supabase de votre utilisateur pour utiliser le même `account_id` que dev :
+
+```javascript
+user_metadata: {
+  account_id: "b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4", // ← Account ID de dev
+  role: "owner"
+}
 ```
 
-### Déploiements Ultérieurs
+### Vérification
 
-Si la base contient déjà des données :
+Après reconnexion, vérifiez dans les logs de production :
 
 ```bash
-🔄 Running startup migrations...
-✅ Database already contains data, skipping seed
-✅ Startup migrations completed successfully
+✅ Using account: b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4
 ```
-
-Le seed ne sera **jamais** ré-exécuté si des données existent déjà, préservant ainsi vos données de production.
-
-### Données de Démo
-
-Les identifiants de connexion créés :
-- **Owner** : `owner@demo.com`
-- **Collaborateur** : `collaborator@demo.com`
-
-**⚠️ Important** : Ces données sont à titre de démonstration. En production réelle, vous devrez :
-1. Créer vos propres utilisateurs via Supabase Auth
-2. Supprimer ou modifier les données de démo
-3. Configurer l'authentification OAuth (Google, GitHub, etc.)
 
 ---
 
