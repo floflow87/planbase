@@ -1302,7 +1302,7 @@ export default function Tasks() {
 
         {/* Create Task Sheet */}
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="sheet-create-task">
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-[#ffffff]" data-testid="sheet-create-task">
             <SheetHeader>
               <SheetTitle>Nouvelle tâche</SheetTitle>
             </SheetHeader>
