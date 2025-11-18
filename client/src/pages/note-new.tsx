@@ -461,7 +461,7 @@ export default function NoteNew() {
                 <Command>
                   <CommandInput placeholder="Rechercher un projet..." />
                   <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto">
+                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
                     {projects.map((project) => (
                       <CommandItem
                         key={project.id}
