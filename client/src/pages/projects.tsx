@@ -3204,7 +3204,7 @@ export default function Projects() {
           </SheetHeader>
           <div className="space-y-4 flex-1 py-4">
             <div>
-              <Label htmlFor="project-name">Nom du projet *</Label>
+              <Label className="text-[12px]" htmlFor="project-name">Nom du projet *</Label>
               <Input
                 id="project-name"
                 value={projectFormData.name}
@@ -3213,7 +3213,7 @@ export default function Projects() {
               />
             </div>
             <div>
-              <Label htmlFor="project-description">Description</Label>
+              <Label className="text-[12px]" htmlFor="project-description">Description</Label>
               <Textarea
                 id="project-description"
                 value={projectFormData.description}
@@ -3223,7 +3223,7 @@ export default function Projects() {
               />
             </div>
             <div>
-              <Label htmlFor="project-client">Client</Label>
+              <Label className="text-[12px]" htmlFor="project-client">Client</Label>
               <Select
                 value={projectFormData.clientId}
                 onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
@@ -3242,7 +3242,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="project-stage">Étape</Label>
+                <Label className="text-[12px]" htmlFor="project-stage">Étape</Label>
                 <Select
                   value={projectFormData.stage}
                   onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
@@ -3259,7 +3259,7 @@ export default function Projects() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="project-category">Catégorie</Label>
+                <Label className="text-[12px]" htmlFor="project-category">Catégorie</Label>
                 <Input
                   id="project-category"
                   value={projectFormData.category}
@@ -3270,7 +3270,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Date de début</Label>
+                <Label className="text-[12px]">Date de début</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -3297,7 +3297,7 @@ export default function Projects() {
                 </Popover>
               </div>
               <div>
-                <Label>Date de fin</Label>
+                <Label className="text-[12px]">Date de fin</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -3325,7 +3325,7 @@ export default function Projects() {
               </div>
             </div>
             <div>
-              <Label htmlFor="project-budget">Budget (€)</Label>
+              <Label className="text-[12px]" htmlFor="project-budget">Budget (€)</Label>
               <Input
                 id="project-budget"
                 type="number"
@@ -3385,7 +3385,7 @@ export default function Projects() {
           </SheetHeader>
           <div className="space-y-4 flex-1 py-4">
             <div>
-              <Label htmlFor="edit-project-name">Nom du projet *</Label>
+              <Label className="text-[12px]" htmlFor="edit-project-name">Nom du projet *</Label>
               <Input
                 id="edit-project-name"
                 value={projectFormData.name}
@@ -3394,7 +3394,7 @@ export default function Projects() {
               />
             </div>
             <div>
-              <Label htmlFor="edit-project-description">Description</Label>
+              <Label className="text-[12px]" htmlFor="edit-project-description">Description</Label>
               <Textarea
                 id="edit-project-description"
                 value={projectFormData.description}
@@ -3404,7 +3404,7 @@ export default function Projects() {
               />
             </div>
             <div>
-              <Label htmlFor="edit-project-client">Client</Label>
+              <Label className="text-[12px]" htmlFor="edit-project-client">Client</Label>
               <Popover open={editClientComboboxOpen} onOpenChange={setEditClientComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -3455,7 +3455,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-project-stage">Étape</Label>
+                <Label className="text-[12px]" htmlFor="edit-project-stage">Étape</Label>
                 <Select
                   value={projectFormData.stage}
                   onValueChange={(value) => setProjectFormData({ ...projectFormData, stage: value })}
@@ -3472,7 +3472,7 @@ export default function Projects() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-project-category">Catégorie</Label>
+                <Label className="text-[12px]" htmlFor="edit-project-category">Catégorie</Label>
                 <Input
                   id="edit-project-category"
                   value={projectFormData.category}
@@ -3483,7 +3483,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Date de début</Label>
+                <Label className="text-[12px]">Date de début</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -3510,7 +3510,7 @@ export default function Projects() {
                 </Popover>
               </div>
               <div>
-                <Label>Date de fin</Label>
+                <Label className="text-[12px]">Date de fin</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -3538,7 +3538,7 @@ export default function Projects() {
               </div>
             </div>
             <div>
-              <Label htmlFor="edit-project-budget">Budget (€)</Label>
+              <Label className="text-[12px]" htmlFor="edit-project-budget">Budget (€)</Label>
               <Input
                 id="edit-project-budget"
                 type="number"
@@ -3627,7 +3627,7 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Projet</Label>
+              <Label className="text-[12px]">Projet</Label>
               <Popover open={projectComboboxOpen} onOpenChange={setProjectComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -3694,7 +3694,7 @@ export default function Projects() {
               </Popover>
             </div>
             <div>
-              <Label htmlFor="task-title">Titre *</Label>
+              <Label className="text-[12px]" htmlFor="task-title">Titre *</Label>
               <Input
                 id="task-title"
                 value={newTaskTitle}
@@ -3703,7 +3703,7 @@ export default function Projects() {
               />
             </div>
             <div>
-              <Label htmlFor="task-description">Description</Label>
+              <Label className="text-[12px]" htmlFor="task-description">Description</Label>
               <Textarea
                 id="task-description"
                 value={newTaskDescription}
@@ -3714,7 +3714,7 @@ export default function Projects() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="task-priority">Priorité</Label>
+                <Label className="text-[12px]" htmlFor="task-priority">Priorité</Label>
                 <Select
                   value={newTaskPriority}
                   onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
@@ -3730,7 +3730,7 @@ export default function Projects() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="task-assigned">Assigné à</Label>
+                <Label className="text-[12px]" htmlFor="task-assigned">Assigné à</Label>
                 <Select
                   value={newTaskAssignedTo || "unassigned"}
                   onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
@@ -3752,7 +3752,7 @@ export default function Projects() {
               </div>
             </div>
             <div>
-              <Label>Effort / Complexité</Label>
+              <Label className="text-[12px]">Effort / Complexité</Label>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map(rating => (
                   <button
@@ -3780,7 +3780,7 @@ export default function Projects() {
               </div>
             </div>
             <div>
-              <Label>Colonne *</Label>
+              <Label className="text-[12px]">Colonne *</Label>
               <Popover open={columnComboboxOpen} onOpenChange={setColumnComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -3839,7 +3839,7 @@ export default function Projects() {
               </Popover>
             </div>
             <div>
-              <Label>Date d'échéance</Label>
+              <Label className="text-[12px]">Date d'échéance</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -3908,7 +3908,7 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="column-name">Nom de la colonne *</Label>
+              <Label className="text-[12px]" htmlFor="column-name">Nom de la colonne *</Label>
               <Input
                 id="column-name"
                 value={newColumnName}
@@ -3942,7 +3942,7 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="rename-column">Nom de la colonne *</Label>
+              <Label className="text-[12px]" htmlFor="rename-column">Nom de la colonne *</Label>
               <Input
                 id="rename-column"
                 value={renameColumnName}
@@ -3976,7 +3976,7 @@ export default function Projects() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Sélectionner une couleur</Label>
+              <Label className="text-[12px]">Sélectionner une couleur</Label>
               <div className="mt-2">
                 <ColorPicker value={columnColor} onChange={setColumnColor} />
               </div>

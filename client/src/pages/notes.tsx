@@ -480,13 +480,12 @@ export default function Notes() {
                         data-testid={`checkbox-note-${note.id}`}
                       />
                     </div>
-
                     {/* Title */}
                     <div 
                       className="col-span-3 flex flex-col gap-1 cursor-pointer"
                       onClick={() => navigate(`/notes/${note.id}`)}
                     >
-                      <div className="font-medium text-[11px] text-foreground truncate">
+                      <div className="font-medium text-foreground truncate text-[12px]">
                         {note.title || "Sans titre"}
                       </div>
                       {note.summary && (
@@ -496,7 +495,6 @@ export default function Notes() {
                         </div>
                       )}
                     </div>
-
                     {/* Status */}
                     <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
@@ -552,7 +550,6 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-
                     {/* Visibility */}
                     <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
@@ -608,12 +605,10 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-
                     {/* Created Date */}
                     <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}
                     </div>
-
                     {/* Last Modified */}
                     <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {formatDistanceToNow(new Date(note.updatedAt), { 
@@ -621,7 +616,6 @@ export default function Notes() {
                         locale: fr 
                       })}
                     </div>
-
                     {/* Linked Project */}
                     <div className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
@@ -674,7 +668,6 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-
                     {/* Actions Menu */}
                     <div className="col-span-1 flex items-center justify-end">
                       <DropdownMenu>
@@ -803,7 +796,6 @@ export default function Notes() {
           </div>
         )}
       </div>
-
       {/* Delete Single Note Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-note">
@@ -832,7 +824,6 @@ export default function Notes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Bulk Publish Dialog */}
       <Dialog open={bulkPublishDialogOpen} onOpenChange={setBulkPublishDialogOpen}>
         <DialogContent data-testid="dialog-bulk-publish">
@@ -860,7 +851,6 @@ export default function Notes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Bulk Delete Dialog */}
       <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
         <DialogContent data-testid="dialog-bulk-delete">

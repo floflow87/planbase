@@ -575,7 +575,7 @@ export function ListView({
                                 return (
                                   <TableCell 
                                     key={columnId} 
-                                    className="font-medium cursor-pointer hover:text-primary text-[11px]"
+                                    className="font-medium cursor-pointer hover:text-primary text-[12px]"
                                     onClick={() => onEditTask(task)}
                                     data-testid={`cell-title-${task.id}`}
                                   >
@@ -953,7 +953,7 @@ export function ListView({
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Projet de destination</Label>
+              <Label className="text-[12px]">Projet de destination</Label>
               <Select value={attachProjectId} onValueChange={setAttachProjectId}>
                 <SelectTrigger data-testid="select-attach-project">
                   <SelectValue placeholder="Sélectionner un projet" />
