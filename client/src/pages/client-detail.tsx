@@ -873,7 +873,7 @@ export default function ClientDetail() {
           <TabsContent value="informations" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
-                <CardTitle>Informations du client</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Informations du client</CardTitle>
                 {!isEditingClientInfo ? (
                   <Button 
                     variant="outline" 
@@ -1062,7 +1062,7 @@ export default function ClientDetail() {
 
             <Card>
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-                <CardTitle>Contacts</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Contacts</CardTitle>
                 <Button onClick={() => openContactDialog()} data-testid="button-add-contact" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Ajouter un contact</span>
@@ -1149,7 +1149,7 @@ export default function ClientDetail() {
             {/* Section commentaire */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
                   <MessageSquare className="w-5 h-5" />
                   Ajouter un commentaire
                 </CardTitle>
@@ -1179,7 +1179,7 @@ export default function ClientDetail() {
             {comments.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Commentaires ({comments.length})</CardTitle>
+                  <CardTitle className="font-semibold tracking-tight text-[18px]">Commentaires ({comments.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -1229,7 +1229,7 @@ export default function ClientDetail() {
             {/* Timeline des activités */}
             <Card>
               <CardHeader>
-                <CardTitle>Historique des activités</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Historique des activités</CardTitle>
               </CardHeader>
               <CardContent>
                 {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length === 0 && (
@@ -1359,7 +1359,7 @@ export default function ClientDetail() {
           <TabsContent value="taches" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
-                <CardTitle>Tâches du client</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Tâches du client</CardTitle>
                 <Button onClick={() => setIsTaskDialogOpen(true)} data-testid="button-add-task">
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvelle tâche
@@ -1437,7 +1437,7 @@ export default function ClientDetail() {
           <TabsContent value="projets" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Projets du client</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Projets du client</CardTitle>
               </CardHeader>
               <CardContent>
                 {projects.length === 0 ? (
@@ -1533,7 +1533,7 @@ export default function ClientDetail() {
           <TabsContent value="documents" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-1">
-                <CardTitle>Documents</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Documents</CardTitle>
                 <Badge variant="secondary">{clientDocuments.length}</Badge>
               </CardHeader>
               <CardContent>
@@ -1741,7 +1741,7 @@ export default function ClientDetail() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <CardTitle>{tab.name}</CardTitle>
+                        <CardTitle className="font-semibold tracking-tight text-[18px]">{tab.name}</CardTitle>
                         <Button
                           size="icon"
                           variant="ghost"
