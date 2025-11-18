@@ -367,8 +367,8 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Fin:</span>
-                    <span className="text-sm" data-testid="project-end-date">
+                    <span className="text-muted-foreground text-[12px]">Fin:</span>
+                    <span className="text-[12px]" data-testid="project-end-date">
                       {project.endDate 
                         ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
                         : "Non définie"}
@@ -431,7 +431,7 @@ export default function ProjectDetail() {
             <Card>
               <CardContent className="pt-6">
                 {projectTasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucune tâche associée à ce projet.
                   </div>
                 ) : (
