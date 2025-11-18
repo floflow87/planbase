@@ -1552,7 +1552,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Template not found" });
       }
       // Only allow deleting account templates, not system templates
-      if (existing.isSystem === 1) {
+      const isSystemTemplate = existing.isSystem === true || existing.isSystem === 'true' || existing.isSystem === 1;
+      if (isSystemTemplate) {
         return res.status(403).json({ error: "Cannot delete system templates" });
       }
       if (existing.accountId !== req.accountId) {
@@ -1594,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjectType: "document",
         subjectId: document.id,
         kind: "created",
-        payload: { description: `Document created: ${document.title}` },
+        payload: { description: `Document created: ${document.name}` },
         createdBy: req.userId || null,
       });
       

@@ -171,6 +171,7 @@ export default function DocumentDetail() {
       toast({
         title: "Document supprimé",
         description: "Le document a été supprimé avec succès",
+        variant: "success",
       });
       navigate("/documents");
     },
@@ -216,7 +217,7 @@ export default function DocumentDetail() {
       toast({
         title: "Projet lié",
         description: "Le document a été lié au projet avec succès",
-        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
+        variant: "success",
       });
     },
     onError: (error: any) => {
@@ -242,6 +243,7 @@ export default function DocumentDetail() {
       toast({
         title: "Projet délié",
         description: "Le document n'est plus lié au projet",
+        variant: "success",
       });
     },
     onError: (error: any) => {
@@ -327,6 +329,12 @@ export default function DocumentDetail() {
                         }}
                         data-testid="menu-item-draft"
                       >
+                        <Badge 
+                          variant="outline" 
+                          className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                        >
+                          ●
+                        </Badge>
                         Brouillon
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -336,6 +344,12 @@ export default function DocumentDetail() {
                         }}
                         data-testid="menu-item-published"
                       >
+                        <Badge 
+                          variant="outline" 
+                          className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                        >
+                          ●
+                        </Badge>
                         Publié
                       </DropdownMenuItem>
                     </DropdownMenuContent>

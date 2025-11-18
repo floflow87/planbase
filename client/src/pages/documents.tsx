@@ -52,6 +52,7 @@ export default function Documents() {
       toast({
         title: "Document supprimé",
         description: "Le document a été supprimé avec succès",
+        variant: "success",
       });
       setDeleteDialogOpen(false);
       setDocumentToDelete(null);
@@ -76,6 +77,7 @@ export default function Documents() {
       toast({
         title: "Document dupliqué",
         description: "Le document a été dupliqué avec succès",
+        variant: "success",
       });
       setLocation(`/documents/${data.id}`);
     },
@@ -360,7 +362,7 @@ export default function Documents() {
                               : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
                           }`}
                         >
-                          {file.size}
+                          {file.status === "draft" ? "Brouillon" : file.status === "published" ? "Publié" : "Signé"}
                         </Badge>
                       </div>
                     </div>
@@ -386,11 +388,8 @@ export default function Documents() {
                   onClick={() => setLocation(`/documents/${file.id}`)}
                   data-testid={`list-item-${file.id}`}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                        {getFileIcon(file.type)}
-                      </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
                         <div className="flex items-center gap-2 mt-1">
@@ -404,7 +403,7 @@ export default function Documents() {
                                 : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
                             }`}
                           >
-                            {file.size}
+                            {file.status === "draft" ? "Brouillon" : file.status === "published" ? "Publié" : "Signé"}
                           </Badge>
                           <span className="text-xs text-muted-foreground">•</span>
                           <span className="text-xs text-muted-foreground">{file.updatedAt}</span>

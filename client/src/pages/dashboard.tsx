@@ -441,13 +441,15 @@ export default function Dashboard() {
       });
     }
     
-    // Initialize monthly budgets for last 6 months
+    // Initialize monthly budgets and project counts for last 6 months
     const monthlyBudgets: Record<string, number> = {};
+    const monthlyProjectCounts: Record<string, number> = {};
     last6Months.forEach(({ month }) => {
       monthlyBudgets[month] = 0;
+      monthlyProjectCounts[month] = 0;
     });
     
-    // Sum budgets by project start month (only for last 6 months)
+    // Sum budgets and count projects by start month (only for last 6 months)
     projects.forEach(project => {
       if (project.startDate && project.budget) {
         const startDate = new Date(project.startDate);
@@ -460,14 +462,16 @@ export default function Dashboard() {
         );
         
         if (matchingMonth) {
-          monthlyBudgets[matchingMonth.month] += project.budget;
+          monthlyBudgets[matchingMonth.month] += Number(project.budget) || 0;
+          monthlyProjectCounts[matchingMonth.month] += 1;
         }
       }
     });
     
     return last6Months.map(({ month }) => ({
       month,
-      revenue: monthlyBudgets[month]
+      revenue: monthlyBudgets[month],
+      projectCount: monthlyProjectCounts[month]
     }));
   })();
 
@@ -872,6 +876,20 @@ export default function Dashboard() {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
+                      }}
+                      formatter={(value: number, name: string, props: any) => {
+                        const projectCount = props.payload?.projectCount || 0;
+                        if (name === 'revenue') {
+                          return [
+                            `${new Intl.NumberFormat('fr-FR').format(value)} €`,
+                            'CA'
+                          ];
+                        }
+                        return [value, name];
+                      }}
+                      labelFormatter={(label) => {
+                        const item = revenueData.find(d => d.month === label);
+                        return `${label} - ${item?.projectCount || 0} projet${(item?.projectCount || 0) > 1 ? 's' : ''}`;
                       }}
                     />
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
