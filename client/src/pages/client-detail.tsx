@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField, ClientCustomFieldValue, InsertClientCustomFieldValue } from "@shared/schema";
+import type { Client, Contact, Project, AppUser, ClientComment, Activity, Task, InsertClient, ClientCustomTab, InsertClientCustomTab, ClientCustomField, InsertClientCustomField, ClientCustomFieldValue, InsertClientCustomFieldValue, Document, DocumentLink } from "@shared/schema";
 import { insertClientSchema } from "@shared/schema";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -161,6 +161,32 @@ export default function ClientDetail() {
     queryKey: ['/api/clients', id, 'field-values'],
     enabled: !!accountId && !!id,
   });
+
+  const { data: allDocuments = [] } = useQuery<Document[]>({
+    queryKey: ['/api/documents'],
+    enabled: !!accountId,
+  });
+
+  const { data: documentLinks = [] } = useQuery<DocumentLink[]>({
+    queryKey: ['/api/document-links'],
+    enabled: !!accountId,
+  });
+
+  // Filter documents for this client and its projects
+  const clientDocuments = useMemo(() => {
+    const projectIds = new Set(projects.map(p => p.id));
+    
+    const relevantDocIds = new Set(
+      documentLinks
+        .filter(link => 
+          (link.targetType === "client" && link.targetId === id) ||
+          (link.targetType === "project" && projectIds.has(link.targetId))
+        )
+        .map(link => link.documentId)
+    );
+    
+    return allDocuments.filter(doc => relevantDocIds.has(doc.id));
+  }, [allDocuments, documentLinks, projects, id]);
 
   // Form for client edit
   const clientForm = useForm<InsertClient>({
@@ -1506,13 +1532,47 @@ export default function ClientDetail() {
           {/* Documents */}
           <TabsContent value="documents" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-1">
                 <CardTitle>Documents</CardTitle>
+                <Badge variant="secondary">{clientDocuments.length}</Badge>
               </CardHeader>
               <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  Section documents à implémenter
-                </div>
+                {clientDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Aucun document lié à ce client ou ses projets.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {clientDocuments.map((document) => (
+                      <Link key={document.id} href={`/documents/${document.id}`}>
+                        <div className="p-4 border rounded-md hover-elevate cursor-pointer" data-testid={`document-${document.id}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium mb-1" data-testid={`title-document-${document.id}`}>
+                                {document.name || "Sans titre"}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge 
+                                  variant={document.status === "draft" ? "outline" : "default"}
+                                  className={document.status === "draft" ? "text-muted-foreground" : "bg-green-600 dark:bg-green-700 text-white"}
+                                  data-testid={`status-${document.id}`}
+                                >
+                                  {document.status === "draft" ? "Brouillon" : 
+                                   document.status === "published" ? "Publié" : "Archivé"}
+                                </Badge>
+                                {document.updatedAt && (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Modifié {format(new Date(document.updatedAt), "dd MMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
