@@ -340,7 +340,7 @@ export default function ProjectDetail() {
                 <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground" data-testid="project-description">
+                <p className="text-muted-foreground text-[12px]" data-testid="project-description">
                   {project.description}
                 </p>
               </CardContent>
@@ -349,7 +349,7 @@ export default function ProjectDetail() {
 
           <Card className={!project.description ? "lg:col-span-3" : ""}>
             <CardHeader className="pb-3">
-              <CardTitle className="tracking-tight text-[18px] font-semibold text-[#17171c]">Période</CardTitle>
+              <CardTitle className="tracking-tight font-semibold text-[#17171c] text-[16px]">Période</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
