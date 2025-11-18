@@ -2682,7 +2682,7 @@ export default function Projects() {
                               name: (
                                 <TableCell key="name">
                                   <Link href={`/projects/${project.id}`}>
-                                    <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[11px]" data-testid={`project-name-${project.id}`}>
+                                    <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[12px]" data-testid={`project-name-${project.id}`}>
                                       {project.name}
                                     </div>
                                   </Link>
@@ -3197,7 +3197,6 @@ export default function Projects() {
               );
             })()}
       </div>
-
       <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
           <SheetHeader>
@@ -3379,7 +3378,6 @@ export default function Projects() {
           </div>
         </SheetContent>
       </Sheet>
-
       <Sheet open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
           <SheetHeader>
@@ -3597,7 +3595,6 @@ export default function Projects() {
           </div>
         </SheetContent>
       </Sheet>
-
       <AlertDialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-project">
           <AlertDialogHeader>
@@ -3623,7 +3620,6 @@ export default function Projects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <Dialog open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
         <DialogContent data-testid="dialog-create-task">
           <DialogHeader>
@@ -3905,7 +3901,6 @@ export default function Projects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
         <DialogContent data-testid="dialog-create-column">
           <DialogHeader>
@@ -3940,7 +3935,6 @@ export default function Projects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={isRenameColumnDialogOpen} onOpenChange={setIsRenameColumnDialogOpen}>
         <DialogContent data-testid="dialog-rename-column">
           <DialogHeader>
@@ -3975,7 +3969,6 @@ export default function Projects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={isColorColumnDialogOpen} onOpenChange={setIsColorColumnDialogOpen}>
         <DialogContent data-testid="dialog-color-column">
           <DialogHeader>
@@ -4007,7 +4000,6 @@ export default function Projects() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <AlertDialog open={isDeleteColumnDialogOpen} onOpenChange={setIsDeleteColumnDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-column">
           <AlertDialogHeader>
@@ -4029,7 +4021,6 @@ export default function Projects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-task">
           <AlertDialogHeader>
@@ -4051,7 +4042,6 @@ export default function Projects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <TaskDetailModal
         task={selectedTask}
         users={users}
