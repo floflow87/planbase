@@ -337,7 +337,7 @@ export default function ProjectDetail() {
           {project.description && (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="font-semibold tracking-tight text-[18px]">Description</CardTitle>
+                <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground" data-testid="project-description">
@@ -611,7 +611,6 @@ export default function ProjectDetail() {
           </TabsContent>
         </Tabs>
       </div>
-
       <Sheet open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
           <SheetHeader>
@@ -730,7 +729,6 @@ export default function ProjectDetail() {
           </div>
         </SheetContent>
       </Sheet>
-
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-project">
           <DialogHeader>
@@ -757,7 +755,6 @@ export default function ProjectDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-task-detail">
           <DialogHeader>
@@ -904,7 +901,6 @@ export default function ProjectDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-task-confirm">
           <AlertDialogHeader>
