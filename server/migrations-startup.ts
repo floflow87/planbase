@@ -2,8 +2,6 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { addDocumentTables, seedDocumentTemplates } from "./migrations/add-document-tables";
-import { seedDatabase } from "./lib/seed";
-import { accounts } from "@shared/schema";
 
 export async function runStartupMigrations() {
   console.log("🔄 Running startup migrations...");
@@ -126,15 +124,6 @@ export async function runStartupMigrations() {
           NULL;
       END $$;
     `);
-    
-    // Seed demo data if database is empty (production/first run)
-    const existingAccounts = await db.select().from(accounts).limit(1);
-    if (existingAccounts.length === 0) {
-      console.log("🌱 Database is empty, seeding demo data...");
-      await seedDatabase();
-    } else {
-      console.log("✅ Database already contains data, skipping seed");
-    }
     
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
