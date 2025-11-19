@@ -251,6 +251,7 @@ export const notes = pgTable("notes", {
   content: jsonb("content").notNull().default([]), // blocks
   plainText: text("plain_text"), // for FTS
   summary: text("summary"),
+  type: text("type").notNull().default("note"), // 'note', 'document'
   status: text("status").notNull().default("active"), // 'draft', 'active', 'archived'
   visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

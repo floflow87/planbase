@@ -131,6 +131,12 @@ export async function runStartupMigrations() {
       END $$;
     `);
     
+    // Add type column to notes table
+    await db.execute(sql`
+      ALTER TABLE notes 
+      ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'note';
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

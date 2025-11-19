@@ -610,6 +610,13 @@ export default function NoteDetail() {
                 <div className="flex items-center gap-2">
                   <Badge 
                     variant="outline" 
+                    className="bg-blue-50 text-blue-700 border-blue-200"
+                    data-testid="badge-type"
+                  >
+                    {note.type === "document" ? "📄 Document" : "📝 Note"}
+                  </Badge>
+                  <Badge 
+                    variant="outline" 
                     className={
                       status === "draft" 
                         ? "bg-gray-100 text-gray-700 border-gray-200"
@@ -617,6 +624,7 @@ export default function NoteDetail() {
                         ? "bg-orange-50 text-orange-700 border-orange-200"
                         : "bg-green-50 text-green-700 border-green-200"
                     }
+                    data-testid="badge-status"
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
@@ -688,6 +696,41 @@ export default function NoteDetail() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Enregistrer</TooltipContent>
+                </Tooltip>
+              )}
+              
+              {/* Convert to document button (only for notes) */}
+              {note.type === "note" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const response = await apiRequest(`/api/notes/${id}/convert-to-document`, "POST");
+                          const document = await response.json();
+                          toast({
+                            title: "Note convertie en document",
+                            description: "La note a été convertie en document avec succès",
+                            variant: "success",
+                          });
+                          // Navigate to documents page
+                          navigate("/documents");
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: error.message || "Impossible de convertir la note",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      size="icon"
+                      data-testid="button-convert-to-document"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Transformer en document</TooltipContent>
                 </Tooltip>
               )}
               
