@@ -223,6 +223,12 @@ export async function generatePDF(document: Document): Promise<Buffer> {
     // Convert TipTap JSON to HTML
     const htmlContent = convertTipTapToHTML(document.content);
     
+    // Escape backticks and ${} in HTML content to prevent template literal injection
+    const safeHtmlContent = htmlContent
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$\{/g, '\\${');
+    
     // Create full HTML document with styling
     const fullHTML = `
       <!DOCTYPE html>
@@ -371,7 +377,7 @@ export async function generatePDF(document: Document): Promise<Buffer> {
       </head>
       <body>
         <h1>${safeName}</h1>
-        ${htmlContent}
+        ${safeHtmlContent}
       </body>
       </html>
     `;
