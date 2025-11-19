@@ -109,11 +109,11 @@ export async function seedDocumentTemplates() {
         formSchema: {
           fields: [
             { name: "transmetteur_raison_sociale", label: "Raison sociale du transmetteur", type: "text", required: true },
-            { name: "transmetteur_identifiant", label: "Numéro d'immatriculation (SIRET/RCS)", type: "text", required: true },
+            { name: "transmetteur_identifiant", label: "Numéro d'immatriculation (SIRET/RCS)", type: "text", required: false },
             { name: "prestataire_nom", label: "Nom complet du prestataire", type: "text", required: true },
-            { name: "prestataire_date_naissance", label: "Date de naissance du prestataire", type: "date", required: true },
+            { name: "prestataire_date_naissance", label: "Date de naissance du prestataire", type: "date", required: false },
             { name: "prestataire_adresse", label: "Adresse du prestataire", type: "text", required: true },
-            { name: "prestataire_identifiant", label: "Numéro SIRET/SIREN du prestataire", type: "text", required: true },
+            { name: "prestataire_identifiant", label: "Numéro SIRET/SIREN du prestataire", type: "text", required: false },
             { name: "projet_nom", label: "Nom du projet", type: "text", required: true },
             { name: "projet_description", label: "Description du projet", type: "textarea", required: true },
             { name: "support_information", label: "Supports d'information (ex: documents, accès...)", type: "textarea", required: false },
@@ -126,7 +126,7 @@ export async function seedDocumentTemplates() {
         },
         contentTemplate: `**ENTRE LES SOUSSIGNÉS,**
 
-**{{transmetteur_raison_sociale}}**, immatriculé **{{transmetteur_identifiant}}**, dûment habilité pour la signature des présentes,
+**{{transmetteur_raison_sociale}}**{{#if transmetteur_identifiant}}, immatriculé **{{transmetteur_identifiant}}**{{/if}}, dûment habilité pour la signature des présentes,
 
 Ci-après dénommée **"la Société"**
 
@@ -134,7 +134,7 @@ Ci-après dénommée **"la Société"**
 
 **ET**
 
-**{{prestataire_nom}}**, né le **{{prestataire_date_naissance}}**, domicilié **{{prestataire_adresse}}**, immatriculé **{{prestataire_identifiant}}**,
+**{{prestataire_nom}}**{{#if prestataire_date_naissance}}, né le **{{prestataire_date_naissance}}**{{/if}}, domicilié **{{prestataire_adresse}}**{{#if prestataire_identifiant}}, immatriculé **{{prestataire_identifiant}}**{{/if}},
 
 Ci-après dénommé **"le Prestataire"**
 

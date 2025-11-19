@@ -2375,6 +2375,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         id: account.id,
         name: account.name,
+        siret: account.siret,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update account details (OWNER ONLY)
+  app.patch("/api/accounts/:accountId", requireAuth, requireRole("owner"), async (req, res) => {
+    try {
+      if (req.params.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied to this account" });
+      }
+
+      const { name, siret } = req.body;
+      
+      const updatedAccount = await storage.updateAccount(req.params.accountId, {
+        name,
+        siret,
+      });
+
+      if (!updatedAccount) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      res.json({
+        id: updatedAccount.id,
+        name: updatedAccount.name,
+        siret: updatedAccount.siret,
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

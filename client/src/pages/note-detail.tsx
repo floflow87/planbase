@@ -45,7 +45,10 @@ export default function NoteDetail() {
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    const saved = localStorage.getItem(`note-${id}-autosave`);
+    return saved === 'true';
+  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
 
@@ -81,9 +84,16 @@ export default function NoteDetail() {
     }
   }, [note]);
 
-  // Debounced values for autosave
-  const debouncedTitle = useDebounce(title, 1000);
-  const debouncedContent = useDebounce(content, 1000);
+  // Save autosave preference to localStorage
+  useEffect(() => {
+    if (id) {
+      localStorage.setItem(`note-${id}-autosave`, String(autoSaveEnabled));
+    }
+  }, [autoSaveEnabled, id]);
+
+  // Debounced values for autosave (3 seconds)
+  const debouncedTitle = useDebounce(title, 3000);
+  const debouncedContent = useDebounce(content, 3000);
 
   // Update note mutation
   const updateMutation = useMutation({
@@ -153,6 +163,28 @@ export default function NoteDetail() {
       visibility,
     });
   }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode, autoSaveEnabled]);
+
+  // Warn before leaving page if autosave is off and there are unsaved changes
+  useEffect(() => {
+    if (!note || autoSaveEnabled) return;
+    
+    const hasUnsavedChanges = 
+      title !== note.title ||
+      JSON.stringify(content) !== JSON.stringify(note.content) ||
+      status !== note.status ||
+      visibility !== note.visibility;
+    
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [title, content, status, visibility, note, autoSaveEnabled]);
 
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);

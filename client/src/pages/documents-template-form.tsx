@@ -1,22 +1,35 @@
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, ChevronsUpDown, Check, Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { DocumentTemplate } from "@shared/schema";
+import type { DocumentTemplate, Project } from "@shared/schema";
 import { marked } from "marked";
 
-// Utility function to replace {{placeholders}} with values
+// Utility function to replace {{placeholders}} with values and handle conditional blocks
 function replacePlaceholders(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+  // First, handle conditional blocks {{#if field}}...{{/if}}
+  let result = template.replace(/\{\{#if\s+([^}]+)\}\}(.*?)\{\{\/if\}\}/gs, (match, key, content) => {
+    const value = values[key.trim()];
+    // If value exists and is not empty, include the content
+    return value && value.trim() ? content : '';
+  });
+  
+  // Then replace simple placeholders
+  result = result.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
     return values[key.trim()] || match;
   });
+  
+  return result;
 }
 
 // Configure marked for better formatting
@@ -32,10 +45,72 @@ export default function DocumentTemplateForm() {
   const queryClient = useQueryClient();
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [documentTitle, setDocumentTitle] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
 
   const { data: template, isLoading } = useQuery<DocumentTemplate>({
     queryKey: ["/api/document-templates", id],
   });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  // Fetch user profile to get accountId
+  const { data: userProfile } = useQuery<any>({
+    queryKey: ["/api/me"],
+  });
+
+  // Fetch account info for autocomplete
+  const { data: account } = useQuery<{ id: string; name: string; siret?: string | null }>({
+    queryKey: ["/api/accounts", userProfile?.accountId],
+    enabled: !!userProfile?.accountId,
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (projectData: { name: string; description: string }) => {
+      const response = await apiRequest("/api/projects", "POST", {
+        name: projectData.name,
+        description: projectData.description,
+        stage: "ideation",
+      });
+      return await response.json();
+    },
+    onSuccess: (data: Project) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setSelectedProjectId(data.id);
+      setIsNewProjectDialogOpen(false);
+      setNewProjectName("");
+      setNewProjectDescription("");
+      toast({
+        title: "Projet créé",
+        description: "Le projet a été créé avec succès",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer le projet",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Auto-fill transmetteur fields with account data when template loads
+  useEffect(() => {
+    if (account && template && !formValues.transmetteur_raison_sociale) {
+      // Pre-fill transmetteur fields with account data
+      setFormValues(prev => ({
+        ...prev,
+        transmetteur_raison_sociale: account.name || '',
+        transmetteur_identifiant: account.siret || '',
+      }));
+    }
+  }, [account, template]);
 
   const createDocumentMutation = useMutation({
     mutationFn: async () => {
@@ -58,10 +133,22 @@ export default function DocumentTemplateForm() {
       };
 
       const response = await apiRequest("/api/documents", "POST", document);
-      return await response.json();
+      const createdDocument = await response.json();
+
+      // Create document link if project is selected
+      if (selectedProjectId) {
+        await apiRequest("/api/document-links", "POST", {
+          documentId: createdDocument.id,
+          targetType: "project",
+          targetId: selectedProjectId,
+        });
+      }
+
+      return createdDocument;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/document-links"] });
       toast({
         title: "Document créé",
         description: "Le document a été créé avec succès",
@@ -143,6 +230,93 @@ export default function DocumentTemplateForm() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="project-selector">Projet (optionnel)</Label>
+                <div className="flex gap-2">
+                  <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={projectSelectorOpen}
+                        className="flex-1 justify-between text-[12px]"
+                        data-testid="select-project"
+                      >
+                        {selectedProjectId 
+                          ? projects.find((p) => p.id === selectedProjectId)?.name || "Sélectionner un projet"
+                          : "Sélectionner un projet"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0 bg-white dark:bg-background">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un projet..." />
+                        <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                        <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                          <CommandItem
+                            onSelect={() => {
+                              setSelectedProjectId("");
+                              setProjectSelectorOpen(false);
+                            }}
+                            data-testid="option-project-none"
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                !selectedProjectId ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            Aucun projet
+                          </CommandItem>
+                          {projects.map((project) => (
+                            <CommandItem
+                              key={project.id}
+                              onSelect={() => {
+                                setSelectedProjectId(project.id);
+                                setProjectSelectorOpen(false);
+                              }}
+                              data-testid={`option-project-${project.id}`}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  selectedProjectId === project.id ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{project.name}</div>
+                                {project.description && (
+                                  <div className="text-xs text-muted-foreground truncate">{project.description}</div>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsNewProjectDialogOpen(true)}
+                    data-testid="button-new-project"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  {selectedProjectId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedProjectId("")}
+                      data-testid="button-clear-project"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               {formSchema && formSchema.map((field) => (
                 <div key={field.name} className="space-y-2">
                   <Label htmlFor={field.name}>
@@ -195,6 +369,70 @@ export default function DocumentTemplateForm() {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Project Dialog */}
+      <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Créer un nouveau projet</DialogTitle>
+            <DialogDescription>
+              Créez un nouveau projet pour l'associer à ce document
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-project-name">Nom du projet *</Label>
+              <Input
+                id="new-project-name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Ex: Projet Alpha"
+                data-testid="input-new-project-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-project-description">Description</Label>
+              <Textarea
+                id="new-project-description"
+                value={newProjectDescription}
+                onChange={(e) => setNewProjectDescription(e.target.value)}
+                placeholder="Description du projet..."
+                rows={3}
+                data-testid="input-new-project-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsNewProjectDialogOpen(false);
+                setNewProjectName("");
+                setNewProjectDescription("");
+              }}
+              data-testid="button-cancel-new-project"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (newProjectName.trim()) {
+                  createProjectMutation.mutate({
+                    name: newProjectName,
+                    description: newProjectDescription,
+                  });
+                }
+              }}
+              disabled={!newProjectName.trim() || createProjectMutation.isPending}
+              data-testid="button-create-new-project"
+            >
+              {createProjectMutation.isPending ? "Création..." : "Créer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

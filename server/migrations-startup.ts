@@ -17,6 +17,12 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS effort integer;
     `);
     
+    // Add siret column to accounts if it doesn't exist
+    await db.execute(sql`
+      ALTER TABLE accounts 
+      ADD COLUMN IF NOT EXISTS siret text;
+    `);
+    
     // Add new client columns if they don't exist
     await db.execute(sql`
       ALTER TABLE clients 

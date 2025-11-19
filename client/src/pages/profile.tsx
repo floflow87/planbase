@@ -34,13 +34,20 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const accountSchema = z.object({
+  name: z.string().min(1, "Le nom du compte est requis"),
+  siret: z.string().optional(),
+});
+
 type ProfileFormData = z.infer<typeof profileSchema>;
 type PasswordFormData = z.infer<typeof passwordSchema>;
+type AccountFormData = z.infer<typeof accountSchema>;
 type AppUser = typeof appUsers.$inferSelect;
 
 interface Account {
   id: string;
   name: string;
+  siret?: string | null;
 }
 
 export default function Profile() {
@@ -81,6 +88,14 @@ export default function Profile() {
     },
   });
 
+  const accountForm = useForm<AccountFormData>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: {
+      name: account?.name || "",
+      siret: account?.siret || "",
+    },
+  });
+
   // Update form when data loads
   useEffect(() => {
     if (userProfile) {
@@ -94,6 +109,16 @@ export default function Profile() {
       });
     }
   }, [userProfile, form]);
+
+  // Update account form when data loads
+  useEffect(() => {
+    if (account) {
+      accountForm.reset({
+        name: account.name || "",
+        siret: account.siret || "",
+      });
+    }
+  }, [account, accountForm]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
@@ -141,12 +166,41 @@ export default function Profile() {
     },
   });
 
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: AccountFormData) => {
+      if (!userProfile?.accountId) {
+        throw new Error("Account ID not found");
+      }
+      const response = await apiRequest(`/api/accounts/${userProfile.accountId}`, "PATCH", data);
+      return response.json();
+    },
+    onSuccess: (updatedAccount) => {
+      queryClient.setQueryData(["/api/accounts", userProfile?.accountId], updatedAccount);
+      toast({
+        title: "Compte mis à jour",
+        description: "Les informations du compte ont été enregistrées avec succès",
+        variant: "success",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour le compte",
+      });
+    },
+  });
+
   const onSubmit = (data: ProfileFormData) => {
     updateProfileMutation.mutate(data);
   };
 
   const onPasswordSubmit = (data: PasswordFormData) => {
     updatePasswordMutation.mutate(data);
+  };
+
+  const onAccountSubmit = (data: AccountFormData) => {
+    updateAccountMutation.mutate(data);
   };
 
   if (isLoading) {
@@ -509,16 +563,90 @@ export default function Profile() {
                       <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Nom du compte</p>
-                        <p className="text-sm text-muted-foreground mt-1">{account?.name || "Chargement..."}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">ID du compte</p>
-                        <p className="text-xs text-muted-foreground mt-1 font-mono">{account?.id || "Chargement..."}</p>
-                      </div>
-                    </div>
+                    <Form {...accountForm}>
+                      <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-6">
+                        <FormField
+                          control={accountForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4" />
+                                Nom du compte *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Mon entreprise"
+                                  data-testid="input-account-name"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={accountForm.control}
+                          name="siret"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4" />
+                                SIRET
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="123 456 789 00012"
+                                  data-testid="input-account-siret"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground">
+                                Numéro SIRET de votre entreprise (14 chiffres)
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="space-y-2">
+                          <Label>ID du compte</Label>
+                          <Input
+                            value={account?.id || ""}
+                            disabled
+                            className="bg-muted font-mono text-xs"
+                            data-testid="input-account-id"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            L'ID du compte est utilisé pour les intégrations et ne peut pas être modifié
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => accountForm.reset()}
+                            data-testid="button-cancel-account"
+                            className="text-[12px]"
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={updateAccountMutation.isPending}
+                            data-testid="button-save-account"
+                            className="text-[12px]"
+                          >
+                            {updateAccountMutation.isPending && (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            )}
+                            Enregistrer
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
                   )}
                 </CardContent>
               </Card>

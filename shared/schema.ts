@@ -12,6 +12,7 @@ export const accounts = pgTable("accounts", {
   name: text("name").notNull(),
   ownerUserId: uuid("owner_user_id"), // auth.users.id from Supabase Auth
   plan: text("plan").default("starter"),
+  siret: text("siret"), // SIRET number for French companies
   settings: jsonb("settings").notNull().default({}), // Contains googleClientId and googleClientSecret due to pooler cache issue
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

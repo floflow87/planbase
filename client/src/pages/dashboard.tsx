@@ -365,6 +365,16 @@ export default function Dashboard() {
     return dueDateStr === todayStr && t.status !== "done";
   });
 
+  // Calculate overdue tasks (tasks with dueDate before today and not done)
+  const overdueTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    const dueDateStr = normalizeToLocalDate(t.dueDate);
+    return dueDateStr < todayStr && t.status !== "done";
+  });
+
+  // Combine today's tasks and overdue tasks for "Ma Journée"
+  const myDayTasks = [...overdueTasks, ...todaysTasks];
+
   // KPI data from real data
   const kpis: Array<{
     title: string;
@@ -985,24 +995,32 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Ma Journée Widget - Today's Tasks */}
+          {/* Ma Journée Widget - Today's Tasks + Overdue */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Ma Journée
               </CardTitle>
-              <Badge variant="secondary" data-testid="badge-today-tasks-count">
-                {todaysTasks.length} tâche{todaysTasks.length > 1 ? 's' : ''}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {overdueTasks.length > 0 && (
+                  <Badge variant="destructive" data-testid="badge-overdue-tasks-count">
+                    {overdueTasks.length} en retard
+                  </Badge>
+                )}
+                <Badge variant="secondary" data-testid="badge-today-tasks-count">
+                  {myDayTasks.length} tâche{myDayTasks.length > 1 ? 's' : ''}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {todaysTasks.length === 0 ? (
+                {myDayTasks.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche à échéance aujourd'hui</p>
                 ) : (
-                  todaysTasks.map((task) => {
+                  myDayTasks.map((task) => {
                     const client = clients.find(c => c.id === task.clientId);
                     const project = projects.find(p => p.id === task.projectId);
+                    const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
                     const priorityColors: Record<string, string> = {
                       low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
                       medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
@@ -1017,7 +1035,9 @@ export default function Dashboard() {
                     return (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer"
+                        className={`flex items-start gap-3 p-3 rounded-md border hover-elevate cursor-pointer ${
+                          isOverdue ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/20' : ''
+                        }`}
                         data-testid={`today-task-${task.id}`}
                         onClick={() => handleTaskClick(task)}
                       >
@@ -1032,7 +1052,14 @@ export default function Dashboard() {
                           data-testid={`checkbox-task-${task.id}`}
                         />
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>
+                            {isOverdue && (
+                              <Badge variant="destructive" className="text-[10px]" data-testid={`badge-overdue-${task.id}`}>
+                                En retard
+                              </Badge>
+                            )}
+                          </div>
                           {task.description && (
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                               {task.description}
