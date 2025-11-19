@@ -134,8 +134,6 @@ export default function NoteDetail() {
       return;
     }
 
-    setIsSaving(true);
-
     // Extract plain text from content for search
     const extractPlainText = (content: any): string => {
       if (!content) return "";
@@ -154,6 +152,19 @@ export default function NoteDetail() {
     };
 
     const plainText = extractPlainText(debouncedContent);
+
+    // SAFETY CHECK: Don't save if content becomes empty and note had content before
+    // This prevents accidental data loss from autosave bugs
+    const hadContent = note.plainText && note.plainText.trim().length > 0;
+    const hasContentNow = plainText && plainText.trim().length > 0;
+    
+    if (hadContent && !hasContentNow && !titleChanged) {
+      // Content disappeared but title didn't change - likely a bug, don't save
+      console.warn('Autosave blocked: content became empty unexpectedly');
+      return;
+    }
+
+    setIsSaving(true);
 
     updateMutation.mutate({
       title: debouncedTitle || "Sans titre",
