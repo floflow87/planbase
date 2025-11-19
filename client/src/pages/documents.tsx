@@ -39,7 +39,7 @@ export default function Documents() {
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root", "clients"]));
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root"]));
   const [selectedNodeId, setSelectedNodeId] = useState<string>("all-documents");
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
