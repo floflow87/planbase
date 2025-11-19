@@ -694,8 +694,10 @@ export default function Tasks() {
   const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
   
-  // Main states
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  // Main states - Load from localStorage if available
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    return localStorage.getItem("tasks_selected_project_id") || "all";
+  });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -815,6 +817,11 @@ export default function Tasks() {
   const sortedColumns = [...filteredColumns].sort((a, b) => a.order - b.order);
 
   // Allow all views (kanban, list, calendar) even when "all projects" is selected
+
+  // Save selected project to localStorage
+  useEffect(() => {
+    localStorage.setItem("tasks_selected_project_id", selectedProjectId);
+  }, [selectedProjectId]);
 
   // Reset status filter to "all" when changing projects
   useEffect(() => {

@@ -743,32 +743,40 @@ export function ListView({
                                 const dueDateInfo = (() => {
                                   if (!task.dueDate) return { progress: 0, color: '' };
                                   
-                                  const created = task.createdAt ? new Date(task.createdAt).getTime() : Date.now();
                                   const due = new Date(task.dueDate).getTime();
                                   const now = Date.now();
                                   
                                   // Calculate days remaining
                                   const daysRemaining = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
                                   
-                                  // Calculate progress (time elapsed between created and due)
-                                  const total = due - created;
-                                  const elapsed = now - created;
-                                  const progress = Math.min(100, Math.max(5, (elapsed / total) * 100));
-                                  
-                                  // Determine color with gradient based on days remaining
+                                  // Calculate progress based on urgency (days remaining)
+                                  let progress = 0;
                                   let color = '';
+                                  
                                   if (daysRemaining <= 0) {
-                                    // Overdue - red
+                                    // Overdue - 100% red
+                                    progress = 100;
                                     color = '[&>div]:bg-gradient-to-r [&>div]:from-red-500 [&>div]:to-red-600';
-                                  } else if (daysRemaining <= 3) {
-                                    // Less than 3 days - orange
+                                  } else if (daysRemaining <= 2) {
+                                    // 2 days or less - 70-80% orange
+                                    progress = 75;
                                     color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-red-500';
+                                  } else if (daysRemaining <= 3) {
+                                    // 3 days - 50% orange
+                                    progress = 50;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-orange-500';
                                   } else if (daysRemaining <= 5) {
-                                    // Less than 5 days - yellow
+                                    // 5 days - 35% yellow
+                                    progress = 35;
                                     color = '[&>div]:bg-gradient-to-r [&>div]:from-yellow-400 [&>div]:to-orange-400';
+                                  } else if (daysRemaining <= 8) {
+                                    // 8 days - 15% green
+                                    progress = 15;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
                                   } else {
-                                    // More than 5 days - green
-                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-yellow-400';
+                                    // More than 8 days - 1% green
+                                    progress = 1;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
                                   }
                                   
                                   return { progress, color };
