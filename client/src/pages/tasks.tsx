@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -388,7 +388,7 @@ export default function Tasks() {
   // Main states
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
@@ -498,19 +498,7 @@ export default function Tasks() {
 
   const sortedColumns = [...filteredColumns].sort((a, b) => a.order - b.order);
 
-  // Auto-select first project if "all" is selected and we're in kanban mode
-  useEffect(() => {
-    if (selectedProjectId === "all" && viewMode === "kanban" && projects.length > 0) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [selectedProjectId, viewMode, projects]);
-
-  // When changing projects, reset view mode to list if "all" is selected
-  useEffect(() => {
-    if (selectedProjectId === "all") {
-      setViewMode("list");
-    }
-  }, [selectedProjectId]);
+  // Allow all views (kanban, list, calendar) even when "all projects" is selected
 
   // Reset status filter to "all" when changing projects
   useEffect(() => {
@@ -1131,26 +1119,32 @@ export default function Tasks() {
                 </SelectContent>
               </Select>
             )}
-            {selectedProjectId !== "all" && (
-              <div className="hidden md:flex border rounded-md">
-                <Button
-                  variant={viewMode === "kanban" ? "secondary" : "ghost"}
-                  size="icon"
-                  onClick={() => setViewMode("kanban")}
-                  data-testid="button-view-kanban"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  size="icon"
-                  onClick={() => setViewMode("list")}
-                  data-testid="button-view-list"
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
+            <div className="hidden md:flex border rounded-md">
+              <Button
+                variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("kanban")}
+                data-testid="button-view-kanban"
+              >
+                <Columns3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "calendar" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("calendar")}
+                data-testid="button-view-calendar"
+              >
+                <CalendarLucide className="w-4 h-4" />
+              </Button>
+            </div>
             {selectedProjectId !== "all" && (
               <>
                 <Button
@@ -1241,11 +1235,8 @@ export default function Tasks() {
           </div>
         ) : (
           <>
-            <div className={
-              selectedProjectId === "all" || viewMode === "list" 
-                ? "" 
-                : "md:hidden"
-            }>
+            {/* List View */}
+            {viewMode === "list" && (
               <ListView
                 tasks={filteredTasks}
                 columns={taskColumns}
@@ -1266,11 +1257,35 @@ export default function Tasks() {
                 accountId={accountId || undefined}
                 userId={userId || undefined}
               />
-            </div>
+            )}
+
+            {/* Calendar View */}
+            {viewMode === "calendar" && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-12">
+                    <CalendarLucide className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">Vue calendrier - En cours d'implémentation</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             
-            {selectedProjectId !== "all" && viewMode === "kanban" && (
-              <div className="hidden md:block">
-                <DndContext
+            {/* Kanban View */}
+            {viewMode === "kanban" && (
+              selectedProjectId === "all" ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center py-12">
+                      <Columns3 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground mb-4">La vue Kanban nécessite la sélection d'un projet spécifique</p>
+                      <p className="text-sm text-muted-foreground">Veuillez sélectionner un projet dans le menu déroulant ci-dessus</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="hidden md:block">
+                  <DndContext
                   sensors={sensors}
                   collisionDetection={pointerWithin}
                   onDragStart={handleDragStart}
@@ -1341,6 +1356,7 @@ export default function Tasks() {
                   </DragOverlay>
                 </DndContext>
               </div>
+              )
             )}
           </>
         )}

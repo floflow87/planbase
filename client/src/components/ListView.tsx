@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -739,44 +740,67 @@ export function ListView({
                                   </TableCell>
                                 );
                               case 'dueDate':
+                                const dueDateProgress = (() => {
+                                  if (!task.dueDate) return 0;
+                                  const created = task.createdAt ? new Date(task.createdAt).getTime() : Date.now();
+                                  const due = new Date(task.dueDate).getTime();
+                                  const now = Date.now();
+                                  
+                                  if (now >= due) return 100;
+                                  if (now <= created) return 0;
+                                  
+                                  const total = due - created;
+                                  const elapsed = now - created;
+                                  return Math.min(100, Math.max(0, (elapsed / total) * 100));
+                                })();
+                                
                                 return (
                                   <TableCell key={columnId}>
-                                    <Popover
-                                      open={isEditing && editingCell.field === 'dueDate'}
-                                      onOpenChange={(open) => {
-                                        if (open) {
-                                          setEditingCell({ taskId: task.id, field: 'dueDate' });
-                                        } else {
-                                          setEditingCell(null);
-                                        }
-                                      }}
-                                    >
-                                      <PopoverTrigger asChild>
-                                        <Badge
-                                          variant="outline"
-                                          className="cursor-pointer hover-elevate min-w-[100px] text-[12px]"
-                                          data-testid={`badge-due-date-${task.id}`}
-                                        >
-                                          {task.dueDate 
-                                            ? formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })
-                                            : '—'
-                                          }
-                                        </Badge>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0 bg-white" align="start">
-                                        <Calendar
-                                          mode="single"
-                                          selected={task.dueDate ? new Date(task.dueDate) : undefined}
-                                          onSelect={(date) => {
-                                            onUpdateTask(task.id, { 
-                                              dueDate: date ? formatDateForStorage(date) : null 
-                                            } as any);
+                                    <div className="flex flex-col gap-1.5">
+                                      <Popover
+                                        open={isEditing && editingCell.field === 'dueDate'}
+                                        onOpenChange={(open) => {
+                                          if (open) {
+                                            setEditingCell({ taskId: task.id, field: 'dueDate' });
+                                          } else {
                                             setEditingCell(null);
-                                          }}
-                                          initialFocus
+                                          }
+                                        }}
+                                      >
+                                        <PopoverTrigger asChild>
+                                          <Badge
+                                            variant="outline"
+                                            className="cursor-pointer hover-elevate min-w-[100px] text-[12px]"
+                                            data-testid={`badge-due-date-${task.id}`}
+                                          >
+                                            {task.dueDate 
+                                              ? formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })
+                                              : '—'
+                                            }
+                                          </Badge>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 bg-white" align="start">
+                                          <Calendar
+                                            mode="single"
+                                            selected={task.dueDate ? new Date(task.dueDate) : undefined}
+                                            onSelect={(date) => {
+                                              onUpdateTask(task.id, { 
+                                                dueDate: date ? formatDateForStorage(date) : null 
+                                              } as any);
+                                              setEditingCell(null);
+                                            }}
+                                            initialFocus
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                      {task.dueDate && (
+                                        <Progress 
+                                          value={dueDateProgress} 
+                                          className="h-1 w-full"
+                                          data-testid={`progress-due-date-${task.id}`}
                                         />
-                                      </PopoverContent>
-                                    </Popover>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 );
                               case 'actions':
