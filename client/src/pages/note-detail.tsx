@@ -789,7 +789,7 @@ export default function NoteDetail() {
       {/* Delete Confirmation Dialog */}
       {/* Save Before Leave Dialog */}
       <Dialog open={saveBeforeLeaveDialogOpen} onOpenChange={setSaveBeforeLeaveDialogOpen}>
-        <DialogContent data-testid="dialog-save-before-leave">
+        <DialogContent className="sm:max-w-[600px]" data-testid="dialog-save-before-leave">
           <DialogHeader>
             <DialogTitle>Modifications non enregistrées</DialogTitle>
             <DialogDescription>

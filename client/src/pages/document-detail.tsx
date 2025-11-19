@@ -459,12 +459,60 @@ export default function DocumentDetail() {
               {/* Preview/Edit Toggle */}
               <Button
                 variant="outline"
-                onClick={() => setIsEditMode(!isEditMode)}
+                onClick={() => {
+                  const newEditMode = !isEditMode;
+                  setIsEditMode(newEditMode);
+                  
+                  // If switching to edit mode and document is published, revert to draft
+                  if (newEditMode && status === "published") {
+                    setStatus("draft");
+                    updateMutation.mutate({ status: "draft" });
+                    toast({
+                      title: "Retour en brouillon",
+                      description: "Le document est repassé en brouillon pour édition",
+                      variant: "default",
+                    });
+                  }
+                }}
                 data-testid="button-toggle-edit"
               >
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}
               </Button>
+              
+              {/* Save Button - Only in Edit Mode */}
+              {isEditMode && (
+                <Button
+                  onClick={() => {
+                    setIsSaving(true);
+                    
+                    const extractPlainText = (content: any): string => {
+                      if (!content) return "";
+                      const getText = (node: any): string => {
+                        if (node.type === "text") return node.text || "";
+                        if (node.content && Array.isArray(node.content)) {
+                          return node.content.map(getText).join(" ");
+                        }
+                        return "";
+                      };
+                      return getText(content);
+                    };
+
+                    const plainText = extractPlainText(content);
+                    
+                    updateMutation.mutate({
+                      name: title || "Sans titre",
+                      content,
+                      plainText,
+                      status,
+                    });
+                  }}
+                  disabled={updateMutation.isPending || isSaving}
+                  data-testid="button-save"
+                >
+                  {updateMutation.isPending || isSaving ? "Sauvegarde..." : "Sauvegarder"}
+                </Button>
+              )}
               
               {/* Export PDF */}
               <Tooltip>
