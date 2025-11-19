@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, FileText, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,71 @@ import { fr } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check, ChevronsUpDown, X } from "lucide-react";
+
+// Convert to document button component with proper state management
+function ConvertToDocumentButton({ noteId }: { noteId: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+  
+  const convertMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/notes/${noteId}/convert-to-document`, "POST");
+      
+      // Parse JSON response once
+      const data = await response.json().catch(() => ({ error: response.statusText || "Conversion failed" }));
+      
+      // Check response status after parsing
+      if (!response.ok) {
+        throw new Error(data.error || "Conversion failed");
+      }
+      
+      return data;
+    },
+    onSuccess: async (document) => {
+      // Refetch the note to update UI immediately with new type before navigation
+      await queryClient.refetchQueries({ queryKey: ["/api/notes", noteId] });
+      
+      // Also invalidate the list
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      
+      toast({
+        title: "Note convertie en document",
+        description: "La note a été convertie en document avec succès",
+        variant: "success",
+      });
+      
+      // Navigate to documents page
+      navigate("/documents");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de convertir la note",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button 
+          variant="outline"
+          onClick={() => convertMutation.mutate()}
+          disabled={convertMutation.isPending}
+          size="icon"
+          data-testid="button-convert-to-document"
+        >
+          <FileText className="w-4 h-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {convertMutation.isPending ? "Conversion en cours..." : "Transformer en document"}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -613,7 +678,11 @@ export default function NoteDetail() {
                     className="bg-blue-50 text-blue-700 border-blue-200"
                     data-testid="badge-type"
                   >
-                    {note.type === "document" ? "📄 Document" : "📝 Note"}
+                    {note.type === "document" ? (
+                      <><FileText className="w-3 h-3 mr-1 inline" /> Document</>
+                    ) : (
+                      <><StickyNote className="w-3 h-3 mr-1 inline" /> Note</>
+                    )}
                   </Badge>
                   <Badge 
                     variant="outline" 
@@ -701,37 +770,7 @@ export default function NoteDetail() {
               
               {/* Convert to document button (only for notes) */}
               {note.type === "note" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const response = await apiRequest(`/api/notes/${id}/convert-to-document`, "POST");
-                          const document = await response.json();
-                          toast({
-                            title: "Note convertie en document",
-                            description: "La note a été convertie en document avec succès",
-                            variant: "success",
-                          });
-                          // Navigate to documents page
-                          navigate("/documents");
-                        } catch (error: any) {
-                          toast({
-                            title: "Erreur",
-                            description: error.message || "Impossible de convertir la note",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      size="icon"
-                      data-testid="button-convert-to-document"
-                    >
-                      <Globe className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Transformer en document</TooltipContent>
-                </Tooltip>
+                <ConvertToDocumentButton noteId={id} />
               )}
               
               {/* Publish/Unpublish button */}

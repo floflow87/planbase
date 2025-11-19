@@ -1393,6 +1393,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (note.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
       }
+      
+      // Prevent duplicate conversions
+      if (note.type === "document") {
+        return res.status(400).json({ error: "Note already converted to document" });
+      }
 
       // Extract plain text from note content for the document
       const plainText = note.plainText || "";
@@ -1421,6 +1426,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
+      
+      // Mark note as converted to prevent duplicate conversions
+      await storage.updateNote(req.params.id, {
+        type: "document",
+      });
 
       res.json(document);
     } catch (error: any) {
