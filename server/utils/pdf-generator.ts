@@ -260,8 +260,8 @@ export async function generatePDF(document: Document): Promise<Buffer> {
             color: #000;
           }
           
-          h1 { font-size: 24px; border-bottom: 2px solid #7C3AED; padding-bottom: 0.3em; }
-          h2 { font-size: 20px; color: #7C3AED; }
+          h1 { font-size: 24px; border-bottom: 2px solid #000; padding-bottom: 0.3em; }
+          h2 { font-size: 20px; }
           h3 { font-size: 16px; }
           h4 { font-size: 14px; }
           h5 { font-size: 13px; }
@@ -419,9 +419,9 @@ export async function generatePDF(document: Document): Promise<Buffer> {
       format: 'A4',
       printBackground: true,
       margin: {
-        top: '20mm',
+        top: '10mm',
         right: '15mm',
-        bottom: '20mm',
+        bottom: '10mm',
         left: '15mm',
       },
     });
