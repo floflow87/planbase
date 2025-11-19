@@ -6,6 +6,11 @@ import type { Document } from "@shared/schema";
  */
 function convertTipTapToHTML(content: string): string {
   try {
+    // If content is already HTML, return it as-is
+    if (typeof content === 'string' && content.trim().startsWith('<')) {
+      return content;
+    }
+    
     const doc = typeof content === 'string' ? JSON.parse(content) : content;
     
     // Sanitize text to prevent XSS
@@ -382,7 +387,7 @@ export async function generatePDF(document: Document): Promise<Buffer> {
         '--disable-gpu',
         '--single-process',
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/chromium',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
     });
 
     const page = await browser.newPage();
