@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -585,18 +591,71 @@ export default function NoteDetail() {
                   {title || "Sans titre"}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      status === "draft" 
-                        ? "bg-gray-100 text-gray-700 border-gray-200"
-                        : status === "archived"
-                        ? "bg-orange-50 text-orange-700 border-orange-200"
-                        : "bg-green-50 text-green-700 border-green-200"
-                    }
-                  >
-                    {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
-                  </Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className={`cursor-pointer hover-elevate ${
+                          status === "draft" 
+                            ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                            : status === "archived"
+                            ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                        }`}
+                        data-testid="badge-status"
+                      >
+                        {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setStatus("draft");
+                          updateMutation.mutate({ status: "draft" });
+                        }}
+                        data-testid="menu-item-draft"
+                      >
+                        <Badge 
+                          variant="outline" 
+                          className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                        >
+                          ●
+                        </Badge>
+                        Brouillon
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setStatus("active");
+                          updateMutation.mutate({ status: "active" });
+                        }}
+                        data-testid="menu-item-active"
+                      >
+                        <Badge 
+                          variant="outline" 
+                          className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                        >
+                          ●
+                        </Badge>
+                        Active
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setStatus("archived");
+                          updateMutation.mutate({ status: "archived" });
+                        }}
+                        data-testid="menu-item-archived"
+                      >
+                        <Badge 
+                          variant="outline" 
+                          className="mr-2 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                        >
+                          ●
+                        </Badge>
+                        Archivée
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {isSaving ? (
                     <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
                   ) : lastSaved ? (
@@ -648,42 +707,6 @@ export default function NoteDetail() {
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}
               </Button>
-              
-              {/* Save Button - Only in Edit Mode */}
-              {isEditMode && (
-                <Button
-                  onClick={() => {
-                    setIsSaving(true);
-                    
-                    const extractPlainText = (content: any): string => {
-                      if (!content) return "";
-                      const getText = (node: any): string => {
-                        if (node.type === "text") return node.text || "";
-                        if (node.content && Array.isArray(node.content)) {
-                          return node.content.map(getText).join(" ");
-                        }
-                        return "";
-                      };
-                      return getText(content);
-                    };
-
-                    const plainText = extractPlainText(content);
-                    
-                    updateMutation.mutate({
-                      title: title || "Sans titre",
-                      content,
-                      plainText,
-                      status,
-                      visibility,
-                    });
-                  }}
-                  disabled={updateMutation.isPending || isSaving}
-                  data-testid="button-save"
-                  className="text-[12px]"
-                >
-                  {updateMutation.isPending || isSaving ? "Sauvegarde..." : "Sauvegarder"}
-                </Button>
-              )}
               
               <select
                 value={visibility}

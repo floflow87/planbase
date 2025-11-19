@@ -191,6 +191,13 @@ export default function NoteEditor({
     }
   }, [content, editor]);
 
+  // Sync editable state with TipTap
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(editable);
+    }
+  }, [editor, editable]);
+
   // New dialog-based link handler
   const openLinkDialog = useCallback(() => {
     if (!editor) return;
