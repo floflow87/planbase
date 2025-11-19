@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, FileText, StickyNote } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, FileText, StickyNote, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,7 +86,7 @@ function ConvertToDocumentButton({ noteId }: { noteId: string }) {
           size="icon"
           data-testid="button-convert-to-document"
         >
-          <FileText className="w-4 h-4" />
+          <ArrowRightLeft className="w-4 h-4" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>
@@ -285,16 +285,14 @@ export default function NoteDetail() {
   const hasUnsavedChanges = useCallback(() => {
     if (!lastPersistedState) return false;
     
-    // Check if saving is in progress (mutations are pending)
-    if (updateMutation.isPending || isSaving) return true;
-    
+    // Only check actual content changes, not transient saving state
     return (
       title !== lastPersistedState.title ||
       JSON.stringify(content) !== JSON.stringify(lastPersistedState.content) ||
       status !== lastPersistedState.status ||
       visibility !== lastPersistedState.visibility
     );
-  }, [lastPersistedState, title, content, status, visibility, updateMutation.isPending, isSaving]);
+  }, [lastPersistedState, title, content, status, visibility]);
 
   // Warn before closing browser tab/window if there are unsaved changes (regardless of autosave)
   useEffect(() => {
@@ -551,6 +549,8 @@ export default function NoteDetail() {
   const handleCancelLeave = useCallback(() => {
     setSaveBeforeLeaveDialogOpen(false);
     setPendingNavigation(null);
+    // Reset navigation flag to prevent dialog from reopening immediately
+    setAllowNavigation(false);
   }, []);
 
   // Project link mutation
@@ -899,14 +899,14 @@ export default function NoteDetail() {
       {/* Delete Confirmation Dialog */}
       {/* Save Before Leave Dialog */}
       <Dialog open={saveBeforeLeaveDialogOpen} onOpenChange={setSaveBeforeLeaveDialogOpen}>
-        <DialogContent data-testid="dialog-save-before-leave">
-          <DialogHeader>
-            <DialogTitle>Modifications non enregistrées</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[600px]" data-testid="dialog-save-before-leave">
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-center">Modifications non enregistrées</DialogTitle>
+            <DialogDescription className="text-center">
               Vous avez des modifications non enregistrées. Que souhaitez-vous faire ?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-center">
             <Button
               variant="outline"
               onClick={handleCancelLeave}
