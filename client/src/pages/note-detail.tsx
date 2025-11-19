@@ -627,13 +627,63 @@ export default function NoteDetail() {
               
               <Button
                 variant="outline"
-                onClick={() => setIsEditMode(!isEditMode)}
+                onClick={() => {
+                  const newEditMode = !isEditMode;
+                  setIsEditMode(newEditMode);
+                  
+                  // If switching to edit mode and note is active (published), revert to draft
+                  if (newEditMode && status === "active") {
+                    setStatus("draft");
+                    updateMutation.mutate({ status: "draft" });
+                    toast({
+                      title: "Retour en brouillon",
+                      description: "La note est repassée en brouillon pour édition",
+                      variant: "default",
+                    });
+                  }
+                }}
                 data-testid="button-toggle-edit"
                 className="text-[12px]"
               >
                 {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
                 {isEditMode ? "Aperçu" : "Modifier"}
               </Button>
+              
+              {/* Save Button - Only in Edit Mode */}
+              {isEditMode && (
+                <Button
+                  onClick={() => {
+                    setIsSaving(true);
+                    
+                    const extractPlainText = (content: any): string => {
+                      if (!content) return "";
+                      const getText = (node: any): string => {
+                        if (node.type === "text") return node.text || "";
+                        if (node.content && Array.isArray(node.content)) {
+                          return node.content.map(getText).join(" ");
+                        }
+                        return "";
+                      };
+                      return getText(content);
+                    };
+
+                    const plainText = extractPlainText(content);
+                    
+                    updateMutation.mutate({
+                      title: title || "Sans titre",
+                      content,
+                      plainText,
+                      status,
+                      visibility,
+                    });
+                  }}
+                  disabled={updateMutation.isPending || isSaving}
+                  data-testid="button-save"
+                  className="text-[12px]"
+                >
+                  {updateMutation.isPending || isSaving ? "Sauvegarde..." : "Sauvegarder"}
+                </Button>
+              )}
               
               <select
                 value={visibility}
