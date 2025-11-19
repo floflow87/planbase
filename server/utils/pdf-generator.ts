@@ -222,6 +222,8 @@ export async function generatePDF(document: Document): Promise<Buffer> {
     
     // Convert TipTap JSON to HTML
     const htmlContent = convertTipTapToHTML(document.content);
+    console.log('📄 HTML content length:', htmlContent.length);
+    console.log('📄 HTML preview (first 200 chars):', htmlContent.substring(0, 200));
     
     // Create full HTML document with styling
     const fullHTML = `
@@ -412,6 +414,7 @@ export async function generatePDF(document: Document): Promise<Buffer> {
     });
 
     // Generate PDF
+    console.log('📄 Generating PDF with Puppeteer...');
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -423,6 +426,9 @@ export async function generatePDF(document: Document): Promise<Buffer> {
       },
     });
 
+    console.log('✅ PDF generated, buffer size:', pdfBuffer.length, 'bytes');
+    console.log('📄 PDF buffer starts with:', pdfBuffer.slice(0, 10).toString('hex'));
+    
     await browser.close();
     
     return pdfBuffer as Buffer;
