@@ -387,6 +387,7 @@ export default function Tasks() {
   
   // Main states
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
@@ -1035,19 +1036,63 @@ export default function Tasks() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">
             {projects.length > 0 && (
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-full sm:w-[280px]" data-testid="select-project">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all" className="cursor-pointer">Tous les projets</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id} className="cursor-pointer">
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={projectSelectorOpen}
+                    className="w-full sm:w-[280px] justify-between text-[12px]"
+                    data-testid="select-project"
+                  >
+                    {selectedProjectId === "all" 
+                      ? "Tous les projets" 
+                      : projects.find((p) => p.id === selectedProjectId)?.name || "Sélectionner un projet"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un projet..." />
+                    <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                      <CommandItem
+                        onSelect={() => {
+                          setSelectedProjectId("all");
+                          setProjectSelectorOpen(false);
+                        }}
+                        data-testid="option-project-all"
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedProjectId === "all" ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        Tous les projets
+                      </CommandItem>
+                      {projects.map((project) => (
+                        <CommandItem
+                          key={project.id}
+                          onSelect={() => {
+                            setSelectedProjectId(project.id);
+                            setProjectSelectorOpen(false);
+                          }}
+                          data-testid={`option-project-${project.id}`}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedProjectId === project.id ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{project.name}</div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">

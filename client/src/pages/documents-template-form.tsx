@@ -65,6 +65,7 @@ export default function DocumentTemplateForm() {
       toast({
         title: "Document créé",
         description: "Le document a été créé avec succès",
+        variant: "success",
       });
       navigate(`/documents/${data.id}`);
     },

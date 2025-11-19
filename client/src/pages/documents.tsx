@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit, Trash2, Copy, FolderInput } from "lucide-react";
+import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit, Trash2, Copy, FolderInput, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +122,84 @@ export default function Documents() {
   const handleDuplicateClick = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     duplicateDocumentMutation.mutate(id);
+  };
+
+  // Export PDF mutation
+  const exportPDFMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Use fetch directly to avoid body consumption in apiRequest error handler
+      const authHeaders = await (async () => {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          return { 'Authorization': `Bearer ${session.access_token}` };
+        }
+        if (import.meta.env.DEV) {
+          return {
+            'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
+            'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
+          };
+        }
+        return {};
+      })();
+      
+      const response = await fetch(`/api/documents/${id}/export-pdf`, {
+        method: 'POST',
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${response.status}: ${text}`);
+      }
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = 'document.pdf';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) fileName = match[1];
+      }
+      
+      // Get PDF blob
+      const blob = await response.blob();
+      return { blob, fileName };
+    },
+    onSuccess: ({ blob, fileName }: { blob: Blob; fileName: string }) => {
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      
+      // Cleanup
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      
+      toast({
+        title: "PDF exporté",
+        description: "Le document a été exporté en PDF avec succès",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'exporter le document en PDF",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExportPDF = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    exportPDFMutation.mutate(id);
   };
 
   const handleMoveClick = (id: string, e: React.MouseEvent) => {
@@ -520,6 +598,13 @@ export default function Documents() {
                           >
                             <Copy className="w-4 h-4 mr-2" />
                             Dupliquer
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => handleExportPDF(file.id, e)}
+                            data-testid={`menu-item-export-pdf-${file.id}`}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger le PDF
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => handleMoveClick(file.id, e)}
