@@ -106,7 +106,10 @@ export function ListView({
     ];
   });
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ column: string; direction: 'asc' | 'desc' } | null>(() => {
+    const saved = localStorage.getItem('tasksListViewSortConfig');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
   const [isAttachToProjectDialogOpen, setIsAttachToProjectDialogOpen] = useState(false);
@@ -123,6 +126,15 @@ export function ListView({
   useEffect(() => {
     localStorage.setItem('taskListPageSize', pageSize.toString());
   }, [pageSize]);
+
+  // Save sortConfig to localStorage when it changes
+  useEffect(() => {
+    if (sortConfig) {
+      localStorage.setItem('tasksListViewSortConfig', JSON.stringify(sortConfig));
+    } else {
+      localStorage.removeItem('tasksListViewSortConfig');
+    }
+  }, [sortConfig]);
 
   // Reset to page 1 when filters/sort change
   useEffect(() => {
