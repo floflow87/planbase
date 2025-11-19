@@ -708,21 +708,6 @@ export default function NoteDetail() {
                 {isEditMode ? "Aperçu" : "Modifier"}
               </Button>
               
-              <select
-                value={visibility}
-                onChange={(e) => {
-                  const newVisibility = e.target.value as any;
-                  setVisibility(newVisibility);
-                  updateMutation.mutate({ visibility: newVisibility });
-                }}
-                className="border border-border rounded-md px-3 h-9 text-sm bg-background"
-                data-testid="select-visibility"
-              >
-                <option value="private">Privée</option>
-                <option value="account">Partagée (équipe)</option>
-                <option value="client_ro">Partagée (client)</option>
-              </select>
-              
               {status === "draft" && (
                 <>
                   <Tooltip>

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Eye, EyeOff, Trash2, Download, ChevronDown } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Trash2, Download, ChevronDown, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -482,36 +482,44 @@ export default function DocumentDetail() {
               
               {/* Save Button - Only in Edit Mode */}
               {isEditMode && (
-                <Button
-                  onClick={() => {
-                    setIsSaving(true);
-                    
-                    const extractPlainText = (content: any): string => {
-                      if (!content) return "";
-                      const getText = (node: any): string => {
-                        if (node.type === "text") return node.text || "";
-                        if (node.content && Array.isArray(node.content)) {
-                          return node.content.map(getText).join(" ");
-                        }
-                        return "";
-                      };
-                      return getText(content);
-                    };
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setIsSaving(true);
+                        
+                        const extractPlainText = (content: any): string => {
+                          if (!content) return "";
+                          const getText = (node: any): string => {
+                            if (node.type === "text") return node.text || "";
+                            if (node.content && Array.isArray(node.content)) {
+                              return node.content.map(getText).join(" ");
+                            }
+                            return "";
+                          };
+                          return getText(content);
+                        };
 
-                    const plainText = extractPlainText(content);
-                    
-                    updateMutation.mutate({
-                      name: title || "Sans titre",
-                      content,
-                      plainText,
-                      status,
-                    });
-                  }}
-                  disabled={updateMutation.isPending || isSaving}
-                  data-testid="button-save"
-                >
-                  {updateMutation.isPending || isSaving ? "Sauvegarde..." : "Sauvegarder"}
-                </Button>
+                        const plainText = extractPlainText(content);
+                        
+                        updateMutation.mutate({
+                          name: title || "Sans titre",
+                          content,
+                          plainText,
+                          status,
+                        });
+                      }}
+                      disabled={updateMutation.isPending || isSaving}
+                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                      data-testid="button-save"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Enregistrer</TooltipContent>
+                </Tooltip>
               )}
               
               {/* Export PDF */}
