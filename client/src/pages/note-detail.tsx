@@ -49,6 +49,7 @@ export default function NoteDetail() {
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
+  const [hasModifiedPublishedNote, setHasModifiedPublishedNote] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
@@ -100,6 +101,28 @@ export default function NoteDetail() {
 
   // Removed: No longer saving autosave preference to localStorage
   // Autosave is now OFF by default for every note
+
+  // When user modifies a published note, automatically switch to draft
+  useEffect(() => {
+    if (!note || !lastPersistedState) return;
+    
+    // If note was published (active) and user makes changes, switch to draft
+    if (lastPersistedState.status === "active" && isEditMode) {
+      const hasChanges = 
+        title !== lastPersistedState.title ||
+        JSON.stringify(content) !== JSON.stringify(lastPersistedState.content);
+      
+      if (hasChanges && status === "active") {
+        setStatus("draft");
+        setHasModifiedPublishedNote(true);
+        toast({
+          title: "Note repassée en brouillon",
+          description: "Vos modifications sont en brouillon. Publiez pour les rendre actives.",
+          variant: "default",
+        });
+      }
+    }
+  }, [title, content, note, lastPersistedState, isEditMode, status, toast]);
 
   // Debounced values for autosave (3 seconds)
   const debouncedTitle = useDebounce(title, 3000);
@@ -650,22 +673,27 @@ export default function NoteDetail() {
                 <option value="client_ro">Partagée (client)</option>
               </select>
               
+              {/* Show Save button in edit mode */}
+              {isEditMode && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSaveDraft} 
+                      size="icon"
+                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                      data-testid="button-save"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Enregistrer</TooltipContent>
+                </Tooltip>
+              )}
+              
+              {/* Publish/Unpublish button */}
               {status === "draft" && (
                 <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        onClick={handleSaveDraft} 
-                        size="icon"
-                        className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                        data-testid="button-save-draft"
-                      >
-                        <Save className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Enregistrer</TooltipContent>
-                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
