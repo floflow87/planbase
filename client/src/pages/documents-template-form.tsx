@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, ChevronsUpDown, Check, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, ChevronsUpDown, Check, Plus, X, CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
@@ -14,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { DocumentTemplate, Project } from "@shared/schema";
 import { marked } from "marked";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
 
 // Utility function to replace {{placeholders}} with values and handle conditional blocks
 function replacePlaceholders(template: string, values: Record<string, string>): string {
@@ -47,9 +51,17 @@ export default function DocumentTemplateForm() {
   const [documentTitle, setDocumentTitle] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
-  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [isNewProjectSheetOpen, setIsNewProjectSheetOpen] = useState(false);
+  const [projectFormData, setProjectFormData] = useState({
+    name: "",
+    description: "",
+    stage: "prospection" as const,
+    category: "",
+    clientId: "",
+    startDate: undefined as Date | undefined,
+    endDate: undefined as Date | undefined,
+    budget: "",
+  });
 
   const { data: template, isLoading } = useQuery<DocumentTemplate>({
     queryKey: ["/api/document-templates", id],
@@ -59,32 +71,49 @@ export default function DocumentTemplateForm() {
     queryKey: ["/api/projects"],
   });
 
-  // Fetch user profile to get accountId
-  const { data: userProfile } = useQuery<any>({
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  // Fetch user profile for autocomplete (company from app_users)
+  const { data: userProfile } = useQuery<{ company?: string | null; accountId: string }>({
     queryKey: ["/api/me"],
   });
 
-  // Fetch account info for autocomplete
+  // Fetch account info for SIRET autocomplete
   const { data: account } = useQuery<{ id: string; name: string; siret?: string | null }>({
     queryKey: ["/api/accounts", userProfile?.accountId],
     enabled: !!userProfile?.accountId,
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: async (projectData: { name: string; description: string }) => {
+    mutationFn: async (projectData: any) => {
       const response = await apiRequest("/api/projects", "POST", {
-        name: projectData.name,
-        description: projectData.description,
-        stage: "ideation",
+        name: projectData.name.trim(),
+        description: projectData.description?.trim() || null,
+        clientId: projectData.clientId || null,
+        stage: projectData.stage,
+        category: projectData.category?.trim() || null,
+        startDate: projectData.startDate ? projectData.startDate.toISOString().split('T')[0] : null,
+        endDate: projectData.endDate ? projectData.endDate.toISOString().split('T')[0] : null,
+        budget: projectData.budget?.trim() || null,
       });
       return await response.json();
     },
     onSuccess: (data: Project) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setSelectedProjectId(data.id);
-      setIsNewProjectDialogOpen(false);
-      setNewProjectName("");
-      setNewProjectDescription("");
+      setIsNewProjectSheetOpen(false);
+      setProjectFormData({
+        name: "",
+        description: "",
+        stage: "prospection",
+        category: "",
+        clientId: "",
+        startDate: undefined,
+        endDate: undefined,
+        budget: "",
+      });
       toast({
         title: "Projet créé",
         description: "Le projet a été créé avec succès",
@@ -100,17 +129,30 @@ export default function DocumentTemplateForm() {
     },
   });
 
-  // Auto-fill transmetteur fields with account data when template loads
+  // Auto-fill transmetteur fields with user/account data when template loads
   useEffect(() => {
-    if (account && template && !formValues.transmetteur_raison_sociale) {
-      // Pre-fill transmetteur fields with account data
+    if ((userProfile || account) && template && !formValues.transmetteur_raison_sociale) {
+      // Pre-fill transmetteur fields with user company and account SIRET
       setFormValues(prev => ({
         ...prev,
-        transmetteur_raison_sociale: account.name || '',
-        transmetteur_identifiant: account.siret || '',
+        transmetteur_raison_sociale: userProfile?.company || '',
+        transmetteur_identifiant: account?.siret || '',
       }));
     }
-  }, [account, template]);
+  }, [userProfile, account, template]);
+
+  // Auto-fill project name when project is selected
+  useEffect(() => {
+    if (selectedProjectId && projects.length > 0) {
+      const selectedProject = projects.find(p => p.id === selectedProjectId);
+      if (selectedProject && formValues.projet_nom !== selectedProject.name) {
+        setFormValues(prev => ({
+          ...prev,
+          projet_nom: selectedProject.name,
+        }));
+      }
+    }
+  }, [selectedProjectId, projects]);
 
   const createDocumentMutation = useMutation({
     mutationFn: async () => {
@@ -231,7 +273,7 @@ export default function DocumentTemplateForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="project-selector">Projet (optionnel)</Label>
+                <Label htmlFor="project-selector">Projet</Label>
                 <div className="flex gap-2">
                   <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
                     <PopoverTrigger asChild>
@@ -298,7 +340,7 @@ export default function DocumentTemplateForm() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => setIsNewProjectDialogOpen(true)}
+                    onClick={() => setIsNewProjectSheetOpen(true)}
                     data-testid="button-new-project"
                   >
                     <Plus className="h-4 w-4" />
@@ -370,69 +412,179 @@ export default function DocumentTemplateForm() {
         </Card>
       </div>
 
-      {/* New Project Dialog */}
-      <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Créer un nouveau projet</DialogTitle>
-            <DialogDescription>
-              Créez un nouveau projet pour l'associer à ce document
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-project-name">Nom du projet *</Label>
+      {/* New Project Sheet */}
+      <Sheet open={isNewProjectSheetOpen} onOpenChange={setIsNewProjectSheetOpen}>
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="sheet-new-project">
+          <SheetHeader>
+            <SheetTitle>Créer un nouveau projet</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 flex-1 py-4">
+            <div>
+              <Label className="text-[12px]" htmlFor="new-project-name">Nom du projet *</Label>
               <Input
                 id="new-project-name"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
+                value={projectFormData.name}
+                onChange={(e) => setProjectFormData({ ...projectFormData, name: e.target.value })}
                 placeholder="Ex: Projet Alpha"
                 data-testid="input-new-project-name"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-project-description">Description</Label>
+            <div>
+              <Label className="text-[12px]" htmlFor="new-project-description">Description</Label>
               <Textarea
                 id="new-project-description"
-                value={newProjectDescription}
-                onChange={(e) => setNewProjectDescription(e.target.value)}
-                placeholder="Description du projet..."
+                value={projectFormData.description}
+                onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
                 rows={3}
                 data-testid="input-new-project-description"
               />
             </div>
+            <div>
+              <Label className="text-[12px]" htmlFor="new-project-client">Client</Label>
+              <Select
+                value={projectFormData.clientId}
+                onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
+              >
+                <SelectTrigger id="new-project-client" data-testid="select-new-project-client">
+                  <SelectValue placeholder="Sélectionner un client" />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-gray-950">
+                  <SelectItem value="">Aucun client</SelectItem>
+                  {clients.map((client: any) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.company || client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-[12px]" htmlFor="new-project-stage">Statut</Label>
+                <Select
+                  value={projectFormData.stage}
+                  onValueChange={(value: any) => setProjectFormData({ ...projectFormData, stage: value })}
+                >
+                  <SelectTrigger id="new-project-stage" data-testid="select-new-project-stage">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-950">
+                    <SelectItem value="prospection">Prospection</SelectItem>
+                    <SelectItem value="signe">Signé</SelectItem>
+                    <SelectItem value="en_cours">En cours</SelectItem>
+                    <SelectItem value="termine">Terminé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[12px]" htmlFor="new-project-category">Catégorie</Label>
+                <Input
+                  id="new-project-category"
+                  value={projectFormData.category}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, category: e.target.value })}
+                  data-testid="input-new-project-category"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-[12px]">Date de début</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-new-project-start-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {projectFormData.startDate ? (
+                        formatDate(projectFormData.startDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={projectFormData.startDate}
+                      onSelect={(date) => setProjectFormData({ ...projectFormData, startDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-[12px]">Date de fin</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="button-new-project-end-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {projectFormData.endDate ? (
+                        formatDate(projectFormData.endDate, "PPP", { locale: fr })
+                      ) : (
+                        <span>Choisir une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={projectFormData.endDate}
+                      onSelect={(date) => setProjectFormData({ ...projectFormData, endDate: date })}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div>
+              <Label className="text-[12px]" htmlFor="new-project-budget">Budget (€)</Label>
+              <Input
+                id="new-project-budget"
+                type="number"
+                value={projectFormData.budget}
+                onChange={(e) => setProjectFormData({ ...projectFormData, budget: e.target.value })}
+                data-testid="input-new-project-budget"
+              />
+            </div>
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsNewProjectDialogOpen(false);
-                setNewProjectName("");
-                setNewProjectDescription("");
-              }}
-              data-testid="button-cancel-new-project"
-            >
-              Annuler
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (newProjectName.trim()) {
-                  createProjectMutation.mutate({
-                    name: newProjectName,
-                    description: newProjectDescription,
+          <div className="border-t pt-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsNewProjectSheetOpen(false);
+                  setProjectFormData({
+                    name: "",
+                    description: "",
+                    stage: "prospection",
+                    category: "",
+                    clientId: "",
+                    startDate: undefined,
+                    endDate: undefined,
+                    budget: "",
                   });
-                }
-              }}
-              disabled={!newProjectName.trim() || createProjectMutation.isPending}
-              data-testid="button-create-new-project"
-            >
-              {createProjectMutation.isPending ? "Création..." : "Créer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                }}
+                data-testid="button-cancel-new-project"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => createProjectMutation.mutate(projectFormData)}
+                disabled={!projectFormData.name.trim() || createProjectMutation.isPending}
+                data-testid="button-create-new-project"
+              >
+                {createProjectMutation.isPending ? "Création..." : "Créer le projet"}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
