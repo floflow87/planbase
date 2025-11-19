@@ -753,7 +753,7 @@ export function ListView({
                                   // Calculate progress (time elapsed between created and due)
                                   const total = due - created;
                                   const elapsed = now - created;
-                                  const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
+                                  const progress = Math.min(100, Math.max(5, (elapsed / total) * 100));
                                   
                                   // Determine color with gradient based on days remaining
                                   let color = '';

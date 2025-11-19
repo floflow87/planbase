@@ -355,7 +355,7 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
                 const dayTasks = getTasksForDay(date);
 
                 return (
-                  <div key={dayIndex} className={`p-2 rounded-md border border-border ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}>
+                  <div key={dayIndex} className={`p-2 rounded-md border border-border min-h-[150px] ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}>
                     <div className="text-center mb-2">
                       <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
                       <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
@@ -783,6 +783,13 @@ export default function Tasks() {
     queryKey: ["/api/task-columns"],
     enabled: isCreateTaskDialogOpen,
   });
+
+  // Auto-fill project when create dialog opens
+  useEffect(() => {
+    if (isCreateTaskDialogOpen && selectedProjectId !== "all") {
+      setNewTaskProjectId(selectedProjectId);
+    }
+  }, [isCreateTaskDialogOpen, selectedProjectId]);
 
   // Auto-set column when project changes
   useEffect(() => {
@@ -1382,7 +1389,7 @@ export default function Tasks() {
                             }`}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{project.name}</div>
+                            <div className="font-light truncate">{project.name}</div>
                           </div>
                         </CommandItem>
                       ))}

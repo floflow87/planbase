@@ -113,28 +113,30 @@ export function TaskDetailModal({
   if (!task) return null;
 
   const handleMarkComplete = () => {
-    setStatus("done");
+    // Toggle: if already done, set back to todo, otherwise set to done
+    setStatus(status === "done" ? "todo" : "done");
   };
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-task-detail">
-        <SheetHeader className="relative">
+        <SheetHeader className="relative pr-16">
           <SheetTitle>Détails de la tâche</SheetTitle>
-          {/* Big check button in top right */}
+          {/* Big check button in top left (before close icon) */}
           <Button
             variant={status === "done" ? "default" : "outline"}
             size="icon"
-            className={`absolute -top-2 right-0 h-12 w-12 rounded-full ${
+            className={`absolute -top-2 right-12 h-12 w-12 ${
               status === "done" 
                 ? "bg-green-500 hover:bg-green-600 text-white border-green-600" 
                 : "hover-elevate"
             }`}
+            style={{ borderRadius: '15px' }}
             onClick={handleMarkComplete}
             data-testid="button-mark-complete"
-            title={status === "done" ? "Tâche terminée" : "Marquer comme terminée"}
+            title={status === "done" ? "Décocher la tâche" : "Marquer comme terminée"}
           >
-            <CheckCircle2 className="h-6 w-6" />
+            <CheckCircle2 className="h-8 w-8" />
           </Button>
         </SheetHeader>
         
