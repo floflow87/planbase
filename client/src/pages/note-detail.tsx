@@ -549,8 +549,6 @@ export default function NoteDetail() {
   const handleCancelLeave = useCallback(() => {
     setSaveBeforeLeaveDialogOpen(false);
     setPendingNavigation(null);
-    // Reset navigation flag to prevent dialog from reopening immediately
-    setAllowNavigation(false);
   }, []);
 
   // Project link mutation
