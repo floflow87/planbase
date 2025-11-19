@@ -55,6 +55,7 @@ export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [showTasks, setShowTasks] = useState(true);
   const { toast } = useToast();
 
   // Fetch appointments for the current month
@@ -367,7 +368,7 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Right side: New appointment + Google button */}
+        {/* Right side: New appointment + Tasks toggle + Google button */}
         <div className="flex items-center gap-2">
           <Button 
             variant="default" 
@@ -378,6 +379,18 @@ export default function Calendar() {
             <Plus className="w-4 h-4 mr-2" />
             Nouveau rdv
           </Button>
+          
+          {/* Tasks Toggle */}
+          <Button 
+            variant={showTasks ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowTasks(!showTasks)}
+            data-testid="button-toggle-tasks"
+          >
+            <CheckSquare className="w-4 h-4 mr-2" />
+            {showTasks ? "Masquer tâches" : "Afficher tâches"}
+          </Button>
+          
           {googleStatus?.connected ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
               <CalendarIcon className="w-4 h-4 text-green-600" />
@@ -483,7 +496,7 @@ export default function Calendar() {
                       })}
                       
                       {/* Tasks with Due Dates */}
-                      {dayTasks.map(task => {
+                      {showTasks && dayTasks.map(task => {
                         const getPriorityColor = (priority: string | null) => {
                           if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
                           switch (priority) {
@@ -603,7 +616,7 @@ export default function Calendar() {
                         })}
 
                         {/* Tasks: show only in first time slot since they have no specific time */}
-                        {timeIndex === 0 && dayTasks.map(task => (
+                        {showTasks && timeIndex === 0 && dayTasks.map(task => (
                           <div
                             key={task.id}
                             className={`text-xs p-1 mb-1 rounded truncate cursor-pointer ${
@@ -719,7 +732,7 @@ export default function Calendar() {
                       })}
 
                       {/* Tasks for this day (shown at top of day) */}
-                      {timeIndex === 0 && dayTasks.map(task => (
+                      {showTasks && timeIndex === 0 && dayTasks.map(task => (
                         <div
                           key={task.id}
                           className={`text-sm p-2 rounded cursor-pointer ${

@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3 } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +106,169 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
   }
   
   return "in_progress";
+}
+
+// Calendar View Component
+interface CalendarViewProps {
+  tasks: Task[];
+  onTaskClick: (task: Task) => void;
+}
+
+function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const monthNames = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+  ];
+
+  const goToPrevious = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToNext = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Generate calendar grid for month view
+  const generateMonthGrid = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    startDate.setDate(firstDay.getDate() - (firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1));
+    
+    const days: Date[] = [];
+    const current = new Date(startDate);
+    
+    // Generate 6 weeks (42 days)
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const getTasksForDay = (date: Date) => {
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return taskDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const getPriorityColor = (priority: string | null) => {
+    if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
+    switch (priority) {
+      case "high": return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500";
+      case "medium": return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500";
+      case "low": return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500";
+      default: return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={goToPrevious}
+            data-testid="button-calendar-previous"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={goToToday}
+            data-testid="button-calendar-today"
+          >
+            Aujourd'hui
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={goToNext}
+            data-testid="button-calendar-next"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+
+          <div className="text-base font-semibold text-foreground ml-2">
+            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <Card>
+        <CardContent className="p-0">
+          {/* Day headers */}
+          <div className="grid grid-cols-7 border-b border-border">
+            {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(day => (
+              <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground border-r border-border last:border-r-0">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7">
+            {generateMonthGrid().map((date, index) => {
+              const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+              const isToday = date.toDateString() === new Date().toDateString();
+              const dayTasks = getTasksForDay(date);
+
+              return (
+                <div
+                  key={index}
+                  className={`min-h-24 p-2 border-r border-b border-border last:border-r-0 ${
+                    !isCurrentMonth ? "bg-muted/30" : "bg-card"
+                  } ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}
+                  data-testid={`calendar-day-${date.toDateString()}`}
+                >
+                  <div className={`text-sm font-medium mb-1 ${
+                    isCurrentMonth ? "text-foreground" : "text-muted-foreground"
+                  } ${isToday ? "text-violet-600 dark:text-violet-400 font-bold" : ""}`}>
+                    {date.getDate()}
+                  </div>
+                  
+                  {/* Tasks */}
+                  <div className="space-y-1">
+                    {dayTasks.map(task => (
+                      <div
+                        key={task.id}
+                        className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                        title={task.title}
+                        onClick={() => onTaskClick(task)}
+                        data-testid={`calendar-task-${task.id}`}
+                      >
+                        <Check className="w-3 h-3 inline mr-1" />
+                        {task.title}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 interface SortableTaskCardProps {
@@ -1261,14 +1424,10 @@ export default function Tasks() {
 
             {/* Calendar View */}
             {viewMode === "calendar" && (
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center py-12">
-                    <CalendarLucide className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">Vue calendrier - En cours d'implémentation</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <CalendarView
+                tasks={filteredTasks}
+                onTaskClick={handleTaskClick}
+              />
             )}
             
             {/* Kanban View */}
