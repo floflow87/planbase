@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { useParams, Link, useLocation } from "wouter";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useParams, useLocation } from "wouter";
 import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +33,15 @@ import { Check, ChevronsUpDown, X } from "lucide-react";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Wrap wouter's navigate to intercept route changes
+  const navigate = useCallback((path: string, options?: { replace?: boolean }) => {
+    // This will be checked by our guard before allowing navigation
+    setLocation(path, options);
+  }, [setLocation]);
   
   // Start in edit mode by default (notes created from /notes/new should be editable immediately)
   const [isEditMode, setIsEditMode] = useState(true);
@@ -45,12 +51,13 @@ export default function NoteDetail() {
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
-    const saved = localStorage.getItem(`note-${id}-autosave`);
-    return saved === 'true';
-  });
+  const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Default OFF - no localStorage memory
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [allowNavigation, setAllowNavigation] = useState(false);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
@@ -81,15 +88,18 @@ export default function NoteDetail() {
       setContent(note.content || { type: 'doc', content: [] });
       setStatus(note.status as any);
       setVisibility(note.visibility as any);
+      // Track the initial persisted state
+      setLastPersistedState({
+        title: note.title || "",
+        content: note.content || { type: 'doc', content: [] },
+        status: note.status,
+        visibility: note.visibility,
+      });
     }
   }, [note]);
 
-  // Save autosave preference to localStorage
-  useEffect(() => {
-    if (id) {
-      localStorage.setItem(`note-${id}-autosave`, String(autoSaveEnabled));
-    }
-  }, [autoSaveEnabled, id]);
+  // Removed: No longer saving autosave preference to localStorage
+  // Autosave is now OFF by default for every note
 
   // Debounced values for autosave (3 seconds)
   const debouncedTitle = useDebounce(title, 3000);
@@ -105,6 +115,14 @@ export default function NoteDetail() {
       // Update local state to match server response to avoid UI flicker
       setLastSaved(new Date());
       setIsSaving(false);
+      
+      // Update persisted state to reflect successful save
+      setLastPersistedState({
+        title: updatedNote.title || "",
+        content: updatedNote.content || { type: 'doc', content: [] },
+        status: updatedNote.status,
+        visibility: updatedNote.visibility,
+      });
       
       // Invalidate both the individual note and the list (for status/visibility changes)
       queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
@@ -175,17 +193,26 @@ export default function NoteDetail() {
     });
   }, [debouncedTitle, debouncedContent, status, visibility, note, isEditMode, autoSaveEnabled]);
 
-  // Warn before leaving page if autosave is off and there are unsaved changes
+  // Check if there are unsaved changes (compare with last persisted state, not original note)
+  const hasUnsavedChanges = useCallback(() => {
+    if (!lastPersistedState) return false;
+    
+    // Check if saving is in progress (mutations are pending)
+    if (updateMutation.isPending || isSaving) return true;
+    
+    return (
+      title !== lastPersistedState.title ||
+      JSON.stringify(content) !== JSON.stringify(lastPersistedState.content) ||
+      status !== lastPersistedState.status ||
+      visibility !== lastPersistedState.visibility
+    );
+  }, [lastPersistedState, title, content, status, visibility, updateMutation.isPending, isSaving]);
+
+  // Warn before closing browser tab/window if there are unsaved changes (regardless of autosave)
   useEffect(() => {
-    if (!note || autoSaveEnabled) return;
+    if (!lastPersistedState || allowNavigation) return;
     
-    const hasUnsavedChanges = 
-      title !== note.title ||
-      JSON.stringify(content) !== JSON.stringify(note.content) ||
-      status !== note.status ||
-      visibility !== note.visibility;
-    
-    if (!hasUnsavedChanges) return;
+    if (!hasUnsavedChanges()) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -195,7 +222,90 @@ export default function NoteDetail() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [title, content, status, visibility, note, autoSaveEnabled]);
+  }, [lastPersistedState, hasUnsavedChanges, allowNavigation]);
+
+  // Intercept ALL navigation attempts to show save dialog if needed
+  const interceptNavigation = useCallback((targetPath: string) => {
+    // If navigation is already allowed or no unsaved changes, proceed
+    if (allowNavigation || !hasUnsavedChanges()) {
+      navigate(targetPath);
+      return;
+    }
+    
+    // Otherwise, show dialog
+    setPendingNavigation(targetPath);
+    setSaveBeforeLeaveDialogOpen(true);
+  }, [allowNavigation, hasUnsavedChanges, navigate]);
+
+  // Track current location to detect changes
+  const previousLocationRef = useRef(location);
+
+  // Guard navigation: Intercept route changes BEFORE they happen
+  useEffect(() => {
+    // If location changed and we have unsaved changes and navigation is not allowed
+    if (location !== previousLocationRef.current && !allowNavigation && hasUnsavedChanges()) {
+      // Navigation attempted! Revert it immediately
+      const targetPath = location;
+      setLocation(previousLocationRef.current, { replace: true });
+      
+      // Show dialog
+      setPendingNavigation(targetPath);
+      setSaveBeforeLeaveDialogOpen(true);
+    } else {
+      // Update previous location
+      previousLocationRef.current = location;
+    }
+  }, [location, allowNavigation, hasUnsavedChanges, setLocation]);
+
+  // Global click interceptor for ALL links
+  useEffect(() => {
+    if (allowNavigation || !hasUnsavedChanges()) return;
+
+    const handleClick = (e: MouseEvent) => {
+      // Find the link element
+      let target = e.target as HTMLElement;
+      while (target && target !== document.body) {
+        if (target.tagName === 'A' || target.getAttribute('role') === 'link') {
+          const href = target.getAttribute('href');
+          if (href && href.startsWith('/') && href !== location) {
+            // It's an internal link to a different page, intercept it
+            e.preventDefault();
+            e.stopPropagation();
+            setPendingNavigation(href);
+            setSaveBeforeLeaveDialogOpen(true);
+            return;
+          }
+        }
+        target = target.parentElement as HTMLElement;
+      }
+    };
+
+    document.addEventListener('click', handleClick, true); // Use capture phase
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [allowNavigation, hasUnsavedChanges, location]);
+
+  // Intercept browser back/forward buttons
+  useEffect(() => {
+    if (allowNavigation || !hasUnsavedChanges()) return;
+
+    const handlePopState = () => {
+      // Popstate already changed the URL, revert it
+      if (hasUnsavedChanges() && !allowNavigation) {
+        // Store the target location before reverting
+        const targetPath = window.location.pathname;
+        
+        // Revert to current note URL immediately
+        window.history.pushState(null, '', `/notes/${id}`);
+        
+        // Show dialog
+        setPendingNavigation(targetPath);
+        setSaveBeforeLeaveDialogOpen(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [allowNavigation, hasUnsavedChanges, id]);
 
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);
@@ -294,6 +404,66 @@ export default function NoteDetail() {
       variant: "success",
     });
   }, [title, content, visibility, status, updateMutation, toast]);
+
+  // Save before leave handlers
+  const handleSaveAndLeave = useCallback(() => {
+    // Extract plain text from content for search
+    const extractPlainText = (content: any): string => {
+      if (!content) return "";
+      
+      const getText = (node: any): string => {
+        if (node.type === "text") {
+          return node.text || "";
+        }
+        if (node.content && Array.isArray(node.content)) {
+          return node.content.map(getText).join(" ");
+        }
+        return "";
+      };
+
+      return getText(content);
+    };
+
+    const plainText = extractPlainText(content);
+
+    // Save and then navigate
+    updateMutation.mutate({ 
+      title: title || "Sans titre",
+      content,
+      plainText,
+      status,
+      visibility,
+    }, {
+      onSuccess: () => {
+        setSaveBeforeLeaveDialogOpen(false);
+        setAllowNavigation(true); // Allow navigation after successful save
+        if (pendingNavigation) {
+          // Use setTimeout to ensure state updates before navigation
+          setTimeout(() => {
+            navigate(pendingNavigation);
+            setPendingNavigation(null);
+          }, 0);
+        }
+      }
+    });
+  }, [title, content, status, visibility, updateMutation, navigate, pendingNavigation]);
+
+  const handleLeaveWithoutSaving = useCallback(() => {
+    setSaveBeforeLeaveDialogOpen(false);
+    setAllowNavigation(true); // Allow navigation without saving
+    if (pendingNavigation) {
+      // Use setTimeout to ensure state updates before navigation
+      setTimeout(() => {
+        navigate(pendingNavigation);
+        setPendingNavigation(null);
+      }, 0);
+    }
+  }, [navigate, pendingNavigation]);
+
+  const handleCancelLeave = useCallback(() => {
+    setSaveBeforeLeaveDialogOpen(false);
+    setPendingNavigation(null);
+  }, []);
 
   // Project link mutation
   const linkProjectMutation = useMutation({
@@ -401,11 +571,15 @@ export default function NoteDetail() {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4 flex-1 min-w-0">
-              <Link href="/notes">
-                <Button variant="ghost" size="icon" data-testid="button-back" className="mt-1">
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-              </Link>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                data-testid="button-back" 
+                className="mt-1"
+                onClick={() => interceptNavigation("/notes")}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-bold text-foreground truncate mb-2">
                   {title || "Sans titre"}
@@ -613,6 +787,42 @@ export default function NoteDetail() {
       </div>
 
       {/* Delete Confirmation Dialog */}
+      {/* Save Before Leave Dialog */}
+      <Dialog open={saveBeforeLeaveDialogOpen} onOpenChange={setSaveBeforeLeaveDialogOpen}>
+        <DialogContent data-testid="dialog-save-before-leave">
+          <DialogHeader>
+            <DialogTitle>Modifications non enregistrées</DialogTitle>
+            <DialogDescription>
+              Vous avez des modifications non enregistrées. Que souhaitez-vous faire ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelLeave}
+              data-testid="button-cancel-leave"
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLeaveWithoutSaving}
+              data-testid="button-leave-without-saving"
+            >
+              Quitter sans enregistrer
+            </Button>
+            <Button
+              onClick={handleSaveAndLeave}
+              data-testid="button-save-and-leave"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Enregistrement..." : "Enregistrer et quitter"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-note">
           <DialogHeader>
