@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, FileText, StickyNote, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,71 +31,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 
-// Convert to document button component with proper state management
-function ConvertToDocumentButton({ noteId }: { noteId: string }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [, navigate] = useLocation();
-  
-  const convertMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest(`/api/notes/${noteId}/convert-to-document`, "POST");
-      
-      // Parse JSON response once
-      const data = await response.json().catch(() => ({ error: response.statusText || "Conversion failed" }));
-      
-      // Check response status after parsing
-      if (!response.ok) {
-        throw new Error(data.error || "Conversion failed");
-      }
-      
-      return data;
-    },
-    onSuccess: async (document) => {
-      // Refetch the note to update UI immediately with new type before navigation
-      await queryClient.refetchQueries({ queryKey: ["/api/notes", noteId] });
-      
-      // Also invalidate the list
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      
-      toast({
-        title: "Note convertie en document",
-        description: "La note a été convertie en document avec succès",
-        variant: "success",
-      });
-      
-      // Navigate to documents page
-      navigate("/documents");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de convertir la note",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button 
-          variant="outline"
-          onClick={() => convertMutation.mutate()}
-          disabled={convertMutation.isPending}
-          size="icon"
-          data-testid="button-convert-to-document"
-        >
-          <ArrowRightLeft className="w-4 h-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        {convertMutation.isPending ? "Conversion en cours..." : "Transformer en document"}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
   const [location, setLocation] = useLocation();
@@ -114,7 +49,6 @@ export default function NoteDetail() {
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [visibility, setVisibility] = useState<"private" | "account" | "client_ro">("private");
-  const [hasModifiedPublishedNote, setHasModifiedPublishedNote] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
@@ -166,28 +100,6 @@ export default function NoteDetail() {
 
   // Removed: No longer saving autosave preference to localStorage
   // Autosave is now OFF by default for every note
-
-  // When user modifies a published note, automatically switch to draft
-  useEffect(() => {
-    if (!note || !lastPersistedState) return;
-    
-    // If note was published (active) and user makes changes, switch to draft
-    if (lastPersistedState.status === "active" && isEditMode) {
-      const hasChanges = 
-        title !== lastPersistedState.title ||
-        JSON.stringify(content) !== JSON.stringify(lastPersistedState.content);
-      
-      if (hasChanges && status === "active") {
-        setStatus("draft");
-        setHasModifiedPublishedNote(true);
-        toast({
-          title: "Note repassée en brouillon",
-          description: "Vos modifications sont en brouillon. Publiez pour les rendre actives.",
-          variant: "default",
-        });
-      }
-    }
-  }, [title, content, note, lastPersistedState, isEditMode, status, toast]);
 
   // Debounced values for autosave (3 seconds)
   const debouncedTitle = useDebounce(title, 3000);
@@ -285,14 +197,16 @@ export default function NoteDetail() {
   const hasUnsavedChanges = useCallback(() => {
     if (!lastPersistedState) return false;
     
-    // Only check actual content changes, not transient saving state
+    // Check if saving is in progress (mutations are pending)
+    if (updateMutation.isPending || isSaving) return true;
+    
     return (
       title !== lastPersistedState.title ||
       JSON.stringify(content) !== JSON.stringify(lastPersistedState.content) ||
       status !== lastPersistedState.status ||
       visibility !== lastPersistedState.visibility
     );
-  }, [lastPersistedState, title, content, status, visibility]);
+  }, [lastPersistedState, title, content, status, visibility, updateMutation.isPending, isSaving]);
 
   // Warn before closing browser tab/window if there are unsaved changes (regardless of autosave)
   useEffect(() => {
@@ -673,17 +587,6 @@ export default function NoteDetail() {
                 <div className="flex items-center gap-2">
                   <Badge 
                     variant="outline" 
-                    className="bg-blue-50 text-blue-700 border-blue-200"
-                    data-testid="badge-type"
-                  >
-                    {note.type === "document" ? (
-                      <><FileText className="w-3 h-3 mr-1 inline" /> Document</>
-                    ) : (
-                      <><StickyNote className="w-3 h-3 mr-1 inline" /> Note</>
-                    )}
-                  </Badge>
-                  <Badge 
-                    variant="outline" 
                     className={
                       status === "draft" 
                         ? "bg-gray-100 text-gray-700 border-gray-200"
@@ -691,7 +594,6 @@ export default function NoteDetail() {
                         ? "bg-orange-50 text-orange-700 border-orange-200"
                         : "bg-green-50 text-green-700 border-green-200"
                     }
-                    data-testid="badge-status"
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
@@ -748,32 +650,22 @@ export default function NoteDetail() {
                 <option value="client_ro">Partagée (client)</option>
               </select>
               
-              {/* Show Save button in edit mode */}
-              {isEditMode && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSaveDraft} 
-                      size="icon"
-                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                      data-testid="button-save"
-                    >
-                      <Save className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Enregistrer</TooltipContent>
-                </Tooltip>
-              )}
-              
-              {/* Convert to document button (only for notes) */}
-              {note.type === "note" && (
-                <ConvertToDocumentButton noteId={id} />
-              )}
-              
-              {/* Publish/Unpublish button */}
               {status === "draft" && (
                 <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleSaveDraft} 
+                        size="icon"
+                        className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                        data-testid="button-save-draft"
+                      >
+                        <Save className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Enregistrer</TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
@@ -897,14 +789,14 @@ export default function NoteDetail() {
       {/* Delete Confirmation Dialog */}
       {/* Save Before Leave Dialog */}
       <Dialog open={saveBeforeLeaveDialogOpen} onOpenChange={setSaveBeforeLeaveDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]" data-testid="dialog-save-before-leave">
-          <DialogHeader className="text-center">
-            <DialogTitle className="text-center">Modifications non enregistrées</DialogTitle>
-            <DialogDescription className="text-center">
+        <DialogContent data-testid="dialog-save-before-leave">
+          <DialogHeader>
+            <DialogTitle>Modifications non enregistrées</DialogTitle>
+            <DialogDescription>
               Vous avez des modifications non enregistrées. Que souhaitez-vous faire ?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-center">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={handleCancelLeave}

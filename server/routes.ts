@@ -1383,61 +1383,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Convert note to document (copy to documents table)
-  app.post("/api/notes/:id/convert-to-document", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
-    try {
-      const note = await storage.getNote(req.params.id);
-      if (!note) {
-        return res.status(404).json({ error: "Note not found" });
-      }
-      if (note.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      // Prevent duplicate conversions
-      if (note.type === "document") {
-        return res.status(400).json({ error: "Note already converted to document" });
-      }
-
-      // Extract plain text from note content for the document
-      const plainText = note.plainText || "";
-      
-      // Create document from note
-      const document = await storage.createDocument({
-        accountId: req.accountId!,
-        createdBy: req.userId!,
-        name: note.title || "Document sans titre",
-        content: JSON.stringify(note.content), // Store note content as document content
-        plainText,
-        formData: null,
-        templateId: null,
-        sourceType: "freeform",
-        status: note.status === "active" ? "published" : "draft",
-      });
-
-      // Copy note links to document links
-      const noteLinks = await storage.getNoteLinks(req.params.id);
-      for (const link of noteLinks) {
-        if (link.targetType === "project" || link.targetType === "client") {
-          await storage.createDocumentLink({
-            documentId: document.id,
-            targetType: link.targetType,
-            targetId: link.targetId,
-          });
-        }
-      }
-      
-      // Mark note as converted to prevent duplicate conversions
-      await storage.updateNote(req.params.id, {
-        type: "document",
-      });
-
-      res.json(document);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
   // Note Links
   app.get("/api/note-links", requireAuth, async (req, res) => {
     try {
