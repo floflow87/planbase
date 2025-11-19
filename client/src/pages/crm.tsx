@@ -120,8 +120,14 @@ export default function CRM() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<ColumnId | null>("creation");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortColumn, setSortColumn] = useState<ColumnId | null>(() => {
+    const saved = localStorage.getItem('crmSortColumn');
+    return saved ? (saved as ColumnId) : "creation";
+  });
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+    const saved = localStorage.getItem('crmSortDirection');
+    return saved === "asc" || saved === "desc" ? saved : "desc";
+  });
   
   // Colonnes configurables
   const [columns, setColumns] = useState<Column[]>([
@@ -288,6 +294,14 @@ export default function CRM() {
       });
     }
   }, [editingClient, accountId, currentUser, form]);
+
+  // Save sort preferences to localStorage
+  useEffect(() => {
+    if (sortColumn) {
+      localStorage.setItem('crmSortColumn', sortColumn);
+    }
+    localStorage.setItem('crmSortDirection', sortDirection);
+  }, [sortColumn, sortDirection]);
 
   const onSubmit = (data: InsertClient) => {
     if (editingClient) {
