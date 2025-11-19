@@ -199,7 +199,35 @@ export default function DocumentDetail() {
   // Export PDF mutation
   const exportPDFMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/documents/${id}/export-pdf`, "POST", {});
+      // Use fetch directly to avoid body consumption in apiRequest error handler
+      const authHeaders = await (async () => {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          return { 'Authorization': `Bearer ${session.access_token}` };
+        }
+        if (import.meta.env.DEV) {
+          return {
+            'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
+            'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
+          };
+        }
+        return {};
+      })();
+      
+      const response = await fetch(`/api/documents/${id}/export-pdf`, {
+        method: 'POST',
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${response.status}: ${text}`);
+      }
       
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('content-disposition');
