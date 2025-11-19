@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
   CommandEmpty,
@@ -694,9 +695,10 @@ export default function Tasks() {
   const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
   
-  // Main states - Load from localStorage if available
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
-    return localStorage.getItem("tasks_selected_project_id") || "all";
+  // Main states - Load from localStorage if available (multi-select)
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem("tasks_selected_project_ids");
+    return saved ? JSON.parse(saved) : ["all"];
   });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
@@ -758,9 +760,7 @@ export default function Tasks() {
   });
 
   const { data: taskColumns = [], isLoading: columnsLoading } = useQuery<TaskColumn[]>({
-    queryKey: selectedProjectId === "all" 
-      ? ["/api/task-columns"]
-      : ["/api/projects", selectedProjectId, "task-columns"],
+    queryKey: ["/api/task-columns"],
     enabled: !!accountId,
   });
 
@@ -783,15 +783,18 @@ export default function Tasks() {
   // Get global columns for tasks without a project
   const { data: globalTaskColumns = [] } = useQuery<TaskColumn[]>({
     queryKey: ["/api/task-columns"],
-    enabled: isCreateTaskDialogOpen,
+    enabled: isCreateTaskDialogOpen && newTaskProjectId === "none",
   });
 
-  // Auto-fill project when create dialog opens
+  // Auto-fill project when create dialog opens, and clear when selection changes
   useEffect(() => {
-    if (isCreateTaskDialogOpen && selectedProjectId !== "all") {
-      setNewTaskProjectId(selectedProjectId);
+    if (isCreateTaskDialogOpen && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1) {
+      setNewTaskProjectId(selectedProjectIds[0]);
+    } else if (selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) {
+      // Clear newTaskProjectId when selection is not a single project
+      setNewTaskProjectId("");
     }
-  }, [isCreateTaskDialogOpen, selectedProjectId]);
+  }, [isCreateTaskDialogOpen, selectedProjectIds]);
 
   // Auto-set column when project changes
   useEffect(() => {
@@ -804,29 +807,31 @@ export default function Tasks() {
     }
   }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
 
-  // Filter tasks based on selected project
-  const filteredTasks = selectedProjectId === "all"
+  // Filter tasks based on selected projects (multi-select)
+  // Multi-selection or "all" shows everything; single project shows ONLY that project
+  const filteredTasks = selectedProjectIds.includes("all") || selectedProjectIds.length > 1
     ? tasks
-    : tasks.filter((t) => t.projectId === selectedProjectId);
+    : tasks.filter((t) => t.projectId && selectedProjectIds.includes(t.projectId));
 
-  // Filter columns based on selected project
-  const filteredColumns = selectedProjectId === "all"
+  // Filter columns based on selected projects (multi-select)
+  // Multi-selection or "all" shows everything; single project shows ONLY that project's columns
+  const filteredColumns = selectedProjectIds.includes("all") || selectedProjectIds.length > 1
     ? taskColumns
-    : taskColumns.filter((c) => c.projectId === selectedProjectId);
+    : taskColumns.filter((c) => c.projectId && selectedProjectIds.includes(c.projectId));
 
   const sortedColumns = [...filteredColumns].sort((a, b) => a.order - b.order);
 
   // Allow all views (kanban, list, calendar) even when "all projects" is selected
 
-  // Save selected project to localStorage
+  // Save selected projects to localStorage
   useEffect(() => {
-    localStorage.setItem("tasks_selected_project_id", selectedProjectId);
-  }, [selectedProjectId]);
+    localStorage.setItem("tasks_selected_project_ids", JSON.stringify(selectedProjectIds));
+  }, [selectedProjectIds]);
 
   // Reset status filter to "all" when changing projects
   useEffect(() => {
     setStatusFilter("all");
-  }, [selectedProjectId]);
+  }, [selectedProjectIds]);
 
   // Mutations
   const createTaskMutation = useMutation({
@@ -919,7 +924,6 @@ export default function Tasks() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsCreateColumnDialogOpen(false);
       setNewColumnName("");
       toast({
@@ -937,7 +941,6 @@ export default function Tasks() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsRenameColumnDialogOpen(false);
       setIsColorColumnDialogOpen(false);
       setSelectedColumn(null);
@@ -955,7 +958,6 @@ export default function Tasks() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "task-columns"] });
       setIsDeleteColumnDialogOpen(false);
       setSelectedColumn(null);
       toast({
@@ -1101,10 +1103,13 @@ export default function Tasks() {
   const handleCreateTask = (keepOpen = false) => {
     if (!newTaskTitle.trim() || !accountId || !userId) return;
 
+    // Determine current selection for comparison
+    const currentSelectedProjectId = !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 ? selectedProjectIds[0] : "all";
+
     let targetColumns: TaskColumn[];
     if (newTaskProjectId === "none") {
       targetColumns = globalTaskColumns;
-    } else if (newTaskProjectId && newTaskProjectId !== selectedProjectId) {
+    } else if (newTaskProjectId && newTaskProjectId !== currentSelectedProjectId) {
       targetColumns = newTaskProjectColumns;
     } else {
       targetColumns = taskColumns;
@@ -1121,7 +1126,7 @@ export default function Tasks() {
     const targetColumn = targetColumns.find((c) => c.id === targetColumnId);
     const taskStatus = targetColumn ? getStatusFromColumnName(targetColumn.name) : "todo";
 
-    const targetProjectId = newTaskProjectId === "none" ? null : (newTaskProjectId || selectedProjectId);
+    const targetProjectId = newTaskProjectId === "none" ? null : (newTaskProjectId || currentSelectedProjectId === "all" ? null : currentSelectedProjectId);
     const tasksInColumn = tasks
       .filter((t) => t.columnId === targetColumnId && t.projectId === targetProjectId);
     const maxPosition = tasksInColumn.length > 0
@@ -1159,7 +1164,7 @@ export default function Tasks() {
 
     createColumnMutation.mutate({
       accountId,
-      projectId: selectedProjectId,
+      projectId: !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 ? selectedProjectIds[0] : null,
       name: newColumnName,
       color: "rgba(229, 231, 235, 0.4)",
       order: maxOrder + 1,
@@ -1169,7 +1174,7 @@ export default function Tasks() {
 
   const handleAddTask = (columnId: string) => {
     setCreateTaskColumnId(columnId);
-    setNewTaskProjectId(selectedProjectId);
+    setNewTaskProjectId(!selectedProjectIds.includes("all") && selectedProjectIds.length === 1 ? selectedProjectIds[0] : "");
     setIsCreateTaskDialogOpen(true);
   };
 
@@ -1227,7 +1232,7 @@ export default function Tasks() {
       return;
     }
 
-    const targetProjectId = selectedProjectId === "all" ? null : selectedProjectId;
+    const targetProjectId = selectedProjectIds.includes("all") || selectedProjectIds.length !== 1 ? null : selectedProjectIds[0];
     const columnTasks = tasks.filter((t) => t.columnId === firstColumn.id && t.projectId === targetProjectId);
 
     createTaskMutation.mutate({
@@ -1338,7 +1343,39 @@ export default function Tasks() {
     );
   }
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  // Helper function to toggle project selection
+  const toggleProjectSelection = (projectId: string) => {
+    if (projectId === "all") {
+      // If clicking "all", select only "all"
+      setSelectedProjectIds(["all"]);
+    } else {
+      setSelectedProjectIds(prev => {
+        // Remove "all" if it was selected
+        const withoutAll = prev.filter(id => id !== "all");
+        
+        if (withoutAll.includes(projectId)) {
+          // Deselect this project
+          const newSelection = withoutAll.filter(id => id !== projectId);
+          // If nothing left, select "all"
+          return newSelection.length === 0 ? ["all"] : newSelection;
+        } else {
+          // Select this project
+          return [...withoutAll, projectId];
+        }
+      });
+    }
+  };
+
+  // Get display text for selected projects
+  const getSelectedProjectsText = () => {
+    if (selectedProjectIds.includes("all")) {
+      return "Tous les projets";
+    }
+    if (selectedProjectIds.length === 1) {
+      return projects.find((p) => p.id === selectedProjectIds[0])?.name || "Sélectionner";
+    }
+    return `${selectedProjectIds.length} projets sélectionnés`;
+  };
 
   return (
     <div className="h-full overflow-auto">
@@ -1356,9 +1393,7 @@ export default function Tasks() {
                     className="w-full sm:w-[280px] justify-between text-[12px]"
                     data-testid="select-project"
                   >
-                    {selectedProjectId === "all" 
-                      ? "Tous les projets" 
-                      : projects.find((p) => p.id === selectedProjectId)?.name || "Sélectionner un projet"}
+                    {getSelectedProjectsText()}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -1368,32 +1403,24 @@ export default function Tasks() {
                     <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                     <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
                       <CommandItem
-                        onSelect={() => {
-                          setSelectedProjectId("all");
-                          setProjectSelectorOpen(false);
-                        }}
+                        onSelect={() => toggleProjectSelection("all")}
                         data-testid="option-project-all"
                       >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            selectedProjectId === "all" ? "opacity-100" : "opacity-0"
-                          }`}
+                        <Checkbox
+                          checked={selectedProjectIds.includes("all")}
+                          className="mr-2"
                         />
                         Tous les projets
                       </CommandItem>
                       {projects.map((project) => (
                         <CommandItem
                           key={project.id}
-                          onSelect={() => {
-                            setSelectedProjectId(project.id);
-                            setProjectSelectorOpen(false);
-                          }}
+                          onSelect={() => toggleProjectSelection(project.id)}
                           data-testid={`option-project-${project.id}`}
                         >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              selectedProjectId === project.id ? "opacity-100" : "opacity-0"
-                            }`}
+                          <Checkbox
+                            checked={selectedProjectIds.includes(project.id)}
+                            className="mr-2"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="font-light truncate">{project.name}</div>
@@ -1416,10 +1443,10 @@ export default function Tasks() {
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   {(() => {
                     const filteredColumns = taskColumns
-                      .filter((col: TaskColumn) => selectedProjectId === "all" || col.projectId === selectedProjectId)
+                      .filter((col: TaskColumn) => selectedProjectIds.includes("all") || (col.projectId && selectedProjectIds.includes(col.projectId)))
                       .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order);
                     
-                    if (selectedProjectId === "all") {
+                    if (selectedProjectIds.includes("all") || selectedProjectIds.length > 1) {
                       const uniqueNames = new Map<string, TaskColumn>();
                       filteredColumns.forEach((col: TaskColumn) => {
                         if (!uniqueNames.has(col.name)) {
@@ -1468,7 +1495,7 @@ export default function Tasks() {
                 <CalendarLucide className="w-4 h-4" />
               </Button>
             </div>
-            {selectedProjectId !== "all" && (
+            {!selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
                 <Button
                   onClick={() => setIsCreateTaskDialogOpen(true)}
@@ -1487,7 +1514,7 @@ export default function Tasks() {
                 </Button>
               </>
             )}
-            {selectedProjectId === "all" && (
+            {(selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) && (
               <Button
                 onClick={() => setIsCreateTaskDialogOpen(true)}
                 data-testid="button-new-task"
@@ -1501,7 +1528,7 @@ export default function Tasks() {
         </div>
 
         {/* Progress bar */}
-        {selectedProjectId === "all" ? (
+        {(selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) ? (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
@@ -1517,9 +1544,12 @@ export default function Tasks() {
               </div>
             </CardContent>
           </Card>
-        ) : selectedProject && (() => {
+        ) : (() => {
+          const selectedProject = projects.find((p) => p.id === selectedProjectIds[0]);
+          if (!selectedProject) return null;
+          
           const completedColumn = taskColumns
-            .filter(c => c.isLocked && c.projectId === selectedProjectId)
+            .filter(c => c.isLocked && c.projectId === selectedProjectIds[0])
             .sort((a, b) => b.order - a.order)[0];
           const completedTasks = completedColumn 
             ? filteredTasks.filter((t) => t.columnId === completedColumn.id).length 
@@ -1575,7 +1605,7 @@ export default function Tasks() {
                 isQuickAddingTask={isQuickAddingTask}
                 setIsQuickAddingTask={setIsQuickAddingTask}
                 onCreateTask={handleQuickCreateTask}
-                selectedProjectId={selectedProjectId}
+                selectedProjectId={selectedProjectIds.includes("all") || selectedProjectIds.length !== 1 ? "all" : selectedProjectIds[0]}
                 statusFilter={statusFilter}
                 accountId={accountId || undefined}
                 userId={userId || undefined}
@@ -1592,7 +1622,7 @@ export default function Tasks() {
             
             {/* Kanban View */}
             {viewMode === "kanban" && (
-              selectedProjectId === "all" ? (
+              (selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) ? (
                 <Card>
                   <CardContent className="p-6">
                     <div className="text-center py-12">
