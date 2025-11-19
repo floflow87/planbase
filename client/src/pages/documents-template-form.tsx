@@ -194,8 +194,7 @@ export default function DocumentTemplateForm() {
 
       // Create document link if project is selected
       if (selectedProjectId) {
-        await apiRequest("/api/document-links", "POST", {
-          documentId: createdDocument.id,
+        await apiRequest(`/api/documents/${createdDocument.id}/links`, "POST", {
           targetType: "project",
           targetId: selectedProjectId,
         });
