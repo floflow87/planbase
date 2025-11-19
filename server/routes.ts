@@ -1735,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.setHeader('Content-Length', pdfBuffer.length);
-      res.send(pdfBuffer);
+      res.end(pdfBuffer, 'binary');
     } catch (error: any) {
       console.error('Export PDF error:', error);
       res.status(500).json({ error: error.message || 'Failed to export PDF' });
