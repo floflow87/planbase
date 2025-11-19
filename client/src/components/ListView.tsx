@@ -740,18 +740,38 @@ export function ListView({
                                   </TableCell>
                                 );
                               case 'dueDate':
-                                const dueDateProgress = (() => {
-                                  if (!task.dueDate) return 0;
+                                const dueDateInfo = (() => {
+                                  if (!task.dueDate) return { progress: 0, color: '' };
+                                  
                                   const created = task.createdAt ? new Date(task.createdAt).getTime() : Date.now();
                                   const due = new Date(task.dueDate).getTime();
                                   const now = Date.now();
                                   
-                                  if (now >= due) return 100;
-                                  if (now <= created) return 0;
+                                  // Calculate days remaining
+                                  const daysRemaining = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
                                   
+                                  // Calculate progress (time elapsed between created and due)
                                   const total = due - created;
                                   const elapsed = now - created;
-                                  return Math.min(100, Math.max(0, (elapsed / total) * 100));
+                                  const progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
+                                  
+                                  // Determine color with gradient based on days remaining
+                                  let color = '';
+                                  if (daysRemaining <= 0) {
+                                    // Overdue - red
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-red-500 [&>div]:to-red-600';
+                                  } else if (daysRemaining <= 3) {
+                                    // Less than 3 days - orange
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-red-500';
+                                  } else if (daysRemaining <= 5) {
+                                    // Less than 5 days - yellow
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-yellow-400 [&>div]:to-orange-400';
+                                  } else {
+                                    // More than 5 days - green
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-yellow-400';
+                                  }
+                                  
+                                  return { progress, color };
                                 })();
                                 
                                 return (
@@ -795,8 +815,8 @@ export function ListView({
                                       </Popover>
                                       {task.dueDate && (
                                         <Progress 
-                                          value={dueDateProgress} 
-                                          className="h-1 w-full"
+                                          value={dueDateInfo.progress} 
+                                          className={`h-1 w-full ${dueDateInfo.color}`}
                                           data-testid={`progress-due-date-${task.id}`}
                                         />
                                       )}

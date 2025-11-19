@@ -116,6 +116,7 @@ interface CalendarViewProps {
 
 function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
 
   const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -124,18 +125,45 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
 
   const goToPrevious = () => {
     const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() - 1);
+    if (viewMode === "month") {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() - 7);
+    } else {
+      newDate.setDate(newDate.getDate() - 1);
+    }
     setCurrentDate(newDate);
   };
 
   const goToNext = () => {
     const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + 1);
+    if (viewMode === "month") {
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() + 7);
+    } else {
+      newDate.setDate(newDate.getDate() + 1);
+    }
     setCurrentDate(newDate);
   };
 
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const getDisplayTitle = () => {
+    if (viewMode === "month") {
+      return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    } else if (viewMode === "week") {
+      return `Semaine du ${currentDate.toLocaleDateString("fr-FR")}`;
+    } else {
+      return currentDate.toLocaleDateString("fr-FR", { 
+        weekday: "long", 
+        year: "numeric", 
+        month: "long", 
+        day: "numeric" 
+      });
+    }
   };
 
   // Generate calendar grid for month view
@@ -167,6 +195,22 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
     });
   };
 
+  // Generate week view grid (7 days starting from Monday)
+  const generateWeekGrid = () => {
+    const startOfWeek = new Date(currentDate);
+    const dayOfWeek = startOfWeek.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    startOfWeek.setDate(startOfWeek.getDate() + diff);
+    
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
   const getPriorityColor = (priority: string | null) => {
     if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
     switch (priority) {
@@ -182,6 +226,37 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {/* View Mode Toggles */}
+          <div className="flex border border-border rounded-md">
+            <Button
+              variant={viewMode === "month" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("month")}
+              className="rounded-r-none"
+              data-testid="button-task-calendar-view-month"
+            >
+              Mois
+            </Button>
+            <Button
+              variant={viewMode === "week" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("week")}
+              className="rounded-none border-x border-border"
+              data-testid="button-task-calendar-view-week"
+            >
+              Semaine
+            </Button>
+            <Button
+              variant={viewMode === "day" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("day")}
+              className="rounded-l-none"
+              data-testid="button-task-calendar-view-day"
+            >
+              Jour
+            </Button>
+          </div>
+
           <Button 
             variant="outline" 
             size="sm"
@@ -208,12 +283,13 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
           </Button>
 
           <div className="text-base font-semibold text-foreground ml-2">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            {getDisplayTitle()}
           </div>
         </div>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Views */}
+      {viewMode === "month" && (
       <Card>
         <CardContent className="p-0">
           {/* Day headers */}
@@ -267,11 +343,81 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {/* Week View - Simple list of tasks for the week */}
+      {viewMode === "week" && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-7 gap-2">
+              {generateWeekGrid().map((date, dayIndex) => {
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dayTasks = getTasksForDay(date);
+
+                return (
+                  <div key={dayIndex} className={`p-2 rounded-md border border-border ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}>
+                    <div className="text-center mb-2">
+                      <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
+                      <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
+                        {date.getDate()}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {dayTasks.map(task => (
+                        <div
+                          key={task.id}
+                          className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                          title={task.title}
+                          onClick={() => onTaskClick(task)}
+                        >
+                          <Check className="w-3 h-3 inline mr-1" />
+                          {task.title}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Day View - List of tasks for the selected day */}
+      {viewMode === "day" && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-2">
+              {getTasksForDay(currentDate).length > 0 ? (
+                getTasksForDay(currentDate).map(task => (
+                  <div
+                    key={task.id}
+                    className={`p-3 rounded-md cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                    onClick={() => onTaskClick(task)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4" />
+                      <span className="font-medium">{task.title}</span>
+                    </div>
+                    {task.description && (
+                      <p className="text-sm mt-1 ml-6">{task.description}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  Aucune tâche prévue pour cette journée
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
 
-interface SortableTaskCardProps {
+interface SortableTaskCardProps{
   task: Task;
   users: AppUser[];
   onDuplicate: (task: Task) => void;

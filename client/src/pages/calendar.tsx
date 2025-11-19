@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -368,8 +370,9 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Right side: New appointment + Tasks toggle + Google button */}
+        {/* Right side: New appointment + Google button + Tasks toggle */}
         <div className="flex items-center gap-2">
+          {/* 1. New appointment */}
           <Button 
             variant="default" 
             size="sm"
@@ -380,17 +383,7 @@ export default function Calendar() {
             Nouveau rdv
           </Button>
           
-          {/* Tasks Toggle */}
-          <Button 
-            variant={showTasks ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowTasks(!showTasks)}
-            data-testid="button-toggle-tasks"
-          >
-            <CheckSquare className="w-4 h-4 mr-2" />
-            {showTasks ? "Masquer tâches" : "Afficher tâches"}
-          </Button>
-          
+          {/* 2. Google Calendar */}
           {googleStatus?.connected ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
               <CalendarIcon className="w-4 h-4 text-green-600" />
@@ -417,6 +410,20 @@ export default function Calendar() {
               <img src={googleLogo} alt="Google" className="w-5 h-5" />
             </Button>
           )}
+          
+          {/* 3. Tasks Toggle */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+            <CheckSquare className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="tasks-toggle" className="text-sm text-muted-foreground cursor-pointer">
+              Tâches
+            </Label>
+            <Switch
+              id="tasks-toggle"
+              checked={showTasks}
+              onCheckedChange={setShowTasks}
+              data-testid="switch-toggle-tasks"
+            />
+          </div>
         </div>
       </div>
 

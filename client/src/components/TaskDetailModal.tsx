@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star, Trash2 } from "lucide-react";
+import { CalendarIcon, Star, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
@@ -112,11 +112,30 @@ export function TaskDetailModal({
 
   if (!task) return null;
 
+  const handleMarkComplete = () => {
+    setStatus("done");
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-task-detail">
-        <SheetHeader>
+        <SheetHeader className="relative">
           <SheetTitle>Détails de la tâche</SheetTitle>
+          {/* Big check button in top right */}
+          <Button
+            variant={status === "done" ? "default" : "outline"}
+            size="icon"
+            className={`absolute -top-2 right-0 h-12 w-12 rounded-full ${
+              status === "done" 
+                ? "bg-green-500 hover:bg-green-600 text-white border-green-600" 
+                : "hover-elevate"
+            }`}
+            onClick={handleMarkComplete}
+            data-testid="button-mark-complete"
+            title={status === "done" ? "Tâche terminée" : "Marquer comme terminée"}
+          >
+            <CheckCircle2 className="h-6 w-6" />
+          </Button>
         </SheetHeader>
         
         <div className="grid gap-4 py-4 flex-1">
