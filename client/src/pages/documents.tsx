@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +41,7 @@ export default function Documents() {
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root", "clients"]));
   const [selectedNodeId, setSelectedNodeId] = useState<string>("all-documents");
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -208,6 +211,52 @@ export default function Documents() {
       title: "Déplacer le document",
       description: "Fonctionnalité à venir - Déplacement vers un autre dossier",
     });
+  };
+
+  // Selection handlers
+  const toggleDocumentSelection = (id: string) => {
+    setSelectedDocuments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllDocuments = (files: any[]) => {
+    setSelectedDocuments(new Set(files.map(f => f.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedDocuments(new Set());
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    try {
+      await Promise.all(
+        Array.from(selectedDocuments).map(id => 
+          deleteDocumentMutation.mutateAsync(id)
+        )
+      );
+      clearSelection();
+    } catch (error) {
+      // Errors already handled by mutation
+    }
+  };
+
+  // Bulk PDF download handler
+  const handleBulkDownloadPDF = async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    for (const id of Array.from(selectedDocuments)) {
+      await exportPDFMutation.mutateAsync(id);
+    }
   };
 
   const toggleNode = (nodeId: string) => {
@@ -666,91 +715,148 @@ export default function Documents() {
               ))}
             </div>
           ) : (
-            <div className="space-y-2">
-              {files.map((file) => (
-                <Card 
-                  key={file.id} 
-                  className="hover-elevate cursor-pointer transition-shadow" 
-                  onClick={() => setLocation(`/documents/${file.id}`)}
-                  data-testid={`list-item-${file.id}`}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              file.status === "draft" 
-                                ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300"
-                                : file.status === "published"
-                                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300"
-                                : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
-                            }`}
-                          >
-                            {file.status === "draft" ? "Brouillon" : file.status === "published" ? "Publié" : "Signé"}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
+            <div>
+              {/* Bulk actions bar */}
+              {selectedDocuments.size > 0 && (
+                <div className="mb-4 p-3 bg-muted rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">
+                      {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} sélectionné{selectedDocuments.size > 1 ? 's' : ''}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelection}
+                      data-testid="button-clear-selection"
+                    >
+                      Tout désélectionner
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDownloadPDF}
+                      disabled={exportPDFMutation.isPending}
+                      data-testid="button-bulk-download-pdf"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Télécharger PDF
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={deleteDocumentMutation.isPending}
+                      data-testid="button-bulk-delete"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Supprimer
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Document list */}
+              <div className="space-y-0">
+                {files.map((file, index) => (
+                  <div key={file.id}>
+                    <div 
+                      className="hover-elevate cursor-pointer transition-all p-3" 
+                      onClick={() => !selectedDocuments.has(file.id) && setLocation(`/documents/${file.id}`)}
+                      data-testid={`list-item-${file.id}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          checked={selectedDocuments.has(file.id)}
+                          onCheckedChange={() => toggleDocumentSelection(file.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`checkbox-document-${file.id}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                file.status === "draft" 
+                                  ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300"
+                                  : file.status === "published"
+                                  ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300"
+                                  : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
+                              }`}
+                            >
+                              {file.status === "draft" ? "Brouillon" : file.status === "published" ? "Publié" : "Signé"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <span className="text-xs text-muted-foreground">{file.updatedAt}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {file.projectBadge && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium cursor-help`}>
+                                  {file.projectBadge.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{file.projectBadge.fullName}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0" 
+                                onClick={(e) => e.stopPropagation()}
+                                data-testid={`button-menu-list-${file.id}`}
+                              >
+                                <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={(e) => handleDuplicateClick(file.id, e)}
+                                data-testid={`menu-item-duplicate-list-${file.id}`}
+                              >
+                                <Copy className="w-4 h-4 mr-2" />
+                                Dupliquer
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => handleExportPDF(file.id, e)}
+                                data-testid={`menu-item-export-pdf-list-${file.id}`}
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Télécharger PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => handleMoveClick(file.id, e)}
+                                data-testid={`menu-item-move-list-${file.id}`}
+                              >
+                                <FolderInput className="w-4 h-4 mr-2" />
+                                Déplacer
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => handleDeleteClick(file.id, e)}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`menu-item-delete-list-${file.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {file.projectBadge && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className={`w-6 h-6 rounded-full ${file.projectBadge.color} flex items-center justify-center text-xs text-white font-medium cursor-help`}>
-                                {file.projectBadge.name}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{file.projectBadge.fullName}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0" 
-                              onClick={(e) => e.stopPropagation()}
-                              data-testid={`button-menu-list-${file.id}`}
-                            >
-                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(e) => handleDuplicateClick(file.id, e)}
-                              data-testid={`menu-item-duplicate-list-${file.id}`}
-                            >
-                              <Copy className="w-4 h-4 mr-2" />
-                              Dupliquer
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => handleMoveClick(file.id, e)}
-                              data-testid={`menu-item-move-list-${file.id}`}
-                            >
-                              <FolderInput className="w-4 h-4 mr-2" />
-                              Déplacer
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => handleDeleteClick(file.id, e)}
-                              className="text-destructive focus:text-destructive"
-                              data-testid={`menu-item-delete-list-${file.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Supprimer
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    {index < files.length - 1 && <Separator />}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
