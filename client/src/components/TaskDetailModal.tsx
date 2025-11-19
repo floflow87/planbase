@@ -120,13 +120,13 @@ export function TaskDetailModal({
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-task-detail">
-        <SheetHeader className="relative pr-16">
+        <SheetHeader className="flex-row items-center justify-between space-y-0 pb-4">
           <SheetTitle>Détails de la tâche</SheetTitle>
-          {/* Big check button in top left (before close icon) */}
+          {/* Check button to the right of title */}
           <Button
             variant={status === "done" ? "default" : "outline"}
             size="icon"
-            className={`absolute -top-2 right-12 h-12 w-12 ${
+            className={`h-10 w-10 ${
               status === "done" 
                 ? "bg-green-500 hover:bg-green-600 text-white border-green-600" 
                 : "hover-elevate"
@@ -136,7 +136,7 @@ export function TaskDetailModal({
             data-testid="button-mark-complete"
             title={status === "done" ? "Décocher la tâche" : "Marquer comme terminée"}
           >
-            <CheckCircle2 className="h-8 w-8" />
+            <CheckCircle2 className="h-6 w-6" />
           </Button>
         </SheetHeader>
         
