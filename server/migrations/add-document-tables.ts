@@ -52,6 +52,32 @@ export async function addDocumentTables() {
       END $$;
     `);
 
+    // Add source_type column if it doesn't exist (for PDF generation feature)
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'documents' AND column_name = 'source_type'
+        ) THEN
+          ALTER TABLE documents ADD COLUMN source_type TEXT NOT NULL DEFAULT 'template';
+        END IF;
+      END $$;
+    `);
+
+    // Add pdf_storage_path column if it doesn't exist (for PDF generation feature)
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'documents' AND column_name = 'pdf_storage_path'
+        ) THEN
+          ALTER TABLE documents ADD COLUMN pdf_storage_path TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Create indexes
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_document_templates_account ON document_templates(account_id)`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_document_templates_category ON document_templates(category)`);

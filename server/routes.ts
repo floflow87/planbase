@@ -1711,6 +1711,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/documents/:id/export-pdf", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const document = await storage.getDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      if (document.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Import PDF generator
+      const { generatePDF } = await import("./utils/pdf-generator");
+
+      // Generate PDF
+      const pdfBuffer = await generatePDF(document);
+
+      // Create sanitized filename for download
+      const sanitizedName = document.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const fileName = `${sanitizedName}.pdf`;
+
+      // Stream PDF directly to client (secure - no public storage)
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      console.error('Export PDF error:', error);
+      res.status(500).json({ error: error.message || 'Failed to export PDF' });
+    }
+  });
+
   // Document Links
   app.get("/api/document-links", requireAuth, async (req, res) => {
     try {

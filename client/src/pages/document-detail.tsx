@@ -196,12 +196,53 @@ export default function DocumentDetail() {
     }
   }, [deleteDocumentMutation]);
 
-  const handleExportPDF = () => {
-    toast({
-      title: "Export PDF",
-      description: "Fonctionnalité à venir - Export en PDF du document",
-    });
-  };
+  // Export PDF mutation
+  const exportPDFMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/documents/${id}/export-pdf`, "POST", {});
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = 'document.pdf';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) fileName = match[1];
+      }
+      
+      // Get PDF blob
+      const blob = await response.blob();
+      return { blob, fileName };
+    },
+    onSuccess: ({ blob, fileName }: { blob: Blob; fileName: string }) => {
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF exporté",
+        description: "Le document a été exporté en PDF avec succès",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'exporter le document en PDF",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExportPDF = useCallback(() => {
+    if (!id) return;
+    exportPDFMutation.mutate();
+  }, [id, exportPDFMutation]);
 
   // Project link mutations
   const linkProjectMutation = useMutation({
