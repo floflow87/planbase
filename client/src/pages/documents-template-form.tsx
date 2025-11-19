@@ -52,6 +52,7 @@ export default function DocumentTemplateForm() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [isNewProjectSheetOpen, setIsNewProjectSheetOpen] = useState(false);
+  const [transmetteurRaisonSocialeOpen, setTransmetteurRaisonSocialeOpen] = useState(false);
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -74,6 +75,20 @@ export default function DocumentTemplateForm() {
   const { data: clients = [] } = useQuery<any[]>({
     queryKey: ["/api/clients"],
   });
+
+  // Fetch all users to get unique company names for autocomplete
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Get unique companies from users for autocomplete
+  const uniqueCompanies = Array.from(
+    new Set(
+      users
+        .map((user: any) => user.company)
+        .filter((company: any) => company && company.trim())
+    )
+  );
 
   // Fetch user profile for autocomplete (company from app_users)
   const { data: userProfile } = useQuery<{ company?: string | null; accountId: string }>({
@@ -365,7 +380,58 @@ export default function DocumentTemplateForm() {
                     {field.label}
                     {field.required && " *"}
                   </Label>
-                  {field.type === "textarea" ? (
+                  {field.name === "transmetteur_raison_sociale" && uniqueCompanies.length > 0 ? (
+                    <div className="flex gap-2">
+                      <Input
+                        id={field.name}
+                        type={field.type || "text"}
+                        value={formValues[field.name] || ""}
+                        onChange={(e) => setFormValues({ ...formValues, [field.name]: e.target.value })}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        className="flex-1"
+                        data-testid={`input-${field.name}`}
+                      />
+                      <Popover open={transmetteurRaisonSocialeOpen} onOpenChange={setTransmetteurRaisonSocialeOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-expanded={transmetteurRaisonSocialeOpen}
+                            data-testid="button-suggest-company"
+                          >
+                            <ChevronsUpDown className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0 bg-white dark:bg-background">
+                          <Command>
+                            <CommandInput placeholder="Rechercher une entreprise..." />
+                            <CommandEmpty>Aucune entreprise trouvée.</CommandEmpty>
+                            <CommandGroup className="max-h-[300px] overflow-y-auto">
+                              {uniqueCompanies.map((company: any) => (
+                                <CommandItem
+                                  key={company}
+                                  onSelect={() => {
+                                    setFormValues({ ...formValues, [field.name]: company });
+                                    setTransmetteurRaisonSocialeOpen(false);
+                                  }}
+                                  data-testid={`option-company-${company}`}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      formValues[field.name] === company ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  {company}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  ) : field.type === "textarea" ? (
                     <Textarea
                       id={field.name}
                       value={formValues[field.name] || ""}
@@ -442,14 +508,13 @@ export default function DocumentTemplateForm() {
             <div>
               <Label className="text-[12px]" htmlFor="new-project-client">Client</Label>
               <Select
-                value={projectFormData.clientId}
+                value={projectFormData.clientId || undefined}
                 onValueChange={(value) => setProjectFormData({ ...projectFormData, clientId: value })}
               >
                 <SelectTrigger id="new-project-client" data-testid="select-new-project-client">
-                  <SelectValue placeholder="Sélectionner un client" />
+                  <SelectValue placeholder="Aucun client" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-gray-950">
-                  <SelectItem value="">Aucun client</SelectItem>
                   {clients.map((client: any) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.company || client.name}
