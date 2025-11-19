@@ -239,18 +239,23 @@ export default function DocumentDetail() {
       
       // Get PDF blob
       const blob = await response.blob();
+      console.log('📄 PDF blob received:', blob.size, 'bytes, type:', blob.type);
       return { blob, fileName };
     },
     onSuccess: ({ blob, fileName }: { blob: Blob; fileName: string }) => {
+      console.log('📄 Creating download for:', fileName, ', size:', blob.size);
+      
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = window.document.createElement('a');
       link.href = url;
       link.download = fileName;
+      window.document.body.appendChild(link); // Append to body for Firefox
       link.click();
+      window.document.body.removeChild(link); // Clean up
       
       // Cleanup
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
       
       toast({
         title: "PDF exporté",
