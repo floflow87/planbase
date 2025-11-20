@@ -992,6 +992,63 @@ Présenter les grandes phases :
 Pour chaque phase, préciser les livrables attendus :
 
 …`
+      },
+      {
+        id: 'a8e4c9f1-7b2d-4e6a-9c3f-5d1b8e2a7c4d',
+        name: 'Compte rendu de call client',
+        description: 'Document de synthèse pour formaliser les échanges, décisions et actions suite à un appel client',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "client_name", label: "Nom du client", type: "text", required: true },
+            { name: "meeting_date", label: "Date de l'échange", type: "date", required: true }
+          ]
+        },
+        contentTemplate: `# Compte rendu d'échange – {{client_name}} – {{meeting_date}}
+
+## 1. Informations générales
+
+**Client :** {{client_name}}
+
+**Date de l'échange :** {{meeting_date}}
+
+**Participants :** …
+
+---
+
+## 2. Objectifs de l'appel
+
+L'appel avait pour objectif de :
+
+…
+
+---
+
+## 3. Points abordés
+
+Les principaux sujets traités ont été :
+
+**Sujet 1 :** …
+
+**Sujet 2 :** …
+
+---
+
+## 4. Décisions et arbitrages
+
+Les décisions suivantes ont été prises :
+
+…
+
+---
+
+## 5. Actions à venir
+
+Les prochaines étapes sont :
+
+**Action 1 :** … (responsable, échéance)
+
+**Action 2 :** …`
       }
     ];
 
@@ -1018,7 +1075,7 @@ Pour chaque phase, préciser les livrables attendus :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (12 templates)");
+    console.log("✅ Document templates seeded successfully (13 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
