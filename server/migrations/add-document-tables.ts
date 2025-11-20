@@ -792,6 +792,88 @@ Les principaux indicateurs à suivre sont :
 **Conversion :** …
 
 **Rétention :** …`
+      },
+      {
+        id: 'b2c4d8e1-7a3f-4e9b-8c5d-1f6a9e2c3b7d',
+        name: 'Brand Book (Mini)',
+        description: 'Guide condensé d\'identité de marque pour définir l\'univers visuel et la personnalité de la marque',
+        category: 'creative',
+        formSchema: {
+          fields: [
+            { name: "brand_name", label: "Nom de la marque", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Brand book – {{brand_name}} (version condensée)
+
+## 1. Identité de marque
+
+**Nom de la marque :** {{brand_name}}
+
+**Tagline / baseline :**
+
+"…"
+
+**Mission de la marque :**
+
+"…"
+
+**Vision à long terme :**
+
+"…"
+
+---
+
+## 2. Valeurs
+
+La marque repose sur les valeurs suivantes :
+
+**Valeur 1 :** …
+
+**Valeur 2 :** …
+
+**Valeur 3 :** …
+
+---
+
+## 3. Ton & voix
+
+La marque s'exprime avec un ton :
+
+… (ex : chaleureux, direct, expert)
+
+**À privilégier :**
+
+…
+
+**À éviter :**
+
+…
+
+---
+
+## 4. Univers visuel
+
+### Palette de couleurs (à détailler)
+
+…
+
+### Styles de typographies recommandés
+
+…
+
+### Style iconographique / photographique
+
+…
+
+---
+
+## 5. Exemples d'usages
+
+Exemples de titres, posts ou messages qui incarnent la marque :
+
+**Exemple 1 :** …
+
+**Exemple 2 :** …`
       }
     ];
 
@@ -818,7 +900,7 @@ Les principaux indicateurs à suivre sont :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (9 templates)");
+    console.log("✅ Document templates seeded successfully (10 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
