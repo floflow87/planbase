@@ -668,6 +668,7 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({ id: tru
   templateId: z.string().nullable().optional(), // Free-form documents don't need templateId
 });
 export const updateDocumentSchema = insertDocumentSchema.omit({ accountId: true, createdBy: true }).partial();
+export type UpdateDocument = z.infer<typeof updateDocumentSchema>;
 export const insertFolderSchema = createInsertSchema(folders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertFileSchema = createInsertSchema(files).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertMailAccountSchema = createInsertSchema(mailAccounts).omit({ id: true, createdAt: true, updatedAt: true });

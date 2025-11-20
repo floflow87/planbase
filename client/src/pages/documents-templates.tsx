@@ -61,14 +61,19 @@ export default function DocumentTemplates() {
   });
 
   // Filtrer et grouper les templates
-  const { filteredTemplates, groupedTemplates } = useMemo(() => {
+  const groupedTemplates = useMemo(() => {
     const query = (searchQuery ?? "").trim().toLowerCase();
-    const filtered = templates.filter((template) => {
-      const nameMatch = template.name.toLowerCase().includes(query);
-      const descriptionMatch = (template.description ?? "").toLowerCase().includes(query);
-      return nameMatch || descriptionMatch;
-    });
+    
+    // Filtrer les templates
+    const filtered = query === "" 
+      ? templates 
+      : templates.filter((template) => {
+          const nameMatch = template.name.toLowerCase().includes(query);
+          const descriptionMatch = (template.description ?? "").toLowerCase().includes(query);
+          return nameMatch || descriptionMatch;
+        });
 
+    // Grouper par catégorie
     const grouped = filtered.reduce((acc, template) => {
       const category = template.category || "business";
       if (!acc[category]) {
@@ -78,7 +83,7 @@ export default function DocumentTemplates() {
       return acc;
     }, {} as Record<string, DocumentTemplate[]>);
 
-    return { filteredTemplates: filtered, groupedTemplates: grouped };
+    return { filtered, grouped };
   }, [templates, searchQuery]);
 
   // Ordre d'affichage des catégories
@@ -97,7 +102,7 @@ export default function DocumentTemplates() {
           </div>
         </div>
         <p className="text-muted-foreground mb-4">
-          Recherchez un modèle de document pour commencer
+          Recherchez un modèle de document ou créez une page vierge
         </p>
         
         {/* Barre de recherche */}
@@ -119,31 +124,24 @@ export default function DocumentTemplates() {
           <div className="flex items-center justify-center h-64">
             <div className="text-muted-foreground">Chargement...</div>
           </div>
-        ) : searchQuery === "" ? (
+        ) : groupedTemplates.filtered.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground text-lg mb-2">
-                Utilisez la barre de recherche pour trouver un modèle
+                Aucun modèle trouvé pour "{searchQuery}"
               </p>
-              <p className="text-sm text-muted-foreground">
-                Ou créez un document vierge
+              <p className="text-sm text-muted-foreground mb-4">
+                Essayez une autre recherche ou créez un document vierge
               </p>
               <Button
                 variant="outline"
-                className="mt-4"
                 onClick={() => createBlankDocumentMutation.mutate()}
                 data-testid="button-create-blank"
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Page vierge
               </Button>
-            </div>
-          </div>
-        ) : filteredTemplates.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <p className="text-muted-foreground">Aucun modèle trouvé pour "{searchQuery}"</p>
             </div>
           </div>
         ) : (
@@ -178,7 +176,7 @@ export default function DocumentTemplates() {
 
             {/* Templates groupés par catégorie */}
             {categoryOrder.map((category) => {
-              const categoryTemplates = groupedTemplates[category];
+              const categoryTemplates = groupedTemplates.grouped[category];
               if (!categoryTemplates || categoryTemplates.length === 0) return null;
 
               return (

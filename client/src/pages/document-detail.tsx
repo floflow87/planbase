@@ -42,7 +42,7 @@ import NoteEditor from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Document, Project, NoteLink } from "@shared/schema";
+import type { Document, Project, NoteLink, UpdateDocument } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -99,17 +99,7 @@ export default function DocumentDetail() {
 
   // Update document mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: {
-      name?: string;
-      content?: any;
-      plainText?: string;
-      status?: string;
-      version?: number;
-      sourceType?: string;
-      pdfStoragePath?: string;
-      templateId?: string | null;
-      formData?: any;
-    }) => {
+    mutationFn: async (data: UpdateDocument) => {
       const response = await apiRequest(`/api/documents/${id}`, "PATCH", data);
       return await response.json();
     },
