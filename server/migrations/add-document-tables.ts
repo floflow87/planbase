@@ -484,6 +484,123 @@ Chaque partie peut résilier le contrat moyennant un préavis écrit de 30 jours
 
 8. RESPONSABILITÉ
 Le Prestataire est responsable de la bonne exécution de la prestation dans les limites du présent contrat.`
+      },
+      {
+        id: 'c7f9b5d1-2e4a-4c8f-9d3b-1a6e5f8c2d4b',
+        name: 'Cahier des Charges Fonctionnel (CDF)',
+        description: 'Document structuré pour définir les besoins fonctionnels, le périmètre et les exigences d\'un projet',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "project_name", label: "Nom du projet", type: "text", required: true },
+            { name: "client_name", label: "Nom du client", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Cahier des charges fonctionnel – {{project_name}} – {{client_name}}
+
+## 1. Contexte du projet
+
+Ce document a pour objectif de décrire les besoins fonctionnels du projet **{{project_name}}** pour le compte de **{{client_name}}**.
+
+Le projet s'inscrit dans le contexte suivant :
+
+**Contexte métier :** …
+
+**Enjeux principaux :** …
+
+**Parties prenantes impliquées :** …
+
+---
+
+## 2. Objectifs
+
+L'objectif de ce projet est de :
+
+- …
+- …
+
+À travers ce cahier des charges, il s'agit de cadrer précisément :
+
+- Les fonctionnalités attendues,
+- Les contraintes à respecter,
+- Les livrables à produire.
+
+---
+
+## 3. Périmètre
+
+Le périmètre couvert par ce document inclut :
+
+- …
+- …
+
+**Ne sont pas inclus dans le périmètre :**
+
+- …
+
+---
+
+## 4. Utilisateurs & Personas
+
+Les principaux types d'utilisateurs concernés sont :
+
+**Type d'utilisateur 1 :** …
+
+**Type d'utilisateur 2 :** …
+
+Pour chacun, préciser : objectifs, besoins, frustrations.
+
+---
+
+## 5. Parcours et cas d'usage
+
+Les parcours suivants sont considérés comme prioritaires :
+
+**Parcours 1 :** "Un utilisateur souhaite…"
+
+**Parcours 2 :** "Un administrateur doit pouvoir…"
+
+Pour chaque parcours :
+
+- **Étapes clés :** …
+- **Points de friction potentiels :** …
+
+---
+
+## 6. Exigences fonctionnelles
+
+Les exigences fonctionnelles sont organisées par grandes fonctionnalités.
+
+Pour chaque fonctionnalité, préciser :
+
+**Intitulé :** …
+
+**Description :** "L'utilisateur doit pouvoir…"
+
+**Règles de gestion :** …
+
+**Exceptions / cas particuliers :** …
+
+---
+
+## 7. Contraintes
+
+Les contraintes identifiées à ce stade sont :
+
+**Contraintes techniques :** …
+
+**Contraintes légales / RGPD :** …
+
+**Contraintes de planning :** …
+
+---
+
+## 8. Livrables attendus
+
+Les livrables attendus dans le cadre de ce projet sont :
+
+- …
+- …`
       }
     ];
 
@@ -510,7 +627,7 @@ Le Prestataire est responsable de la bonne exécution de la prestation dans les 
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (6 templates)");
+    console.log("✅ Document templates seeded successfully (7 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
