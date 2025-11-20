@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Loader } from "@/components/Loader";
 
@@ -113,6 +113,7 @@ export default function Dashboard() {
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -315,6 +316,98 @@ export default function Dashboard() {
     }
   }, [accountId, currentUser, clientForm, projectForm]);
 
+  // Helper function to normalize any date value to local YYYY-MM-DD string
+  const normalizeToLocalDate = (dateValue: any): string => {
+    // Handle bare YYYY-MM-DD strings without timezone adjustment
+    const dateStr = String(dateValue);
+    if (dateStr.length === 10 && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateStr; // Bare date - use as-is (universal calendar day)
+    }
+    // For timestamps (ISO with time/timezone), adjust for viewer's timezone offset
+    const d = new Date(dateValue);
+    const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 10);
+  };
+
+  // Memoize task calculations for performance (must be before return early to maintain hook order)
+  const { todaysTasks, overdueTasks, next3DaysTasks, myDayTasks, filteredMyDayTasks, filteredOverdueCount, todayStr } = useMemo(() => {
+    // Calculate today's date string (inside useMemo to avoid recalculation on every render)
+    const today = normalizeToLocalDate(new Date()); // Format: YYYY-MM-DD in local time
+
+    // Helper function to deduplicate tasks by ID
+    const deduplicateTasks = (taskList: Task[]): Task[] => {
+      const seen = new Set<string>();
+      return taskList.filter(task => {
+        if (!task.id || seen.has(task.id)) return false;
+        seen.add(task.id);
+        return true;
+      });
+    };
+
+    // Deduplicate tasks once at the source before any filtering
+    const uniqueTasks = deduplicateTasks(tasks);
+
+    // Helper function to get date string in N days
+    const getDateInDays = (days: number): string => {
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      return normalizeToLocalDate(date);
+    };
+
+    // Calculate today's tasks (tasks due today) using local time
+    const todayTasks = uniqueTasks.filter(t => {
+      if (!t.dueDate) return false;
+      // Normalize dueDate to local date string (YYYY-MM-DD) to handle all formats
+      const dueDateStr = normalizeToLocalDate(t.dueDate);
+      return dueDateStr === today && t.status !== "done";
+    });
+
+    // Calculate overdue tasks (tasks with dueDate before today and not done)
+    const overdue = uniqueTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDateStr = normalizeToLocalDate(t.dueDate);
+      return dueDateStr < today && t.status !== "done";
+    });
+
+    // Calculate tasks for the next 3 days (excluding today and overdue)
+    const next3Days = uniqueTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDateStr = normalizeToLocalDate(t.dueDate);
+      const tomorrow = getDateInDays(1);
+      const dayAfter = getDateInDays(2);
+      const day3 = getDateInDays(3);
+      return (dueDateStr === tomorrow || dueDateStr === dayAfter || dueDateStr === day3) && t.status !== "done";
+    });
+
+    // Combine today's tasks and overdue tasks for "Ma Journée" - deduplicate after concatenation
+    const combined = deduplicateTasks([...overdue, ...todayTasks]);
+
+    // Filter tasks based on selected filter - deduplicate after concatenation for next3days
+    const filtered = 
+      myDayFilter === "overdue" 
+        ? overdue
+        : myDayFilter === "next3days"
+          ? deduplicateTasks([...overdue, ...todayTasks, ...next3Days])
+          : combined; // "today" filter: overdue + today (already deduplicated)
+
+    // Count overdue tasks in filtered list for badge
+    const overdueInFiltered = filtered.filter(t => {
+      if (!t.dueDate) return false;
+      const dueDateStr = normalizeToLocalDate(t.dueDate);
+      return dueDateStr < today;
+    }).length;
+
+    return {
+      todaysTasks: todayTasks,
+      overdueTasks: overdue,
+      next3DaysTasks: next3Days,
+      myDayTasks: combined,
+      filteredMyDayTasks: filtered,
+      filteredOverdueCount: overdueInFiltered,
+      todayStr: today,
+    };
+  }, [tasks, myDayFilter]); // Use tasks directly as dependency
+
   const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
   };
@@ -342,38 +435,6 @@ export default function Dashboard() {
     .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
-
-  // Helper function to normalize any date value to local YYYY-MM-DD string
-  const normalizeToLocalDate = (dateValue: any): string => {
-    // Handle bare YYYY-MM-DD strings without timezone adjustment
-    const dateStr = String(dateValue);
-    if (dateStr.length === 10 && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateStr; // Bare date - use as-is (universal calendar day)
-    }
-    // For timestamps (ISO with time/timezone), adjust for viewer's timezone offset
-    const d = new Date(dateValue);
-    const localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return localDate.toISOString().slice(0, 10);
-  };
-
-  // Calculate today's tasks (tasks due today) using local time
-  const todayStr = normalizeToLocalDate(new Date()); // Format: YYYY-MM-DD in local time
-  const todaysTasks = tasks.filter(t => {
-    if (!t.dueDate) return false;
-    // Normalize dueDate to local date string (YYYY-MM-DD) to handle all formats
-    const dueDateStr = normalizeToLocalDate(t.dueDate);
-    return dueDateStr === todayStr && t.status !== "done";
-  });
-
-  // Calculate overdue tasks (tasks with dueDate before today and not done)
-  const overdueTasks = tasks.filter(t => {
-    if (!t.dueDate) return false;
-    const dueDateStr = normalizeToLocalDate(t.dueDate);
-    return dueDateStr < todayStr && t.status !== "done";
-  });
-
-  // Combine today's tasks and overdue tasks for "Ma Journée"
-  const myDayTasks = [...overdueTasks, ...todaysTasks];
 
   // KPI data from real data
   const kpis: Array<{
@@ -997,27 +1058,39 @@ export default function Dashboard() {
 
           {/* Ma Journée Widget - Today's Tasks + Overdue */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-              <CardTitle className="text-base font-heading font-semibold">
-                Ma Journée
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                {overdueTasks.length > 0 && (
-                  <Badge variant="destructive" data-testid="badge-overdue-tasks-count">
-                    {overdueTasks.length} en retard
+            <CardHeader className="space-y-3 pb-2">
+              <div className="flex flex-row items-center justify-between gap-1">
+                <CardTitle className="text-base font-heading font-semibold">
+                  Ma Journée
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {filteredOverdueCount > 0 && myDayFilter === "today" && (
+                    <Badge variant="destructive" data-testid="badge-overdue-tasks-count">
+                      {filteredOverdueCount} en retard
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" data-testid="badge-today-tasks-count">
+                    {filteredMyDayTasks.length} tâche{filteredMyDayTasks.length > 1 ? 's' : ''}
                   </Badge>
-                )}
-                <Badge variant="secondary" data-testid="badge-today-tasks-count">
-                  {myDayTasks.length} tâche{myDayTasks.length > 1 ? 's' : ''}
-                </Badge>
+                </div>
               </div>
+              <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
+                <SelectTrigger className="w-full" data-testid="select-my-day-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Aujourd'hui</SelectItem>
+                  <SelectItem value="overdue">Retard</SelectItem>
+                  <SelectItem value="next3days">Les 3 prochains jours</SelectItem>
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {myDayTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche à échéance aujourd'hui</p>
+                {filteredMyDayTasks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche pour ce filtre</p>
                 ) : (
-                  myDayTasks.map((task) => {
+                  filteredMyDayTasks.map((task) => {
                     const client = clients.find(c => c.id === task.clientId);
                     const project = projects.find(p => p.id === task.projectId);
                     const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
