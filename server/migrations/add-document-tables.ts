@@ -684,6 +684,114 @@ Les principaux risques identifiés sont :
 …
 
 Pour chaque risque, préciser un plan d'atténuation.`
+      },
+      {
+        id: 'f5d8e3a7-9c2b-4f1d-8e6a-3b9c7d2f4e1a',
+        name: 'Plan Marketing / Go-To-Market',
+        description: 'Stratégie marketing complète pour le lancement et la promotion d\'un produit',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "product_name", label: "Nom du produit", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Plan marketing & go-to-market – {{product_name}}
+
+## 1. Contexte & cible
+
+Le présent document décrit la stratégie marketing de **{{product_name}}**.
+
+Le produit s'adresse principalement à :
+
+**Segment 1 :** …
+
+**Segment 2 :** …
+
+---
+
+## 2. Proposition de valeur
+
+La proposition de valeur peut se formuler ainsi :
+
+"**{{product_name}}** permet à [type de client] de [résultat souhaité] sans [frein habituel]."
+
+---
+
+## 3. Positionnement
+
+Le positionnement par rapport au marché est le suivant :
+
+**Référence principale :** …
+
+**Différenciation clé :** …
+
+---
+
+## 4. Canaux d'acquisition
+
+Les canaux envisagés sont :
+
+### SEO
+
+…
+
+### SEA
+
+…
+
+### Réseaux sociaux
+
+…
+
+### Emailing
+
+…
+
+Pour chaque canal :
+
+- **Objectif :** …
+- **Type de contenu :** …
+- **Fréquence :** …
+
+---
+
+## 5. Parcours marketing (Funnel)
+
+Décrire le funnel :
+
+### TOFU (découverte)
+
+…
+
+### MOFU (évaluation)
+
+…
+
+### BOFU (conversion)
+
+…
+
+---
+
+## 6. Planning d'actions
+
+Sous forme de liste ou de tableau :
+
+**Semaine X :** …
+
+**Semaine Y :** …
+
+---
+
+## 7. KPIs de suivi
+
+Les principaux indicateurs à suivre sont :
+
+**Trafic :** …
+
+**Conversion :** …
+
+**Rétention :** …`
       }
     ];
 
@@ -710,7 +818,7 @@ Pour chaque risque, préciser un plan d'atténuation.`
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (8 templates)");
+    console.log("✅ Document templates seeded successfully (9 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
