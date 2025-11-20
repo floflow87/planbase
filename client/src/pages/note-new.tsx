@@ -39,11 +39,29 @@ export default function NoteNew() {
 
   // Editor ref for voice recording
   const editorRef = useRef<NoteEditorRef>(null);
+  // Ref to track interim transcript length for deletion
+  const interimLengthRef = useRef(0);
 
   // Memoized callbacks for voice recording to prevent re-renders
   const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
-    if (isFinal && text) {
+    if (!text) return;
+
+    if (isFinal) {
+      // Delete interim text if exists
+      if (interimLengthRef.current > 0) {
+        editorRef.current?.deleteLastCharacters(interimLengthRef.current);
+        interimLengthRef.current = 0;
+      }
+      // Insert final text with space
       editorRef.current?.insertText(' ' + text);
+    } else {
+      // Delete previous interim text if exists
+      if (interimLengthRef.current > 0) {
+        editorRef.current?.deleteLastCharacters(interimLengthRef.current);
+      }
+      // Insert new interim text
+      editorRef.current?.insertText(text);
+      interimLengthRef.current = text.length;
     }
   }, []);
 

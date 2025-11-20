@@ -62,6 +62,7 @@ import type { Editor } from '@tiptap/react';
 
 export interface NoteEditorRef {
   insertText: (text: string) => void;
+  deleteLastCharacters: (count: number) => void;
   getEditor: () => Editor | null;
 }
 
@@ -210,6 +211,13 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     insertText: (text: string) => {
       if (editor) {
         editor.chain().focus().insertContent(text).run();
+      }
+    },
+    deleteLastCharacters: (count: number) => {
+      if (editor && count > 0) {
+        const { from, to } = editor.state.selection;
+        const deleteFrom = Math.max(0, from - count);
+        editor.chain().focus().deleteRange({ from: deleteFrom, to: from }).run();
       }
     },
     getEditor: () => editor,
