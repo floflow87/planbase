@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +26,23 @@ import { CalendarIcon, Star, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
+
+// Helper function to derive task status from column name
+function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
+  const lowerName = columnName.toLowerCase();
+  
+  if (lowerName.includes("à faire") || lowerName.includes("todo") || lowerName.includes("backlog")) {
+    return "todo";
+  } else if (lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété")) {
+    return "done";
+  } else if (lowerName.includes("en cours") || lowerName.includes("progress") || lowerName.includes("doing")) {
+    return "in_progress";
+  } else if (lowerName.includes("revue") || lowerName.includes("review") || lowerName.includes("validation")) {
+    return "review";
+  }
+  
+  return "in_progress";
+}
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -56,6 +73,27 @@ export function TaskDetailModal({
   const [status, setStatus] = useState("todo");
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
+
+  // Generate unique status options from available columns
+  const statusOptions = useMemo(() => {
+    const statusMap = new Map<string, { value: string; label: string }>();
+    
+    // Sort columns by order to maintain a consistent sequence
+    const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+    
+    sortedColumns.forEach(column => {
+      const status = getStatusFromColumnName(column.name);
+      // Only add if not already in map (to avoid duplicates)
+      if (!statusMap.has(status)) {
+        statusMap.set(status, {
+          value: status,
+          label: column.name, // Use the actual column name as label
+        });
+      }
+    });
+    
+    return Array.from(statusMap.values());
+  }, [columns]);
 
   useEffect(() => {
     if (task) {
@@ -194,10 +232,11 @@ export function TaskDetailModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todo">À faire</SelectItem>
-                  <SelectItem value="in_progress">En cours</SelectItem>
-                  <SelectItem value="review">En révision</SelectItem>
-                  <SelectItem value="done">Terminé</SelectItem>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
