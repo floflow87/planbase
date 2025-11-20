@@ -70,29 +70,20 @@ export function TaskDetailModal({
   const [priority, setPriority] = useState("medium");
   const [assignedToId, setAssignedToId] = useState<string | undefined>();
   const [dueDate, setDueDate] = useState<Date | undefined>();
-  const [status, setStatus] = useState("todo");
+  const [selectedColumnId, setSelectedColumnId] = useState<string>("");
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
 
-  // Generate unique status options from available columns
-  const statusOptions = useMemo(() => {
-    const statusMap = new Map<string, { value: string; label: string }>();
-    
+  // Display ALL columns from the project (not filtered by status)
+  const columnOptions = useMemo(() => {
     // Sort columns by order to maintain a consistent sequence
     const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
     
-    sortedColumns.forEach(column => {
-      const status = getStatusFromColumnName(column.name);
-      // Only add if not already in map (to avoid duplicates)
-      if (!statusMap.has(status)) {
-        statusMap.set(status, {
-          value: status,
-          label: column.name, // Use the actual column name as label
-        });
-      }
-    });
-    
-    return Array.from(statusMap.values());
+    return sortedColumns.map(column => ({
+      id: column.id,
+      name: column.name,
+      status: getStatusFromColumnName(column.name),
+    }));
   }, [columns]);
 
   useEffect(() => {
@@ -102,7 +93,7 @@ export function TaskDetailModal({
       setPriority(task.priority);
       setAssignedToId(task.assignedToId || undefined);
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
-      setStatus(task.status || "todo");
+      setSelectedColumnId(task.columnId || "");
       setProjectId(task.projectId || undefined);
       setEffort(task.effort ?? null);
     }
@@ -110,6 +101,10 @@ export function TaskDetailModal({
 
   const handleSave = () => {
     if (!task) return;
+
+    // Get the selected column to derive the status
+    const selectedColumn = columns.find((c) => c.id === selectedColumnId);
+    const derivedStatus = selectedColumn ? getStatusFromColumnName(selectedColumn.name) : task.status;
 
     // Build the update object
     const updates: Partial<Task> = {
@@ -119,37 +114,15 @@ export function TaskDetailModal({
       priority,
       assignedToId: assignedToId || null,
       dueDate: dueDate ? dueDate.toISOString() : null,
-      status,
+      status: derivedStatus,
+      columnId: selectedColumnId,
       projectId: projectId || task.projectId,
       effort: effort,
     };
 
-    // Only sync columnId if status changed to "done"
-    if (status === "done" && status !== task.status) {
-      // Find the "Terminé" column by name
-      const doneColumn = columns.find((c) => c.name.toLowerCase().includes("terminé") || c.name.toLowerCase().includes("done"));
-      
-      // If we found the done column, move the task there
-      if (doneColumn && task.columnId !== doneColumn.id) {
-        updates.columnId = doneColumn.id;
-        updates.progress = 100;
-      }
-    } else if (status !== "done" && task.status === "done") {
-      // If unmarking as done, try to find the appropriate column based on the new status
-      let targetColumn;
-      
-      if (status === "todo") {
-        targetColumn = columns.find((c) => c.name.toLowerCase().includes("à faire") || c.name.toLowerCase().includes("todo") || c.name.toLowerCase().includes("backlog"));
-      } else if (status === "in_progress") {
-        targetColumn = columns.find((c) => c.name.toLowerCase().includes("en cours") || c.name.toLowerCase().includes("progress") || c.name.toLowerCase().includes("doing"));
-      } else if (status === "review") {
-        targetColumn = columns.find((c) => c.name.toLowerCase().includes("revue") || c.name.toLowerCase().includes("review") || c.name.toLowerCase().includes("validation"));
-      }
-      
-      // If we found a matching column, update columnId
-      if (targetColumn) {
-        updates.columnId = targetColumn.id;
-      }
+    // Set progress to 100 if moving to a "done" column
+    if (derivedStatus === "done" && task.status !== "done") {
+      updates.progress = 100;
     }
 
     onSave(updates);
@@ -158,9 +131,24 @@ export function TaskDetailModal({
 
   if (!task) return null;
 
+  // Derive current status from selected column
+  const currentColumn = columns.find((c) => c.id === selectedColumnId);
+  const currentStatus = currentColumn ? getStatusFromColumnName(currentColumn.name) : "todo";
+
   const handleMarkComplete = () => {
-    // Toggle: if already done, set back to todo, otherwise set to done
-    setStatus(status === "done" ? "todo" : "done");
+    if (currentStatus === "done") {
+      // If already in a done column, move to first todo column
+      const todoColumn = columns.find((c) => getStatusFromColumnName(c.name) === "todo");
+      if (todoColumn) {
+        setSelectedColumnId(todoColumn.id);
+      }
+    } else {
+      // Move to done column
+      const doneColumn = columns.find((c) => getStatusFromColumnName(c.name) === "done");
+      if (doneColumn) {
+        setSelectedColumnId(doneColumn.id);
+      }
+    }
   };
 
   return (
@@ -171,17 +159,17 @@ export function TaskDetailModal({
             <SheetTitle>Détails de la tâche</SheetTitle>
             {/* Check button just after title on the left */}
             <Button
-              variant={status === "done" ? "default" : "outline"}
+              variant={currentStatus === "done" ? "default" : "outline"}
               size="icon"
               className={`h-10 w-10 ${
-                status === "done" 
+                currentStatus === "done" 
                   ? "bg-green-500 hover:bg-green-600 text-white border-green-600" 
                   : "hover-elevate"
               }`}
               style={{ borderRadius: '10px' }}
               onClick={handleMarkComplete}
               data-testid="button-mark-complete"
-              title={status === "done" ? "Décocher la tâche" : "Marquer comme terminée"}
+              title={currentStatus === "done" ? "Décocher la tâche" : "Marquer comme terminée"}
             >
               <CheckCircle2 className="h-6 w-6" />
             </Button>
@@ -227,14 +215,14 @@ export function TaskDetailModal({
 
             <div className="grid gap-2">
               <Label htmlFor="status">Statut</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={selectedColumnId} onValueChange={setSelectedColumnId}>
                 <SelectTrigger id="status" data-testid="select-task-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {columnOptions.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
