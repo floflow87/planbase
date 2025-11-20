@@ -1049,6 +1049,204 @@ Les prochaines étapes sont :
 **Action 1 :** … (responsable, échéance)
 
 **Action 2 :** …`
+      },
+      {
+        id: 'c5f9d2e8-3a7b-4c1d-9e6f-2b8a5c1d4e7a',
+        name: 'Rapport d\'audit UX/UI',
+        description: 'Analyse détaillée de l\'expérience utilisateur avec recommandations d\'amélioration priorisées',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "product_name", label: "Nom du produit", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Audit UX/UI – {{product_name}}
+
+## 1. Contexte & objectif
+
+Cet audit a pour objectif d'évaluer l'expérience utilisateur de **{{product_name}}** et d'identifier des pistes d'amélioration concrètes.
+
+---
+
+## 2. Méthodologie
+
+La démarche d'analyse repose sur :
+
+… (ex : heuristiques UX, tests utilisateurs, revue d'interface)
+
+---
+
+## 3. Constat général
+
+De manière générale, on observe que :
+
+**Points positifs :** …
+
+**Points à améliorer :** …
+
+---
+
+## 4. Détails par thème
+
+Pour chaque thème (navigation, contenus, visuel…) :
+
+**Constats :** …
+
+**Recommandations :** …
+
+---
+
+## 5. Synthèse & priorisation
+
+Les recommandations peuvent être regroupées et priorisées ainsi :
+
+**Priorité haute :** …
+
+**Priorité moyenne :** …`
+      },
+      {
+        id: 'e7a4b9c3-6d2f-4e8a-9c1b-5f3d8a2e6c9b',
+        name: 'Note stratégique',
+        description: 'Document d\'analyse stratégique avec diagnostic SWOT et recommandations d\'action',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "project_name", label: "Nom du projet", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Note stratégique – {{project_name}}
+
+## 1. Objet de la note
+
+Cette note vise à présenter une analyse synthétique de la situation de **{{project_name}}** et à proposer une recommandation stratégique.
+
+---
+
+## 2. Contexte et enjeux
+
+Décrire brièvement :
+
+**La situation actuelle :** …
+
+**Les enjeux principaux :** …
+
+---
+
+## 3. Diagnostic
+
+Sur la base des informations disponibles :
+
+**Forces :** …
+
+**Faiblesses :** …
+
+**Opportunités :** …
+
+**Menaces :** …
+
+---
+
+## 4. Scénarios possibles
+
+Plusieurs options peuvent être envisagées :
+
+**Scénario A :** …
+
+**Scénario B :** …
+
+---
+
+## 5. Recommandation
+
+Le scénario privilégié est : …
+
+Les raisons principales sont : …
+
+---
+
+## 6. Plan d'action
+
+Les étapes proposées pour mettre en œuvre la recommandation sont :
+
+**Étape 1 :** …
+
+**Étape 2 :** …`
+      },
+      {
+        id: 'f9c3e6a8-4d1b-4e7c-9a2f-3b5d8c1e6a9d',
+        name: 'Plan de lancement produit',
+        description: 'Stratégie complète de lancement avec messages clés, canaux d\'activation et planning détaillé',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "product_name", label: "Nom du produit", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Plan de lancement – {{product_name}}
+
+## 1. Objectifs du lancement
+
+Le lancement de **{{product_name}}** a pour objectif de :
+
+…
+
+---
+
+## 2. Cible & positionnement
+
+Le produit s'adresse principalement à :
+
+…
+
+Le positionnement retenu est :
+
+"…"
+
+---
+
+## 3. Messages clés
+
+Les messages principaux à faire passer sont :
+
+**Message 1 :** …
+
+**Message 2 :** …
+
+---
+
+## 4. Canaux & actions
+
+Les actions de lancement seront menées sur les canaux suivants :
+
+**Canal 1 :** …
+
+**Canal 2 :** …
+
+Pour chaque canal, détailler :
+
+- **Type de contenu**
+- **Fréquence**
+- **Responsable**
+
+---
+
+## 5. Planning
+
+Présenter un planning de lancement :
+
+**Avant lancement (teasing) :** …
+
+**Semaine de lancement :** …
+
+**Post-lancement :** …
+
+---
+
+## 6. Indicateurs de succès
+
+Les indicateurs de succès suivis seront :
+
+…`
       }
     ];
 
@@ -1075,7 +1273,7 @@ Les prochaines étapes sont :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (13 templates)");
+    console.log("✅ Document templates seeded successfully (16 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
