@@ -55,8 +55,21 @@ export function useVoiceRecording(options: VoiceRecordingOptions = {}) {
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef('');
+  
+  // Store callbacks in refs to avoid recreating recognition on every render
+  const onTranscriptRef = useRef(onTranscript);
+  const onErrorRef = useRef(onError);
 
-  // Check browser support
+  // Update callback refs when they change
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  // Initialize speech recognition only once
   useEffect(() => {
     const SpeechRecognitionAPI =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -83,9 +96,9 @@ export function useVoiceRecording(options: VoiceRecordingOptions = {}) {
 
         if (finalTranscript) {
           finalTranscriptRef.current += finalTranscript;
-          onTranscript?.(finalTranscript.trim(), true);
+          onTranscriptRef.current?.(finalTranscript.trim(), true);
         } else if (interimTranscript) {
-          onTranscript?.(interimTranscript.trim(), false);
+          onTranscriptRef.current?.(interimTranscript.trim(), false);
         }
       };
 
@@ -110,7 +123,7 @@ export function useVoiceRecording(options: VoiceRecordingOptions = {}) {
             errorMessage = `Erreur: ${event.error}`;
         }
         
-        onError?.(errorMessage);
+        onErrorRef.current?.(errorMessage);
         setIsRecording(false);
       };
 
@@ -131,11 +144,11 @@ export function useVoiceRecording(options: VoiceRecordingOptions = {}) {
         recognitionRef.current.abort();
       }
     };
-  }, [lang, continuous, interimResults, onTranscript, onError]);
+  }, [lang, continuous, interimResults]); // Removed callback dependencies
 
   const startRecording = useCallback(() => {
     if (!isSupported) {
-      onError?.('La reconnaissance vocale n\'est pas supportée par votre navigateur');
+      onErrorRef.current?.('La reconnaissance vocale n\'est pas supportée par votre navigateur');
       return;
     }
 
@@ -143,9 +156,9 @@ export function useVoiceRecording(options: VoiceRecordingOptions = {}) {
       recognitionRef.current?.start();
     } catch (error) {
       console.error('Error starting recognition:', error);
-      onError?.('Impossible de démarrer l\'enregistrement');
+      onErrorRef.current?.('Impossible de démarrer l\'enregistrement');
     }
-  }, [isSupported, onError]);
+  }, [isSupported]);
 
   const stopRecording = useCallback(() => {
     try {

@@ -25,7 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import NoteEditor from "@/components/NoteEditor";
+import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ import { fr } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check, ChevronsUpDown, X } from "lucide-react";
+import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +65,24 @@ export default function NoteDetail() {
   const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
+
+  // Editor ref for voice recording
+  const editorRef = useRef<NoteEditorRef>(null);
+
+  // Memoized callbacks for voice recording to prevent re-renders
+  const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal && text) {
+      editorRef.current?.insertText(' ' + text);
+    }
+  }, []);
+
+  const handleVoiceError = useCallback((error: string) => {
+    toast({
+      title: "Erreur de transcription",
+      description: error,
+      variant: "destructive",
+    });
+  }, [toast]);
 
   // Fetch note
   const { data: note, isLoading } = useQuery<Note>({
@@ -820,6 +839,7 @@ export default function NoteDetail() {
         <div className="p-6">
           {/* Editor */}
           <NoteEditor
+            ref={editorRef}
             content={content}
             onChange={setContent}
             title={title}
@@ -907,6 +927,14 @@ export default function NoteDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Voice Recording Button */}
+      {isEditMode && (
+        <VoiceRecordingButton
+          onTranscript={handleVoiceTranscript}
+          onError={handleVoiceError}
+        />
+      )}
     </div>
   );
 }

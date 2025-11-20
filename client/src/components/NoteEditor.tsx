@@ -54,10 +54,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { supabase } from '@/lib/supabase';
+import type { Editor } from '@tiptap/react';
+
+export interface NoteEditorRef {
+  insertText: (text: string) => void;
+  getEditor: () => Editor | null;
+}
 
 interface NoteEditorProps {
   content: any;
@@ -90,14 +96,15 @@ const HIGHLIGHT_COLORS = [
   { name: 'Violet', value: '#DDD6FE' },
 ];
 
-export default function NoteEditor({ 
-  content, 
-  onChange, 
-  editable = true,
-  placeholder = "Commencez à taper ou tapez '/' pour les commandes...",
-  onTitleChange,
-  title = "",
-}: NoteEditorProps) {
+const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
+  const {
+    content,
+    onChange,
+    editable = true,
+    placeholder = "Commencez à taper ou tapez '/' pour les commandes...",
+    onTitleChange,
+    title = "",
+  } = props;
   // Dialogue states
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -197,6 +204,16 @@ export default function NoteEditor({
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Expose imperative methods for external control
+  useImperativeHandle(ref, () => ({
+    insertText: (text: string) => {
+      if (editor) {
+        editor.chain().focus().insertContent(text).run();
+      }
+    },
+    getEditor: () => editor,
+  }), [editor]);
 
   // New dialog-based link handler
   const openLinkDialog = useCallback(() => {
@@ -949,4 +966,8 @@ export default function NoteEditor({
       </Dialog>
     </div>
   );
-}
+});
+
+NoteEditor.displayName = 'NoteEditor';
+
+export default NoteEditor;

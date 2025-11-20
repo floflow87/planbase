@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import NoteEditor from "@/components/NoteEditor";
+import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { InsertNote, Project } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
+import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 
 export default function NoteNew() {
   const [, navigate] = useLocation();
@@ -35,6 +36,24 @@ export default function NoteNew() {
   // Stable ref for noteId to avoid autosave race conditions
   const noteIdRef = useRef<string | null>(null);
   const isCreatingRef = useRef(false);
+
+  // Editor ref for voice recording
+  const editorRef = useRef<NoteEditorRef>(null);
+
+  // Memoized callbacks for voice recording to prevent re-renders
+  const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal && text) {
+      editorRef.current?.insertText(' ' + text);
+    }
+  }, []);
+
+  const handleVoiceError = useCallback((error: string) => {
+    toast({
+      title: "Erreur de transcription",
+      description: error,
+      variant: "destructive",
+    });
+  }, [toast]);
 
   // Reset noteId ref on component mount
   useEffect(() => {
@@ -491,6 +510,7 @@ export default function NoteNew() {
         <div className="p-6">
           {/* Editor */}
           <NoteEditor
+            ref={editorRef}
             content={content}
             onChange={setContent}
             title={title}
@@ -500,6 +520,14 @@ export default function NoteNew() {
           />
         </div>
       </div>
+
+      {/* Voice Recording Button */}
+      {isEditMode && (
+        <VoiceRecordingButton
+          onTranscript={handleVoiceTranscript}
+          onError={handleVoiceError}
+        />
+      )}
     </div>
   );
 }
