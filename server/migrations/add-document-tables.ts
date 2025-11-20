@@ -601,6 +601,89 @@ Les livrables attendus dans le cadre de ce projet sont :
 
 - …
 - …`
+      },
+      {
+        id: 'a3e8f2c9-5b7d-4a1e-8c3f-2d9b6e4f1a8c',
+        name: 'Roadmap Produit (Trimestrielle)',
+        description: 'Document de planification stratégique pour organiser les priorités produit sur un trimestre',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "project_name", label: "Nom du projet", type: "text", required: true },
+            { name: "period_label", label: "Période (ex: T1 2026)", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Roadmap produit – {{project_name}} – {{period_label}}
+
+## 1. Contexte & vision
+
+Cette roadmap décrit les priorités produit pour **{{project_name}}** sur la période **{{period_label}}**.
+
+La vision produit à moyen terme est la suivante :
+
+"…"
+
+---
+
+## 2. Objectifs du trimestre
+
+Les objectifs principaux de ce trimestre sont :
+
+**Objectif 1 :** …
+
+**Objectif 2 :** …
+
+**Objectif 3 :** …
+
+---
+
+## 3. Thèmes / axes de travail
+
+Les initiatives sont regroupées par thèmes :
+
+**Thème A – "…"** : …
+
+**Thème B – "…"** : …
+
+---
+
+## 4. Roadmap par mois / sprint
+
+Pour chaque période, lister les initiatives prévues :
+
+### Mois 1 / Sprint 1–2
+
+…
+
+### Mois 2 / Sprint 3–4
+
+…
+
+### Mois 3 / Sprint 5–6
+
+…
+
+---
+
+## 5. Priorisation
+
+La priorisation des sujets se base sur les critères suivants :
+
+**Impact attendu :** …
+
+**Effort estimé :** …
+
+**Risque / dépendances :** …
+
+---
+
+## 6. Risques & points de vigilance
+
+Les principaux risques identifiés sont :
+
+…
+
+Pour chaque risque, préciser un plan d'atténuation.`
       }
     ];
 
@@ -627,7 +710,7 @@ Les livrables attendus dans le cadre de ce projet sont :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (7 templates)");
+    console.log("✅ Document templates seeded successfully (8 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
