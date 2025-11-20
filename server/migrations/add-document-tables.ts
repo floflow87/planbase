@@ -874,6 +874,66 @@ Exemples de titres, posts ou messages qui incarnent la marque :
 **Exemple 1 :** …
 
 **Exemple 2 :** …`
+      },
+      {
+        id: 'e9f2c7d4-8a1b-4e3c-9d5f-2b6a8e1c4d7f',
+        name: 'Plan de Financement / Business Plan (simple)',
+        description: 'Document financier pour présenter les prévisions, le modèle économique et les besoins de financement d\'un projet',
+        category: 'business',
+        formSchema: {
+          fields: [
+            { name: "project_name", label: "Nom du projet", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Plan de financement – {{project_name}}
+
+## 1. Objet du document
+
+Ce document présente une première version du plan de financement pour le projet **{{project_name}}**, incluant les hypothèses, les projections et les besoins de financement.
+
+---
+
+## 2. Modèle économique
+
+Décrire ici le modèle économique envisagé :
+
+**Sources de revenus :** …
+
+**Principales familles de coûts :** …
+
+---
+
+## 3. Hypothèses clés
+
+Les hypothèses retenues sont :
+
+**Hypothèse 1 :** …
+
+**Hypothèse 2 :** …
+
+**Hypothèse 3 :** …
+
+---
+
+## 4. Prévisions financières
+
+Décrire brièvement l'évolution prévue :
+
+**Chiffre d'affaires :** …
+
+**Charges :** …
+
+**Résultat :** …
+
+---
+
+## 5. Besoin en financement
+
+Le besoin de financement estimé est de : …
+
+Les grandes catégories d'usage des fonds sont :
+
+…`
       }
     ];
 
@@ -900,7 +960,7 @@ Exemples de titres, posts ou messages qui incarnent la marque :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (10 templates)");
+    console.log("✅ Document templates seeded successfully (11 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
