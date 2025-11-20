@@ -99,7 +99,17 @@ export default function DocumentDetail() {
 
   // Update document mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: Partial<Document>) => {
+    mutationFn: async (data: {
+      name?: string;
+      content?: any;
+      plainText?: string;
+      status?: string;
+      version?: number;
+      sourceType?: string;
+      pdfStoragePath?: string;
+      templateId?: string | null;
+      formData?: any;
+    }) => {
       const response = await apiRequest(`/api/documents/${id}`, "PATCH", data);
       return await response.json();
     },
@@ -200,20 +210,17 @@ export default function DocumentDetail() {
   const exportPDFMutation = useMutation({
     mutationFn: async () => {
       // Use fetch directly to avoid body consumption in apiRequest error handler
-      const authHeaders = await (async () => {
-        const { supabase } = await import('@/lib/supabase');
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          return { 'Authorization': `Bearer ${session.access_token}` };
-        }
-        if (import.meta.env.DEV) {
-          return {
-            'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
-            'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
-          };
-        }
-        return {};
-      })();
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const authHeaders: HeadersInit = session?.access_token 
+        ? { 'Authorization': `Bearer ${session.access_token}` }
+        : import.meta.env.DEV 
+          ? {
+              'x-test-account-id': '67a3cb31-7755-43f2-81e0-4436d5d0684f',
+              'x-test-user-id': '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
+            }
+          : {};
       
       const response = await fetch(`/api/documents/${id}/export-pdf`, {
         method: 'POST',
