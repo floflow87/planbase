@@ -86,24 +86,32 @@ export function TaskDetailModal({
       effort: effort,
     };
 
-    // Only sync columnId if status changed
-    if (status !== task.status) {
-      // Find column by order (assumes standard order: 0=todo, 1=in_progress, 2=review, 3=done)
-      const statusToOrder: Record<string, number> = {
-        'todo': 0,
-        'in_progress': 1,
-        'review': 2,
-        'done': 3
-      };
-      const targetOrder = statusToOrder[status];
-      const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
-      const targetColumn = sortedColumns[targetOrder];
+    // Only sync columnId if status changed to "done"
+    if (status === "done" && status !== task.status) {
+      // Find the "Terminé" column by name
+      const doneColumn = columns.find((c) => c.name.toLowerCase().includes("terminé") || c.name.toLowerCase().includes("done"));
+      
+      // If we found the done column, move the task there
+      if (doneColumn && task.columnId !== doneColumn.id) {
+        updates.columnId = doneColumn.id;
+        updates.progress = 100;
+      }
+    } else if (status !== "done" && task.status === "done") {
+      // If unmarking as done, try to find the appropriate column based on the new status
+      let targetColumn;
+      
+      if (status === "todo") {
+        targetColumn = columns.find((c) => c.name.toLowerCase().includes("à faire") || c.name.toLowerCase().includes("todo") || c.name.toLowerCase().includes("backlog"));
+      } else if (status === "in_progress") {
+        targetColumn = columns.find((c) => c.name.toLowerCase().includes("en cours") || c.name.toLowerCase().includes("progress") || c.name.toLowerCase().includes("doing"));
+      } else if (status === "review") {
+        targetColumn = columns.find((c) => c.name.toLowerCase().includes("revue") || c.name.toLowerCase().includes("review") || c.name.toLowerCase().includes("validation"));
+      }
       
       // If we found a matching column, update columnId
       if (targetColumn) {
         updates.columnId = targetColumn.id;
       }
-      // Otherwise, keep current columnId (no sync)
     }
 
     onSave(updates);
