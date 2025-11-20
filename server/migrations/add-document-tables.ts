@@ -934,6 +934,64 @@ Le besoin de financement estimé est de : …
 Les grandes catégories d'usage des fonds sont :
 
 …`
+      },
+      {
+        id: 'd3a5f8c2-9e1b-4c7d-8a6f-1e4b9c2d5a8e',
+        name: 'Feuille de route Branding',
+        description: 'Plan d\'action pour organiser la construction ou l\'évolution de l\'identité de marque',
+        category: 'creative',
+        formSchema: {
+          fields: [
+            { name: "brand_name", label: "Nom de la marque", type: "text", required: true }
+          ]
+        },
+        contentTemplate: `# Feuille de route branding – {{brand_name}}
+
+## 1. Objectif de la démarche
+
+Cette feuille de route a pour but d'organiser les travaux de construction ou d'évolution de la marque **{{brand_name}}**.
+
+---
+
+## 2. Diagnostic rapide
+
+Résumer ici l'état actuel de la marque :
+
+**Atouts :** …
+
+**Points à améliorer :** …
+
+---
+
+## 3. Axes de travail
+
+Les axes de travail retenus sont :
+
+**Identité verbale :** …
+
+**Identité visuelle :** …
+
+**Expérience de marque :** …
+
+---
+
+## 4. Phases du projet
+
+Présenter les grandes phases :
+
+**Phase 1 – Exploration & recherche :** …
+
+**Phase 2 – Création / refonte :** …
+
+**Phase 3 – Déploiement :** …
+
+---
+
+## 5. Livrables par phase
+
+Pour chaque phase, préciser les livrables attendus :
+
+…`
       }
     ];
 
@@ -960,7 +1018,7 @@ Les grandes catégories d'usage des fonds sont :
       `);
     }
 
-    console.log("✅ Document templates seeded successfully (11 templates)");
+    console.log("✅ Document templates seeded successfully (12 templates)");
   } catch (error: any) {
     console.error("❌ Error seeding document templates:", error);
     throw error;
