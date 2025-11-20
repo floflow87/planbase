@@ -1058,12 +1058,22 @@ export default function Dashboard() {
 
           {/* Ma Journée Widget - Today's Tasks + Overdue */}
           <Card>
-            <CardHeader className="space-y-3 pb-2">
-              <div className="flex flex-row items-center justify-between gap-1">
+            <CardHeader className="pb-2">
+              <div className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
                   Ma Journée
                 </CardTitle>
                 <div className="flex items-center gap-2">
+                  <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
+                    <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-my-day-filter">
+                      <SelectValue className="text-xs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today" className="text-xs">Aujourd'hui</SelectItem>
+                      <SelectItem value="overdue" className="text-xs">Retard</SelectItem>
+                      <SelectItem value="next3days" className="text-xs">Les 3 prochains jours</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {filteredOverdueCount > 0 && myDayFilter === "today" && (
                     <Badge variant="destructive" data-testid="badge-overdue-tasks-count">
                       {filteredOverdueCount} en retard
@@ -1074,16 +1084,6 @@ export default function Dashboard() {
                   </Badge>
                 </div>
               </div>
-              <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
-                <SelectTrigger className="w-full" data-testid="select-my-day-filter">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Aujourd'hui</SelectItem>
-                  <SelectItem value="overdue">Retard</SelectItem>
-                  <SelectItem value="next3days">Les 3 prochains jours</SelectItem>
-                </SelectContent>
-              </Select>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
