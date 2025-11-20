@@ -32,21 +32,21 @@ export function VoiceRecordingButton({ onTranscript, onError, className }: Voice
             variant={isRecording ? 'destructive' : 'default'}
             onClick={toggleRecording}
             className={cn(
-              'h-16 w-16 rounded-full shadow-lg transition-all',
+              'h-20 w-20 rounded-full shadow-lg transition-all',
               isRecording && 'animate-pulse'
             )}
             data-testid="button-voice-recording"
           >
             {isRecording ? (
               <div className="flex items-center justify-center">
-                <MicOff className="h-8 w-8" />
+                <MicOff className="h-12 w-12" />
                 <span className="absolute top-1 right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
                 </span>
               </div>
             ) : (
-              <Mic className="h-8 w-8" />
+              <Mic className="h-12 w-12" />
             )}
           </Button>
         </TooltipTrigger>
