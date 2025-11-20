@@ -2153,24 +2153,33 @@ export default function Tasks() {
         </AlertDialog>
 
         {/* Task Detail Modal */}
-        {selectedTask && (
-          <TaskDetailModal
-            task={selectedTask}
-            users={users}
-            projects={projects}
-            columns={sortedColumns}
-            isOpen={isTaskDetailOpen}
-            onClose={() => {
-              setIsTaskDetailOpen(false);
-              setSelectedTask(null);
-            }}
-            onSave={handleSaveTaskDetail}
-            onDelete={(task) => {
-              setSelectedTask(task);
-              setIsDeleteTaskDialogOpen(true);
-            }}
-          />
-        )}
+        {selectedTask && (() => {
+          // Get columns for the task's project (or global columns if no project)
+          const taskProjectColumns = selectedTask.projectId
+            ? taskColumns.filter((c) => c.projectId === selectedTask.projectId)
+            : taskColumns.filter((c) => !c.projectId);
+          
+          const sortedTaskColumns = [...taskProjectColumns].sort((a, b) => a.order - b.order);
+          
+          return (
+            <TaskDetailModal
+              task={selectedTask}
+              users={users}
+              projects={projects}
+              columns={sortedTaskColumns}
+              isOpen={isTaskDetailOpen}
+              onClose={() => {
+                setIsTaskDetailOpen(false);
+                setSelectedTask(null);
+              }}
+              onSave={handleSaveTaskDetail}
+              onDelete={(task) => {
+                setSelectedTask(task);
+                setIsDeleteTaskDialogOpen(true);
+              }}
+            />
+          );
+        })()}
       </div>
     </div>
   );
