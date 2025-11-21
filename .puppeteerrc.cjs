@@ -1,16 +1,19 @@
 /**
  * Puppeteer Configuration
- * - Replit (dev): Uses PUPPETEER_EXECUTABLE_PATH env var (Nix Chromium)
- * - Render (prod): Uses default cache directory (~/.cache/puppeteer)
+ * 
+ * This configuration ensures Chromium is correctly located in both:
+ * - Replit (dev): Uses PUPPETEER_EXECUTABLE_PATH pointing to Nix Chromium
+ * - Render (prod): Uses persistent cache at ~/.cache/puppeteer
+ * 
+ * The cacheDirectory is always set to ensure consistent behavior.
+ * If PUPPETEER_EXECUTABLE_PATH is defined, Puppeteer will use that path
+ * instead of the cached Chromium (environment variable takes precedence).
  */
 const { join } = require('path');
 const os = require('os');
 
-// Only configure cacheDirectory if NOT using custom executable path
-// This allows Replit to use PUPPETEER_EXECUTABLE_PATH without conflicts
-module.exports = process.env.PUPPETEER_EXECUTABLE_PATH
-  ? {} // Empty config on Replit - let executablePath env var take precedence
-  : {
-      // On Render (no PUPPETEER_EXECUTABLE_PATH), use persistent cache
-      cacheDirectory: join(os.homedir(), '.cache', 'puppeteer'),
-    };
+module.exports = {
+  // Always use persistent cache directory (works on both Replit and Render)
+  // If PUPPETEER_EXECUTABLE_PATH env var is set, it takes precedence anyway
+  cacheDirectory: join(os.homedir(), '.cache', 'puppeteer'),
+};

@@ -6,16 +6,15 @@ L'export PDF utilise Puppeteer qui nécessite Chromium. Sur Render, Chromium est
 
 ## ⚙️ Configuration étape par étape
 
-### 1. Rendre les scripts exécutables (une seule fois)
+### 1. Pousser les fichiers sur Git (via l'interface Replit)
 
-**Avant de pousser sur Git**, exécutez localement :
+Les fichiers `render-build.sh` et `render-start.sh` sont déjà créés et configurés. Sur Replit :
 
-```bash
-chmod +x render-build.sh render-start.sh
-git add render-build.sh render-start.sh .puppeteerrc.cjs .gitignore
-git commit -m "Add Render deployment scripts for Puppeteer"
-git push
-```
+1. Ouvrez l'onglet **Git** (icône dans la barre latérale gauche)
+2. Tous les fichiers modifiés apparaissent automatiquement
+3. Replit committe et pousse automatiquement les changements vers votre repository
+
+**Note** : Les scripts `.sh` sont automatiquement rendus exécutables lors du déploiement sur Render (via `chmod +x` dans le script de build).
 
 ### 2. Configuration Render
 
