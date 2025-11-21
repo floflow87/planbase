@@ -60,6 +60,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // Auto-provision: Create account and/or user if they don't exist
     const userEmail = user.email || `user-${user.id}@planbase.local`;
     
+    console.log('🔍 AUTH DEBUG:', {
+      userId: user.id,
+      email: userEmail,
+      accountId,
+      role,
+      metadata: user.user_metadata
+    });
+    
     if (!accountId) {
       // No account_id in metadata - create a new account for this user
       console.log(`Creating new account for first-time user: ${userEmail}`);
@@ -129,6 +137,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.accountId = accountId;
     req.userId = dbUser.id;
     req.userRole = (role || dbUser.role) as "owner" | "collaborator" | "client_viewer";
+
+    console.log('✅ AUTH SUCCESS:', {
+      userId: req.userId,
+      email: userEmail,
+      accountId: req.accountId,
+      role: req.userRole
+    });
 
     next();
   } catch (error: any) {
