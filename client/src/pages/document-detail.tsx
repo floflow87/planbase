@@ -234,9 +234,10 @@ export default function DocumentDetail() {
         if (match) fileName = match[1];
       }
       
-      // Get PDF blob
-      const blob = await response.blob();
-      console.log('📄 PDF blob received:', blob.size, 'bytes, type:', blob.type);
+      // Get PDF blob and ensure correct MIME type
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      console.log('📄 PDF blob created:', blob.size, 'bytes, type:', blob.type);
       return { blob, fileName };
     },
     onSuccess: ({ blob, fileName }: { blob: Blob; fileName: string }) => {
