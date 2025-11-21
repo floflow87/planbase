@@ -32,12 +32,15 @@ import {
   insertAppointmentSchema,
   updateAppointmentSchema,
   type ClientCustomField,
+  accounts,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
 import { getDemoCredentials } from "./middleware/demo-helper";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -108,6 +111,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // REMOVED: Unauthenticated route that exposed sensitive OAuth credentials
   // Use the authenticated route at line ~1987 instead: GET /api/accounts/:accountId with requireAuth
+
+  // ============================================
+  // AUTH - SIGNUP
+  // ============================================
+  
+  /**
+   * Create a new account and user via Supabase Auth
+   * This endpoint handles the complete signup flow:
+   * 1. Create Supabase Auth user
+   * 2. Create Account in database
+   * 3. Create app_user in database
+   * 4. Store account_id in Supabase user_metadata for JWT
+   */
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, accountName } = req.body;
+
+      // Validate required fields
+      if (!email || !password || !accountName) {
+        return res.status(400).json({ 
+          error: "Email, password, and account name are required" 
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ 
+          error: "Password must be at least 6 characters long" 
+        });
+      }
+
+      // Step 1: Create Account in database first (to get account_id)
+      const account = await storage.createAccount({
+        name: accountName.trim(),
+        plan: "starter",
+        settings: {},
+      });
+
+      // Step 2: Create Supabase Auth user with account_id in metadata
+      let authData: any = null;
+      
+      try {
+        const authResult = await supabaseAdmin.auth.admin.createUser({
+          email: email.trim().toLowerCase(),
+          password,
+          email_confirm: true, // Auto-confirm email for better UX
+          user_metadata: {
+            account_id: account.id,
+            firstName: firstName?.trim() || "",
+            lastName: lastName?.trim() || "",
+            role: "owner", // First user is always the account owner
+          },
+        });
+
+        if (authResult.error || !authResult.data.user) {
+          console.error("Supabase Auth error:", authResult.error);
+          throw new Error(authResult.error?.message || "Failed to create authentication user");
+        }
+        
+        authData = authResult.data;
+      } catch (authCreateError: any) {
+        // Rollback: Delete the orphaned account from database
+        try {
+          await db.delete(accounts).where(eq(accounts.id, account.id));
+          console.log("✅ Rollback: Deleted orphaned account", account.id);
+        } catch (deleteError) {
+          console.error("❌ Failed to rollback account deletion:", deleteError);
+        }
+        throw authCreateError;
+      }
+
+      // Step 3: Create app_user in database
+      let appUser: any = null;
+      
+      try {
+        appUser = await storage.createUser({
+          id: authData.user.id, // Use Supabase auth user ID
+          accountId: account.id,
+          email: email.trim().toLowerCase(),
+          firstName: firstName?.trim() || "",
+          lastName: lastName?.trim() || "",
+          role: "owner",
+          profile: {},
+        });
+      } catch (userCreateError: any) {
+        // Rollback: Delete Supabase Auth user and Account
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+          await db.delete(accounts).where(eq(accounts.id, account.id));
+          console.log("✅ Rollback: Deleted auth user and account");
+        } catch (deleteError) {
+          console.error("❌ Failed to rollback after user creation error:", deleteError);
+        }
+        throw userCreateError;
+      }
+
+      // Step 4: Update account with owner reference
+      try {
+        await storage.updateAccount(account.id, {
+          ownerUserId: authData.user.id,
+        });
+      } catch (updateError: any) {
+        console.error("⚠️  Failed to update account owner reference (non-critical):", updateError);
+        // Don't rollback for this - user account is still valid
+      }
+
+      res.status(201).json({
+        message: "Account created successfully",
+        accountId: account.id,
+        userId: appUser.id,
+      });
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to create account" 
+      });
+    }
+  });
 
   // ============================================
   // USERS

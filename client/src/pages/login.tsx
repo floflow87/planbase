@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,9 +168,11 @@ export default function Login() {
           <div className="text-center pt-4">
             <p className="text-sm text-gray-600">
               Je n'ai pas encore de compte :{" "}
-              <button className="text-violet-600 hover:text-violet-700 font-medium">
-                S'inscrire
-              </button>
+              <Link href="/signup">
+                <button className="text-violet-600 hover:text-violet-700 font-medium" data-testid="link-signup">
+                  S'inscrire
+                </button>
+              </Link>
             </p>
           </div>
         </div>

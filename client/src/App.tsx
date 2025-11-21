@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import CRM from "@/pages/crm";
 import ClientDetail from "@/pages/client-detail";
@@ -40,6 +41,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       </Route>
@@ -154,7 +156,7 @@ function UserMenu() {
 
 function AppLayout() {
   const [location, setLocation] = useLocation();
-  const isLoginPage = location === "/login";
+  const isAuthPage = location === "/login" || location === "/signup";
 
   const style = {
     "--sidebar-width": "16rem",
@@ -181,7 +183,7 @@ function AppLayout() {
     return "";
   };
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return <Router />;
   }
 
