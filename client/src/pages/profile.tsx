@@ -403,6 +403,22 @@ export default function Profile() {
                           </FormItem>
                         )}
                       />
+
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          SIRET
+                        </Label>
+                        <Input
+                          value={account?.siret || "Non renseigné"}
+                          disabled
+                          className="bg-muted"
+                          data-testid="input-account-siret-readonly"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Numéro SIRET de votre entreprise (modifiable depuis l'onglet Intégrations)
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">
