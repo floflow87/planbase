@@ -1,0 +1,87 @@
+==> Deploying...
+==> Running 'npm start'
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+     ==> No open ports detected, continuing to scan...
+     ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+🔗 Connecting to Supabase (project: gfftezyrhsxtaeceuszd, region: eu-north-1, pooler: Transaction)
+🔄 Running startup migrations...
+🔄 Creating document_templates and documents tables...
+✅ Document tables created successfully
+🌱 Seeding document templates...
+✅ Document templates seeded successfully (16 templates)
+✅ Startup migrations completed successfully
+9:08:23 AM [express] serving on port 10000
+     ==> Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://app.planbase.io + 1 more domain
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+9:09:01 AM [express] GET /api/projects 200 in 801ms :: [{"id":"86a94e2c-08b3-4205-ac7c-7a04b60b832a"…
+9:09:01 AM [express] GET /api/documents/61aef0b6-11c1-49f2-a152-e1c0337964a2 200 in 1362ms :: {"id":…
+9:09:01 AM [express] GET /api/documents/61aef0b6-11c1-49f2-a152-e1c0337964a2/links 200 in 1133ms :: …
+📄 Starting PDF export for document: 61aef0b6-11c1-49f2-a152-e1c0337964a2 nda
+📄 HTML content length: 3646
+📄 HTML preview (first 200 chars): <p><strong>ENTRE LES SOUSSIGNÉS,</strong></p>
+<p><strong>Volta</strong>, dûment habilité pour la signature des présentes,</p>
+<p>Ci-après dénommée <strong>&quot;la Société&quot;</strong></p>
+<p><stron
+🚀 Using Puppeteer bundled Chromium
+❌ Export PDF error: Error: Could not find Chrome (ver. 142.0.7444.162). This can occur if either
+ 1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome`) or
+ 2. your cache path is incorrectly configured (which is: /opt/render/.cache/puppeteer).
+For (2), check out our guide on configuring puppeteer at https://pptr.dev/guides/configuration.
+    at ChromeLauncher.resolveExecutablePath (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:297:27)
+    at ChromeLauncher.computeLaunchArguments (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/ChromeLauncher.js:85:24)
+    at async ChromeLauncher.launch (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:49:28)
+    at async generatePDF (file:///opt/render/project/src/dist/index.js:1831:15)
+    at async file:///opt/render/project/src/dist/index.js:3825:25
+Error stack: Error: Could not find Chrome (ver. 142.0.7444.162). This can occur if either
+ 1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome`) or
+ 2. your cache path is incorrectly configured (which is: /opt/render/.cache/puppeteer).
+For (2), check out our guide on configuring puppeteer at https://pptr.dev/guides/configuration.
+    at ChromeLauncher.resolveExecutablePath (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:297:27)
+    at ChromeLauncher.computeLaunchArguments (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/ChromeLauncher.js:85:24)
+    at async ChromeLauncher.launch (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:49:28)
+    at async generatePDF (file:///opt/render/project/src/dist/index.js:1831:15)
+    at async file:///opt/render/project/src/dist/index.js:3825:25
+9:09:03 AM [express] POST /api/documents/61aef0b6-11c1-49f2-a152-e1c0337964a2/export-pdf 500 in 221m…
+9:09:19 AM [express] GET /api/me 304 in 387ms :: {"id":"839d3ce6-6fbf-4541-952d-a999b193572f","accou…
+9:09:19 AM [express] GET /api/projects/86a94e2c-08b3-4205-ac7c-7a04b60b832a/task-columns 304 in 264m…
+9:09:19 AM [express] GET /api/me 304 in 335ms :: {"id":"839d3ce6-6fbf-4541-952d-a999b193572f","accou…
+9:09:19 AM [express] GET /api/accounts/b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4/users 304 in 47ms :: [{"…
+9:09:19 AM [express] GET /api/tasks 304 in 204ms :: [{"id":"b0d4b2ec-d7e3-456c-9918-3671dbd471fe","a…
+9:09:19 AM [express] GET /api/clients 304 in 258ms :: [{"id":"2cdcda4e-00e2-4fdc-8f40-55b834f76f8b",…
+9:09:19 AM [express] GET /api/activities 304 in 350ms :: [{"id":"48132806-9b21-4ff9-865b-28ce2e8d181…
+9:09:21 AM [express] GET /api/documents 304 in 209ms :: [{"id":"61aef0b6-11c1-49f2-a152-e1c0337964a2…
+9:09:21 AM [express] GET /api/document-links 304 in 260ms :: [{"documentId":"61aef0b6-11c1-49f2-a152…
+📄 Starting PDF export for document: 61aef0b6-11c1-49f2-a152-e1c0337964a2 nda
+📄 HTML content length: 3646
+📄 HTML preview (first 200 chars): <p><strong>ENTRE LES SOUSSIGNÉS,</strong></p>
+<p><strong>Volta</strong>, dûment habilité pour la signature des présentes,</p>
+<p>Ci-après dénommée <strong>&quot;la Société&quot;</strong></p>
+<p><stron
+🚀 Using Puppeteer bundled Chromium
+❌ Export PDF error: Error: Could not find Chrome (ver. 142.0.7444.162). This can occur if either
+ 1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome`) or
+ 2. your cache path is incorrectly configured (which is: /opt/render/.cache/puppeteer).
+For (2), check out our guide on configuring puppeteer at https://pptr.dev/guides/configuration.
+    at ChromeLauncher.resolveExecutablePath (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:297:27)
+    at ChromeLauncher.computeLaunchArguments (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/ChromeLauncher.js:85:24)
+    at async ChromeLauncher.launch (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:49:28)
+    at async generatePDF (file:///opt/render/project/src/dist/index.js:1831:15)
+    at async file:///opt/render/project/src/dist/index.js:3825:25
+Error stack: Error: Could not find Chrome (ver. 142.0.7444.162). This can occur if either
+ 1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome`) or
+ 2. your cache path is incorrectly configured (which is: /opt/render/.cache/puppeteer).
+For (2), check out our guide on configuring puppeteer at https://pptr.dev/guides/configuration.
+    at ChromeLauncher.resolveExecutablePath (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:297:27)
+    at ChromeLauncher.computeLaunchArguments (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/ChromeLauncher.js:85:24)
+    at async ChromeLauncher.launch (file:///opt/render/project/src/node_modules/puppeteer-core/lib/esm/puppeteer/node/BrowserLauncher.js:49:28)
+    at async generatePDF (file:///opt/render/project/src/dist/index.js:1831:15)
+    at async file:///opt/render/project/src/dist/index.js:3825:25
+9:09:23 AM [express] POST /api/documents/61aef0b6-11c1-49f2-a152-e1c0337964a2/export-pdf 500 in 219m…
+     ==> Deploying...
+Need better ways to work with logs? Try theRender CLI, Re

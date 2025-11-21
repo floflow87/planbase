@@ -6,26 +6,15 @@ L'export PDF utilise Puppeteer qui nécessite Chromium. Sur Render, vous devez i
 
 ## ⚙️ Configuration étape par étape
 
-### 1. Installer Chromium automatiquement
+### 1. Rendre le script de build exécutable (une seule fois)
 
-Ajoutez la commande d'installation de Chromium au script de build dans `package.json` :
+**Avant de pousser sur Git**, exécutez localement :
 
-```json
-{
-  "scripts": {
-    "build": "vite build && chmod +x scripts/install-chromium.sh && scripts/install-chromium.sh"
-  }
-}
-```
-
-**Ou** si vous préférez une commande inline :
-
-```json
-{
-  "scripts": {
-    "build": "vite build && npx puppeteer browsers install chrome"
-  }
-}
+```bash
+chmod +x render-build.sh
+git add render-build.sh .puppeteerrc.cjs .gitignore
+git commit -m "Add Render build script for Puppeteer"
+git push
 ```
 
 ### 2. Configuration Render
@@ -33,14 +22,28 @@ Ajoutez la commande d'installation de Chromium au script de build dans `package.
 Dans votre **Dashboard Render** > **Settings** :
 
 #### Build Command
+Utilisez le script de build personnalisé :
+
 ```bash
-npm install && npm run build
+./render-build.sh
 ```
 
 #### Start Command
 ```bash
 npm start
 ```
+
+### 3. Comment ça fonctionne
+
+Le script `render-build.sh` :
+
+1. **Installe les dépendances** : `npm ci`
+2. **Configure le cache Puppeteer** : Dans `.cache/puppeteer` (persiste entre les builds)
+3. **Vérifie si Chrome est déjà installé** : Évite de télécharger à chaque build (~130MB)
+4. **Installe Chrome si nécessaire** : `npx puppeteer browsers install chrome`
+5. **Build l'application** : `npm run build`
+
+Le fichier `.puppeteerrc.cjs` configure automatiquement Puppeteer pour utiliser le cache local.
 
 ### 3. Variables d'environnement
 

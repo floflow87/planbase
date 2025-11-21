@@ -36,3 +36,6 @@ drizzle
 # Temporary files
 *.tmp
 *.swp
+
+# Puppeteer cache (downloaded browsers)
+.cache
