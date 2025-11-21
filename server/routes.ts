@@ -1721,6 +1721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      console.log('📄 Starting PDF export for document:', document.id, document.name);
+
       // Import PDF generator
       const { generatePDF } = await import("./utils/pdf-generator");
 
@@ -1731,14 +1733,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sanitizedName = document.name.replace(/[^a-zA-Z0-9-_]/g, '_');
       const fileName = `${sanitizedName}.pdf`;
 
+      console.log('✅ PDF export successful, sending to client');
+
       // Stream PDF directly to client (secure - no public storage)
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.setHeader('Content-Length', pdfBuffer.length);
       res.end(pdfBuffer, 'binary');
     } catch (error: any) {
-      console.error('Export PDF error:', error);
-      res.status(500).json({ error: error.message || 'Failed to export PDF' });
+      console.error('❌ Export PDF error:', error);
+      console.error('Error stack:', error.stack);
+      
+      // Provide more detailed error message for debugging
+      const errorMessage = error.message || 'Failed to export PDF';
+      const detailedError = process.env.NODE_ENV === 'development' 
+        ? { error: errorMessage, stack: error.stack, details: error.toString() }
+        : { error: errorMessage };
+      
+      res.status(500).json(detailedError);
     }
   });
 

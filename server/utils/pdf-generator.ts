@@ -378,8 +378,8 @@ export async function generatePDF(document: Document): Promise<Buffer> {
       </html>
     `;
 
-    // Launch Puppeteer with specific args for Replit/NixOS environment
-    browser = await puppeteer.launch({
+    // Launch Puppeteer with specific args for production/cloud environments
+    const launchOptions: any = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -389,8 +389,18 @@ export async function generatePDF(document: Document): Promise<Buffer> {
         '--disable-gpu',
         '--single-process',
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
-    });
+    };
+
+    // Only set executablePath if explicitly provided (for development/Replit)
+    // In production, Puppeteer will use its bundled Chromium
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      console.log('🚀 Using custom Chromium path:', process.env.PUPPETEER_EXECUTABLE_PATH);
+    } else {
+      console.log('🚀 Using Puppeteer bundled Chromium');
+    }
+
+    browser = await puppeteer.launch(launchOptions);
 
     const page = await browser.newPage();
     

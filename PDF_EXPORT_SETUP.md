@@ -98,6 +98,55 @@ Deux nouveaux champs ont été ajoutés à la table `documents` :
 
 **Réponse** : Fichier binaire PDF (pas de JSON)
 
+## ⚙️ Configuration de Production
+
+### Puppeteer et Chromium
+
+L'export PDF utilise **Puppeteer** pour générer les PDFs. En production, assurez-vous que :
+
+#### Option 1 : Chromium Bundlé (Recommandé)
+Par défaut, Puppeteer utilise son propre Chromium bundlé. **Aucune configuration supplémentaire n'est requise** dans la plupart des environnements cloud modernes.
+
+#### Option 2 : Chromium Personnalisé
+Si vous devez spécifier un chemin Chromium personnalisé (environnements restreints comme Replit), configurez la variable d'environnement :
+
+```bash
+PUPPETEER_EXECUTABLE_PATH=/path/to/chromium
+```
+
+### Variables d'Environnement
+
+| Variable | Requis | Description | Exemple |
+|----------|--------|-------------|---------|
+| `PUPPETEER_EXECUTABLE_PATH` | Non | Chemin vers l'exécutable Chromium personnalisé | `/nix/store/.../chromium` (Replit) |
+| `NODE_ENV` | Oui | Environnement d'exécution | `production` ou `development` |
+
+### Debugging en Production
+
+En cas d'erreur 500 lors de l'export PDF, vérifiez les logs serveur pour :
+
+1. **Message d'erreur Puppeteer** : Affichera si Chromium ne peut pas être lancé
+2. **Chemin Chromium** : Le log `🚀 Using...` indiquera le chemin utilisé
+3. **Stack trace complète** : Disponible en mode development uniquement
+
+**Logs typiques** :
+```
+📄 Starting PDF export for document: abc-123 Mon Document
+🚀 Using Puppeteer bundled Chromium
+📄 HTML content length: 1234
+📄 Generating PDF with Puppeteer...
+✅ PDF generated, buffer size: 56789 bytes
+✅ PDF export successful, sending to client
+```
+
+### Dépannage Courant
+
+| Erreur | Cause Probable | Solution |
+|--------|---------------|----------|
+| `Failed to launch chrome` | Chromium manquant ou incompatible | Installer Chromium ou configurer `PUPPETEER_EXECUTABLE_PATH` |
+| `Timeout waiting for page` | Mémoire insuffisante | Augmenter la RAM disponible |
+| `ECONNREFUSED` | Problème réseau interne | Vérifier les args Puppeteer (`--no-sandbox`) |
+
 ## 🔒 Sécurité Renforcée
 
 ### Protection Anti-SSRF Complète
