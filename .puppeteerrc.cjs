@@ -1,11 +1,12 @@
 /**
  * Puppeteer Configuration for Render deployment
- * This ensures Chromium is installed in a persistent location within the project
+ * Uses default cache directory (~/.cache/puppeteer) which is managed by Render
  */
 const { join } = require('path');
+const os = require('os');
 
 module.exports = {
-  // Cache directory for Chromium (persists across builds on Render)
-  // This matches PUPPETEER_CACHE_DIR in render-build.sh
-  cacheDirectory: join(__dirname, '.cache', 'puppeteer'),
+  // Use Render's persistent cache directory
+  // On Render, this resolves to /opt/render/.cache/puppeteer
+  cacheDirectory: join(os.homedir(), '.cache', 'puppeteer'),
 };

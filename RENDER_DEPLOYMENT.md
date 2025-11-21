@@ -2,18 +2,18 @@
 
 ## Configuration requise pour l'export PDF
 
-L'export PDF utilise Puppeteer qui nécessite Chromium. Sur Render, vous devez installer Chromium pendant le build.
+L'export PDF utilise Puppeteer qui nécessite Chromium. Sur Render, Chromium est installé **automatiquement au premier démarrage** et mis en cache pour les démarrages suivants.
 
 ## ⚙️ Configuration étape par étape
 
-### 1. Rendre le script de build exécutable (une seule fois)
+### 1. Rendre les scripts exécutables (une seule fois)
 
 **Avant de pousser sur Git**, exécutez localement :
 
 ```bash
-chmod +x render-build.sh
-git add render-build.sh .puppeteerrc.cjs .gitignore
-git commit -m "Add Render build script for Puppeteer"
+chmod +x render-build.sh render-start.sh
+git add render-build.sh render-start.sh .puppeteerrc.cjs .gitignore
+git commit -m "Add Render deployment scripts for Puppeteer"
 git push
 ```
 
@@ -22,28 +22,35 @@ git push
 Dans votre **Dashboard Render** > **Settings** :
 
 #### Build Command
-Utilisez le script de build personnalisé :
-
 ```bash
 ./render-build.sh
 ```
 
 #### Start Command
 ```bash
-npm start
+./render-start.sh
 ```
 
 ### 3. Comment ça fonctionne
 
-Le script `render-build.sh` :
+**Build (`render-build.sh`)** :
+- Installe les dépendances npm
+- Build l'application (frontend + backend)
+- **Ne télécharge PAS Chrome** (gagner du temps de build)
 
-1. **Installe les dépendances** : `npm ci`
-2. **Configure le cache Puppeteer** : Dans `.cache/puppeteer` (persiste entre les builds)
-3. **Vérifie si Chrome est déjà installé** : Évite de télécharger à chaque build (~130MB)
-4. **Installe Chrome si nécessaire** : `npx puppeteer browsers install chrome`
-5. **Build l'application** : `npm run build`
+**Start (`render-start.sh`)** :
+- Vérifie si Chrome est installé dans `~/.cache/puppeteer`
+- Si absent : l'installe (seulement au premier démarrage, ~2-3 minutes)
+- Si présent : utilise la version cachée (instantané)
+- Démarre l'application
 
-Le fichier `.puppeteerrc.cjs` configure automatiquement Puppeteer pour utiliser le cache local.
+**Avantages de cette approche** :
+- ✅ Chrome est installé dans `/opt/render/.cache/puppeteer` (persisté par Render)
+- ✅ Pas de re-téléchargement à chaque build (~130MB économisés)
+- ✅ Installation une seule fois, réutilisé ensuite
+- ✅ Builds plus rapides
+
+**Note** : Le premier démarrage prendra 2-3 minutes pour installer Chrome. Les démarrages suivants seront instantanés grâce au cache.
 
 ### 3. Variables d'environnement
 
@@ -65,42 +72,66 @@ Assurez-vous d'avoir toutes les variables d'environnement configurées dans Rend
 
 ## 🐛 Dépannage
 
+### Premier démarrage très lent
+
+**C'est normal !** Au premier démarrage, Chrome (~130MB) est téléchargé et installé. Cela prend 2-3 minutes.
+
+**Logs attendus lors du premier start** :
+```
+🚀 Render Start Script for Puppeteer
+📥 Chrome not found, checking Puppeteer cache...
+📥 Installing Chrome for Puppeteer (first run only)...
+✅ Chrome installed successfully
+▶️  Starting application...
+```
+
+**Démarrages suivants** : Instantanés (Chrome est en cache).
+
 ### Erreur : "Could not find Chrome"
 
-**Solution 1 : Vérifier le build**
-1. Vérifiez que le script d'installation s'exécute dans les logs de build Render
-2. Cherchez le message `✅ Chromium installed successfully`
+**Cause** : Chrome n'a pas pu s'installer au démarrage.
 
-**Solution 2 : Cache Render**
-Si le problème persiste, effacez le cache de build sur Render :
-1. Dashboard Render > **Settings** > **Build & Deploy**
-2. Cliquez sur **Clear build cache**
-3. Déclenchez un nouveau déploiement
-
-**Solution 3 : Vérifier les logs**
-Consultez les logs de déploiement pour voir si l'installation de Chromium s'est bien déroulée.
+**Solution** :
+1. Vérifiez les **logs runtime** (pas build) dans Render
+2. Cherchez le message `📥 Installing Chrome for Puppeteer`
+3. Si l'installation échoue, redéployez l'application
+4. Si le problème persiste, effacez le cache :
+   - Dashboard Render > **Settings** > **Build & Deploy**
+   - **Clear build cache**
+   - Redéployez
 
 ### Erreur de mémoire (Timeout)
 
-Si Puppeteer timeout, augmentez la RAM :
-1. Dashboard Render > **Settings**
-2. Changez le **Instance Type** vers un plan avec plus de RAM (minimum 512MB recommandé)
+Si Puppeteer timeout pendant l'export PDF :
+- Augmentez la RAM : Dashboard Render > **Settings** > Instance Type
+- Minimum recommandé : **512MB**
 
 ## 📝 Checklist de déploiement
 
-- [ ] Script de build modifié dans `package.json` pour installer Chromium
+- [ ] Scripts `render-build.sh` et `render-start.sh` ajoutés au repository
+- [ ] Scripts rendus exécutables (`chmod +x`)
+- [ ] Build Command configurée : `./render-build.sh`
+- [ ] Start Command configurée : `./render-start.sh`
 - [ ] Toutes les variables d'environnement configurées dans Render
-- [ ] Build réussi avec le message "Chromium installed successfully" dans les logs
-- [ ] L'application démarre sans erreur
+- [ ] Premier démarrage : attendre 2-3 minutes (installation Chrome)
 - [ ] Test d'export PDF depuis l'interface
 
 ## 🔍 Logs de diagnostic
 
-Une fois déployé, testez l'export PDF. Les logs serveur afficheront :
+### Logs au démarrage (premier run)
+```
+🚀 Render Start Script for Puppeteer
+📥 Installing Chrome for Puppeteer (first run only)...
+✅ Chrome installed successfully
+▶️  Starting application...
+```
 
+### Logs lors de l'export PDF
 ```
 📄 Starting PDF export for document: abc-123
 🚀 Using Puppeteer bundled Chromium
+📄 HTML content length: 3646
+📄 Generating PDF with Puppeteer...
 ✅ PDF generated, buffer size: 56789 bytes
 ✅ PDF export successful, sending to client
 ```
