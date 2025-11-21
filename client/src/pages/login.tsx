@@ -179,7 +179,7 @@ export default function Login() {
       {/* Right side - Branding */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
         <div className="flex flex-col items-center gap-8">
-          <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+          <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>
             PlanBase
           </h2>
           <img 

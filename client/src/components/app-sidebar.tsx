@@ -61,7 +61,7 @@ export function AppSidebar() {
             <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
               <span className="text-white font-heading font-bold text-xs">PB</span>
             </div>
-            <span className="font-heading font-semibold text-base text-sidebar-foreground">PlanBase</span>
+            <span className="font-heading font-semibold text-base text-sidebar-foreground" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>PlanBase</span>
           </div>
         </Link>
       </SidebarHeader>
