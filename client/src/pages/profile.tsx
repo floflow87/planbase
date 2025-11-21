@@ -404,21 +404,6 @@ export default function Profile() {
                         )}
                       />
 
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4" />
-                          SIRET
-                        </Label>
-                        <Input
-                          value={account?.siret || "Non renseigné"}
-                          disabled
-                          className="bg-muted"
-                          data-testid="input-account-siret-readonly"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Numéro SIRET de votre entreprise (modifiable depuis l'onglet Intégrations)
-                        </p>
-                      </div>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">
@@ -445,6 +430,99 @@ export default function Profile() {
                     </div>
                   </form>
                 </Form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
+                  <Building2 className="w-5 h-5" />
+                  Informations du compte
+                </CardTitle>
+                <CardDescription>
+                  Informations de votre organisation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {accountLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <Form {...accountForm}>
+                    <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={accountForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4" />
+                                Nom du compte *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Mon entreprise"
+                                  data-testid="input-account-name"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={accountForm.control}
+                          name="siret"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4" />
+                                SIRET
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="123 456 789 00012"
+                                  data-testid="input-account-siret"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground">
+                                Numéro SIRET de votre entreprise (14 chiffres)
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => accountForm.reset()}
+                          data-testid="button-cancel-account-info"
+                          className="text-[12px]"
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={updateAccountMutation.isPending}
+                          data-testid="button-save-account-info"
+                          className="text-[12px]"
+                        >
+                          {updateAccountMutation.isPending && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          Enregistrer
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
               </CardContent>
             </Card>
 
@@ -579,90 +657,36 @@ export default function Profile() {
                       <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <Form {...accountForm}>
-                      <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-6">
-                        <FormField
-                          control={accountForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4" />
-                                Nom du compte *
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Mon entreprise"
-                                  data-testid="input-account-name"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          Nom du compte
+                        </Label>
+                        <Input
+                          value={account?.name || ""}
+                          disabled
+                          className="bg-muted"
+                          data-testid="input-account-name-readonly"
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Nom de votre organisation (modifiable depuis l'onglet Informations)
+                        </p>
+                      </div>
 
-                        <FormField
-                          control={accountForm.control}
-                          name="siret"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4" />
-                                SIRET
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="123 456 789 00012"
-                                  data-testid="input-account-siret"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <p className="text-xs text-muted-foreground">
-                                Numéro SIRET de votre entreprise (14 chiffres)
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                      <div className="space-y-2">
+                        <Label>ID du compte</Label>
+                        <Input
+                          value={account?.id || ""}
+                          disabled
+                          className="bg-muted font-mono text-xs"
+                          data-testid="input-account-id"
                         />
-
-                        <div className="space-y-2">
-                          <Label>ID du compte</Label>
-                          <Input
-                            value={account?.id || ""}
-                            disabled
-                            className="bg-muted font-mono text-xs"
-                            data-testid="input-account-id"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            L'ID du compte est utilisé pour les intégrations et ne peut pas être modifié
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => accountForm.reset()}
-                            data-testid="button-cancel-account"
-                            className="text-[12px]"
-                          >
-                            Annuler
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={updateAccountMutation.isPending}
-                            data-testid="button-save-account"
-                            className="text-[12px]"
-                          >
-                            {updateAccountMutation.isPending && (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            )}
-                            Enregistrer
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
+                        <p className="text-xs text-muted-foreground">
+                          L'ID du compte est utilisé pour les intégrations et ne peut pas être modifié
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
