@@ -968,6 +968,42 @@ export default function Tasks() {
     },
   });
 
+  // Create default columns when a project has no columns
+  useEffect(() => {
+    const shouldCreateDefaultColumns = 
+      !columnsLoading && 
+      accountId &&
+      !selectedProjectIds.includes("all") && 
+      selectedProjectIds.length === 1 &&
+      filteredColumns.length === 0 &&
+      viewMode === "kanban";
+
+    if (shouldCreateDefaultColumns) {
+      const projectId = selectedProjectIds[0];
+      const defaultColumns = [
+        { name: "A faire", color: "#ef4444", order: 0 },
+        { name: "En cours", color: "#f59e0b", order: 1 },
+        { name: "Terminé", color: "#10b981", order: 2 },
+      ];
+
+      // Create columns sequentially to ensure correct order
+      const createColumns = async () => {
+        for (const col of defaultColumns) {
+          await apiRequest("/api/task-columns", "POST", {
+            name: col.name,
+            color: col.color,
+            order: col.order,
+            projectId: projectId,
+            accountId: accountId,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/task-columns"] });
+      };
+
+      createColumns();
+    }
+  }, [columnsLoading, accountId, selectedProjectIds, filteredColumns.length, viewMode]);
+
   // Event handlers
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
