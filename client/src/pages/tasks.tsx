@@ -968,17 +968,20 @@ export default function Tasks() {
     },
   });
 
-  // Create default columns when dialog opens with no columns available
+  // Create default columns when user has no columns at all
+  const [hasCreatedDefaultColumns, setHasCreatedDefaultColumns] = useState(false);
+  
   useEffect(() => {
-    // Only create if dialog is open and user selected "Aucun projet" with no global columns
-    const shouldCreateGlobalDefaultColumns = 
-      isCreateTaskDialogOpen &&
+    // Only create once when user has zero columns
+    const shouldCreateDefaultColumns = 
       !columnsLoading && 
+      !hasCreatedDefaultColumns &&
       accountId &&
-      newTaskProjectId === "none" &&
-      globalTaskColumns.length === 0;
+      taskColumns.length === 0;
 
-    if (shouldCreateGlobalDefaultColumns) {
+    if (shouldCreateDefaultColumns) {
+      setHasCreatedDefaultColumns(true);
+      
       const defaultColumns = [
         { name: "A faire", color: "#ef4444", order: 0 },
         { name: "En cours", color: "#f59e0b", order: 1 },
@@ -1001,7 +1004,7 @@ export default function Tasks() {
 
       createColumns();
     }
-  }, [isCreateTaskDialogOpen, columnsLoading, accountId, newTaskProjectId, globalTaskColumns.length]);
+  }, [columnsLoading, hasCreatedDefaultColumns, accountId, taskColumns.length]);
 
   // Event handlers
   const handleDragStart = (event: DragStartEvent) => {
