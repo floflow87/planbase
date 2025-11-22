@@ -968,32 +968,31 @@ export default function Tasks() {
     },
   });
 
-  // Create default columns when a project has no columns
+  // Create default columns when dialog opens with no columns available
   useEffect(() => {
-    const shouldCreateDefaultColumns = 
+    // Only create if dialog is open and user selected "Aucun projet" with no global columns
+    const shouldCreateGlobalDefaultColumns = 
+      isCreateTaskDialogOpen &&
       !columnsLoading && 
       accountId &&
-      !selectedProjectIds.includes("all") && 
-      selectedProjectIds.length === 1 &&
-      filteredColumns.length === 0 &&
-      viewMode === "kanban";
+      newTaskProjectId === "none" &&
+      globalTaskColumns.length === 0;
 
-    if (shouldCreateDefaultColumns) {
-      const projectId = selectedProjectIds[0];
+    if (shouldCreateGlobalDefaultColumns) {
       const defaultColumns = [
         { name: "A faire", color: "#ef4444", order: 0 },
         { name: "En cours", color: "#f59e0b", order: 1 },
         { name: "Terminé", color: "#10b981", order: 2 },
       ];
 
-      // Create columns sequentially to ensure correct order
+      // Create global columns (no projectId)
       const createColumns = async () => {
         for (const col of defaultColumns) {
           await apiRequest("/api/task-columns", "POST", {
             name: col.name,
             color: col.color,
             order: col.order,
-            projectId: projectId,
+            projectId: null, // Global columns
             accountId: accountId,
           });
         }
@@ -1002,7 +1001,7 @@ export default function Tasks() {
 
       createColumns();
     }
-  }, [columnsLoading, accountId, selectedProjectIds, filteredColumns.length, viewMode]);
+  }, [isCreateTaskDialogOpen, columnsLoading, accountId, newTaskProjectId, globalTaskColumns.length]);
 
   // Event handlers
   const handleDragStart = (event: DragStartEvent) => {
