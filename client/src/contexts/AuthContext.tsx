@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 
 interface UserProfile {
   firstName?: string;
@@ -80,6 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setAccountId(null);
+    // Clear ALL React Query cache to prevent data leaks between accounts
+    queryClient.clear();
+    // Clear localStorage
+    localStorage.removeItem("demo_account_id");
+    localStorage.removeItem("demo_user_id");
   };
 
   const value = {

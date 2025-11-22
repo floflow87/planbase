@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Monitor } from "lucide-react";
 import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
@@ -34,6 +34,9 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Clear cache BEFORE login to prevent old data flash
+      queryClient.clear();
+      
       const { error } = await signIn(email, password);
       
       if (error) {

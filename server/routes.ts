@@ -380,12 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/clients", requireAuth, async (req, res) => {
     try {
-      console.log("🔍 [DEBUG] GET /api/clients - accountId:", req.accountId);
       const clients = await storage.getClientsByAccountId(req.accountId!);
-      console.log("🔍 [DEBUG] Clients found:", clients.length);
-      if (clients.length > 0) {
-        console.log("🔍 [DEBUG] First client:", { id: clients[0].id, name: clients[0].name, accountId: clients[0].accountId });
-      }
       res.json(clients);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -813,12 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/projects", requireAuth, async (req, res) => {
     try {
-      console.log("🔍 [DEBUG] GET /api/projects - accountId:", req.accountId);
       const projects = await storage.getProjectsByAccountId(req.accountId!);
-      console.log("🔍 [DEBUG] Projects found:", projects.length);
-      if (projects.length > 0) {
-        console.log("🔍 [DEBUG] First project:", { id: projects[0].id, name: projects[0].name, accountId: projects[0].accountId });
-      }
       res.json(projects);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
