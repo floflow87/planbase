@@ -338,4 +338,17 @@
   textarea::placeholder {
     font-size: 0.875rem; /* 14px */
   }
+
+  /* Fix calendar height to prevent layout shift between months */
+  .rdp {
+    min-height: 320px;
+  }
+  
+  .rdp-month {
+    min-height: 280px;
+  }
+  
+  .rdp-tbody {
+    min-height: 240px;
+  }
 }

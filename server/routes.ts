@@ -2345,6 +2345,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const activities = await storage.getActivitiesByAccountId(req.accountId!, limit);
+      console.log(`📊 Fetched ${activities.length} activities:`, activities.map(a => ({
+        id: a.id,
+        kind: a.kind,
+        subjectType: a.subjectType,
+        description: (a.payload as any)?.description,
+        createdAt: a.createdAt
+      })));
       res.json(activities);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
