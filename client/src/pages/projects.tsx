@@ -2884,16 +2884,10 @@ export default function Projects() {
                               ),
                               progress: (
                                 <TableCell key="progress">
-                                  {project.stage === "termine" ? (
-                                    <Badge variant="outline" className="text-[10px]">
-                                      Terminé
-                                    </Badge>
-                                  ) : (
-                                    <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
-                                      <Progress value={progress} className="w-24 h-2" data-testid={`progress-bar-${project.id}`} />
-                                      <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{progress}%</span>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
+                                    <Progress value={project.stage === "termine" ? 100 : progress} className="w-24 h-2" data-testid={`progress-bar-${project.id}`} />
+                                    <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{project.stage === "termine" ? 100 : progress}%</span>
+                                  </div>
                                 </TableCell>
                               ),
                               category: (

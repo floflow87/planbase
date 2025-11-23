@@ -492,7 +492,23 @@ export default function ProjectDetail() {
           description: error.message || "Impossible de mettre à jour le projet.",
           variant: "destructive",
         });
+        throw error; // Re-throw to allow handleSubmitEdit to catch
       }
+    },
+    mutateAsync: async ({ data }: { data: Partial<Project> }) => {
+      // Auto-set progress to 100% when stage is "termine"
+      if (data.stage === "termine" && data.progress === undefined) {
+        data.progress = 100;
+      }
+      await apiRequest(`/api/projects/${id}`, "PATCH", data);
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+      toast({
+        title: "Projet mis à jour",
+        description: "Le projet a été mis à jour avec succès.",
+        variant: "success",
+      });
+      setIsEditDialogOpen(false);
     },
   };
 

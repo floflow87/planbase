@@ -431,8 +431,9 @@ export default function Dashboard() {
         });
       }
     } else if (revenuePeriod === "year") {
-      // All 12 months of current year
-      for (let i = 0; i < 12; i++) {
+      // All months of current year up to current month
+      const currentMonth = now.getMonth();
+      for (let i = 0; i <= currentMonth; i++) {
         months.push({
           month: monthNames[i],
           monthIndex: i,
@@ -463,9 +464,9 @@ export default function Dashboard() {
       monthlyProjectCounts[key] = 0;
     });
     
-    // Sum budgets and count projects by start month
+    // Sum budgets and count projects by start month (excluding prospection stage)
     projects.forEach(project => {
-      if (project.startDate && project.budget) {
+      if (project.startDate && project.budget && project.stage !== "prospection") {
         const startDate = new Date(project.startDate);
         const projectMonth = startDate.getMonth();
         const projectYear = startDate.getFullYear();
