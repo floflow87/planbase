@@ -201,6 +201,7 @@ function AppLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
+              <TimeTracker />
               <Button variant="ghost" size="sm" data-testid="button-mail">
                 <Mail className="w-5 h-5 text-primary" />
               </Button>
@@ -216,7 +217,6 @@ function AppLayout() {
                 <Bell className="w-5 h-5 text-primary" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               </Button>
-              <TimeTracker />
               <UserMenu />
             </div>
           </header>
