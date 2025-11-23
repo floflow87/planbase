@@ -162,6 +162,11 @@ export const projects = pgTable("projects", {
   signatureDate: date("signature_date"), // Date de signature pour calcul CA mensuel
   tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
   meta: jsonb("meta").notNull().default({}),
+  // Billing/Time tracking fields
+  billingType: text("billing_type"), // 'fixed_price' (forfait) or 'time_based' (temps passé)
+  billingUnit: text("billing_unit"), // 'hour' or 'day' (if billingType is 'time_based')
+  billingRate: numeric("billing_rate", { precision: 14, scale: 2 }), // Hourly/daily rate
+  totalBilled: numeric("total_billed", { precision: 14, scale: 2 }), // Total amount billed to client
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -207,6 +212,24 @@ export const tasks = pgTable("tasks", {
 }, (table) => ({
   accountProjectColumnIdx: index().on(table.accountId, table.projectId, table.columnId),
   accountClientIdx: index().on(table.accountId, table.clientId),
+}));
+
+// Time Tracking Entries
+export const timeEntries = pgTable("time_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  description: text("description"),
+  startTime: timestamp("start_time", { withTimezone: true }),
+  endTime: timestamp("end_time", { withTimezone: true }),
+  duration: integer("duration"), // Duration in seconds
+  isBillable: integer("is_billable").notNull().default(1), // 0 = false, 1 = true
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+  accountUserIdx: index().on(table.accountId, table.userId),
 }));
 
 export const deals = pgTable("deals", {
@@ -652,9 +675,17 @@ export const insertClientCustomFieldValueSchema = createInsertSchema(clientCusto
 export const updateClientCustomFieldValueSchema = insertClientCustomFieldValueSchema.omit({ accountId: true, clientId: true, fieldId: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+  billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+  totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTimeEntrySchema = z.object({
+  endTime: z.coerce.date().optional(),
+  duration: z.number().int().min(0).optional(),
+  description: z.string().optional().nullable(),
+});
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
@@ -696,6 +727,7 @@ export type InsertClientCustomFieldValue = z.infer<typeof insertClientCustomFiel
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
 export type InsertDeal = z.infer<typeof insertDealSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
@@ -728,6 +760,7 @@ export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect
 export type Project = typeof projects.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
+export type TimeEntry = typeof timeEntries.$inferSelect;
 export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Note = typeof notes.$inferSelect;

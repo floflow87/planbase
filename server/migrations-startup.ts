@@ -131,6 +131,43 @@ export async function runStartupMigrations() {
       END $$;
     `);
     
+    // Add billing/time tracking fields to projects table
+    await db.execute(sql`
+      ALTER TABLE projects 
+      ADD COLUMN IF NOT EXISTS billing_type text,
+      ADD COLUMN IF NOT EXISTS billing_unit text,
+      ADD COLUMN IF NOT EXISTS billing_rate numeric(14, 2),
+      ADD COLUMN IF NOT EXISTS total_billed numeric(14, 2);
+    `);
+    
+    // Create time_entries table for time tracking
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS time_entries (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        description text,
+        start_time timestamp with time zone,
+        end_time timestamp with time zone,
+        duration integer,
+        is_billable integer NOT NULL DEFAULT 1,
+        created_at timestamp with time zone NOT NULL DEFAULT now(),
+        updated_at timestamp with time zone NOT NULL DEFAULT now()
+      );
+    `);
+    
+    // Create indexes for time_entries
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS time_entries_account_project_idx 
+      ON time_entries(account_id, project_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS time_entries_account_user_idx 
+      ON time_entries(account_id, user_id);
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

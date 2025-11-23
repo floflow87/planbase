@@ -1389,6 +1389,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // TIME ENTRIES - Protected Routes
+  // ============================================
+
+  // Get all time entries for the authenticated account
+  app.get("/api/time-entries", requireAuth, async (req, res) => {
+    try {
+      const entries = await storage.getTimeEntriesByAccountId(req.accountId!);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get time entries for a specific project
+  app.get("/api/projects/:projectId/time-entries", requireAuth, async (req, res) => {
+    try {
+      // Verify project exists and user has access
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const entries = await storage.getTimeEntriesByProjectId(req.accountId!, req.params.projectId);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get active time entry for the current user
+  app.get("/api/time-entries/active", requireAuth, async (req, res) => {
+    try {
+      const entry = await storage.getActiveTimeEntry(req.accountId!, req.userId!);
+      res.json(entry || null);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new time entry (start timer)
+  app.post("/api/time-entries", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { insertTimeEntrySchema } = await import("@shared/schema");
+      
+      // If projectId is provided, verify it belongs to the user's account
+      if (req.body.projectId) {
+        const project = await storage.getProject(req.body.projectId);
+        if (!project) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        if (project.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied to this project" });
+        }
+      }
+      
+      const data = insertTimeEntrySchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        userId: req.userId!,
+        startTime: new Date(), // Always start now
+      });
+      
+      // Check if user already has an active timer
+      const activeEntry = await storage.getActiveTimeEntry(req.accountId!, req.userId!);
+      if (activeEntry) {
+        return res.status(400).json({ error: "You already have an active timer running" });
+      }
+
+      const entry = await storage.createTimeEntry(data);
+      res.json(entry);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a time entry (stop timer, update duration)
+  app.patch("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Validate update payload
+      const { updateTimeEntrySchema } = await import("@shared/schema");
+      const validatedUpdate = updateTimeEntrySchema.parse(req.body);
+
+      // If stopping the timer, calculate and validate duration
+      if (validatedUpdate.endTime) {
+        const startTime = existing.startTime ? new Date(existing.startTime) : new Date();
+        const endTime = new Date(validatedUpdate.endTime);
+        
+        // Ensure endTime is after startTime
+        if (endTime <= startTime) {
+          return res.status(400).json({ error: "End time must be after start time" });
+        }
+        
+        // Calculate duration in seconds if not provided
+        if (!validatedUpdate.duration) {
+          validatedUpdate.duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+        }
+      }
+
+      const entry = await storage.updateTimeEntry(req.accountId!, req.params.id, validatedUpdate);
+      res.json(entry);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a time entry
+  app.delete("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteTimeEntry(req.accountId!, req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // NOTES - Protected Routes
   // ============================================
 

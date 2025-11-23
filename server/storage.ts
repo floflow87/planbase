@@ -26,10 +26,11 @@ import {
   type RoadmapItem, type InsertRoadmapItem,
   type Appointment, type InsertAppointment,
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
+  type TimeEntry, type InsertTimeEntry,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
-  appointments, googleCalendarTokens,
+  appointments, googleCalendarTokens, timeEntries,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -234,6 +235,15 @@ export interface IStorage {
   upsertGoogleToken(token: InsertGoogleCalendarToken): Promise<GoogleCalendarToken>;
   deleteGoogleToken(accountId: string, userId: string): Promise<boolean>;
   updateGoogleTokenExpiry(accountId: string, userId: string, accessToken: string, expiresAt: Date): Promise<void>;
+
+  // Time Entries
+  getTimeEntry(accountId: string, id: string): Promise<TimeEntry | undefined>;
+  getTimeEntriesByProjectId(accountId: string, projectId: string): Promise<TimeEntry[]>;
+  getTimeEntriesByAccountId(accountId: string): Promise<TimeEntry[]>;
+  getActiveTimeEntry(accountId: string, userId: string): Promise<TimeEntry | undefined>;
+  createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
+  updateTimeEntry(accountId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
+  deleteTimeEntry(accountId: string, id: string): Promise<boolean>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -1329,6 +1339,70 @@ export class DatabaseStorage implements IStorage {
     if (result.length === 0) {
       throw new Error(`Google token not found for user ${userId} in account ${accountId}`);
     }
+  }
+
+  // Time Entries
+  async getTimeEntry(accountId: string, id: string): Promise<TimeEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.accountId, accountId)));
+    return entry || undefined;
+  }
+
+  async getTimeEntriesByProjectId(accountId: string, projectId: string): Promise<TimeEntry[]> {
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.projectId, projectId), eq(timeEntries.accountId, accountId)))
+      .orderBy(desc(timeEntries.startTime));
+  }
+
+  async getTimeEntriesByAccountId(accountId: string): Promise<TimeEntry[]> {
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(eq(timeEntries.accountId, accountId))
+      .orderBy(desc(timeEntries.startTime));
+  }
+
+  async getActiveTimeEntry(accountId: string, userId: string): Promise<TimeEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(timeEntries)
+      .where(
+        and(
+          eq(timeEntries.accountId, accountId),
+          eq(timeEntries.userId, userId),
+          isNull(timeEntries.endTime)
+        )
+      );
+    return entry || undefined;
+  }
+
+  async createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry> {
+    const [newEntry] = await db
+      .insert(timeEntries)
+      .values(entry)
+      .returning();
+    return newEntry;
+  }
+
+  async updateTimeEntry(accountId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
+    const [updated] = await db
+      .update(timeEntries)
+      .set({ ...entry, updatedAt: new Date() })
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.accountId, accountId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteTimeEntry(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(timeEntries)
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.accountId, accountId)))
+      .returning();
+    return result.length > 0;
   }
 }
 
