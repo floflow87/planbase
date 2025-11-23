@@ -2955,61 +2955,78 @@ export default function Projects() {
                                             </button>
                                           </CommandEmpty>
                                           
-                                          {recentCategories.length > 0 && (
-                                            <CommandGroup heading="Récentes">
-                                              {recentCategories.map((cat) => (
-                                                <CommandItem
-                                                  key={cat}
-                                                  onSelect={() => {
-                                                    updateProjectMutation.mutate({
-                                                      id: project.id,
-                                                      data: { category: cat }
-                                                    });
-                                                    setCategoryPopoverOpen(false);
-                                                    setEditingCategoryProjectId(null);
-                                                    setCategorySearchQuery("");
-                                                  }}
-                                                  data-testid={`item-category-${cat}`}
-                                                >
-                                                  <Check
-                                                    className={`mr-2 h-4 w-4 ${
-                                                      project.category === cat ? 'opacity-100' : 'opacity-0'
-                                                    }`}
-                                                  />
-                                                  {cat}
-                                                </CommandItem>
-                                              ))}
-                                            </CommandGroup>
-                                          )}
-                                          
-                                          {uniqueCategories.length > 0 && (
-                                            <CommandGroup heading="Toutes les catégories">
-                                              {uniqueCategories
-                                                .filter(cat => !recentCategories.includes(cat))
-                                                .map((cat) => (
-                                                  <CommandItem
-                                                    key={cat}
-                                                    onSelect={() => {
-                                                      updateProjectMutation.mutate({
-                                                        id: project.id,
-                                                        data: { category: cat }
-                                                      });
-                                                      setCategoryPopoverOpen(false);
-                                                      setEditingCategoryProjectId(null);
-                                                      setCategorySearchQuery("");
-                                                    }}
-                                                    data-testid={`item-category-${cat}`}
-                                                  >
-                                                    <Check
-                                                      className={`mr-2 h-4 w-4 ${
-                                                        project.category === cat ? 'opacity-100' : 'opacity-0'
-                                                      }`}
-                                                    />
-                                                    {cat}
-                                                  </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                          )}
+                                          {(() => {
+                                            // Filter categories based on search query
+                                            const filteredCategories = uniqueCategories.filter(cat =>
+                                              cat.toLowerCase().includes(categorySearchQuery.toLowerCase())
+                                            ).slice(0, 20); // Limit to 20 results
+                                            
+                                            const filteredRecent = recentCategories.filter(cat =>
+                                              cat.toLowerCase().includes(categorySearchQuery.toLowerCase())
+                                            );
+                                            
+                                            const filteredOthers = filteredCategories.filter(
+                                              cat => !recentCategories.includes(cat)
+                                            );
+                                            
+                                            return (
+                                              <>
+                                                {filteredRecent.length > 0 && (
+                                                  <CommandGroup heading="Récentes">
+                                                    {filteredRecent.map((cat) => (
+                                                      <CommandItem
+                                                        key={cat}
+                                                        onSelect={() => {
+                                                          updateProjectMutation.mutate({
+                                                            id: project.id,
+                                                            data: { category: cat }
+                                                          });
+                                                          setCategoryPopoverOpen(false);
+                                                          setEditingCategoryProjectId(null);
+                                                          setCategorySearchQuery("");
+                                                        }}
+                                                        data-testid={`item-category-${cat}`}
+                                                      >
+                                                        <Check
+                                                          className={`mr-2 h-4 w-4 ${
+                                                            project.category === cat ? 'opacity-100' : 'opacity-0'
+                                                          }`}
+                                                        />
+                                                        {cat}
+                                                      </CommandItem>
+                                                    ))}
+                                                  </CommandGroup>
+                                                )}
+                                                
+                                                {filteredOthers.length > 0 && (
+                                                  <CommandGroup heading="Toutes">
+                                                    {filteredOthers.map((cat) => (
+                                                      <CommandItem
+                                                        key={cat}
+                                                        onSelect={() => {
+                                                          updateProjectMutation.mutate({
+                                                            id: project.id,
+                                                            data: { category: cat }
+                                                          });
+                                                          setCategoryPopoverOpen(false);
+                                                          setEditingCategoryProjectId(null);
+                                                          setCategorySearchQuery("");
+                                                        }}
+                                                        data-testid={`item-category-${cat}`}
+                                                      >
+                                                        <Check
+                                                          className={`mr-2 h-4 w-4 ${
+                                                            project.category === cat ? 'opacity-100' : 'opacity-0'
+                                                          }`}
+                                                        />
+                                                        {cat}
+                                                      </CommandItem>
+                                                    ))}
+                                                  </CommandGroup>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </CommandList>
                                       </Command>
                                     </PopoverContent>

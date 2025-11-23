@@ -409,6 +409,104 @@ export default function Dashboard() {
     };
   }, [tasks, myDayFilter]); // Use tasks directly as dependency
 
+  // Revenue data for chart - based on project budgets by start month
+  const revenueData = useMemo(() => {
+    const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const months: Array<{ month: string; monthIndex: number; year: number; key: string }> = [];
+    
+    // Determine which months to show based on selected period
+    if (revenuePeriod === "6months") {
+      // Last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const monthIndex = d.getMonth();
+        months.push({
+          month: monthNames[monthIndex],
+          monthIndex,
+          year,
+          key: `${year}-${monthIndex}`
+        });
+      }
+    } else if (revenuePeriod === "year") {
+      // All 12 months of current year
+      for (let i = 0; i < 12; i++) {
+        months.push({
+          month: monthNames[i],
+          monthIndex: i,
+          year: currentYear,
+          key: `${currentYear}-${i}`
+        });
+      }
+    } else if (revenuePeriod === "quarter") {
+      // Current quarter (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)
+      const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      for (let i = 0; i < 3; i++) {
+        const monthIndex = quarterStartMonth + i;
+        const year = currentYear;
+        months.push({
+          month: monthNames[monthIndex],
+          monthIndex,
+          year,
+          key: `${year}-${monthIndex}`
+        });
+      }
+    }
+    
+    // Initialize monthly budgets and project counts using unique keys
+    const monthlyBudgets: Record<string, number> = {};
+    const monthlyProjectCounts: Record<string, number> = {};
+    months.forEach(({ key }) => {
+      monthlyBudgets[key] = 0;
+      monthlyProjectCounts[key] = 0;
+    });
+    
+    // Sum budgets and count projects by start month
+    projects.forEach(project => {
+      if (project.startDate && project.budget) {
+        const startDate = new Date(project.startDate);
+        const projectMonth = startDate.getMonth();
+        const projectYear = startDate.getFullYear();
+        
+        // Check if this project's start date is in the selected period
+        const matchingMonth = months.find(
+          m => m.monthIndex === projectMonth && m.year === projectYear
+        );
+        
+        if (matchingMonth) {
+          monthlyBudgets[matchingMonth.key] += Number(project.budget) || 0;
+          monthlyProjectCounts[matchingMonth.key] += 1;
+        }
+      }
+    });
+    
+    return months.map(({ month, key, year }) => {
+      const revenue = monthlyBudgets[key];
+      // Calculate violet gradient color based on budget (max 20K)
+      const intensity = Math.min(revenue / 20000, 1);
+      // Violet gradient from light (#E9D5FF) to dark (#7C3AED)
+      const lightColor = { r: 233, g: 213, b: 255 };
+      const darkColor = { r: 124, g: 58, b: 237 };
+      const r = Math.round(lightColor.r + (darkColor.r - lightColor.r) * intensity);
+      const g = Math.round(lightColor.g + (darkColor.g - lightColor.g) * intensity);
+      const b = Math.round(lightColor.b + (darkColor.b - lightColor.b) * intensity);
+      const fill = `rgb(${r}, ${g}, ${b})`;
+      
+      // Show year in label if period spans multiple years
+      const needsYearLabel = months.some(m => m.year !== year);
+      const monthLabel = needsYearLabel ? `${month} ${year}` : month;
+      
+      return {
+        month: monthLabel,
+        revenue,
+        projectCount: monthlyProjectCounts[key],
+        fill
+      };
+    });
+  }, [projects, revenuePeriod]);
+
   const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
   };
@@ -510,96 +608,6 @@ export default function Dashboard() {
 
   // Activity feed from API
   const activityFeed = activities.slice(0, 5);
-
-  // Revenue data for chart - based on project budgets by start month
-  const revenueData = useMemo(() => {
-    const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const months: Array<{ month: string; monthIndex: number; year: number }> = [];
-    
-    // Determine which months to show based on selected period
-    if (revenuePeriod === "6months") {
-      // Last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push({
-          month: monthNames[d.getMonth()],
-          monthIndex: d.getMonth(),
-          year: d.getFullYear()
-        });
-      }
-    } else if (revenuePeriod === "year") {
-      // All 12 months of 2025
-      for (let i = 0; i < 12; i++) {
-        months.push({
-          month: monthNames[i],
-          monthIndex: i,
-          year: 2025
-        });
-      }
-    } else if (revenuePeriod === "quarter") {
-      // Current quarter (last 3 months)
-      for (let i = 2; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push({
-          month: monthNames[d.getMonth()],
-          monthIndex: d.getMonth(),
-          year: d.getFullYear()
-        });
-      }
-    }
-    
-    // Initialize monthly budgets and project counts
-    const monthlyBudgets: Record<string, number> = {};
-    const monthlyProjectCounts: Record<string, number> = {};
-    months.forEach(({ month }) => {
-      monthlyBudgets[month] = 0;
-      monthlyProjectCounts[month] = 0;
-    });
-    
-    // Sum budgets and count projects by start month
-    projects.forEach(project => {
-      if (project.startDate && project.budget) {
-        const startDate = new Date(project.startDate);
-        const projectMonth = startDate.getMonth();
-        const projectYear = startDate.getFullYear();
-        
-        // Check if this project's start date is in the selected period
-        const matchingMonth = months.find(
-          m => m.monthIndex === projectMonth && m.year === projectYear
-        );
-        
-        if (matchingMonth) {
-          monthlyBudgets[matchingMonth.month] += Number(project.budget) || 0;
-          monthlyProjectCounts[matchingMonth.month] += 1;
-        }
-      }
-    });
-    
-    // Calculate max budget for color gradient
-    const maxBudget = Math.max(...Object.values(monthlyBudgets), 20000);
-    
-    return months.map(({ month }) => {
-      const revenue = monthlyBudgets[month];
-      // Calculate violet gradient color based on budget (max 20K)
-      const intensity = Math.min(revenue / 20000, 1);
-      // Violet gradient from light (#E9D5FF) to dark (#7C3AED)
-      const lightColor = { r: 233, g: 213, b: 255 };
-      const darkColor = { r: 124, g: 58, b: 237 };
-      const r = Math.round(lightColor.r + (darkColor.r - lightColor.r) * intensity);
-      const g = Math.round(lightColor.g + (darkColor.g - lightColor.g) * intensity);
-      const b = Math.round(lightColor.b + (darkColor.b - lightColor.b) * intensity);
-      const fill = `rgb(${r}, ${g}, ${b})`;
-      
-      return {
-        month,
-        revenue,
-        projectCount: monthlyProjectCounts[month],
-        fill
-      };
-    });
-  }, [projects, revenuePeriod]);
 
   return (
     <div className="h-full overflow-auto">
@@ -996,7 +1004,7 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="6months">6 derniers mois</SelectItem>
-                  <SelectItem value="year">Année 2025</SelectItem>
+                  <SelectItem value="year">Année {new Date().getFullYear()}</SelectItem>
                   <SelectItem value="quarter">Trimestre actuel</SelectItem>
                 </SelectContent>
               </Select>
