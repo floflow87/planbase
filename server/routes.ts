@@ -405,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "client",
         subjectId: client.id,
-        kind: "note",
+        kind: "created",
         payload: { description: `New client onboarded: ${data.name}` },
         createdBy: req.userId || null,
       });
@@ -851,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "project",
         subjectId: project.id,
-        kind: "note",
+        kind: "created",
         payload: { description: `Project created: ${project.name}` },
         createdBy: req.userId || null,
       });
@@ -944,7 +944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         subjectType: "project",
         subjectId: project!.id,
-        kind: "note",
+        kind: "updated",
         payload: { description: `Project updated: ${project!.name}` },
         createdBy: req.userId || null,
       });
