@@ -191,6 +191,46 @@ export async function runStartupMigrations() {
       ON project_categories(account_id, name);
     `);
     
+    // Fix old activities with incorrect kind='note' when they should be 'created' or 'updated'
+    console.log("🔄 Fixing activity kinds...");
+    
+    // First, update the constraint to allow 'created', 'updated', 'deleted'
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_kind_check;
+        ALTER TABLE activities 
+        ADD CONSTRAINT activities_kind_check 
+        CHECK (kind IN ('created','updated','deleted','email','call','meeting','note','task','file'));
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL;
+      END $$;
+    `);
+    
+    // Now update the data
+    await db.execute(sql`
+      UPDATE activities 
+      SET kind = 'created'
+      WHERE kind = 'note' 
+        AND (
+          payload::jsonb->>'description' LIKE '%created:%'
+          OR payload::jsonb->>'description' LIKE '%créé%'
+          OR payload::jsonb->>'description' LIKE '%onboarded:%'
+        );
+    `);
+    
+    await db.execute(sql`
+      UPDATE activities 
+      SET kind = 'updated'
+      WHERE kind = 'note' 
+        AND (
+          payload::jsonb->>'description' LIKE '%updated:%'
+          OR payload::jsonb->>'description' LIKE '%mis à jour%'
+        );
+    `);
+    console.log("✅ Activity kinds fixed");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
