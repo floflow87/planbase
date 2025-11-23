@@ -96,6 +96,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     const billingRate = parseFloat(project.billingRate || "0");
     const totalBilled = parseFloat(project.totalBilled || "0");
     const billingUnit = project.billingUnit || "hour";
+    const billingType = project.billingType || "time";
 
     // Convert time to the right unit
     let timeInUnits = totalTimeHours;
@@ -106,16 +107,26 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     // Calculate actual cost (time spent × rate)
     const actualCost = timeInUnits * billingRate;
 
+    // Calculate TJM réel (pour facturation au temps passé uniquement)
+    // TJM réel = montant facturé / (heures totales / 8)
+    let realDailyRate = undefined;
+    if (billingType === "time") {
+      const totalDays = totalTimeHours / 8;
+      realDailyRate = totalDays > 0 ? totalBilled / totalDays : 0;
+    }
+
     // Calculate profit/loss
     const profitLoss = totalBilled - actualCost;
     const profitLossPercentage = totalBilled > 0 ? (profitLoss / totalBilled) * 100 : 0;
 
     return {
       actualCost,
+      realDailyRate,
       totalBilled,
       profitLoss,
       profitLossPercentage,
       isProfit: profitLoss >= 0,
+      billingType,
     };
   };
 
@@ -177,7 +188,11 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>Coût réel: {profitability.actualCost.toFixed(2)} €</p>
+                  {profitability.billingType === "time" && profitability.realDailyRate !== undefined ? (
+                    <p>TJM réel: {profitability.realDailyRate.toFixed(2)} €</p>
+                  ) : (
+                    <p>Coût réel: {profitability.actualCost.toFixed(2)} €</p>
+                  )}
                   <p>Montant facturé: {profitability.totalBilled.toFixed(2)} €</p>
                 </div>
               </div>
@@ -890,7 +905,8 @@ export default function ProjectDetail() {
                         await apiRequest(`/api/projects/${id}`, "PATCH", {
                           billingType: value,
                         });
-                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
                         toast({
                           title: "Mise à jour réussie",
                           description: "Le type de facturation a été modifié",
@@ -947,7 +963,8 @@ export default function ProjectDetail() {
                               await apiRequest(`/api/projects/${id}`, "PATCH", {
                                 billingRate: trimmedValue === "" ? null : trimmedValue,
                               });
-                              queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
                             } catch (error: any) {
                               toast({
                                 title: "Erreur",
@@ -975,7 +992,8 @@ export default function ProjectDetail() {
                             await apiRequest(`/api/projects/${id}`, "PATCH", {
                               billingUnit: value,
                             });
-                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
                             toast({
                               title: "Mise à jour réussie",
                               description: "L'unité de facturation a été modifiée",
@@ -1027,7 +1045,8 @@ export default function ProjectDetail() {
                           await apiRequest(`/api/projects/${id}`, "PATCH", {
                             totalBilled: trimmedValue === "" ? null : trimmedValue,
                           });
-                          queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                          queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
                         } catch (error: any) {
                           toast({
                             title: "Erreur",
