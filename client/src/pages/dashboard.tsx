@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -114,6 +114,7 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
+  const [revenuePeriod, setRevenuePeriod] = useState<"6months" | "year" | "quarter">("6months");
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -510,39 +511,62 @@ export default function Dashboard() {
   // Activity feed from API
   const activityFeed = activities.slice(0, 5);
 
-  // Revenue data for chart - based on project budgets by start month (last 6 months)
-  const revenueData = (() => {
+  // Revenue data for chart - based on project budgets by start month
+  const revenueData = useMemo(() => {
     const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
     const now = new Date();
-    const last6Months: Array<{ month: string; monthIndex: number; year: number }> = [];
+    const currentYear = now.getFullYear();
+    const months: Array<{ month: string; monthIndex: number; year: number }> = [];
     
-    // Get the last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      last6Months.push({
-        month: monthNames[d.getMonth()],
-        monthIndex: d.getMonth(),
-        year: d.getFullYear()
-      });
+    // Determine which months to show based on selected period
+    if (revenuePeriod === "6months") {
+      // Last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+          month: monthNames[d.getMonth()],
+          monthIndex: d.getMonth(),
+          year: d.getFullYear()
+        });
+      }
+    } else if (revenuePeriod === "year") {
+      // All 12 months of 2025
+      for (let i = 0; i < 12; i++) {
+        months.push({
+          month: monthNames[i],
+          monthIndex: i,
+          year: 2025
+        });
+      }
+    } else if (revenuePeriod === "quarter") {
+      // Current quarter (last 3 months)
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+          month: monthNames[d.getMonth()],
+          monthIndex: d.getMonth(),
+          year: d.getFullYear()
+        });
+      }
     }
     
-    // Initialize monthly budgets and project counts for last 6 months
+    // Initialize monthly budgets and project counts
     const monthlyBudgets: Record<string, number> = {};
     const monthlyProjectCounts: Record<string, number> = {};
-    last6Months.forEach(({ month }) => {
+    months.forEach(({ month }) => {
       monthlyBudgets[month] = 0;
       monthlyProjectCounts[month] = 0;
     });
     
-    // Sum budgets and count projects by start month (only for last 6 months)
+    // Sum budgets and count projects by start month
     projects.forEach(project => {
       if (project.startDate && project.budget) {
         const startDate = new Date(project.startDate);
         const projectMonth = startDate.getMonth();
         const projectYear = startDate.getFullYear();
         
-        // Check if this project's start date is in the last 6 months
-        const matchingMonth = last6Months.find(
+        // Check if this project's start date is in the selected period
+        const matchingMonth = months.find(
           m => m.monthIndex === projectMonth && m.year === projectYear
         );
         
@@ -553,12 +577,29 @@ export default function Dashboard() {
       }
     });
     
-    return last6Months.map(({ month }) => ({
-      month,
-      revenue: monthlyBudgets[month],
-      projectCount: monthlyProjectCounts[month]
-    }));
-  })();
+    // Calculate max budget for color gradient
+    const maxBudget = Math.max(...Object.values(monthlyBudgets), 20000);
+    
+    return months.map(({ month }) => {
+      const revenue = monthlyBudgets[month];
+      // Calculate violet gradient color based on budget (max 20K)
+      const intensity = Math.min(revenue / 20000, 1);
+      // Violet gradient from light (#E9D5FF) to dark (#7C3AED)
+      const lightColor = { r: 233, g: 213, b: 255 };
+      const darkColor = { r: 124, g: 58, b: 237 };
+      const r = Math.round(lightColor.r + (darkColor.r - lightColor.r) * intensity);
+      const g = Math.round(lightColor.g + (darkColor.g - lightColor.g) * intensity);
+      const b = Math.round(lightColor.b + (darkColor.b - lightColor.b) * intensity);
+      const fill = `rgb(${r}, ${g}, ${b})`;
+      
+      return {
+        month,
+        revenue,
+        projectCount: monthlyProjectCounts[month],
+        fill
+      };
+    });
+  }, [projects, revenuePeriod]);
 
   return (
     <div className="h-full overflow-auto">
@@ -949,6 +990,16 @@ export default function Dashboard() {
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
+              <Select value={revenuePeriod} onValueChange={(value: "6months" | "year" | "quarter") => setRevenuePeriod(value)}>
+                <SelectTrigger className="w-[180px]" data-testid="select-revenue-period">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="6months">6 derniers mois</SelectItem>
+                  <SelectItem value="year">Année 2025</SelectItem>
+                  <SelectItem value="quarter">Trimestre actuel</SelectItem>
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent className="min-w-0 text-[12px]">
               <div className="w-full overflow-hidden">
@@ -977,7 +1028,11 @@ export default function Dashboard() {
                         return `${label} - ${item?.projectCount || 0} projet${(item?.projectCount || 0) > 1 ? 's' : ''}`;
                       }}
                     />
-                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                      {revenueData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

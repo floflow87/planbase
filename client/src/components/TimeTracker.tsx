@@ -48,6 +48,13 @@ export function TimeTracker() {
   // Use ref to capture latest selected project value for assignment
   const selectedProjectRef = useRef<string>("");
 
+  // Auto-open popover when project selector is shown
+  useEffect(() => {
+    if (showProjectSelector) {
+      setOpen(true);
+    }
+  }, [showProjectSelector]);
+
   // Fetch active time entry
   const { data: activeEntry, isLoading: isLoadingActive } = useQuery<TimeEntry | null>({
     queryKey: ["/api/time-entries/active"],
