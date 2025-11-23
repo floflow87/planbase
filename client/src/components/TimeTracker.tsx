@@ -51,10 +51,10 @@ export function TimeTracker() {
     refetchInterval: 1000, // Refresh every second to update timer
   });
 
-  // Fetch projects for selection
+  // Fetch projects for selection (load when popover is open OR when showing project selector)
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    enabled: open, // Only fetch when popover is open
+    enabled: open || showProjectSelector, // Load when popover is open OR when showing project selector
   });
 
   // Update elapsed time when active entry changes
@@ -321,7 +321,7 @@ export function TimeTracker() {
 
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground">
-                  Sélectionner un projet (optionnel)
+                  Sélectionner un projet
                 </label>
                 <Select
                   value={selectedProjectId}
@@ -354,7 +354,7 @@ export function TimeTracker() {
                 className="w-full gap-2"
                 data-testid="button-assign-project"
               >
-                Terminer
+                {assignProjectMutation.isPending ? "Enregistrement..." : "Terminer"}
               </Button>
             </div>
           ) : isRunning ? (
@@ -484,7 +484,7 @@ export function TimeTracker() {
               {/* Project Selection */}
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground">
-                  Sélectionner un projet (optionnel)
+                  Sélectionner un projet
                 </label>
                 <Select
                   value={selectedProjectId}
