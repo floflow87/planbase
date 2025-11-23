@@ -174,6 +174,17 @@ export const projects = pgTable("projects", {
   accountClientIdx: index().on(table.accountId, table.clientId),
 }));
 
+// Project Categories (for autocomplete suggestions)
+export const projectCategories = pgTable("project_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountNameIdx: uniqueIndex().on(table.accountId, table.name), // Ensure unique category names per account
+}));
+
 // Task Columns (for Kanban board customization)
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -679,6 +690,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true,
   billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
+export const insertProjectCategorySchema = createInsertSchema(projectCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
@@ -727,6 +739,7 @@ export type InsertClientCustomTab = z.infer<typeof insertClientCustomTabSchema>;
 export type InsertClientCustomField = z.infer<typeof insertClientCustomFieldSchema>;
 export type InsertClientCustomFieldValue = z.infer<typeof insertClientCustomFieldValueSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type InsertProjectCategory = z.infer<typeof insertProjectCategorySchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
@@ -760,6 +773,7 @@ export type ClientCustomTab = typeof clientCustomTabs.$inferSelect;
 export type ClientCustomField = typeof clientCustomFields.$inferSelect;
 export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect;
 export type Project = typeof projects.$inferSelect;
+export type ProjectCategory = typeof projectCategories.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;

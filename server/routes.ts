@@ -987,6 +987,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // PROJECT CATEGORIES - Protected Routes
+  // ============================================
+
+  // Get all project categories for the authenticated account
+  app.get("/api/project-categories", requireAuth, async (req, res) => {
+    try {
+      const categories = await storage.getProjectCategoriesByAccountId(req.accountId!);
+      res.json(categories);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new project category (or return existing one if name already exists)
+  app.post("/api/project-categories", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: "Category name is required" });
+      }
+
+      const trimmedName = name.trim();
+
+      // Try to create new category, let database handle uniqueness
+      try {
+        const category = await storage.createProjectCategory({
+          accountId: req.accountId!,
+          name: trimmedName,
+        });
+        res.json(category);
+      } catch (dbError: any) {
+        // If unique constraint violation, fetch the existing category by normalized name
+        if (dbError.code === '23505' || dbError.message?.includes('duplicate')) {
+          const existing = await storage.getProjectCategoryByNormalizedName(req.accountId!, trimmedName);
+          if (existing) {
+            return res.json(existing);
+          }
+        }
+        throw dbError;
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TASKS - Protected Routes
   // ============================================
 

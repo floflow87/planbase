@@ -174,6 +174,23 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS paused_at timestamp with time zone;
     `);
     
+    // Create project_categories table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_categories (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    // Create unique index on account_id and name for project_categories
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS project_categories_account_name_idx 
+      ON project_categories(account_id, name);
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

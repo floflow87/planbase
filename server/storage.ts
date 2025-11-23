@@ -9,6 +9,7 @@ import {
   type ClientCustomField, type InsertClientCustomField,
   type ClientCustomFieldValue, type InsertClientCustomFieldValue,
   type Project, type InsertProject,
+  type ProjectCategory, type InsertProjectCategory,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
@@ -28,7 +29,7 @@ import {
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   type TimeEntry, type InsertTimeEntry,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
 } from "@shared/schema";
@@ -102,6 +103,11 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+
+  // Project Categories
+  getProjectCategoriesByAccountId(accountId: string): Promise<ProjectCategory[]>;
+  getProjectCategoryByNormalizedName(accountId: string, name: string): Promise<ProjectCategory | undefined>;
+  createProjectCategory(category: InsertProjectCategory): Promise<ProjectCategory>;
 
   // Task Columns
   getTaskColumn(id: string): Promise<TaskColumn | undefined>;
@@ -539,6 +545,33 @@ export class DatabaseStorage implements IStorage {
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
     return result.length > 0;
+  }
+
+  // Project Categories
+  async getProjectCategoriesByAccountId(accountId: string): Promise<ProjectCategory[]> {
+    return await db.select().from(projectCategories).where(eq(projectCategories.accountId, accountId));
+  }
+
+  async getProjectCategoryByNormalizedName(accountId: string, name: string): Promise<ProjectCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(projectCategories)
+      .where(
+        and(
+          eq(projectCategories.accountId, accountId),
+          sql`LOWER(${projectCategories.name}) = LOWER(${name})`
+        )
+      )
+      .limit(1);
+    return category || undefined;
+  }
+
+  async createProjectCategory(insertCategory: InsertProjectCategory): Promise<ProjectCategory> {
+    const [category] = await db
+      .insert(projectCategories)
+      .values(insertCategory)
+      .returning();
+    return category;
   }
 
   // Task Columns

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +22,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
+import { cn } from "@/lib/utils";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -43,6 +45,97 @@ type TimeEntry = {
   createdAt: string;
   updatedAt: string;
 };
+
+interface CategoryComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
+  categories: { id: string; name: string }[];
+}
+
+function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  const handleCreateCategory = async () => {
+    const trimmedValue = searchValue.trim();
+    if (!trimmedValue) return;
+
+    try {
+      // Create the category via API
+      await apiRequest('/api/project-categories', 'POST', { name: trimmedValue });
+      // Invalidate the cache to refetch categories
+      queryClient.invalidateQueries({ queryKey: ['/api/project-categories'] });
+      // Update local state
+      onChange(trimmedValue);
+      setOpen(false);
+      setSearchValue("");
+    } catch (error: any) {
+      console.error('Error creating category:', error);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          data-testid="button-category-selector"
+        >
+          {value || "Sélectionnez une catégorie..."}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0">
+        <Command>
+          <CommandInput 
+            placeholder="Rechercher ou créer..." 
+            value={searchValue}
+            onValueChange={setSearchValue}
+            data-testid="input-category-search"
+          />
+          <CommandList>
+            <CommandEmpty>
+              {searchValue.trim() && (
+                <button
+                  className="w-full text-sm py-2 px-4 hover-elevate active-elevate-2 rounded-sm text-left"
+                  onClick={handleCreateCategory}
+                  data-testid="button-create-category"
+                >
+                  Créer "{searchValue.trim()}"
+                </button>
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {categories.map((cat) => (
+                <CommandItem
+                  key={cat.id}
+                  value={cat.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                    setSearchValue("");
+                  }}
+                  data-testid={`option-category-${cat.name}`}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === cat.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {cat.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function TimeTrackingTab({ projectId, project }: { projectId: string; project?: ProjectWithRelations }) {
   const { toast } = useToast();
@@ -341,6 +434,10 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  const { data: projectCategories = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/project-categories'],
+  });
+
   const { data: projectDocuments = [] } = useQuery<Document[]>({
     queryKey: ['/api/projects', id, 'documents'],
     enabled: !!id,
@@ -349,7 +446,7 @@ export default function ProjectDetail() {
   // Initialize billing fields when project loads
   useEffect(() => {
     if (project) {
-      setTotalBilledValue(project.totalBilled || "");
+      setTotalBilledValue(project.totalBilled || project.budget || "");
       setBillingRateValue(project.billingRate || "");
     }
   }, [project]);
@@ -493,19 +590,28 @@ export default function ProjectDetail() {
     setIsEditDialogOpen(true);
   };
 
-  const handleSubmitEdit = () => {
-    updateProjectMutation.mutate({
-      data: {
-        name: projectFormData.name,
-        description: projectFormData.description,
-        clientId: projectFormData.clientId || null,
-        stage: projectFormData.stage,
-        category: projectFormData.category || null,
-        startDate: projectFormData.startDate?.toISOString() || null,
-        endDate: projectFormData.endDate?.toISOString() || null,
-        budget: projectFormData.budget || null,
-      },
-    });
+  const handleSubmitEdit = async () => {
+    try {
+      // Update the project using mutateAsync to catch errors
+      await updateProjectMutation.mutateAsync({
+        data: {
+          name: projectFormData.name,
+          description: projectFormData.description,
+          clientId: projectFormData.clientId || null,
+          stage: projectFormData.stage,
+          category: projectFormData.category || null,
+          startDate: projectFormData.startDate?.toISOString() || null,
+          endDate: projectFormData.endDate?.toISOString() || null,
+          budget: projectFormData.budget || null,
+        },
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de sauvegarder le projet",
+        variant: "destructive",
+      });
+    }
   };
 
   if (projectLoading) {
@@ -895,7 +1001,7 @@ export default function ProjectDetail() {
               <CardHeader>
                 <CardTitle className="text-base">Configuration de facturation</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="billing-type">Type de facturation</Label>
                   <Select
@@ -1135,12 +1241,14 @@ export default function ProjectDetail() {
             </div>
             <div>
               <Label htmlFor="edit-category">Catégorie</Label>
-              <Input
-                id="edit-category"
-                value={projectFormData.category}
-                onChange={(e) => setProjectFormData({ ...projectFormData, category: e.target.value })}
-                data-testid="input-edit-category"
+              <CategoryCombobox
+                value={projectFormData.category || ""}
+                onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
+                categories={projectCategories}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Sélectionnez une catégorie existante ou créez-en une nouvelle
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
