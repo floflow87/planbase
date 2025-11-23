@@ -1144,8 +1144,16 @@ export default function Tasks() {
     // Determine current selection for comparison
     const currentSelectedProjectId = !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 ? selectedProjectIds[0] : "all";
 
+    // Determine the final project ID to use for the task
+    // If newTaskProjectId is "none" -> null (no project)
+    // If newTaskProjectId is set (and not empty) -> use it (user explicitly selected a project)
+    // Otherwise, fallback to currentSelectedProjectId if it's a single project filter
+    const finalProjectId = newTaskProjectId === "none" 
+      ? null 
+      : (newTaskProjectId && newTaskProjectId !== "" ? newTaskProjectId : (currentSelectedProjectId !== "all" ? currentSelectedProjectId : null));
+
     let targetColumns: TaskColumn[];
-    if (newTaskProjectId === "none") {
+    if (finalProjectId === null || newTaskProjectId === "none") {
       targetColumns = globalTaskColumns;
     } else if (newTaskProjectId && newTaskProjectId !== currentSelectedProjectId) {
       targetColumns = newTaskProjectColumns;
@@ -1164,16 +1172,15 @@ export default function Tasks() {
     const targetColumn = targetColumns.find((c) => c.id === targetColumnId);
     const taskStatus = targetColumn ? getStatusFromColumnName(targetColumn.name) : "todo";
 
-    const targetProjectId = newTaskProjectId === "none" ? null : (newTaskProjectId || currentSelectedProjectId === "all" ? null : currentSelectedProjectId);
     const tasksInColumn = tasks
-      .filter((t) => t.columnId === targetColumnId && t.projectId === targetProjectId);
+      .filter((t) => t.columnId === targetColumnId && t.projectId === finalProjectId);
     const maxPosition = tasksInColumn.length > 0
       ? Math.max(...tasksInColumn.map((t) => t.positionInColumn))
       : -1;
 
     createTaskMutation.mutate({
       accountId,
-      projectId: targetProjectId,
+      projectId: finalProjectId,
       columnId: targetColumnId,
       title: newTaskTitle,
       description: newTaskDescription || null,
