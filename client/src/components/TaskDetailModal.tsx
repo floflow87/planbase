@@ -26,6 +26,7 @@ import { CalendarIcon, Star, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
+import { formatDateForStorage } from "@/lib/queryClient";
 
 // Helper function to derive task status from column name
 function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
@@ -113,7 +114,7 @@ export function TaskDetailModal({
       description,
       priority,
       assignedToId: assignedToId || null,
-      dueDate: dueDate ? dueDate.toISOString() : null,
+      dueDate: dueDate ? formatDateForStorage(dueDate) : null,
       status: derivedStatus,
       columnId: selectedColumnId,
       projectId: projectId || task.projectId,
