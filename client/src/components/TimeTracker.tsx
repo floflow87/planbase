@@ -175,78 +175,116 @@ export function TimeTracker() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
+      <PopoverContent className="w-80 bg-white dark:bg-white" align="end">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <h4 className="font-medium text-sm text-foreground">Suivi du temps</h4>
-            {isRunning ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Projet actuel</p>
-                    <p className="font-medium text-foreground" data-testid="text-active-project">
-                      {activeProject?.name || "Aucun projet"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-mono font-semibold text-primary" data-testid="text-timer-display">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-sm text-gray-900 flex items-center gap-2">
+              <Timer className="w-4 h-4 text-violet-600" />
+              Time Tracking
+            </h4>
+          </div>
+
+          {isRunning ? (
+            <div className="space-y-4">
+              {/* Circular Timer Display */}
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="relative w-40 h-40 flex items-center justify-center">
+                  {/* Outer Circle */}
+                  <div className="absolute inset-0 rounded-full border-8 border-gray-200"></div>
+                  {/* Inner Content */}
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-3xl font-mono font-bold text-gray-900" data-testid="text-timer-display">
                       {formatTime(elapsedTime)}
                     </p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
+                      EN COURS
+                    </p>
                   </div>
                 </div>
-                <Button
-                  onClick={handleStop}
-                  disabled={stopMutation.isPending}
-                  className="w-full gap-2"
-                  variant="destructive"
-                  data-testid="button-stop-timer"
-                >
-                  <Square className="w-4 h-4" />
-                  Arrêter
-                </Button>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">
-                    Sélectionner un projet (optionnel)
-                  </label>
-                  <Select
-                    value={selectedProjectId}
-                    onValueChange={setSelectedProjectId}
-                    disabled={isLoadingProjects}
-                  >
-                    <SelectTrigger data-testid="select-project">
-                      <SelectValue placeholder="Aucun projet" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" data-testid="option-no-project">
-                        Aucun projet
-                      </SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem 
-                          key={project.id} 
-                          value={project.id}
-                          data-testid={`option-project-${project.id}`}
-                        >
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              {/* Active Project Info */}
+              {activeProject && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Projet</p>
+                  <p className="font-medium text-gray-900" data-testid="text-active-project">
+                    {activeProject.name}
+                  </p>
                 </div>
-                <Button
-                  onClick={handleStart}
-                  disabled={startMutation.isPending}
-                  className="w-full gap-2"
-                  data-testid="button-start-timer"
-                >
-                  <Play className="w-4 h-4" />
-                  Démarrer
-                </Button>
+              )}
+
+              {/* Stop Button */}
+              <Button
+                onClick={handleStop}
+                disabled={stopMutation.isPending}
+                className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                data-testid="button-stop-timer"
+              >
+                <Square className="w-4 h-4" />
+                Arrêter
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Circular Timer Display (Stopped) */}
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="relative w-40 h-40 flex items-center justify-center">
+                  {/* Outer Circle */}
+                  <div className="absolute inset-0 rounded-full border-8 border-gray-200"></div>
+                  {/* Inner Content */}
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-3xl font-mono font-bold text-gray-900" data-testid="text-timer-display">
+                      00:00
+                    </p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
+                      ARRÊTÉ
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Project Selection */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-600">
+                  Sélectionner un projet (optionnel)
+                </label>
+                <Select
+                  value={selectedProjectId}
+                  onValueChange={setSelectedProjectId}
+                  disabled={isLoadingProjects}
+                >
+                  <SelectTrigger data-testid="select-project" className="bg-white border-gray-300 text-gray-900">
+                    <SelectValue placeholder="Aucun projet" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="none" data-testid="option-no-project">
+                      Aucun projet
+                    </SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem 
+                        key={project.id} 
+                        value={project.id}
+                        data-testid={`option-project-${project.id}`}
+                      >
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Start Button */}
+              <Button
+                onClick={handleStart}
+                disabled={startMutation.isPending}
+                className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                data-testid="button-start-timer"
+              >
+                <Play className="w-4 h-4" />
+                Démarrer
+              </Button>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

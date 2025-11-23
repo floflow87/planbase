@@ -45,6 +45,9 @@ type TimeEntry = {
 };
 
 function TimeTrackingTab({ projectId, project }: { projectId: string; project?: ProjectWithRelations }) {
+  const { toast } = useToast();
+  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: [`/api/projects/${projectId}/time-entries`],
   });
@@ -52,6 +55,29 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/accounts", project?.accountId, "users"],
     enabled: !!project?.accountId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (entryId: string) => {
+      return await apiRequest(`/api/time-entries/${entryId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      toast({
+        title: "Session supprimée",
+        description: "La session de temps a été supprimée avec succès",
+        variant: "success",
+      });
+      setDeleteEntryId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Calculate total time in seconds
@@ -198,10 +224,19 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-2">
                         <Badge variant="secondary" data-testid={`duration-${entry.id}`}>
                           {entry.duration ? formatDuration(entry.duration) : "En cours"}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteEntryId(entry.id)}
+                          data-testid={`button-delete-${entry.id}`}
+                          className="h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -211,6 +246,29 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteEntryId} onOpenChange={(open) => !open && setDeleteEntryId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette session ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La session de temps sera définitivement supprimée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteEntryId && deleteMutation.mutate(deleteEntryId)}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -241,6 +299,10 @@ export default function ProjectDetail() {
   const taskSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedTaskRef = useRef<string>("");
 
+  // Billing fields state
+  const [totalBilledValue, setTotalBilledValue] = useState<string>("");
+  const [billingRateValue, setBillingRateValue] = useState<string>("");
+
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
   });
@@ -267,6 +329,14 @@ export default function ProjectDetail() {
     queryKey: ['/api/projects', id, 'documents'],
     enabled: !!id,
   });
+
+  // Initialize billing fields when project loads
+  useEffect(() => {
+    if (project) {
+      setTotalBilledValue(project.totalBilled || "");
+      setBillingRateValue(project.billingRate || "");
+    }
+  }, [project]);
 
   const updateProjectMutation = {
     mutate: async ({ data }: { data: Partial<Project> }) => {
@@ -861,19 +931,23 @@ export default function ProjectDetail() {
                         id="billing-rate"
                         type="number"
                         placeholder="150"
-                        value={project?.billingRate || ""}
-                        onChange={async (e) => {
-                          try {
-                            await apiRequest(`/api/projects/${id}`, "PATCH", {
-                              billingRate: e.target.value,
-                            });
-                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
-                          } catch (error: any) {
-                            toast({
-                              title: "Erreur",
-                              description: error.message,
-                              variant: "destructive",
-                            });
+                        value={billingRateValue}
+                        onChange={(e) => setBillingRateValue(e.target.value)}
+                        onBlur={async () => {
+                          if (billingRateValue !== project?.billingRate) {
+                            try {
+                              await apiRequest(`/api/projects/${id}`, "PATCH", {
+                                billingRate: billingRateValue,
+                              });
+                              queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                            } catch (error: any) {
+                              toast({
+                                title: "Erreur",
+                                description: error.message,
+                                variant: "destructive",
+                              });
+                              setBillingRateValue(project?.billingRate || "");
+                            }
                           }
                         }}
                         data-testid="input-billing-rate"
@@ -929,19 +1003,23 @@ export default function ProjectDetail() {
                     id="total-billed"
                     type="number"
                     placeholder="5000"
-                    value={project?.totalBilled || ""}
-                    onChange={async (e) => {
-                      try {
-                        await apiRequest(`/api/projects/${id}`, "PATCH", {
-                          totalBilled: e.target.value,
-                        });
-                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
-                      } catch (error: any) {
-                        toast({
-                          title: "Erreur",
-                          description: error.message,
-                          variant: "destructive",
-                        });
+                    value={totalBilledValue}
+                    onChange={(e) => setTotalBilledValue(e.target.value)}
+                    onBlur={async () => {
+                      if (totalBilledValue !== project?.totalBilled) {
+                        try {
+                          await apiRequest(`/api/projects/${id}`, "PATCH", {
+                            totalBilled: totalBilledValue,
+                          });
+                          queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                          setTotalBilledValue(project?.totalBilled || "");
+                        }
                       }
                     }}
                     data-testid="input-total-billed"

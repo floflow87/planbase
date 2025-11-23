@@ -1,0 +1,239 @@
+Plateforme de Location de Montres de Luxe (Abonnement 300€/mois)**
+
+---
+
+# **1. Vision & Objectifs Produit**
+
+Créer une plateforme premium permettant aux membres d’accéder à une montre de luxe pour 300€/mois, avec la possibilité de changer de montre tous les 30 jours.
+
+Le produit doit délivrer :
+
+- une **expérience haut de gamme**, fluide et rassurante ;
+- un **onboarding rigoureux** (ID, solvabilité, scoring) ;
+- un **système logistique maîtrisé** (envoi, retour, contrôle qualité) ;
+- un **parc montre attractif**, sécurisé et bien présenté ;
+- une **relation de confiance long-terme** (fidélisation, scoring, parrainage).
+
+Le tout dans une identité visuelle **horlogère, élégante, inspirée Jacquemus**.
+
+# **2. Fonctionnalités Clés**
+
+## **2.1 Onboarding & Création de Compte**
+
+### Inputs utilisateur :
+
+- Nom
+- Prénom
+- Date de naissance
+- Nationalité
+- Adresse de livraison
+- Adresse de facturation
+- Pièce d’identité
+- Vérification photo/vidéo
+- Empreinte bancaire (≥ 500€)
+- Questionnaire préférences horlogères
+- Mesure du poignet (PDF à imprimer)
+
+### Règles :
+
+- Validation **manuelle** par un opérateur → aucun onboarding automatique.
+- API de vérification identité (KYC).
+- API solvabilité (Score N46).
+- Refus si incohérence entre identité / visage / solvabilité.
+- Cible initiale : **hommes uniquement**.
+
+## **2.2 Profil Horloger Personnel**
+
+### L’utilisateur doit pouvoir :
+
+- Définir sa taille de poignet.
+- Classer 10 marques ou modèles préférés.
+- Saisir son style (sport, habillé, vintage, contemporain…).
+- Accéder à son **profil horloger** généré à partir des choix.
+
+### Objectif :
+
+Personnaliser l’affichage de la collection + scoring futur.
+
+## **2.3 Accès à la Collection**
+
+### Fonctions :
+
+- Page « Collection » avec **toutes les montres du parc**.
+- Filtres :
+    - disponibles / indisponibles
+    - style
+    - complications
+    - marques
+    - tri par popularité / rareté
+- Page produit très visuelle :
+    - photos HD multiples
+    - 3D / zoom premium (optionnel)
+    - fiche technique (réf, calibre, matière, dimensions…)
+    - valeur assurée
+    - score de difficulté d’accès
+    - bouton **Emprunter** ou **Devenir membre**
+
+### Exigence design :
+
+- UI très épurée, élégante, inspirée luxe
+- éviter l’effet “site froid / institutionnel” type Vivrelle
+- esthétique **Jacquemus** : chaleur, éditorial, simplicité lumineuse
+
+## **2.4 Emprunter une Montre**
+
+### Règles métier :
+
+- **1 montre à la fois** — impossibilité d’en prendre une seconde.
+- Prêt initial : durée libre.
+- Changement autorisé uniquement toutes les **30 jours** (base roulante).
+- Envoi via transporteur sécurisé + remise **contre signature**.
+
+### Process :
+
+1. L’utilisateur emprunte.
+2. L’état « Montre en cours de livraison ».
+3. Marquage “Reçue” → début responsabilité membre.
+4. Activation du guide d’entretien + mode d’emploi associé au modèle.
+
+## **2.5 Retour & Contrôle Qualité**
+
+### Process opérationnel :
+
+1. L’utilisateur annonce le retour via l’espace membre.
+2. Génération automatique de l’étiquette retour.
+3. Inclusion d’un guide retour + bordereau digital d’entrée.
+4. Réception chez l’horloger partenaire.
+5. Contrôle qualité.
+6. Validation ou rejet.
+7. Déblocage automatique du compte pour emprunter une nouvelle montre.
+
+### Règles :
+
+- Tant que le contrôle n’est pas validé ET réceptionné par Parade → crédit de location à zéro.
+- En cas de dommage → application des règles d’assurance.
+
+## **2.6 Assurance & Protection**
+
+### Exigences :
+
+- Assurance partenaire (même modèle que Vacheron Constantin).
+- Couverture à 100%.
+- Déclaration de vol → membre fournit pièces officielles.
+- **Deux pertes consécutives → bannissement.**
+- Assurance premium optionnelle.
+
+## **2.7 Scoring & Fidélisation**
+
+### Score initial : identique pour tous.
+
+### Le score évolue selon :
+
+- Paiements à temps
+- Ancienneté (≥ 3 mois minimum)
+- Qualité du retour
+- Respect des délais
+- Recommandations
+
+### Objectif du scoring :
+
+- Débloquer certaines montres
+- Accélérer les délais
+- Créer une **gamification douce** du club
+
+## **2.8 Parrainage**
+
+### Process :
+
+- Le membre envoie une invitation.
+- Le parrainage ajoute des points au score.
+- Plus il recommande, plus il débloque des modèles rares.
+- Possibilité d’ajouter des avantages spéciaux dont l’accès à un catalogue exclusif.
+
+# **3. Espace Membre**
+
+### Doit contenir :
+
+- Informations personnelles
+- Statut KYC
+- Points de fidélité
+- Historique des montres empruntées
+- Montre en cours (statut, guide, mode d’emploi)
+- Bordereaux de retour
+- Recommandations & parrainages
+- Mesure de poignet & préférences
+- Notifications
+- Paiements / factures
+
+# **4. Backoffice (Admin)**
+
+### L’équipe doit pouvoir :
+
+- Voir le pipeline complet :
+    
+    onboarding → KYC → solvabilité → validation manuelle
+    
+- Suivre chaque montre :
+    
+    stock, localisation, statut, référence, historique
+    
+- Gérer les contrôles qualité
+- Débloquer / bloquer un compte
+- Gérer les retours
+- Gérer le scoring
+- Gérer les notifications mail/SMS
+- Gérer les étiquettes livraisons & retours
+- Gérer le catalogue montre
+- Exporter les données (CSV)
+- Suivre les paiements & factures
+
+# **5. Identité & UX**
+
+### Exigences fortes :
+
+- UI/UX premium.
+- Expérience fluide, rassurante, simple.
+- Identité luxe + moderne.
+- Inspiration : **Jacquemus / horlogerie suisse / minimalisme éditorial**.
+- Site installé, rassurant, mais pas élitiste.
+
+# **6. Packaging & Expérience Hors-Ligne**
+
+- Boîte ultra discrète + goodies (tissu microfibre, carte membre, guide).
+- Guide d’usage imprimé et version digitale dans le compte.
+- Bordereau retour inclus + papier pré-collé dans l’emballage.
+- Ton cérémonial mais simple.
+
+# **7. Roadmap (Macro)**
+
+### Priorité 1 — MVP (Décembre → Feb/Mars)
+
+- Site vitrine + collection
+- Onboarding complet (KYC, solvabilité, validation)
+- Espace membre (basic)
+- Emprunt d’une montre
+- Process livraison + retour
+- Backoffice v1
+- Système d’assurance
+- Scoring simple
+- Packaging v1
+- Paiements & abonnement
+
+### Priorité 2 — Post lancement
+
+- Personnalisation avancée
+- Scoring évolué
+- Parrainage automatisé
+- Suggestions personnalisées
+- App mobile légère (2025)
+- Extension du parc montre
+- Tiering du membership
+
+# **8. Risques & Contraintes**
+
+- Fraude ID → double API
+- Fraude solvabilité → Score N46 obligatoire
+- Vols → assurance + bannissement + contrôle qualité strict
+- Stock → doit rester mobile (faible dormant)
+- Expérience → éviter le côté institutionnel froid
+- Rétention → gamification + scoring + rituel de marque
