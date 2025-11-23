@@ -1403,6 +1403,109 @@ function SortableProjectColumnHeader({ id, label, className, isDraggable = true 
   );
 }
 
+interface CategoryComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
+  categories: { id: string; name: string }[];
+}
+
+function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  const handleCreateCategory = async () => {
+    const trimmedValue = searchValue.trim();
+    if (!trimmedValue) return;
+
+    try {
+      await apiRequest('/api/project-categories', 'POST', { name: trimmedValue });
+      queryClient.invalidateQueries({ queryKey: ['/api/project-categories'] });
+      onChange(trimmedValue);
+      setOpen(false);
+      setSearchValue("");
+    } catch (error: any) {
+      console.error('Error creating category:', error);
+    }
+  };
+
+  const filteredCategories = categories
+    .filter((cat) => 
+      cat.name.toLowerCase().includes(searchValue.toLowerCase())
+    )
+    .slice(0, 4);
+  
+  // Ensure currently selected category is always included
+  if (value && !filteredCategories.some(cat => cat.name === value)) {
+    const selectedCategory = categories.find(cat => cat.name === value);
+    if (selectedCategory) {
+      filteredCategories.unshift(selectedCategory);
+      // Only remove the last item if we now have more than 4
+      if (filteredCategories.length > 4) {
+        filteredCategories.pop();
+      }
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between text-[12px] h-9"
+          data-testid="button-category-selector"
+        >
+          {value || "Sélectionnez une catégorie..."}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0">
+        <Command shouldFilter={false}>
+          <CommandInput 
+            placeholder="Rechercher ou créer..." 
+            value={searchValue}
+            onValueChange={setSearchValue}
+            data-testid="input-category-search"
+          />
+          <CommandList>
+            <CommandEmpty>
+              {searchValue.trim() && (
+                <button
+                  className="w-full text-sm py-2 px-4 hover-elevate active-elevate-2 rounded-sm text-left"
+                  onClick={handleCreateCategory}
+                  data-testid="button-create-category"
+                >
+                  Créer "{searchValue.trim()}"
+                </button>
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {filteredCategories.map((cat) => (
+                <CommandItem
+                  key={cat.id}
+                  value={cat.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                    setSearchValue("");
+                  }}
+                  data-testid={`option-category-${cat.name}`}
+                >
+                  <Check
+                    className={value === cat.name ? "mr-2 h-4 w-4 opacity-100" : "mr-2 h-4 w-4 opacity-0"}
+                  />
+                  {cat.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Projects() {
   const [, setLocation] = useLocation();
   const accountId = localStorage.getItem("demo_account_id");
@@ -1544,6 +1647,10 @@ export default function Projects() {
 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
+  });
+  
+  const { data: projectCategories = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/project-categories"],
   });
   
   // Get unique categories and recent ones (after projects is declared)
@@ -3272,11 +3379,10 @@ export default function Projects() {
               </div>
               <div>
                 <Label className="text-[12px]" htmlFor="project-category">Catégorie</Label>
-                <Input
-                  id="project-category"
-                  value={projectFormData.category}
-                  onChange={(e) => setProjectFormData({ ...projectFormData, category: e.target.value })}
-                  data-testid="input-project-category"
+                <CategoryCombobox
+                  value={projectFormData.category || ""}
+                  onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
+                  categories={projectCategories}
                 />
               </div>
             </div>
@@ -3485,11 +3591,10 @@ export default function Projects() {
               </div>
               <div>
                 <Label className="text-[12px]" htmlFor="edit-project-category">Catégorie</Label>
-                <Input
-                  id="edit-project-category"
-                  value={projectFormData.category}
-                  onChange={(e) => setProjectFormData({ ...projectFormData, category: e.target.value })}
-                  data-testid="input-edit-project-category"
+                <CategoryCombobox
+                  value={projectFormData.category || ""}
+                  onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
+                  categories={projectCategories}
                 />
               </div>
             </div>

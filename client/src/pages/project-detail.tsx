@@ -74,6 +74,26 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
     }
   };
 
+  // Filter categories based on search and limit to 4 results
+  // Always include the currently selected category
+  const filteredCategories = categories
+    .filter((cat) => 
+      cat.name.toLowerCase().includes(searchValue.toLowerCase())
+    )
+    .slice(0, 4);
+  
+  // Ensure currently selected category is always included
+  if (value && !filteredCategories.some(cat => cat.name === value)) {
+    const selectedCategory = categories.find(cat => cat.name === value);
+    if (selectedCategory) {
+      filteredCategories.unshift(selectedCategory);
+      // Only remove the last item if we now have more than 4
+      if (filteredCategories.length > 4) {
+        filteredCategories.pop();
+      }
+    }
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -89,7 +109,7 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput 
             placeholder="Rechercher ou créer..." 
             value={searchValue}
@@ -109,7 +129,7 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
               )}
             </CommandEmpty>
             <CommandGroup>
-              {categories.map((cat) => (
+              {filteredCategories.map((cat) => (
                 <CommandItem
                   key={cat.id}
                   value={cat.name}
