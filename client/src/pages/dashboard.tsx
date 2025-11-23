@@ -429,10 +429,24 @@ export default function Dashboard() {
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
   const clientsCount = clients.length;
-  // Opportunités: budget total des clients qui ne sont ni gagnés ni perdus
-  const opportunitiesRevenue = clients
-    .filter(c => c.status !== "won" && c.status !== "lost")
-    .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+  
+  // Chiffre d'affaires de l'année: somme des budgets des projets signés, terminés ou en cours de l'année en cours
+  const currentYear = new Date().getFullYear();
+  const annualRevenue = projects
+    .filter(p => {
+      // Filtrer par stage
+      const validStage = p.stage === "signe" || p.stage === "termine" || p.stage === "en_cours";
+      if (!validStage) return false;
+      
+      // Filtrer par année (basé sur startDate ou createdAt)
+      const dateToCheck = p.startDate || p.createdAt;
+      if (!dateToCheck) return false;
+      
+      const projectYear = new Date(dateToCheck).getFullYear();
+      return projectYear === currentYear;
+    })
+    .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+  
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
@@ -468,9 +482,9 @@ export default function Dashboard() {
       link: { label: "Voir tous", href: "/crm" },
     },
     {
-      title: "Opportunités",
-      value: `€${opportunitiesRevenue.toLocaleString()}`,
-      change: clients.filter(c => c.status !== "won" && c.status !== "lost").length + " clients potentiels",
+      title: "Chiffre d'affaires",
+      value: `€${annualRevenue.toLocaleString()}`,
+      change: `CA ${currentYear}`,
       changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
