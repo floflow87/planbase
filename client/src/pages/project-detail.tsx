@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,190 @@ import { Loader } from "@/components/Loader";
 interface ProjectWithRelations extends Project {
   client?: Client;
   tasks?: Task[];
+}
+
+type TimeEntry = {
+  id: string;
+  projectId: string | null;
+  userId: string;
+  startTime: string;
+  endTime: string | null;
+  duration: number | null;
+  description: string | null;
+  accountId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function TimeTrackingTab({ projectId, project }: { projectId: string; project?: ProjectWithRelations }) {
+  const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
+    queryKey: [`/api/projects/${projectId}/time-entries`],
+  });
+
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["/api/accounts", project?.accountId, "users"],
+    enabled: !!project?.accountId,
+  });
+
+  // Calculate total time in seconds
+  const totalTimeSeconds = timeEntries.reduce((sum, entry) => {
+    return sum + (entry.duration || 0);
+  }, 0);
+
+  // Convert to hours
+  const totalTimeHours = totalTimeSeconds / 3600;
+
+  // Calculate profitability
+  const calculateProfitability = () => {
+    if (!project) return null;
+
+    const billingRate = parseFloat(project.billingRate || "0");
+    const totalBilled = parseFloat(project.totalBilled || "0");
+    const billingUnit = project.billingUnit || "hour";
+
+    // Convert time to the right unit
+    let timeInUnits = totalTimeHours;
+    if (billingUnit === "day") {
+      timeInUnits = totalTimeHours / 8; // Assuming 8 hours per day
+    }
+
+    // Calculate actual cost (time spent × rate)
+    const actualCost = timeInUnits * billingRate;
+
+    // Calculate profit/loss
+    const profitLoss = totalBilled - actualCost;
+    const profitLossPercentage = totalBilled > 0 ? (profitLoss / totalBilled) * 100 : 0;
+
+    return {
+      actualCost,
+      totalBilled,
+      profitLoss,
+      profitLossPercentage,
+      isProfit: profitLoss >= 0,
+    };
+  };
+
+  const profitability = calculateProfitability();
+
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours}h${minutes > 0 ? ` ${minutes}min` : ""}`;
+    }
+    return `${minutes}min`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <Loader />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Résumé</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Temps total enregistré</p>
+              <p className="text-2xl font-semibold" data-testid="text-total-time">
+                {totalTimeHours.toFixed(2)} heures
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {timeEntries.length} session{timeEntries.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {profitability && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Rentabilité</p>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={profitability.isProfit ? "default" : "destructive"}
+                    className={profitability.isProfit ? "bg-green-600 dark:bg-green-700" : ""}
+                    data-testid="badge-profitability"
+                  >
+                    {profitability.isProfit ? "GAIN" : "PERTE"}
+                  </Badge>
+                  <span className={`text-lg font-semibold ${profitability.isProfit ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
+                    {profitability.profitLoss >= 0 ? "+" : ""}
+                    {profitability.profitLoss.toFixed(2)} €
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Coût réel: {profitability.actualCost.toFixed(2)} €</p>
+                  <p>Montant facturé: {profitability.totalBilled.toFixed(2)} €</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Time Entries List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Sessions de temps</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {timeEntries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              Aucune session de temps enregistrée pour ce projet.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {timeEntries.map((entry) => {
+                const user = users.find((u) => u.id === entry.userId);
+                return (
+                  <div
+                    key={entry.id}
+                    className="p-3 border rounded-md hover-elevate"
+                    data-testid={`time-entry-${entry.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">
+                            {format(new Date(entry.startTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
+                          </span>
+                        </div>
+                        {entry.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          {user && (
+                            <Badge variant="outline" className="text-xs">
+                              {user.firstName} {user.lastName}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="secondary" data-testid={`duration-${entry.id}`}>
+                          {entry.duration ? formatDuration(entry.duration) : "En cours"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function ProjectDetail() {
@@ -427,6 +611,14 @@ export default function ProjectDetail() {
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="billing" className="gap-2" data-testid="tab-billing">
+              <DollarSign className="h-4 w-4" />
+              Facturation
+            </TabsTrigger>
+            <TabsTrigger value="time" className="gap-2" data-testid="tab-time">
+              <Timer className="h-4 w-4" />
+              Temps
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="mt-0">
@@ -610,6 +802,160 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="billing" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Configuration de facturation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="billing-type">Type de facturation</Label>
+                  <Select
+                    value={project?.billingType || "time"}
+                    onValueChange={async (value) => {
+                      try {
+                        await apiRequest(`/api/projects/${id}`, "PATCH", {
+                          billingType: value,
+                        });
+                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                        toast({
+                          title: "Mise à jour réussie",
+                          description: "Le type de facturation a été modifié",
+                          variant: "success",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="billing-type" data-testid="select-billing-type">
+                      <SelectValue placeholder="Sélectionner un type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="time" data-testid="option-billing-time">
+                        Temps passé
+                      </SelectItem>
+                      <SelectItem value="fixed" data-testid="option-billing-fixed">
+                        Forfait
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {project?.billingType === "fixed" 
+                      ? "Facturation au forfait : montant total fixe"
+                      : "Facturation au temps passé : taux horaire ou journalier"}
+                  </p>
+                </div>
+
+                {project?.billingType === "time" && (
+                  <>
+                    <div>
+                      <Label htmlFor="billing-rate">Taux de facturation</Label>
+                      <Input
+                        id="billing-rate"
+                        type="number"
+                        placeholder="150"
+                        value={project?.billingRate || ""}
+                        onChange={async (e) => {
+                          try {
+                            await apiRequest(`/api/projects/${id}`, "PATCH", {
+                              billingRate: e.target.value,
+                            });
+                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                          } catch (error: any) {
+                            toast({
+                              title: "Erreur",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        data-testid="input-billing-rate"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Taux horaire ou journalier en euros
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="billing-unit">Unité de facturation</Label>
+                      <Select
+                        value={project?.billingUnit || "hour"}
+                        onValueChange={async (value) => {
+                          try {
+                            await apiRequest(`/api/projects/${id}`, "PATCH", {
+                              billingUnit: value,
+                            });
+                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                            toast({
+                              title: "Mise à jour réussie",
+                              description: "L'unité de facturation a été modifiée",
+                              variant: "success",
+                            });
+                          } catch (error: any) {
+                            toast({
+                              title: "Erreur",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="billing-unit" data-testid="select-billing-unit">
+                          <SelectValue placeholder="Sélectionner une unité" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hour" data-testid="option-unit-hour">
+                            Heure
+                          </SelectItem>
+                          <SelectItem value="day" data-testid="option-unit-day">
+                            Jour
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <Label htmlFor="total-billed">Montant total facturé</Label>
+                  <Input
+                    id="total-billed"
+                    type="number"
+                    placeholder="5000"
+                    value={project?.totalBilled || ""}
+                    onChange={async (e) => {
+                      try {
+                        await apiRequest(`/api/projects/${id}`, "PATCH", {
+                          totalBilled: e.target.value,
+                        });
+                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    data-testid="input-total-billed"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Montant total facturé au client en euros
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="time" className="mt-0">
+            <TimeTrackingTab projectId={id!} project={project} />
           </TabsContent>
         </Tabs>
       </div>

@@ -36,6 +36,7 @@ import { Bell, LogOut, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { TimeTracker } from "@/components/TimeTracker";
 
 function Router() {
   return (
@@ -215,6 +216,7 @@ function AppLayout() {
                 <Bell className="w-5 h-5 text-primary" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               </Button>
+              <TimeTracker />
               <UserMenu />
             </div>
           </header>
