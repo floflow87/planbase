@@ -223,6 +223,7 @@ export const timeEntries = pgTable("time_entries", {
   description: text("description"),
   startTime: timestamp("start_time", { withTimezone: true }),
   endTime: timestamp("end_time", { withTimezone: true }),
+  pausedAt: timestamp("paused_at", { withTimezone: true }), // Timestamp when the timer was paused
   duration: integer("duration"), // Duration in seconds
   isBillable: integer("is_billable").notNull().default(1), // 0 = false, 1 = true
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -682,6 +683,7 @@ export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id:
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTimeEntrySchema = z.object({
+  projectId: z.string().uuid().optional().nullable(),
   endTime: z.coerce.date().optional(),
   duration: z.number().int().min(0).optional(),
   description: z.string().optional().nullable(),

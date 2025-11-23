@@ -168,6 +168,12 @@ export async function runStartupMigrations() {
       ON time_entries(account_id, user_id);
     `);
     
+    // Add paused_at column to time_entries for pause/resume functionality
+    await db.execute(sql`
+      ALTER TABLE time_entries 
+      ADD COLUMN IF NOT EXISTS paused_at timestamp with time zone;
+    `);
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

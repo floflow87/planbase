@@ -1452,6 +1452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId: req.accountId!,
         userId: req.userId!,
         startTime: new Date(), // Always start now
+        duration: 0, // Initialize duration to 0
       });
       
       // Check if user already has an active timer
@@ -1467,7 +1468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a time entry (stop timer, update duration)
+  // Update a time entry (stop timer, update duration, assign project)
   app.patch("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
@@ -1481,6 +1482,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate update payload
       const { updateTimeEntrySchema } = await import("@shared/schema");
       const validatedUpdate = updateTimeEntrySchema.parse(req.body);
+      
+      // If projectId is provided, verify it belongs to the user's account
+      if (validatedUpdate.projectId !== undefined) {
+        if (validatedUpdate.projectId !== null) {
+          const project = await storage.getProject(validatedUpdate.projectId);
+          if (!project) {
+            return res.status(404).json({ error: "Project not found" });
+          }
+          if (project.accountId !== req.accountId) {
+            return res.status(403).json({ error: "Access denied to this project" });
+          }
+        }
+      }
 
       // If stopping the timer, calculate and validate duration
       if (validatedUpdate.endTime) {
@@ -1492,10 +1506,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "End time must be after start time" });
         }
         
-        // Calculate duration in seconds if not provided
-        if (!validatedUpdate.duration) {
-          validatedUpdate.duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-        }
+        // Calculate final duration: accumulated duration + time since last start/resume
+        const elapsedSinceStart = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+        const accumulatedDuration = existing.duration || 0;
+        validatedUpdate.duration = accumulatedDuration + elapsedSinceStart;
       }
 
       const entry = await storage.updateTimeEntry(req.accountId!, req.params.id, validatedUpdate);
@@ -1518,6 +1532,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const success = await storage.deleteTimeEntry(req.accountId!, req.params.id);
       res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Pause a running time entry
+  app.patch("/api/time-entries/:id/pause", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Verify timer is running (no endTime and no pausedAt)
+      if (existing.endTime) {
+        return res.status(400).json({ error: "Timer already stopped" });
+      }
+      if (existing.pausedAt) {
+        return res.status(400).json({ error: "Timer already paused" });
+      }
+
+      // Accumulate duration: duration += (now - startTime)
+      const now = Date.now();
+      const startTime = new Date(existing.startTime!).getTime();
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+      const newDuration = (existing.duration || 0) + elapsedSeconds;
+
+      const updated = await storage.updateTimeEntry(req.accountId!, req.params.id, {
+        duration: newDuration,
+        pausedAt: new Date(),
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resume a paused time entry
+  app.patch("/api/time-entries/:id/resume", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Time entry not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Verify timer is paused
+      if (!existing.pausedAt) {
+        return res.status(400).json({ error: "Timer not paused" });
+      }
+      if (existing.endTime) {
+        return res.status(400).json({ error: "Timer already stopped" });
+      }
+      
+      // Reset startTime to now and clear pausedAt
+      // Duration already contains accumulated time before pause
+      const updated = await storage.updateTimeEntry(req.accountId!, req.params.id, {
+        startTime: new Date(),
+        pausedAt: null,
+      });
+      
+      res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
