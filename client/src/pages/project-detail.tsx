@@ -74,23 +74,22 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
     }
   };
 
-  // Filter categories based on search and limit to 4 results
-  // Always include the currently selected category
-  const filteredCategories = categories
-    .filter((cat) => 
-      cat.name.toLowerCase().includes(searchValue.toLowerCase())
-    )
-    .slice(0, 4);
+  // Filter categories based on search
+  // Sort alphabetically for predictable ordering
+  const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
   
-  // Ensure currently selected category is always included
+  const filteredCategories = searchValue === ""
+    ? sortedCategories // No search: show all categories
+    : sortedCategories
+        .filter((cat) => 
+          cat.name.toLowerCase().includes(searchValue.toLowerCase())
+        );
+  
+  // Ensure currently selected category is always included at the top
   if (value && !filteredCategories.some(cat => cat.name === value)) {
     const selectedCategory = categories.find(cat => cat.name === value);
     if (selectedCategory) {
       filteredCategories.unshift(selectedCategory);
-      // Only remove the last item if we now have more than 4
-      if (filteredCategories.length > 4) {
-        filteredCategories.pop();
-      }
     }
   }
 
@@ -474,6 +473,10 @@ export default function ProjectDetail() {
   const updateProjectMutation = {
     mutate: async ({ data }: { data: Partial<Project> }) => {
       try {
+        // Auto-set progress to 100% when stage is "termine"
+        if (data.stage === "termine" && data.progress === undefined) {
+          data.progress = 100;
+        }
         await apiRequest(`/api/projects/${id}`, "PATCH", data);
         queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });

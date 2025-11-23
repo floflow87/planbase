@@ -1988,6 +1988,10 @@ export default function Projects() {
 
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      // Auto-set progress to 100% when stage is "termine"
+      if (data.stage === "termine" && data.progress === undefined) {
+        data.progress = 100;
+      }
       const response = await apiRequest(`/api/projects/${id}`, "PATCH", data);
       return response.json();
     },

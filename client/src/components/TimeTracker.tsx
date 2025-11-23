@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Timer, Play, Square, ChevronDown, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,9 @@ export function TimeTracker() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [stoppedEntryId, setStoppedEntryId] = useState<string | null>(null);
+  
+  // Use ref to capture latest selected project value for assignment
+  const selectedProjectRef = useRef<string>("");
 
   // Fetch active time entry
   const { data: activeEntry, isLoading: isLoadingActive } = useQuery<TimeEntry | null>({
@@ -133,6 +136,8 @@ export function TimeTracker() {
       // If stopped without a project, show project selector
       if (!data.projectId) {
         setStoppedEntryId(data.id);
+        setSelectedProjectId("none"); // Reset to "none" option
+        selectedProjectRef.current = "none"; // Also reset ref
         setShowProjectSelector(true);
       } else {
         toast({
@@ -266,7 +271,9 @@ export function TimeTracker() {
   
   const handleAssignProject = () => {
     if (stoppedEntryId) {
-      const projectId = selectedProjectId === "none" || !selectedProjectId ? null : selectedProjectId;
+      // Use ref to get the latest value, avoiding stale state
+      const projectId = selectedProjectRef.current === "none" || !selectedProjectRef.current ? null : selectedProjectRef.current;
+      console.log('🔍 TimeTracker - Assigning project:', { stoppedEntryId, selectedProjectId: selectedProjectRef.current, projectId });
       assignProjectMutation.mutate({ entryId: stoppedEntryId, projectId });
     }
   };
@@ -325,7 +332,10 @@ export function TimeTracker() {
                 </label>
                 <Select
                   value={selectedProjectId}
-                  onValueChange={setSelectedProjectId}
+                  onValueChange={(value) => {
+                    setSelectedProjectId(value);
+                    selectedProjectRef.current = value; // Update ref immediately
+                  }}
                   disabled={isLoadingProjects}
                 >
                   <SelectTrigger data-testid="select-project-after-stop">
