@@ -639,8 +639,8 @@ export default function ProjectDetail() {
           clientId: projectFormData.clientId || null,
           stage: projectFormData.stage,
           category: projectFormData.category || null,
-          startDate: projectFormData.startDate?.toISOString() || null,
-          endDate: projectFormData.endDate?.toISOString() || null,
+          startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
+          endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
           budget: projectFormData.budget || null,
         },
       });
