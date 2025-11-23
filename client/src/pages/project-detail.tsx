@@ -64,6 +64,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       toast({
         title: "Session supprimée",
         description: "La session de temps a été supprimée avec succès",
@@ -934,10 +935,17 @@ export default function ProjectDetail() {
                         value={billingRateValue}
                         onChange={(e) => setBillingRateValue(e.target.value)}
                         onBlur={async () => {
-                          if (billingRateValue !== project?.billingRate) {
+                          const trimmedValue = billingRateValue.trim();
+                          if (trimmedValue !== project?.billingRate) {
                             try {
+                              // Parse and validate the number
+                              const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                              if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                                throw new Error("Veuillez entrer un nombre valide");
+                              }
+                              
                               await apiRequest(`/api/projects/${id}`, "PATCH", {
-                                billingRate: billingRateValue,
+                                billingRate: trimmedValue === "" ? null : trimmedValue,
                               });
                               queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
                             } catch (error: any) {
@@ -946,6 +954,7 @@ export default function ProjectDetail() {
                                 description: error.message,
                                 variant: "destructive",
                               });
+                              // Rollback to previous value
                               setBillingRateValue(project?.billingRate || "");
                             }
                           }
@@ -1006,10 +1015,17 @@ export default function ProjectDetail() {
                     value={totalBilledValue}
                     onChange={(e) => setTotalBilledValue(e.target.value)}
                     onBlur={async () => {
-                      if (totalBilledValue !== project?.totalBilled) {
+                      const trimmedValue = totalBilledValue.trim();
+                      if (trimmedValue !== project?.totalBilled) {
                         try {
+                          // Parse and validate the number
+                          const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                          if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                            throw new Error("Veuillez entrer un nombre valide");
+                          }
+                          
                           await apiRequest(`/api/projects/${id}`, "PATCH", {
-                            totalBilled: totalBilledValue,
+                            totalBilled: trimmedValue === "" ? null : trimmedValue,
                           });
                           queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}`] });
                         } catch (error: any) {
@@ -1018,6 +1034,7 @@ export default function ProjectDetail() {
                             description: error.message,
                             variant: "destructive",
                           });
+                          // Rollback to previous value
                           setTotalBilledValue(project?.totalBilled || "");
                         }
                       }

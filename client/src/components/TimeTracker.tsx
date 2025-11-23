@@ -175,11 +175,11 @@ export function TimeTracker() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 bg-white dark:bg-white" align="end">
+      <PopoverContent className="w-80 bg-background" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-sm text-gray-900 flex items-center gap-2">
-              <Timer className="w-4 h-4 text-violet-600" />
+            <h4 className="font-medium text-sm text-foreground flex items-center gap-2">
+              <Timer className="w-4 h-4 text-primary" />
               Time Tracking
             </h4>
           </div>
@@ -190,13 +190,13 @@ export function TimeTracker() {
               <div className="flex flex-col items-center justify-center py-4">
                 <div className="relative w-40 h-40 flex items-center justify-center">
                   {/* Outer Circle */}
-                  <div className="absolute inset-0 rounded-full border-8 border-gray-200"></div>
+                  <div className="absolute inset-0 rounded-full border-8 border-border"></div>
                   {/* Inner Content */}
                   <div className="flex flex-col items-center justify-center">
-                    <p className="text-3xl font-mono font-bold text-gray-900" data-testid="text-timer-display">
+                    <p className="text-3xl font-mono font-bold text-foreground" data-testid="text-timer-display">
                       {formatTime(elapsedTime)}
                     </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
                       EN COURS
                     </p>
                   </div>
@@ -206,8 +206,8 @@ export function TimeTracker() {
               {/* Active Project Info */}
               {activeProject && (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">Projet</p>
-                  <p className="font-medium text-gray-900" data-testid="text-active-project">
+                  <p className="text-sm text-muted-foreground">Projet</p>
+                  <p className="font-medium text-foreground" data-testid="text-active-project">
                     {activeProject.name}
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export function TimeTracker() {
               <Button
                 onClick={handleStop}
                 disabled={stopMutation.isPending}
-                className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                className="w-full gap-2"
                 data-testid="button-stop-timer"
               >
                 <Square className="w-4 h-4" />
@@ -230,13 +230,13 @@ export function TimeTracker() {
               <div className="flex flex-col items-center justify-center py-4">
                 <div className="relative w-40 h-40 flex items-center justify-center">
                   {/* Outer Circle */}
-                  <div className="absolute inset-0 rounded-full border-8 border-gray-200"></div>
+                  <div className="absolute inset-0 rounded-full border-8 border-border"></div>
                   {/* Inner Content */}
                   <div className="flex flex-col items-center justify-center">
-                    <p className="text-3xl font-mono font-bold text-gray-900" data-testid="text-timer-display">
+                    <p className="text-3xl font-mono font-bold text-foreground" data-testid="text-timer-display">
                       00:00
                     </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide mt-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
                       ARRÊTÉ
                     </p>
                   </div>
@@ -245,7 +245,7 @@ export function TimeTracker() {
 
               {/* Project Selection */}
               <div className="space-y-2">
-                <label className="text-sm text-gray-600">
+                <label className="text-sm text-muted-foreground">
                   Sélectionner un projet (optionnel)
                 </label>
                 <Select
@@ -253,10 +253,10 @@ export function TimeTracker() {
                   onValueChange={setSelectedProjectId}
                   disabled={isLoadingProjects}
                 >
-                  <SelectTrigger data-testid="select-project" className="bg-white border-gray-300 text-gray-900">
+                  <SelectTrigger data-testid="select-project">
                     <SelectValue placeholder="Aucun projet" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
+                  <SelectContent>
                     <SelectItem value="none" data-testid="option-no-project">
                       Aucun projet
                     </SelectItem>
@@ -277,7 +277,7 @@ export function TimeTracker() {
               <Button
                 onClick={handleStart}
                 disabled={startMutation.isPending}
-                className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                className="w-full gap-2"
                 data-testid="button-start-timer"
               >
                 <Play className="w-4 h-4" />
