@@ -1559,6 +1559,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const entry = await storage.updateTimeEntry(req.accountId!, req.params.id, validatedUpdate);
+      
+      // Create activity if timer is stopped and has a project
+      const finalProjectId = validatedUpdate.projectId !== undefined ? validatedUpdate.projectId : existing.projectId;
+      if (validatedUpdate.endTime && finalProjectId) {
+        const project = await storage.getProject(finalProjectId);
+        if (project) {
+          const durationMinutes = Math.floor((validatedUpdate.duration || 0) / 60);
+          const hours = Math.floor(durationMinutes / 60);
+          const minutes = durationMinutes % 60;
+          const durationText = hours > 0 ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` : `${minutes}min`;
+          
+          await storage.createActivity({
+            accountId: req.accountId!,
+            subjectType: "project",
+            subjectId: finalProjectId,
+            kind: "time_tracked",
+            description: `Temps enregistré : ${durationText} sur ${project.name}`,
+          });
+        }
+      }
+      
       res.json(entry);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

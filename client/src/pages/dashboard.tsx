@@ -59,6 +59,7 @@ const translateActivityKind = (kind: string) => {
     call: "appel",
     meeting: "réunion",
     note: "note",
+    time_tracked: "temps enregistré",
   };
   return translations[kind] || kind;
 };
@@ -114,7 +115,7 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
-  const [revenuePeriod, setRevenuePeriod] = useState<"6months" | "year" | "quarter">("6months");
+  const [revenuePeriod, setRevenuePeriod] = useState<"6months" | "year" | "quarter">("year");
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -508,6 +509,45 @@ export default function Dashboard() {
     });
   }, [projects, revenuePeriod]);
 
+  // Chiffre d'affaires dynamique basé sur la période sélectionnée
+  const { revenue: periodRevenue, label: periodLabel } = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let startDate: Date;
+    let label: string;
+    
+    if (revenuePeriod === "year") {
+      startDate = new Date(currentYear, 0, 1);
+      label = `CA ${currentYear}`;
+    } else if (revenuePeriod === "6months") {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      label = "CA 6 derniers mois";
+    } else {
+      // Quarter
+      const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      startDate = new Date(currentYear, quarterStartMonth, 1);
+      const quarterNumber = Math.floor(now.getMonth() / 3) + 1;
+      label = `CA Q${quarterNumber} ${currentYear}`;
+    }
+    
+    const revenue = projects
+      .filter(p => {
+        // Filtrer par stage (exclure prospection)
+        const validStage = p.stage === "signe" || p.stage === "termine" || p.stage === "en_cours";
+        if (!validStage) return false;
+        
+        // Filtrer par période (basé sur startDate ou createdAt)
+        const dateToCheck = p.startDate || p.createdAt;
+        if (!dateToCheck) return false;
+        
+        const projectDate = new Date(dateToCheck);
+        return projectDate >= startDate && projectDate <= now;
+      })
+      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+    
+    return { revenue, label };
+  }, [projects, revenuePeriod]);
+
   const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
   };
@@ -529,23 +569,6 @@ export default function Dashboard() {
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
   const clientsCount = clients.length;
-  
-  // Chiffre d'affaires de l'année: somme des budgets des projets signés, terminés ou en cours de l'année en cours
-  const currentYear = new Date().getFullYear();
-  const annualRevenue = projects
-    .filter(p => {
-      // Filtrer par stage
-      const validStage = p.stage === "signe" || p.stage === "termine" || p.stage === "en_cours";
-      if (!validStage) return false;
-      
-      // Filtrer par année (basé sur startDate ou createdAt)
-      const dateToCheck = p.startDate || p.createdAt;
-      if (!dateToCheck) return false;
-      
-      const projectYear = new Date(dateToCheck).getFullYear();
-      return projectYear === currentYear;
-    })
-    .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
   
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
@@ -583,8 +606,8 @@ export default function Dashboard() {
     },
     {
       title: "Chiffre d'affaires",
-      value: `€${annualRevenue.toLocaleString()}`,
-      change: `CA ${currentYear}`,
+      value: `€${periodRevenue.toLocaleString()}`,
+      change: periodLabel,
       changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
@@ -1004,8 +1027,8 @@ export default function Dashboard() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="year">Année 2025</SelectItem>
                   <SelectItem value="6months">6 derniers mois</SelectItem>
-                  <SelectItem value="year">Année {new Date().getFullYear()}</SelectItem>
                   <SelectItem value="quarter">Trimestre actuel</SelectItem>
                 </SelectContent>
               </Select>
