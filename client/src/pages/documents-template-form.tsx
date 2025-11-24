@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import type { DocumentTemplate, Project } from "@shared/schema";
 import { marked } from "marked";
 import { format as formatDate } from "date-fns";
@@ -109,8 +109,8 @@ export default function DocumentTemplateForm() {
         clientId: projectData.clientId || null,
         stage: projectData.stage,
         category: projectData.category?.trim() || null,
-        startDate: projectData.startDate ? projectData.startDate.toISOString().split('T')[0] : null,
-        endDate: projectData.endDate ? projectData.endDate.toISOString().split('T')[0] : null,
+        startDate: projectData.startDate ? formatDateForStorage(projectData.startDate) : null,
+        endDate: projectData.endDate ? formatDateForStorage(projectData.endDate) : null,
         budget: projectData.budget?.trim() || null,
       });
       return await response.json();

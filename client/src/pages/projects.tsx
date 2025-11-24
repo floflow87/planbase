@@ -3503,8 +3503,8 @@ export default function Projects() {
                     clientId: projectFormData.clientId || null,
                     stage: projectFormData.stage,
                     category: projectFormData.category?.trim() || null,
-                    startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
-                    endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+                    startDate: projectFormData.startDate ? formatDateForStorage(projectFormData.startDate) : null,
+                    endDate: projectFormData.endDate ? formatDateForStorage(projectFormData.endDate) : null,
                     budget: projectFormData.budget?.trim() || null,
                   });
                 }}
@@ -3719,8 +3719,8 @@ export default function Projects() {
                     clientId: projectFormData.clientId || null,
                     stage: projectFormData.stage,
                     category: projectFormData.category?.trim() || null,
-                    startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
-                    endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+                    startDate: projectFormData.startDate ? formatDateForStorage(projectFormData.startDate) : null,
+                    endDate: projectFormData.endDate ? formatDateForStorage(projectFormData.endDate) : null,
                     budget: projectFormData.budget?.trim() || null,
                   },
                 });

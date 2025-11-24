@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
 import { cn } from "@/lib/utils";
 
@@ -639,8 +639,8 @@ export default function ProjectDetail() {
           clientId: projectFormData.clientId || null,
           stage: projectFormData.stage,
           category: projectFormData.category || null,
-          startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
-          endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+          startDate: projectFormData.startDate ? formatDateForStorage(projectFormData.startDate) : null,
+          endDate: projectFormData.endDate ? formatDateForStorage(projectFormData.endDate) : null,
           budget: projectFormData.budget || null,
         },
       });

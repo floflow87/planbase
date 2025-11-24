@@ -20,7 +20,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
@@ -890,8 +890,8 @@ export default function Dashboard() {
                       clientId: projectFormData.clientId || null,
                       stage: projectFormData.stage,
                       category: projectFormData.category?.trim() || null,
-                      startDate: projectFormData.startDate ? projectFormData.startDate.toISOString().split('T')[0] : null,
-                      endDate: projectFormData.endDate ? projectFormData.endDate.toISOString().split('T')[0] : null,
+                      startDate: projectFormData.startDate ? formatDateForStorage(projectFormData.startDate) : null,
+                      endDate: projectFormData.endDate ? formatDateForStorage(projectFormData.endDate) : null,
                       budget: projectFormData.budget?.trim() || null,
                       accountId: accountId,
                       createdBy: currentUser.id,
