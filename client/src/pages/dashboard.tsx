@@ -1348,11 +1348,9 @@ export default function Dashboard() {
                           <Popover open={openStatusPopover === task.id} onOpenChange={(open) => setOpenStatusPopover(open ? task.id : null)}>
                             <PopoverTrigger asChild>
                               <Badge
-                                variant="outline"
-                                className="cursor-pointer hover-elevate text-xs"
+                                className="cursor-pointer hover-elevate text-xs border-0"
                                 style={{
                                   backgroundColor: currentColumn?.color ? makeBrighterColor(currentColumn.color) : undefined,
-                                  borderColor: currentColumn?.color ? makeBrighterColor(currentColumn.color) : undefined,
                                   color: "#ffffff",
                                 }}
                                 data-testid={`badge-status-${task.id}`}
@@ -1365,11 +1363,9 @@ export default function Dashboard() {
                                 {taskColumnsForTask.map((column) => (
                                   <Badge
                                     key={column.id}
-                                    variant="outline"
-                                    className="cursor-pointer hover-elevate justify-start text-xs"
+                                    className="cursor-pointer hover-elevate justify-start text-xs border-0"
                                     style={{
                                       backgroundColor: makeBrighterColor(column.color),
-                                      borderColor: makeBrighterColor(column.color),
                                       color: "#ffffff",
                                     }}
                                     onClick={() => {
