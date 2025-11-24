@@ -1302,15 +1302,15 @@ export default function Dashboard() {
                           <Popover open={openStatusPopover === task.id} onOpenChange={(open) => setOpenStatusPopover(open ? task.id : null)}>
                             <PopoverTrigger asChild>
                               <Badge
-                                variant="outline"
                                 className="cursor-pointer hover-elevate text-xs"
                                 style={{
+                                  backgroundColor: currentColumn?.color ? `${currentColumn.color}20` : undefined,
                                   borderColor: currentColumn?.color,
                                   color: currentColumn?.color,
                                 }}
                                 data-testid={`badge-status-${task.id}`}
                               >
-                                {currentColumn?.name || "Statut"}
+                                {currentColumn?.name || "Aucun"}
                               </Badge>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-2" align="end" data-testid={`popover-status-options-${task.id}`}>
@@ -1318,9 +1318,9 @@ export default function Dashboard() {
                                 {taskColumnsForTask.map((column) => (
                                   <Badge
                                     key={column.id}
-                                    variant="outline"
                                     className="cursor-pointer hover-elevate justify-start text-xs"
                                     style={{
+                                      backgroundColor: `${column.color}20`,
                                       borderColor: column.color,
                                       color: column.color,
                                     }}
