@@ -176,9 +176,9 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  // Get global task columns (without projectId) for "Ma Journée" section
-  const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
-    queryKey: ["/api/task-columns/global"],
+  // Get ALL task columns (including global and project-specific)
+  const { data: allTaskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
   });
 
   // Create client mutation
@@ -610,6 +610,7 @@ export default function Dashboard() {
   // Par définition, tous les projets sont "en cours" sauf ceux qui sont terminés
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
+  const signedProjectsCount = projects.filter(p => p.stage === "signe").length;
   const clientsCount = clients.length;
   
   // Compter les tâches en cours (status !== 'done')
@@ -634,6 +635,16 @@ export default function Dashboard() {
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
+      link: { label: "Voir tous", href: "/projects?tab=projects" },
+    },
+    {
+      title: "Projets signés",
+      value: signedProjectsCount.toString(),
+      change: totalProjectsCount > 0 ? `sur ${totalProjectsCount} projets` : "0 projet",
+      changeType: "positive",
+      icon: CheckSquare,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
       link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
     {
@@ -1249,6 +1260,14 @@ export default function Dashboard() {
                       medium: "Moyenne",
                       high: "Haute",
                     };
+                    
+                    // Get task columns for this specific task's project
+                    const taskColumnsForTask = task.projectId 
+                      ? allTaskColumns.filter(col => col.projectId === task.projectId)
+                      : allTaskColumns.filter(col => !col.projectId);
+                    
+                    // Find the current column for this task
+                    const currentColumn = taskColumnsForTask.find(col => col.id === task.columnId);
 
                     return (
                       <div
@@ -1293,7 +1312,7 @@ export default function Dashboard() {
                           <Select
                             value={task.columnId || undefined}
                             onValueChange={(columnId) => {
-                              const column = taskColumns.find(col => col.id === columnId);
+                              const column = taskColumnsForTask.find(col => col.id === columnId);
                               updateTaskStatusMutation.mutate({ 
                                 taskId: task.id, 
                                 columnId,
@@ -1306,11 +1325,21 @@ export default function Dashboard() {
                               data-testid={`select-status-${task.id}`}
                             >
                               <SelectValue>
-                                {taskColumns.find(col => col.id === task.columnId)?.name || "Statut"}
+                                {currentColumn ? (
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="h-3 w-3 rounded-full shrink-0" 
+                                      style={{ backgroundColor: currentColumn.color }}
+                                    />
+                                    <span>{currentColumn.name}</span>
+                                  </div>
+                                ) : (
+                                  "Statut"
+                                )}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              {taskColumns.map((column) => (
+                              {taskColumnsForTask.map((column) => (
                                 <SelectItem 
                                   key={column.id} 
                                   value={column.id}
@@ -1343,7 +1372,7 @@ export default function Dashboard() {
         task={selectedTask}
         users={users}
         projects={projects}
-        columns={taskColumns}
+        columns={allTaskColumns}
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         onSave={handleTaskSave}
