@@ -283,11 +283,14 @@ export function TimeTracker() {
   };
   
   const handleAssignProject = () => {
+    console.log('🎯 handleAssignProject CALLED', { stoppedEntryId, selectedProjectRef: selectedProjectRef.current });
     if (stoppedEntryId) {
       // Use ref to get the latest value, avoiding stale state
       const projectId = selectedProjectRef.current === "none" || !selectedProjectRef.current ? null : selectedProjectRef.current;
       console.log('🔍 TimeTracker - Assigning project:', { stoppedEntryId, selectedProjectId: selectedProjectRef.current, projectId });
       assignProjectMutation.mutate({ entryId: stoppedEntryId, projectId });
+    } else {
+      console.error('❌ No stoppedEntryId found!');
     }
   };
 
