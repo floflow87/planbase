@@ -1595,7 +1595,7 @@ export default function Projects() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
-  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>();
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string | undefined>(userId || undefined);
   const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
   const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
   const [newTaskProjectId, setNewTaskProjectId] = useState<string>("");
@@ -1765,7 +1765,7 @@ export default function Projects() {
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskPriority("medium");
-      setNewTaskAssignedTo(undefined);
+      setNewTaskAssignedTo(userId || undefined);
       setNewTaskDueDate(undefined);
       setNewTaskEffort(null);
       

@@ -167,6 +167,7 @@ export const projects = pgTable("projects", {
   billingUnit: text("billing_unit"), // 'hour' or 'day' (if billingType is 'time_based')
   billingRate: numeric("billing_rate", { precision: 14, scale: 2 }), // Hourly/daily rate
   totalBilled: numeric("total_billed", { precision: 14, scale: 2 }), // Total amount billed to client
+  numberOfDays: numeric("number_of_days", { precision: 10, scale: 2 }), // Number of days for TJM calculation
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -689,6 +690,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true,
   budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+  numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
 export const insertProjectCategorySchema = createInsertSchema(projectCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });

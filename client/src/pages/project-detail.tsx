@@ -227,6 +227,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       realDailyRate = totalDays > 0 ? totalBilled / totalDays : 0;
     }
 
+    // Calculate TJM théorique
+    // TJM théorique = montant total facturé / nombre de jours
+    const numberOfDays = parseFloat(project.numberOfDays || "0");
+    const theoreticalDailyRate = (numberOfDays > 0 && !isNaN(numberOfDays) && totalBilled > 0) 
+      ? totalBilled / numberOfDays 
+      : undefined;
+
     // Calculate profit/loss
     const profitLoss = totalBilled - actualCost;
     const profitLossPercentage = totalBilled > 0 ? (profitLoss / totalBilled) * 100 : 0;
@@ -234,6 +241,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     return {
       actualCost,
       realDailyRate,
+      theoreticalDailyRate,
       totalBilled,
       profitLoss,
       profitLossPercentage,
@@ -304,6 +312,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                     <p>TJM réel: {profitability.realDailyRate.toFixed(2)} €</p>
                   ) : (
                     <p>Coût réel: {profitability.actualCost.toFixed(2)} €</p>
+                  )}
+                  {profitability.theoreticalDailyRate !== undefined && (
+                    <p>TJM théorique: {profitability.theoreticalDailyRate.toFixed(2)} €</p>
                   )}
                   <p>Montant facturé: {profitability.totalBilled.toFixed(2)} €</p>
                 </div>
@@ -430,6 +441,7 @@ export default function ProjectDetail() {
   // Billing fields state
   const [totalBilledValue, setTotalBilledValue] = useState<string>("");
   const [billingRateValue, setBillingRateValue] = useState<string>("");
+  const [numberOfDaysValue, setNumberOfDaysValue] = useState<string>("");
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -467,6 +479,7 @@ export default function ProjectDetail() {
     if (project) {
       setTotalBilledValue(project.totalBilled || project.budget || "");
       setBillingRateValue(project.billingRate || "");
+      setNumberOfDaysValue(project.numberOfDays || "");
     }
   }, [project]);
 
@@ -1212,6 +1225,52 @@ export default function ProjectDetail() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Montant total facturé au client en euros
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="number-of-days">Nombre de jours</Label>
+                  <Input
+                    id="number-of-days"
+                    type="number"
+                    step="0.5"
+                    placeholder="10"
+                    value={numberOfDaysValue}
+                    onChange={(e) => setNumberOfDaysValue(e.target.value)}
+                    onBlur={async () => {
+                      const trimmedValue = numberOfDaysValue.trim();
+                      if (trimmedValue !== project?.numberOfDays) {
+                        try {
+                          // Parse and validate the number
+                          const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                          if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                            throw new Error("Veuillez entrer un nombre valide");
+                          }
+                          
+                          await apiRequest(`/api/projects/${id}`, "PATCH", {
+                            numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                          toast({
+                            title: "Nombre de jours mis à jour",
+                            description: trimmedValue ? `${parseFloat(trimmedValue)} jour${parseFloat(trimmedValue) > 1 ? 's' : ''}` : "Nombre de jours supprimé",
+                            variant: "success",
+                          });
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                          // Rollback to previous value
+                          setNumberOfDaysValue(project?.numberOfDays || "");
+                        }
+                      }
+                    }}
+                    data-testid="input-number-of-days"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nombre de jours pour le calcul du TJM théorique
                   </p>
                 </div>
               </CardContent>

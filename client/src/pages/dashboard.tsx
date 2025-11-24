@@ -64,6 +64,23 @@ const translateActivityKind = (kind: string) => {
   return translations[kind] || kind;
 };
 
+// Helper function to derive task status from column name
+function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
+  const lowerName = columnName.toLowerCase();
+  
+  if (lowerName.includes("à faire") || lowerName.includes("todo") || lowerName.includes("backlog")) {
+    return "todo";
+  } else if (lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété")) {
+    return "done";
+  } else if (lowerName.includes("en cours") || lowerName.includes("progress") || lowerName.includes("doing")) {
+    return "in_progress";
+  } else if (lowerName.includes("revue") || lowerName.includes("review") || lowerName.includes("validation")) {
+    return "review";
+  }
+  
+  return "in_progress";
+}
+
 // Fonction pour traduire les types de sujets
 const translateSubjectType = (subjectType: string) => {
   const translations: Record<string, string> = {
@@ -159,11 +176,9 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  // Get task columns from first project or create default ones
-  const firstProject = projects[0];
+  // Get global task columns (without projectId) for "Ma Journée" section
   const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
-    queryKey: ["/api/projects", firstProject?.id, "task-columns"],
-    enabled: !!firstProject?.id,
+    queryKey: ["/api/task-columns/global"],
   });
 
   // Create client mutation
@@ -212,8 +227,26 @@ export default function Dashboard() {
 
   // Update task status mutation
   const updateTaskStatusMutation = useMutation({
-    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
-      return await apiRequest(`/api/tasks/${taskId}`, "PATCH", { status });
+    mutationFn: async ({ taskId, status, columnId, columnName }: { 
+      taskId: string; 
+      status?: string; 
+      columnId?: string;
+      columnName?: string;
+    }) => {
+      const payload: { status?: string; columnId?: string } = {};
+      
+      // If columnId is provided, also derive and set status from column name
+      if (columnId !== undefined) {
+        payload.columnId = columnId;
+        if (columnName) {
+          payload.status = getStatusFromColumnName(columnName);
+        }
+      }
+      
+      // Explicit status override
+      if (status !== undefined) payload.status = status;
+      
+      return await apiRequest(`/api/tasks/${taskId}`, "PATCH", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -1226,16 +1259,6 @@ export default function Dashboard() {
                         data-testid={`today-task-${task.id}`}
                         onClick={() => handleTaskClick(task)}
                       >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" });
-                          }}
-                          className="mt-1 h-4 w-4 shrink-0 rounded border border-border bg-background hover:bg-accent hover:border-accent-border transition-colors flex items-center justify-center"
-                          data-testid={`button-complete-task-${task.id}`}
-                        >
-                          <Check className="h-3 w-3 text-transparent" />
-                        </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>
@@ -1265,6 +1288,46 @@ export default function Dashboard() {
                               </Badge>
                             )}
                           </div>
+                        </div>
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={task.columnId || undefined}
+                            onValueChange={(columnId) => {
+                              const column = taskColumns.find(col => col.id === columnId);
+                              updateTaskStatusMutation.mutate({ 
+                                taskId: task.id, 
+                                columnId,
+                                columnName: column?.name 
+                              });
+                            }}
+                          >
+                            <SelectTrigger 
+                              className="w-auto min-w-[100px] text-xs"
+                              data-testid={`select-status-${task.id}`}
+                            >
+                              <SelectValue>
+                                {taskColumns.find(col => col.id === task.columnId)?.name || "Statut"}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {taskColumns.map((column) => (
+                                <SelectItem 
+                                  key={column.id} 
+                                  value={column.id}
+                                  data-testid={`option-status-${column.name}-${task.id}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="h-3 w-3 rounded-full shrink-0" 
+                                      style={{ backgroundColor: column.color }}
+                                      data-testid={`color-indicator-${column.id}`}
+                                    />
+                                    <span>{column.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     );
