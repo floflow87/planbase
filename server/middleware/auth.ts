@@ -45,7 +45,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !user) {
-      console.error("JWT validation error:", error?.message);
+      // Log full error details for debugging
+      console.error("JWT validation error:", JSON.stringify(error, null, 2));
+      console.error("Token prefix:", token.substring(0, 20) + "...");
       return res.status(401).json({ 
         error: "Unauthorized - Invalid or expired token",
         hint: "Please log in again" 

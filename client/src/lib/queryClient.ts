@@ -4,6 +4,15 @@ import { supabase } from "./supabase";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    
+    // Auto sign-out on 401 to clear invalid tokens
+    if (res.status === 401) {
+      console.warn("401 Unauthorized - signing out to clear invalid session");
+      await supabase.auth.signOut();
+      // Reload the page to redirect to login
+      window.location.href = "/login";
+    }
+    
     throw new Error(`${res.status}: ${text}`);
   }
 }
