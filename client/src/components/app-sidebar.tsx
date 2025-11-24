@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import defaultAvatar from "@/assets/default-avatar.png";
+import planbaseLogo from "@assets/planbase-logo.png";
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -58,9 +59,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <Link href="/">
           <div className="flex items-center gap-2 cursor-pointer hover-elevate active-elevate-2 rounded-md p-2" data-testid="link-logo">
-            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-              <span className="text-white font-heading font-bold text-xs">PB</span>
-            </div>
+            <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md" />
             <span className="font-heading font-semibold text-base text-sidebar-foreground" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>PlanBase</span>
           </div>
         </Link>
