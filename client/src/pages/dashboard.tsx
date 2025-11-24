@@ -610,7 +610,6 @@ export default function Dashboard() {
   // Par définition, tous les projets sont "en cours" sauf ceux qui sont terminés
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
-  const signedProjectsCount = projects.filter(p => p.stage === "signe").length;
   const clientsCount = clients.length;
   
   // Compter les tâches en cours (status !== 'done')
@@ -635,16 +634,6 @@ export default function Dashboard() {
       icon: FolderKanban,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
-      link: { label: "Voir tous", href: "/projects?tab=projects" },
-    },
-    {
-      title: "Projets signés",
-      value: signedProjectsCount.toString(),
-      change: totalProjectsCount > 0 ? `sur ${totalProjectsCount} projets` : "0 projet",
-      changeType: "positive",
-      icon: CheckSquare,
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
       link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
     {
@@ -1309,54 +1298,48 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Select
-                            value={task.columnId || undefined}
-                            onValueChange={(columnId) => {
-                              const column = taskColumnsForTask.find(col => col.id === columnId);
-                              updateTaskStatusMutation.mutate({ 
-                                taskId: task.id, 
-                                columnId,
-                                columnName: column?.name 
-                              });
-                            }}
-                          >
-                            <SelectTrigger 
-                              className="w-auto min-w-[100px] text-xs"
-                              data-testid={`select-status-${task.id}`}
-                            >
-                              <SelectValue>
-                                {currentColumn ? (
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="h-3 w-3 rounded-full shrink-0" 
-                                      style={{ backgroundColor: currentColumn.color }}
-                                    />
-                                    <span>{currentColumn.name}</span>
-                                  </div>
-                                ) : (
-                                  "Statut"
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {taskColumnsForTask.map((column) => (
-                                <SelectItem 
-                                  key={column.id} 
-                                  value={column.id}
-                                  data-testid={`option-status-${column.name}-${task.id}`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="h-3 w-3 rounded-full shrink-0" 
-                                      style={{ backgroundColor: column.color }}
-                                      data-testid={`color-indicator-${column.id}`}
-                                    />
-                                    <span>{column.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="cursor-pointer hover-elevate text-xs"
+                                style={{
+                                  backgroundColor: currentColumn?.color ? `${currentColumn.color}15` : undefined,
+                                  borderColor: currentColumn?.color || undefined,
+                                  color: currentColumn?.color || undefined,
+                                }}
+                                data-testid={`badge-status-${task.id}`}
+                              >
+                                {currentColumn?.name || "Statut"}
+                              </Badge>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2" align="end">
+                              <div className="flex flex-col gap-1">
+                                {taskColumnsForTask.map((column) => (
+                                  <Badge
+                                    key={column.id}
+                                    variant="outline"
+                                    className="cursor-pointer hover-elevate justify-start text-xs"
+                                    style={{
+                                      backgroundColor: `${column.color}15`,
+                                      borderColor: column.color,
+                                      color: column.color,
+                                    }}
+                                    onClick={() => {
+                                      updateTaskStatusMutation.mutate({
+                                        taskId: task.id,
+                                        columnId: column.id,
+                                        columnName: column.name,
+                                      });
+                                    }}
+                                    data-testid={`option-status-${column.name}-${task.id}`}
+                                  >
+                                    {column.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
                     );
