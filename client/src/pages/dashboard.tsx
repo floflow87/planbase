@@ -133,6 +133,7 @@ export default function Dashboard() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
   const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
+  const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -1298,22 +1299,21 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Popover>
+                          <Popover open={openStatusPopover === task.id} onOpenChange={(open) => setOpenStatusPopover(open ? task.id : null)}>
                             <PopoverTrigger asChild>
                               <Badge
                                 variant="outline"
                                 className="cursor-pointer hover-elevate text-xs"
                                 style={{
-                                  backgroundColor: currentColumn?.color ? `${currentColumn.color}15` : undefined,
-                                  borderColor: currentColumn?.color || undefined,
-                                  color: currentColumn?.color || undefined,
+                                  borderColor: currentColumn?.color,
+                                  color: currentColumn?.color,
                                 }}
                                 data-testid={`badge-status-${task.id}`}
                               >
                                 {currentColumn?.name || "Statut"}
                               </Badge>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2" align="end">
+                            <PopoverContent className="w-auto p-2" align="end" data-testid={`popover-status-options-${task.id}`}>
                               <div className="flex flex-col gap-1">
                                 {taskColumnsForTask.map((column) => (
                                   <Badge
@@ -1321,7 +1321,6 @@ export default function Dashboard() {
                                     variant="outline"
                                     className="cursor-pointer hover-elevate justify-start text-xs"
                                     style={{
-                                      backgroundColor: `${column.color}15`,
                                       borderColor: column.color,
                                       color: column.color,
                                     }}
@@ -1331,6 +1330,7 @@ export default function Dashboard() {
                                         columnId: column.id,
                                         columnName: column.name,
                                       });
+                                      setOpenStatusPopover(null);
                                     }}
                                     data-testid={`option-status-${column.name}-${task.id}`}
                                   >
