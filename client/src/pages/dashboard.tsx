@@ -1252,9 +1252,19 @@ export default function Dashboard() {
                     };
                     
                     // Get task columns for this specific task's project
+                    // Include both project-specific columns AND global columns, then deduplicate by ID
+                    const getUniqueColumns = (columns: TaskColumn[]) => {
+                      const seen = new Set<string>();
+                      return columns.filter(col => {
+                        if (seen.has(col.id)) return false;
+                        seen.add(col.id);
+                        return true;
+                      });
+                    };
+                    
                     const taskColumnsForTask = task.projectId 
-                      ? allTaskColumns.filter(col => col.projectId === task.projectId)
-                      : allTaskColumns.filter(col => !col.projectId);
+                      ? getUniqueColumns(allTaskColumns.filter(col => col.projectId === task.projectId || col.projectId === null))
+                      : getUniqueColumns(allTaskColumns.filter(col => !col.projectId));
                     
                     // Find the current column for this task
                     const currentColumn = taskColumnsForTask.find(col => col.id === task.columnId);
@@ -1302,11 +1312,12 @@ export default function Dashboard() {
                           <Popover open={openStatusPopover === task.id} onOpenChange={(open) => setOpenStatusPopover(open ? task.id : null)}>
                             <PopoverTrigger asChild>
                               <Badge
+                                variant="outline"
                                 className="cursor-pointer hover-elevate text-xs"
                                 style={{
-                                  backgroundColor: currentColumn?.color ? `${currentColumn.color}20` : undefined,
+                                  backgroundColor: currentColumn?.color,
                                   borderColor: currentColumn?.color,
-                                  color: currentColumn?.color,
+                                  color: "#ffffff",
                                 }}
                                 data-testid={`badge-status-${task.id}`}
                               >
@@ -1317,12 +1328,12 @@ export default function Dashboard() {
                               <div className="flex flex-col gap-1">
                                 {taskColumnsForTask.map((column) => (
                                   <Badge
-                                    key={column.id}
+                                    variant="outline"
                                     className="cursor-pointer hover-elevate justify-start text-xs"
                                     style={{
-                                      backgroundColor: `${column.color}20`,
+                                      backgroundColor: column.color,
                                       borderColor: column.color,
-                                      color: column.color,
+                                      color: "#ffffff",
                                     }}
                                     onClick={() => {
                                       updateTaskStatusMutation.mutate({
