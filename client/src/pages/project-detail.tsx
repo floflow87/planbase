@@ -1192,6 +1192,11 @@ export default function ProjectDetail() {
                           });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                           queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                          toast({
+                            title: "Montant facturé mis à jour",
+                            description: trimmedValue ? `${parseFloat(trimmedValue).toFixed(2)} €` : "Montant supprimé",
+                            variant: "success",
+                          });
                         } catch (error: any) {
                           toast({
                             title: "Erreur",

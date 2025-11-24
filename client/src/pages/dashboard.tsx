@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -115,7 +115,7 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
-  const [revenuePeriod, setRevenuePeriod] = useState<"6months" | "year" | "quarter">("year");
+  const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -431,10 +431,31 @@ export default function Dashboard() {
           key: `${year}-${monthIndex}`
         });
       }
-    } else if (revenuePeriod === "year") {
+    } else if (revenuePeriod === "until_this_month") {
       // All months of current year up to current month
       const currentMonth = now.getMonth();
       for (let i = 0; i <= currentMonth; i++) {
+        months.push({
+          month: monthNames[i],
+          monthIndex: i,
+          year: currentYear,
+          key: `${currentYear}-${i}`
+        });
+      }
+    } else if (revenuePeriod === "projection") {
+      // Remaining months of current year (next month to December)
+      const currentMonth = now.getMonth();
+      for (let i = currentMonth + 1; i < 12; i++) {
+        months.push({
+          month: monthNames[i],
+          monthIndex: i,
+          year: currentYear,
+          key: `${currentYear}-${i}`
+        });
+      }
+    } else if (revenuePeriod === "full_year") {
+      // All 12 months of current year
+      for (let i = 0; i < 12; i++) {
         months.push({
           month: monthNames[i],
           monthIndex: i,
@@ -516,8 +537,12 @@ export default function Dashboard() {
     const currentYear = now.getFullYear();
     let label: string;
     
-    if (revenuePeriod === "year") {
+    if (revenuePeriod === "full_year") {
       label = `CA ${currentYear}`;
+    } else if (revenuePeriod === "until_this_month") {
+      label = `CA jusqu'à ce mois`;
+    } else if (revenuePeriod === "projection") {
+      label = "CA Projection";
     } else if (revenuePeriod === "6months") {
       label = "CA 6 derniers mois";
     } else {
@@ -1006,12 +1031,14 @@ export default function Dashboard() {
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
-              <Select value={revenuePeriod} onValueChange={(value: "6months" | "year" | "quarter") => setRevenuePeriod(value)}>
+              <Select value={revenuePeriod} onValueChange={(value: "full_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
                 <SelectTrigger className="w-[180px]" data-testid="select-revenue-period">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="year">Année 2025</SelectItem>
+                  <SelectItem value="full_year">Année 2025</SelectItem>
+                  <SelectItem value="until_this_month">Jusqu'à ce mois</SelectItem>
+                  <SelectItem value="projection">Projection</SelectItem>
                   <SelectItem value="6months">6 derniers mois</SelectItem>
                   <SelectItem value="quarter">Trimestre actuel</SelectItem>
                 </SelectContent>
@@ -1199,16 +1226,16 @@ export default function Dashboard() {
                         data-testid={`today-task-${task.id}`}
                         onClick={() => handleTaskClick(task)}
                       >
-                        <input
-                          type="checkbox"
-                          checked={false}
-                          onChange={(e) => {
+                        <button
+                          onClick={(e) => {
                             e.stopPropagation();
                             updateTaskStatusMutation.mutate({ taskId: task.id, status: "done" });
                           }}
-                          className="mt-1 h-4 w-4 shrink-0"
-                          data-testid={`checkbox-task-${task.id}`}
-                        />
+                          className="mt-1 h-4 w-4 shrink-0 rounded border border-border bg-background hover:bg-accent hover:border-accent-border transition-colors flex items-center justify-center"
+                          data-testid={`button-complete-task-${task.id}`}
+                        >
+                          <Check className="h-3 w-3 text-transparent" />
+                        </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs font-heading font-medium text-foreground">{task.title}</h4>

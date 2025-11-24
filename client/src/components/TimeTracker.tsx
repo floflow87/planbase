@@ -128,11 +128,13 @@ export function TimeTracker() {
   // Stop timer mutation
   const stopMutation = useMutation({
     mutationFn: async (entryId: string) => {
-      return await apiRequest(`/api/time-entries/${entryId}`, "PATCH", {
+      const response = await apiRequest(`/api/time-entries/${entryId}`, "PATCH", {
         endTime: new Date().toISOString(),
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
+      console.log('✅ stopMutation.onSuccess', { data, entryId: data.id, projectId: data.projectId });
       // Always invalidate active entry query immediately
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
@@ -142,6 +144,7 @@ export function TimeTracker() {
       
       // If stopped without a project, show project selector
       if (!data.projectId) {
+        console.log('🔵 No project - showing selector', { entryId: data.id });
         setStoppedEntryId(data.id);
         setSelectedProjectId("none"); // Reset to "none" option
         selectedProjectRef.current = "none"; // Also reset ref
