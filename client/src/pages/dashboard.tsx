@@ -1251,13 +1251,13 @@ export default function Dashboard() {
                       high: "Haute",
                     };
                     
-                    // Get task columns for this specific task's project ONLY (no global columns to avoid duplicates)
+                    // Find the current column for this task (search in ALL columns, including global ones)
+                    const currentColumn = allTaskColumns.find(col => col.id === task.columnId);
+                    
+                    // Get task columns for the selector: ONLY project-specific columns (no global columns to avoid duplicates)
                     const taskColumnsForTask = task.projectId 
                       ? allTaskColumns.filter(col => col.projectId === task.projectId)
                       : allTaskColumns.filter(col => !col.projectId);
-                    
-                    // Find the current column for this task
-                    const currentColumn = taskColumnsForTask.find(col => col.id === task.columnId);
                     
                     // Function to make colors more vibrant (increase saturation)
                     const makeBrighterColor = (hexColor: string) => {
