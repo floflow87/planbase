@@ -75,17 +75,22 @@ export function TaskDetailModal({
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
 
-  // Display ALL columns from the project (not filtered by status)
+  // Display ONLY columns from the task's project (no global columns to avoid duplicates)
   const columnOptions = useMemo(() => {
+    // Filter to only show columns for the task's project (not global columns)
+    const projectColumns = projectId 
+      ? columns.filter(col => col.projectId === projectId)
+      : columns.filter(col => !col.projectId);
+    
     // Sort columns by order to maintain a consistent sequence
-    const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+    const sortedColumns = [...projectColumns].sort((a, b) => a.order - b.order);
     
     return sortedColumns.map(column => ({
       id: column.id,
       name: column.name,
       status: getStatusFromColumnName(column.name),
     }));
-  }, [columns]);
+  }, [columns, projectId]);
 
   useEffect(() => {
     if (task) {
