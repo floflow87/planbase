@@ -1251,23 +1251,59 @@ export default function Dashboard() {
                       high: "Haute",
                     };
                     
-                    // Get task columns for this specific task's project
-                    // Include both project-specific columns AND global columns, then deduplicate by ID
-                    const getUniqueColumns = (columns: TaskColumn[]) => {
-                      const seen = new Set<string>();
-                      return columns.filter(col => {
-                        if (seen.has(col.id)) return false;
-                        seen.add(col.id);
-                        return true;
-                      });
-                    };
-                    
+                    // Get task columns for this specific task's project ONLY (no global columns to avoid duplicates)
                     const taskColumnsForTask = task.projectId 
-                      ? getUniqueColumns(allTaskColumns.filter(col => col.projectId === task.projectId || col.projectId === null))
-                      : getUniqueColumns(allTaskColumns.filter(col => !col.projectId));
+                      ? allTaskColumns.filter(col => col.projectId === task.projectId)
+                      : allTaskColumns.filter(col => !col.projectId);
                     
                     // Find the current column for this task
                     const currentColumn = taskColumnsForTask.find(col => col.id === task.columnId);
+                    
+                    // Function to make colors more vibrant (increase saturation)
+                    const makeBrighterColor = (hexColor: string) => {
+                      // Convert hex to RGB
+                      const hex = hexColor.replace('#', '');
+                      const r = parseInt(hex.substring(0, 2), 16) / 255;
+                      const g = parseInt(hex.substring(2, 4), 16) / 255;
+                      const b = parseInt(hex.substring(4, 6), 16) / 255;
+                      
+                      // Convert RGB to HSL
+                      const max = Math.max(r, g, b);
+                      const min = Math.min(r, g, b);
+                      let h = 0, s = 0, l = (max + min) / 2;
+                      
+                      if (max !== min) {
+                        const d = max - min;
+                        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                        
+                        switch (max) {
+                          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                          case g: h = ((b - r) / d + 2) / 6; break;
+                          case b: h = ((r - g) / d + 4) / 6; break;
+                        }
+                      }
+                      
+                      // Increase saturation to make color more vibrant (boost to at least 70%)
+                      s = Math.max(s, 0.7);
+                      
+                      // Convert HSL back to RGB
+                      const hue2rgb = (p: number, q: number, t: number) => {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1/6) return p + (q - p) * 6 * t;
+                        if (t < 1/2) return q;
+                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                        return p;
+                      };
+                      
+                      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                      const p = 2 * l - q;
+                      const rNew = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+                      const gNew = Math.round(hue2rgb(p, q, h) * 255);
+                      const bNew = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+                      
+                      return `#${((1 << 24) + (rNew << 16) + (gNew << 8) + bNew).toString(16).slice(1)}`;
+                    };
 
                     return (
                       <div
@@ -1315,8 +1351,8 @@ export default function Dashboard() {
                                 variant="outline"
                                 className="cursor-pointer hover-elevate text-xs"
                                 style={{
-                                  backgroundColor: currentColumn?.color,
-                                  borderColor: currentColumn?.color,
+                                  backgroundColor: currentColumn?.color ? makeBrighterColor(currentColumn.color) : undefined,
+                                  borderColor: currentColumn?.color ? makeBrighterColor(currentColumn.color) : undefined,
                                   color: "#ffffff",
                                 }}
                                 data-testid={`badge-status-${task.id}`}
@@ -1328,11 +1364,12 @@ export default function Dashboard() {
                               <div className="flex flex-col gap-1">
                                 {taskColumnsForTask.map((column) => (
                                   <Badge
+                                    key={column.id}
                                     variant="outline"
                                     className="cursor-pointer hover-elevate justify-start text-xs"
                                     style={{
-                                      backgroundColor: column.color,
-                                      borderColor: column.color,
+                                      backgroundColor: makeBrighterColor(column.color),
+                                      borderColor: makeBrighterColor(column.color),
                                       color: "#ffffff",
                                     }}
                                     onClick={() => {
