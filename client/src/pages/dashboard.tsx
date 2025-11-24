@@ -1260,12 +1260,24 @@ export default function Dashboard() {
                       : allTaskColumns.filter(col => !col.projectId);
                     
                     // Function to adjust color brightness for background (lighter) and text (darker)
-                    const getColorVariants = (hexColor: string) => {
-                      // Convert hex to RGB
-                      const hex = hexColor.replace('#', '');
-                      const r = parseInt(hex.substring(0, 2), 16) / 255;
-                      const g = parseInt(hex.substring(2, 4), 16) / 255;
-                      const b = parseInt(hex.substring(4, 6), 16) / 255;
+                    const getColorVariants = (colorStr: string) => {
+                      let r = 0, g = 0, b = 0;
+                      
+                      // Parse color (handle both hex and rgba formats)
+                      if (colorStr.startsWith('rgba') || colorStr.startsWith('rgb')) {
+                        const match = colorStr.match(/\d+/g);
+                        if (match) {
+                          r = parseInt(match[0]) / 255;
+                          g = parseInt(match[1]) / 255;
+                          b = parseInt(match[2]) / 255;
+                        }
+                      } else {
+                        // Hex format
+                        const hex = colorStr.replace('#', '');
+                        r = parseInt(hex.substring(0, 2), 16) / 255;
+                        g = parseInt(hex.substring(2, 4), 16) / 255;
+                        b = parseInt(hex.substring(4, 6), 16) / 255;
+                      }
                       
                       // Convert RGB to HSL
                       const max = Math.max(r, g, b);
@@ -1303,11 +1315,11 @@ export default function Dashboard() {
                         return `#${((1 << 24) + (rNew << 16) + (gNew << 8) + bNew).toString(16).slice(1)}`;
                       };
                       
-                      // Background: lighter version (high lightness ~85%)
-                      const bgColor = hslToRgb(h, Math.max(s, 0.3), 0.88);
+                      // Background: lighter pastel version (high lightness ~88%)
+                      const bgColor = hslToRgb(h, Math.max(s, 0.4), 0.88);
                       
-                      // Text: darker version (low lightness ~30%)
-                      const textColor = hslToRgb(h, Math.max(s, 0.5), 0.35);
+                      // Text: darker version of same hue (low lightness ~30%)
+                      const textColor = hslToRgb(h, Math.max(s, 0.6), 0.30);
                       
                       return { bgColor, textColor };
                     };
