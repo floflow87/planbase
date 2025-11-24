@@ -1259,7 +1259,7 @@ export default function Dashboard() {
                       ? allTaskColumns.filter(col => col.projectId === task.projectId)
                       : allTaskColumns.filter(col => !col.projectId);
                     
-                    // Function to make colors more vibrant (increase saturation)
+                    // Function to make colors more vibrant (increase saturation and handle grays)
                     const makeBrighterColor = (hexColor: string) => {
                       // Convert hex to RGB
                       const hex = hexColor.replace('#', '');
@@ -1283,8 +1283,49 @@ export default function Dashboard() {
                         }
                       }
                       
-                      // Increase saturation to make color more vibrant (boost to at least 70%)
-                      s = Math.max(s, 0.7);
+                      // For gray colors (low saturation), assign a vibrant hue based on column name
+                      if (s < 0.15) {
+                        const columnName = currentColumn?.name.toLowerCase() || '';
+                        const hueMap: Record<string, number> = {
+                          'à faire': 0.58,      // Bleu
+                          'todo': 0.58,          // Bleu
+                          'en cours': 0.55,      // Cyan
+                          'in progress': 0.55,   // Cyan
+                          'terminé': 0.33,       // Vert
+                          'done': 0.33,          // Vert
+                          'completed': 0.33,     // Vert
+                          'bloqué': 0.0,         // Rouge
+                          'blocked': 0.0,        // Rouge
+                          'en attente': 0.11,    // Orange
+                          'waiting': 0.11,       // Orange
+                          'review': 0.75,        // Violet
+                          'revue': 0.75,         // Violet
+                        };
+                        
+                        // Find matching hue or use a default based on hash
+                        let assignedHue = 0.58; // Default blue
+                        for (const [key, value] of Object.entries(hueMap)) {
+                          if (columnName.includes(key)) {
+                            assignedHue = value;
+                            break;
+                          }
+                        }
+                        
+                        // If no match, use hash of the color to get consistent color
+                        if (assignedHue === 0.58 && columnName) {
+                          const hash = columnName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                          assignedHue = (hash % 360) / 360;
+                        }
+                        
+                        h = assignedHue;
+                        s = 0.75; // High saturation
+                        l = Math.max(0.45, Math.min(0.55, l)); // Good contrast with white text
+                      } else {
+                        // For already colored items, boost saturation
+                        s = Math.max(s, 0.7);
+                        // Ensure good luminosity for white text
+                        l = Math.max(0.40, Math.min(0.60, l));
+                      }
                       
                       // Convert HSL back to RGB
                       const hue2rgb = (p: number, q: number, t: number) => {
