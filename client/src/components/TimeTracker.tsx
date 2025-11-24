@@ -168,11 +168,16 @@ export function TimeTracker() {
   // Assign project to stopped entry mutation
   const assignProjectMutation = useMutation({
     mutationFn: async ({ entryId, projectId }: { entryId: string; projectId: string | null }) => {
-      return await apiRequest(`/api/time-entries/${entryId}`, "PATCH", {
+      console.log('🚀 assignProjectMutation - Starting', { entryId, projectId });
+      const response = await apiRequest(`/api/time-entries/${entryId}`, "PATCH", {
         projectId: projectId || null,
       });
+      const data = await response.json();
+      console.log('✅ assignProjectMutation - Success', data);
+      return data;
     },
     onSuccess: (data: any) => {
+      console.log('✅ assignProjectMutation.onSuccess', data);
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
       if (data.projectId) {
@@ -189,6 +194,7 @@ export function TimeTracker() {
       setOpen(false);
     },
     onError: (error: Error) => {
+      console.error('❌ assignProjectMutation.onError', error);
       toast({
         title: "Erreur",
         description: error.message,

@@ -510,43 +510,27 @@ export default function Dashboard() {
   }, [projects, revenuePeriod]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
+  // Il doit être la somme des revenus mensuels affichés dans le graphique
   const { revenue: periodRevenue, label: periodLabel } = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    let startDate: Date;
     let label: string;
     
     if (revenuePeriod === "year") {
-      startDate = new Date(currentYear, 0, 1);
       label = `CA ${currentYear}`;
     } else if (revenuePeriod === "6months") {
-      startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
       label = "CA 6 derniers mois";
     } else {
       // Quarter
-      const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
-      startDate = new Date(currentYear, quarterStartMonth, 1);
       const quarterNumber = Math.floor(now.getMonth() / 3) + 1;
       label = `CA Q${quarterNumber} ${currentYear}`;
     }
     
-    const revenue = projects
-      .filter(p => {
-        // Filtrer par stage (exclure prospection)
-        const validStage = p.stage === "signe" || p.stage === "termine" || p.stage === "en_cours";
-        if (!validStage) return false;
-        
-        // Filtrer par période (basé sur startDate ou createdAt)
-        const dateToCheck = p.startDate || p.createdAt;
-        if (!dateToCheck) return false;
-        
-        const projectDate = new Date(dateToCheck);
-        return projectDate >= startDate && projectDate <= now;
-      })
-      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+    // Somme des revenus mensuels du graphique (déjà filtrés par période et stage)
+    const revenue = revenueData.reduce((sum, month) => sum + month.revenue, 0);
     
     return { revenue, label };
-  }, [projects, revenuePeriod]);
+  }, [revenueData, revenuePeriod]);
 
   const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
