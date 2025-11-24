@@ -664,7 +664,7 @@ export default function Dashboard() {
       icon: CheckSquare,
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
-      link: { label: "Voir plus", href: "/projects?tab=tasks" },
+      link: { label: "Voir tout", href: "/tasks" },
     },
   ];
 

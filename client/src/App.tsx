@@ -124,10 +124,6 @@ function UserMenu() {
 
   const handleLogout = async () => {
     await signOut();
-    toast({
-      title: "Déconnexion réussie",
-      description: "À bientôt !",
-    });
     setLocation("/login");
   };
 
