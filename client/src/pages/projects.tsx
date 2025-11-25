@@ -3302,10 +3302,14 @@ export default function Projects() {
                                 const isSortableColumn = !["progress", "actions"].includes(columnId);
                                 
                                 const columnClasses: Record<string, string> = {
-                                  name: "max-w-[250px]",
-                                  category: "max-w-[120px]",
-                                  budget: "text-right",
-                                  actions: "w-[80px] bg-white",
+                                  name: "min-w-[200px]",
+                                  client: "w-[120px]",
+                                  stage: "w-[100px]",
+                                  progress: "w-[140px]",
+                                  category: "w-[120px]",
+                                  startDate: "w-[100px]",
+                                  budget: "w-[100px] text-right",
+                                  actions: "w-[60px]",
                                 };
                                 
                                 return (
@@ -3333,7 +3337,7 @@ export default function Projects() {
                             // Create a mapping of column IDs to their cell content
                             const cellContent: Record<string, JSX.Element> = {
                               name: (
-                                <TableCell key="name" className="max-w-[250px]">
+                                <TableCell key="name" className="min-w-[200px]">
                                   <Link href={`/projects/${project.id}`}>
                                     <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[12px] truncate" data-testid={`project-name-${project.id}`}>
                                       {project.name}
@@ -3347,7 +3351,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               client: (
-                                <TableCell key="client">
+                                <TableCell key="client" className="w-[120px]">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
                                       <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
@@ -3359,7 +3363,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               stage: (
-                                <TableCell key="stage">
+                                <TableCell key="stage" className="w-[100px]">
                                   <Popover
                                     open={stagePopoverOpen && editingStageProjectId === project.id}
                                     onOpenChange={(open) => {
@@ -3413,7 +3417,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               progress: (
-                                <TableCell key="progress">
+                                <TableCell key="progress" className="w-[140px]">
                                   <div className="flex items-center gap-2" data-testid={`progress-container-${project.id}`}>
                                     <Progress value={project.stage === "termine" ? 100 : progress} className="w-24 h-2" data-testid={`progress-bar-${project.id}`} />
                                     <span className="text-[11px] text-muted-foreground min-w-[3rem]" data-testid={`progress-text-${project.id}`}>{project.stage === "termine" ? 100 : progress}%</span>
@@ -3421,7 +3425,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               category: (
-                                <TableCell key="category" className="max-w-[120px]">
+                                <TableCell key="category" className="w-[120px]">
                                   <Popover
                                     open={categoryPopoverOpen && editingCategoryProjectId === project.id}
                                     onOpenChange={(open) => {
@@ -3558,7 +3562,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               startDate: (
-                                <TableCell key="startDate">
+                                <TableCell key="startDate" className="w-[100px]">
                                   <Popover
                                     open={startDatePopoverOpen && editingStartDateProjectId === project.id}
                                     onOpenChange={(open) => {
@@ -3602,7 +3606,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               budget: (
-                                <TableCell key="budget" className="text-right">
+                                <TableCell key="budget" className="w-[100px] text-right">
                                   {editingBudgetProjectId === project.id ? (
                                     <Input
                                       type="number"
@@ -3661,7 +3665,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               actions: (
-                                <TableCell key="actions">
+                                <TableCell key="actions" className="w-[60px]">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
