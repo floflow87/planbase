@@ -652,7 +652,7 @@ export default function Dashboard() {
       link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
     {
-      title: "Clients",
+      title: "Clients / prospects",
       value: clientsCount.toString(),
       change: "+12.5%",
       changeType: "positive",
