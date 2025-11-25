@@ -758,7 +758,7 @@ export default function Documents() {
               )}
 
               {/* Document list */}
-              <div className="space-y-0">
+              <div className="space-y-0 bg-white dark:bg-card border border-border rounded-md overflow-hidden">
                 {files.map((file, index) => (
                   <div key={file.id}>
                     <div 

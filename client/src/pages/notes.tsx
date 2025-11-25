@@ -642,7 +642,7 @@ export default function Notes() {
             onDragStart={(event) => setActiveColumnId(event.active.id as string)}
             onDragEnd={handleColumnDragEnd}
           >
-          <div className="border border-border rounded-md overflow-hidden">
+          <div className="border border-border rounded-md overflow-hidden bg-white dark:bg-card">
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <SortableContext
