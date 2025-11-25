@@ -50,8 +50,16 @@ export default function NoteDetail() {
     setLocation(path, options);
   }, [setLocation]);
   
-  // Start in edit mode by default (notes created from /notes/new should be editable immediately)
-  const [isEditMode, setIsEditMode] = useState(true);
+  // Persist edit mode preference in localStorage
+  const [isEditMode, setIsEditMode] = useState(() => {
+    const saved = localStorage.getItem("noteEditMode");
+    return saved !== null ? saved === "true" : true; // Default to edit mode
+  });
+  
+  // Persist edit mode changes
+  useEffect(() => {
+    localStorage.setItem("noteEditMode", String(isEditMode));
+  }, [isEditMode]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");

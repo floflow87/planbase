@@ -53,7 +53,16 @@ export default function DocumentDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [isEditMode, setIsEditMode] = useState(true);
+  // Persist edit mode preference in localStorage
+  const [isEditMode, setIsEditMode] = useState(() => {
+    const saved = localStorage.getItem("documentEditMode");
+    return saved !== null ? saved === "true" : true; // Default to edit mode
+  });
+  
+  // Persist edit mode changes
+  useEffect(() => {
+    localStorage.setItem("documentEditMode", String(isEditMode));
+  }, [isEditMode]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState<any>({ type: 'doc', content: [] });
   const [status, setStatus] = useState<"draft" | "published">("draft");

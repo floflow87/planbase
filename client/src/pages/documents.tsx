@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit, Trash2, Copy, FolderInput, Download } from "lucide-react";
+import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit, Trash2, Copy, FolderInput, Download, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,15 +35,31 @@ import { useMemo } from "react";
 import { Folder, ChevronDown, ChevronRight as ChevronRightIcon, Building2, FolderOpen } from "lucide-react";
 
 export default function Documents() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    const saved = localStorage.getItem("documentsViewMode");
+    return (saved === "grid" || saved === "list") ? saved : "grid";
+  });
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root"]));
   const [selectedNodeId, setSelectedNodeId] = useState<string>("all-documents");
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState(() => {
+    return localStorage.getItem("documentsTreeCollapsed") === "true";
+  });
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Persist viewMode changes
+  useEffect(() => {
+    localStorage.setItem("documentsViewMode", viewMode);
+  }, [viewMode]);
+
+  // Persist tree collapse state
+  useEffect(() => {
+    localStorage.setItem("documentsTreeCollapsed", String(isTreeCollapsed));
+  }, [isTreeCollapsed]);
 
   const { data: documents = [], isLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
@@ -522,10 +538,26 @@ export default function Documents() {
 
   return (
     <div className="flex-1 overflow-hidden bg-background flex" data-testid="page-documents">
-      {/* Left Sidebar - Folder Explorer */}
-      <div className="w-72 border-r border-border flex flex-col">
+      {/* Left Sidebar - Folder Explorer (Collapsible) */}
+      <div 
+        className={`border-r border-border flex flex-col transition-all duration-300 ease-in-out ${
+          isTreeCollapsed ? "w-0 overflow-hidden" : "w-72"
+        }`}
+        style={{ minWidth: isTreeCollapsed ? 0 : undefined }}
+      >
         <div className="p-4 border-b border-border">
-          <h2 className="font-heading font-semibold text-lg mb-3">Explorer</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading font-semibold text-lg">Explorer</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setIsTreeCollapsed(true)}
+              data-testid="button-collapse-tree"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -550,6 +582,17 @@ export default function Documents() {
           {/* Breadcrumb & Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[12px]">
+              {isTreeCollapsed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 mr-2"
+                  onClick={() => setIsTreeCollapsed(false)}
+                  data-testid="button-expand-tree"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </Button>
+              )}
               <Home className="w-4 h-4 text-muted-foreground" />
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
               <span className="text-muted-foreground">Documentation</span>
