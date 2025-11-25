@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -122,6 +129,32 @@ export function ListView({
     return saved ? parseInt(saved) : 20;
   });
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Column visibility states
+  const defaultTaskColumns = ['checkbox', 'title', 'assignedTo', 'status', 'priority', 'effort', 'dueDate', 'actions'];
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('taskListVisibleColumns');
+    return saved ? new Set(JSON.parse(saved)) : new Set(defaultTaskColumns);
+  });
+  const [isColumnSheetOpen, setIsColumnSheetOpen] = useState(false);
+  
+  const toggleColumnVisibility = (columnId: string) => {
+    setVisibleColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        if (columnId === "checkbox" || columnId === "title" || columnId === "actions") return prev;
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Save visible columns to localStorage
+  useEffect(() => {
+    localStorage.setItem('taskListVisibleColumns', JSON.stringify(Array.from(visibleColumns)));
+  }, [visibleColumns]);
 
   // Save pageSize to localStorage when it changes
   useEffect(() => {
@@ -538,6 +571,16 @@ export function ListView({
       
       <Card>
         <CardContent className="p-0">
+          <div className="flex justify-end p-2 border-b">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsColumnSheetOpen(true)}
+              data-testid="button-task-columns"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </Button>
+          </div>
           <div className="overflow-x-auto">
             <DndContext
               sensors={sensors}
@@ -548,8 +591,8 @@ export function ListView({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <SortableContext items={columnOrder}>
-                      {columnOrder.map((columnId: string) => (
+                    <SortableContext items={columnOrder.filter((id: string) => visibleColumns.has(id))}>
+                      {columnOrder.filter((id: string) => visibleColumns.has(id)).map((columnId: string) => (
                         <SortableTableHeader key={columnId} columnId={columnId} />
                       ))}
                     </SortableContext>
@@ -570,7 +613,7 @@ export function ListView({
                       
                       return (
                         <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
-                          {columnOrder.map((columnId: string) => {
+                          {columnOrder.filter((id: string) => visibleColumns.has(id)).map((columnId: string) => {
                             switch (columnId) {
                               case 'checkbox':
                                 return (
@@ -900,10 +943,10 @@ export function ListView({
                   )}
                   {/* Quick add task row */}
                   <TableRow className="h-12">
-                    {columnOrder.map((columnId: string) => {
+                    {columnOrder.filter((id: string) => visibleColumns.has(id)).map((columnId: string) => {
                       if (columnId === 'title') {
                         return (
-                          <TableCell key={columnId} colSpan={columnOrder.length}>
+                          <TableCell key={columnId} colSpan={columnOrder.filter((id: string) => visibleColumns.has(id)).length}>
                             <div className="flex items-center gap-2">
                               <Plus className="h-4 w-4 text-muted-foreground" />
                               <Input
@@ -1049,6 +1092,44 @@ export function ListView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Sheet for column visibility management */}
+      <Sheet open={isColumnSheetOpen} onOpenChange={setIsColumnSheetOpen}>
+        <SheetContent className="w-80" data-testid="sheet-task-columns">
+          <SheetHeader>
+            <SheetTitle>Colonnes visibles</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            {defaultTaskColumns.map((columnId) => {
+              const columnLabels: Record<string, string> = {
+                checkbox: "Sélection",
+                title: "Tâche",
+                assignedTo: "Assigné à",
+                status: "Statut",
+                priority: "Priorité",
+                effort: "Effort",
+                dueDate: "Échéance",
+                actions: "Actions",
+              };
+              const isDisabled = columnId === "checkbox" || columnId === "title" || columnId === "actions";
+              return (
+                <div key={columnId} className="flex items-center justify-between">
+                  <Label htmlFor={`task-col-${columnId}`} className="text-sm">
+                    {columnLabels[columnId]}
+                  </Label>
+                  <Switch
+                    id={`task-col-${columnId}`}
+                    checked={visibleColumns.has(columnId)}
+                    onCheckedChange={() => toggleColumnVisibility(columnId)}
+                    disabled={isDisabled}
+                    data-testid={`switch-task-column-${columnId}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3 } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -1955,6 +1956,32 @@ export default function Projects() {
   });
   const [activeProjectColumnId, setActiveProjectColumnId] = useState<string | null>(null);
   
+  // Column visibility state for project list view
+  const [projectVisibleColumns, setProjectVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("projectVisibleColumns");
+    return saved ? new Set(JSON.parse(saved)) : new Set(defaultColumnOrder);
+  });
+  const [isProjectColumnSheetOpen, setIsProjectColumnSheetOpen] = useState(false);
+  
+  // Save visible columns to localStorage
+  useEffect(() => {
+    localStorage.setItem("projectVisibleColumns", JSON.stringify(Array.from(projectVisibleColumns)));
+  }, [projectVisibleColumns]);
+  
+  const toggleProjectColumnVisibility = (columnId: string) => {
+    setProjectVisibleColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        // Don't allow hiding the name or actions column
+        if (columnId === "name" || columnId === "actions") return prev;
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+  
   // Inline category editing
   const [editingCategoryProjectId, setEditingCategoryProjectId] = useState<string | null>(null);
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
@@ -2939,6 +2966,16 @@ export default function Projects() {
                     <Columns3 className="w-4 h-4" />
                   </Button>
                 </div>
+                {projectViewMode === "list" && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsProjectColumnSheetOpen(true)}
+                    data-testid="button-project-columns"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button 
                   data-testid="button-create-project"
                   onClick={() => {
@@ -3278,57 +3315,58 @@ export default function Projects() {
                   onDragStart={handleProjectColumnDragStart}
                   onDragEnd={handleProjectColumnDragEnd}
                 >
-                  <Card>
+                  <Card className="overflow-hidden">
                     <CardContent className="p-0">
-                      <Table>
-                        <TableHeader>
-                          <SortableContext
-                            items={projectColumnOrder.filter(id => id !== "actions")}
-                            strategy={horizontalListSortingStrategy}
-                          >
-                            <TableRow className="bg-muted/40">
-                              {projectColumnOrder.map((columnId) => {
-                                const columnLabels: Record<string, string> = {
-                                  name: "Projet",
-                                  client: "Client",
-                                  stage: "Étape",
-                                  progress: "Progression",
-                                  category: "Catégorie",
-                                  startDate: "Début",
-                                  budget: "Budget",
-                                  actions: "Actions",
-                                };
-                                
-                                const isSortableColumn = !["progress", "actions"].includes(columnId);
-                                
-                                const columnClasses: Record<string, string> = {
-                                  name: "min-w-[200px]",
-                                  client: "w-[120px]",
-                                  stage: "w-[100px]",
-                                  progress: "w-[140px]",
-                                  category: "w-[120px]",
-                                  startDate: "w-[100px]",
-                                  budget: "w-[100px] text-right",
-                                  actions: "w-[60px]",
-                                };
-                                
-                                return (
-                                  <SortableProjectColumnHeader
-                                    key={columnId}
-                                    id={columnId}
-                                    label={columnLabels[columnId] || columnId}
-                                    className={columnClasses[columnId] || ""}
-                                    isDraggable={columnId !== "actions"}
-                                    sortColumn={projectSortColumn}
-                                    sortDirection={projectSortDirection}
-                                    onSort={handleSort}
-                                    isSortable={isSortableColumn}
-                                  />
-                                );
-                              })}
-                            </TableRow>
-                          </SortableContext>
-                        </TableHeader>
+                      <div className="overflow-x-auto">
+                        <Table className="table-fixed w-full">
+                          <TableHeader>
+                            <SortableContext
+                              items={projectColumnOrder.filter(id => id !== "actions" && projectVisibleColumns.has(id))}
+                              strategy={horizontalListSortingStrategy}
+                            >
+                              <TableRow className="bg-muted/40">
+                                {projectColumnOrder.filter(id => projectVisibleColumns.has(id)).map((columnId) => {
+                                  const columnLabels: Record<string, string> = {
+                                    name: "Projet",
+                                    client: "Client",
+                                    stage: "Étape",
+                                    progress: "Progression",
+                                    category: "Catégorie",
+                                    startDate: "Début",
+                                    budget: "Budget",
+                                    actions: "Actions",
+                                  };
+                                  
+                                  const isSortableColumn = !["progress", "actions"].includes(columnId);
+                                  
+                                  const columnClasses: Record<string, string> = {
+                                    name: "w-auto min-w-[180px]",
+                                    client: "w-[110px]",
+                                    stage: "w-[90px]",
+                                    progress: "w-[130px]",
+                                    category: "w-[100px]",
+                                    startDate: "w-[90px]",
+                                    budget: "w-[90px] text-right",
+                                    actions: "w-[50px]",
+                                  };
+                                  
+                                  return (
+                                    <SortableProjectColumnHeader
+                                      key={columnId}
+                                      id={columnId}
+                                      label={columnLabels[columnId] || columnId}
+                                      className={columnClasses[columnId] || ""}
+                                      isDraggable={columnId !== "actions"}
+                                      sortColumn={projectSortColumn}
+                                      sortDirection={projectSortDirection}
+                                      onSort={handleSort}
+                                      isSortable={isSortableColumn}
+                                    />
+                                  );
+                                })}
+                              </TableRow>
+                            </SortableContext>
+                          </TableHeader>
                         <TableBody>
                           {getPaginatedProjects().map((project) => {
                             const client = clients.find((c) => c.id === project.clientId);
@@ -3725,17 +3763,17 @@ export default function Projects() {
                           
                             return (
                               <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
-                                {projectColumnOrder.map((columnId) => cellContent[columnId])}
+                                {projectColumnOrder.filter(id => projectVisibleColumns.has(id)).map((columnId) => cellContent[columnId])}
                               </TableRow>
                             );
                           })}
                           
                           {/* Quick add project row */}
                           <TableRow className="h-12">
-                            {projectColumnOrder.map((columnId) => {
+                            {projectColumnOrder.filter(id => projectVisibleColumns.has(id)).map((columnId) => {
                               if (columnId === 'name') {
                                 return (
-                                  <TableCell key={columnId} colSpan={projectColumnOrder.length}>
+                                  <TableCell key={columnId} colSpan={projectColumnOrder.filter(id => projectVisibleColumns.has(id)).length}>
                                     <div className="flex items-center gap-2">
                                       <Plus className="h-4 w-4 text-muted-foreground" />
                                       <Input
@@ -3773,8 +3811,9 @@ export default function Projects() {
                               return null;
                             })}
                           </TableRow>
-                      </TableBody>
-                    </Table>
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
                 </DndContext>
@@ -3871,6 +3910,45 @@ export default function Projects() {
               );
             })()}
       </div>
+      
+      {/* Column visibility sheet for projects */}
+      <Sheet open={isProjectColumnSheetOpen} onOpenChange={setIsProjectColumnSheetOpen}>
+        <SheetContent className="w-80" data-testid="sheet-project-columns">
+          <SheetHeader>
+            <SheetTitle>Colonnes visibles</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            {defaultColumnOrder.map((columnId) => {
+              const columnLabels: Record<string, string> = {
+                name: "Projet",
+                client: "Client",
+                stage: "Étape",
+                progress: "Progression",
+                category: "Catégorie",
+                startDate: "Début",
+                budget: "Budget",
+                actions: "Actions",
+              };
+              const isDisabled = columnId === "name" || columnId === "actions";
+              return (
+                <div key={columnId} className="flex items-center justify-between">
+                  <Label htmlFor={`col-${columnId}`} className="text-sm">
+                    {columnLabels[columnId]}
+                  </Label>
+                  <Switch
+                    id={`col-${columnId}`}
+                    checked={projectVisibleColumns.has(columnId)}
+                    onCheckedChange={() => toggleProjectColumnVisibility(columnId)}
+                    disabled={isDisabled}
+                    data-testid={`switch-column-${columnId}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+      
       <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
           <SheetHeader>
