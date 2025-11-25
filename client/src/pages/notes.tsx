@@ -712,14 +712,20 @@ export default function Notes() {
                 const linkedProject = getLinkedProject(note.id);
                 const isSelected = selectedNotes.has(note.id);
                 
-                return (
-                  <div
-                    key={note.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate items-center"
-                    data-testid={`row-note-${note.id}`}
-                  >
-                    {/* Checkbox */}
-                    <div className="col-span-1 flex items-center">
+                const columnConfig: Record<string, { colSpan: number }> = {
+                  checkbox: { colSpan: 1 },
+                  title: { colSpan: 3 },
+                  status: { colSpan: 1 },
+                  visibility: { colSpan: 1 },
+                  createdAt: { colSpan: 2 },
+                  updatedAt: { colSpan: 2 },
+                  project: { colSpan: 1 },
+                  actions: { colSpan: 1 },
+                };
+                
+                const cellContent: Record<string, JSX.Element> = {
+                  checkbox: (
+                    <div key="checkbox" className="col-span-1 flex items-center">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggleNoteSelection(note.id)}
@@ -727,8 +733,10 @@ export default function Notes() {
                         data-testid={`checkbox-note-${note.id}`}
                       />
                     </div>
-                    {/* Title */}
+                  ),
+                  title: (
                     <div 
+                      key="title"
                       className="col-span-3 flex flex-col gap-1 cursor-pointer"
                       onClick={() => navigate(`/notes/${note.id}`)}
                     >
@@ -742,8 +750,9 @@ export default function Notes() {
                         </div>
                       )}
                     </div>
-                    {/* Status */}
-                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                  ),
+                  status: (
+                    <div key="status" className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Badge
@@ -797,8 +806,9 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {/* Visibility */}
-                    <div className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                  ),
+                  visibility: (
+                    <div key="visibility" className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Badge
@@ -852,19 +862,22 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {/* Created Date */}
-                    <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
+                  ),
+                  createdAt: (
+                    <div key="createdAt" className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}
                     </div>
-                    {/* Last Modified */}
-                    <div className="col-span-2 flex items-center text-[11px] text-muted-foreground">
+                  ),
+                  updatedAt: (
+                    <div key="updatedAt" className="col-span-2 flex items-center text-[11px] text-muted-foreground">
                       {formatDistanceToNow(new Date(note.updatedAt), { 
                         addSuffix: true, 
                         locale: fr 
                       })}
                     </div>
-                    {/* Linked Project */}
-                    <div className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  ),
+                  project: (
+                    <div key="project" className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           {linkedProject ? (
@@ -915,8 +928,9 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {/* Actions Menu */}
-                    <div className="col-span-1 flex items-center justify-end">
+                  ),
+                  actions: (
+                    <div key="actions" className="col-span-1 flex items-center justify-end">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button
@@ -965,6 +979,16 @@ export default function Notes() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                  ),
+                };
+                
+                return (
+                  <div
+                    key={note.id}
+                    className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate items-center"
+                    data-testid={`row-note-${note.id}`}
+                  >
+                    {columnOrder.map((columnId) => cellContent[columnId])}
                   </div>
                 );
               })
