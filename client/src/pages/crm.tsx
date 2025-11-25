@@ -47,6 +47,7 @@ interface Column {
   label: string;
   width: number;
   className: string;
+  style?: React.CSSProperties;
 }
 
 // Composant pour une colonne draggable
@@ -133,10 +134,10 @@ export default function CRM() {
   const [columns, setColumns] = useState<Column[]>([
     { id: "client", label: "Client", width: 2, className: "col-span-2" },
     { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
-    { id: "type", label: "Type", width: 1, className: "col-span-1" },
+    { id: "type", label: "Type", width: 1, className: "col-span-1", style: { minWidth: '75px' } },
     { id: "projets", label: "Projets", width: 1, className: "col-span-1" },
-    { id: "budget", label: "Budget", width: 2, className: "col-span-2" },
-    { id: "creation", label: "Création", width: 2, className: "col-span-2" },
+    { id: "budget", label: "Budget", width: 2, className: "col-span-2", style: { maxWidth: 'calc(100% - 2.5px)' } },
+    { id: "creation", label: "Création", width: 2, className: "col-span-2", style: { maxWidth: 'calc(100% - 2.5px)' } },
   ]);
   
   const sensors = useSensors(
@@ -765,7 +766,7 @@ export default function CRM() {
                         />
                       </div>
                       {columns.map((column) => (
-                        <div key={column.id} className={column.className}>
+                        <div key={column.id} className={column.className} style={column.style}>
                           <DraggableColumnHeader 
                             id={column.id} 
                             label={column.label}
@@ -869,7 +870,7 @@ export default function CRM() {
 
                           if (column.id === "client") {
                             return (
-                              <Link key={column.id} href={`/crm/${client.id}`} className={column.className}>
+                              <Link key={column.id} href={`/crm/${client.id}`} className={column.className} style={column.style}>
                                 <div className="flex items-center cursor-pointer">
                                   {content}
                                 </div>
@@ -878,7 +879,7 @@ export default function CRM() {
                           }
 
                           return (
-                            <div key={column.id} className={`${column.className} flex items-center`}>
+                            <div key={column.id} className={`${column.className} flex items-center`} style={column.style}>
                               {content}
                             </div>
                           );

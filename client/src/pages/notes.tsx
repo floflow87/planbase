@@ -571,7 +571,7 @@ export default function Notes() {
               />
             </div>
             <select
-              className="border border-border rounded-md px-3 h-9 text-sm bg-background"
+              className="border border-border rounded-md px-3 h-9 text-sm bg-white dark:bg-card"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               data-testid="select-status-filter"
