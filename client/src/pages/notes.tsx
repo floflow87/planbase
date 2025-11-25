@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,118 @@ import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser, Project, NoteLink } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+// Sortable column header component
+interface SortableNoteColumnHeaderProps {
+  id: string;
+  label: string;
+  colSpan: number;
+  className?: string;
+  isDraggable?: boolean;
+  sortColumn: string;
+  sortDirection: 'asc' | 'desc';
+  onSort: (column: string) => void;
+  isSortable?: boolean;
+  children?: React.ReactNode;
+}
+
+function SortableNoteColumnHeader({
+  id,
+  label,
+  colSpan,
+  className = '',
+  isDraggable = true,
+  sortColumn,
+  sortDirection,
+  onSort,
+  isSortable = true,
+  children,
+}: SortableNoteColumnHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id,
+    disabled: !isDraggable,
+  });
+
+  const colSpanClasses: Record<number, string> = {
+    1: 'col-span-1',
+    2: 'col-span-2',
+    3: 'col-span-3',
+    4: 'col-span-4',
+    5: 'col-span-5',
+    6: 'col-span-6',
+  };
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isActive = sortColumn === id;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${colSpanClasses[colSpan] || 'col-span-1'} flex items-center gap-1 ${isDraggable ? 'cursor-move' : ''} ${className}`}
+    >
+      {isDraggable && (
+        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" {...attributes} {...listeners} />
+      )}
+      {children ? (
+        children
+      ) : (
+        <>
+          <span className="truncate">{label}</span>
+          {isSortable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSort(id);
+              }}
+              className="p-0.5 hover:bg-muted rounded flex-shrink-0"
+              data-testid={`sort-note-${id}`}
+            >
+              {isActive ? (
+                sortDirection === 'asc' ? (
+                  <ArrowUp className="h-3 w-3 text-primary" />
+                ) : (
+                  <ArrowDown className="h-3 w-3 text-primary" />
+                )
+              ) : (
+                <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+              )}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function Notes() {
   const [, navigate] = useLocation();
@@ -36,6 +148,64 @@ export default function Notes() {
     return saved ? parseInt(saved) : 20;
   });
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Column order and sorting state with localStorage persistence
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('noteListColumnOrder');
+    return saved ? JSON.parse(saved) : ['checkbox', 'title', 'status', 'visibility', 'createdAt', 'updatedAt', 'project', 'actions'];
+  });
+  const [sortColumn, setSortColumn] = useState<string>(() => {
+    const saved = localStorage.getItem('noteListSortColumn');
+    return saved || 'updatedAt';
+  });
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(() => {
+    const saved = localStorage.getItem('noteListSortDirection');
+    return (saved as 'asc' | 'desc') || 'desc';
+  });
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+
+  // Sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Save column order to localStorage
+  useEffect(() => {
+    localStorage.setItem('noteListColumnOrder', JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
+  // Save sort settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('noteListSortColumn', sortColumn);
+    localStorage.setItem('noteListSortDirection', sortDirection);
+  }, [sortColumn, sortDirection]);
+
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveColumnId(null);
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = columnOrder.indexOf(active.id as string);
+      const newIndex = columnOrder.indexOf(over.id as string);
+      setColumnOrder(arrayMove(columnOrder, oldIndex, newIndex));
+    }
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
@@ -63,6 +233,15 @@ export default function Notes() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, pageSize]);
 
+  // Helper function to get linked project for sorting
+  const getLinkedProjectForSort = (noteId: string): Project | null => {
+    const projectLink = noteLinks.find(
+      (link) => link.noteId === noteId && link.targetType === "project"
+    );
+    if (!projectLink) return null;
+    return projects.find((p) => p.id === projectLink.targetId) || null;
+  };
+
   // Filter and search notes
   const filteredNotes = useMemo(() => {
     // Clone the notes array to avoid mutating the cache
@@ -84,11 +263,38 @@ export default function Notes() {
       );
     }
 
-    // Sort by updatedAt (most recent first)
-    return result.sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-  }, [notes, searchQuery, statusFilter]);
+    // Sort by selected column
+    return result.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortColumn) {
+        case 'title':
+          comparison = (a.title || '').localeCompare(b.title || '');
+          break;
+        case 'status':
+          comparison = (a.status || '').localeCompare(b.status || '');
+          break;
+        case 'visibility':
+          comparison = (a.visibility || '').localeCompare(b.visibility || '');
+          break;
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case 'updatedAt':
+          comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+          break;
+        case 'project':
+          const projectA = getLinkedProjectForSort(a.id)?.name || '';
+          const projectB = getLinkedProjectForSort(b.id)?.name || '';
+          comparison = projectA.localeCompare(projectB);
+          break;
+        default:
+          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [notes, searchQuery, statusFilter, sortColumn, sortDirection, noteLinks, projects]);
 
   // Pagination
   const totalPages = Math.ceil(filteredNotes.length / pageSize);
@@ -430,25 +636,66 @@ export default function Notes() {
             ))}
           </div>
         ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(event) => setActiveColumnId(event.active.id as string)}
+            onDragEnd={handleColumnDragEnd}
+          >
           <div className="border border-border rounded-md overflow-hidden">
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
-              <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-muted-foreground items-center">
-                <div className="col-span-1 flex items-center">
-                  <Checkbox
-                    checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
-                    onCheckedChange={toggleAllNotes}
-                    data-testid="checkbox-select-all"
-                  />
+              <SortableContext
+                items={columnOrder.filter(id => id !== 'checkbox' && id !== 'actions')}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-muted-foreground items-center">
+                  {columnOrder.map((columnId) => {
+                    const columnConfig: Record<string, { label: string; colSpan: number; isSortable: boolean; isDraggable: boolean }> = {
+                      checkbox: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
+                      title: { label: 'Titre', colSpan: 3, isSortable: true, isDraggable: true },
+                      status: { label: 'Statut', colSpan: 1, isSortable: true, isDraggable: true },
+                      visibility: { label: 'Visibilité', colSpan: 1, isSortable: true, isDraggable: true },
+                      createdAt: { label: 'Date de création', colSpan: 2, isSortable: true, isDraggable: true },
+                      updatedAt: { label: 'Dernière modification', colSpan: 2, isSortable: true, isDraggable: true },
+                      project: { label: 'Projet rattaché', colSpan: 1, isSortable: true, isDraggable: true },
+                      actions: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
+                    };
+                    
+                    const config = columnConfig[columnId] || { label: columnId, colSpan: 1, isSortable: false, isDraggable: true };
+                    
+                    if (columnId === 'checkbox') {
+                      return (
+                        <div key={columnId} className="col-span-1 flex items-center">
+                          <Checkbox
+                            checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
+                            onCheckedChange={toggleAllNotes}
+                            data-testid="checkbox-select-all"
+                          />
+                        </div>
+                      );
+                    }
+                    
+                    if (columnId === 'actions') {
+                      return <div key={columnId} className="col-span-1"></div>;
+                    }
+                    
+                    return (
+                      <SortableNoteColumnHeader
+                        key={columnId}
+                        id={columnId}
+                        label={config.label}
+                        colSpan={config.colSpan}
+                        isDraggable={config.isDraggable}
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                        isSortable={config.isSortable}
+                      />
+                    );
+                  })}
                 </div>
-                <div className="col-span-3">Titre</div>
-                <div className="col-span-1">Statut</div>
-                <div className="col-span-1">Visibilité</div>
-                <div className="col-span-2">Date de création</div>
-                <div className="col-span-2">Dernière modification</div>
-                <div className="col-span-1">Projet rattaché</div>
-                <div className="col-span-1"></div>
-              </div>
+              </SortableContext>
             </div>
 
             {/* Table Body */}
@@ -749,6 +996,7 @@ export default function Notes() {
               </div>
             )}
           </div>
+          </DndContext>
         )}
 
         {/* Pagination Controls */}

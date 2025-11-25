@@ -2959,6 +2959,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientId = getGoogleClientId();
       const clientSecret = getGoogleClientSecret();
       
+      console.log("🔍 Google Calendar Status Check:", {
+        hasClientId: !!clientId,
+        hasClientSecret: !!clientSecret,
+        configured: !!(clientId && clientSecret),
+        connected: !!token
+      });
+      
       res.json({
         connected: !!token,
         email: token?.email || null,
