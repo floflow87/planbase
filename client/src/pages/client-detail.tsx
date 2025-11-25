@@ -421,8 +421,6 @@ export default function ClientDetail() {
         name: data.name,
         icon: data.icon || null,
         order: maxOrder + 1,
-        accountId,
-        createdBy: currentUser?.id,
       });
     },
     onSuccess: () => {
