@@ -26,6 +26,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -1360,15 +1361,28 @@ function ListView({
     );
   }
 
-// Sortable project column header component
+// Sortable project column header component with sorting
 interface SortableProjectColumnHeaderProps {
   id: string;
   label: string;
   className?: string;
   isDraggable?: boolean;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+  onSort?: (columnId: string) => void;
+  isSortable?: boolean;
 }
 
-function SortableProjectColumnHeader({ id, label, className, isDraggable = true }: SortableProjectColumnHeaderProps) {
+function SortableProjectColumnHeader({ 
+  id, 
+  label, 
+  className, 
+  isDraggable = true,
+  sortColumn,
+  sortDirection,
+  onSort,
+  isSortable = true
+}: SortableProjectColumnHeaderProps) {
   const {
     attributes,
     listeners,
@@ -1387,6 +1401,8 @@ function SortableProjectColumnHeader({ id, label, className, isDraggable = true 
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const isActive = sortColumn === id;
+
   return (
     <TableHead
       ref={setNodeRef}
@@ -1398,6 +1414,26 @@ function SortableProjectColumnHeader({ id, label, className, isDraggable = true 
           <GripVertical className="h-3 w-3 text-muted-foreground" {...attributes} {...listeners} />
         )}
         <span>{label}</span>
+        {isSortable && onSort && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onSort(id);
+            }}
+            className="p-0.5 hover:bg-muted rounded"
+            data-testid={`sort-${id}`}
+          >
+            {isActive ? (
+              sortDirection === "asc" ? (
+                <ArrowUp className="h-3 w-3 text-primary" />
+              ) : (
+                <ArrowDown className="h-3 w-3 text-primary" />
+              )
+            ) : (
+              <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+            )}
+          </button>
+        )}
       </div>
     </TableHead>
   );
@@ -1546,8 +1582,21 @@ export default function Projects() {
     budget: "",
   });
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
-  const [projectStageFilter, setProjectStageFilter] = useState("all");
+  const [projectStageFilters, setProjectStageFilters] = useState<string[]>(() => {
+    const saved = localStorage.getItem('projectStageFilters');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list">("list");
+  
+  // Sorting state with localStorage persistence
+  const [projectSortColumn, setProjectSortColumn] = useState<string>(() => {
+    const saved = localStorage.getItem('projectSortColumn');
+    return saved || "name";
+  });
+  const [projectSortDirection, setProjectSortDirection] = useState<"asc" | "desc">(() => {
+    const saved = localStorage.getItem('projectSortDirection');
+    return (saved as "asc" | "desc") || "asc";
+  });
   
   // Project pagination states
   const [projectPageSize, setProjectPageSize] = useState(() => {
@@ -1561,10 +1610,24 @@ export default function Projects() {
     localStorage.setItem('projectListPageSize', projectPageSize.toString());
   }, [projectPageSize]);
 
+  // Save stage filters to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('projectStageFilters', JSON.stringify(projectStageFilters));
+  }, [projectStageFilters]);
+
+  // Save sort settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('projectSortColumn', projectSortColumn);
+  }, [projectSortColumn]);
+  
+  useEffect(() => {
+    localStorage.setItem('projectSortDirection', projectSortDirection);
+  }, [projectSortDirection]);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setProjectCurrentPage(1);
-  }, [projectSearchQuery, projectStageFilter]);
+  }, [projectSearchQuery, projectStageFilters]);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   
   // Column order state for project list view
@@ -2472,18 +2535,67 @@ export default function Projects() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Select value={projectStageFilter} onValueChange={setProjectStageFilter}>
-                  <SelectTrigger className="w-[180px]" data-testid="select-project-stage-filter">
-                    <SelectValue placeholder="Toutes les étapes" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all" className="cursor-pointer">Toutes les étapes</SelectItem>
-                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
-                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
-                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
-                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[200px] justify-between" data-testid="select-project-stage-filter">
+                      <span className="truncate">
+                        {projectStageFilters.length === 0 
+                          ? "Toutes les étapes" 
+                          : projectStageFilters.length === 1 
+                            ? [
+                                { value: "prospection", label: "Prospection" },
+                                { value: "signe", label: "Signé" },
+                                { value: "en_cours", label: "En cours" },
+                                { value: "termine", label: "Terminé" }
+                              ].find(s => s.value === projectStageFilters[0])?.label
+                            : `${projectStageFilters.length} étapes`
+                        }
+                      </span>
+                      <Filter className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-2 bg-white" align="end">
+                    <div className="space-y-2">
+                      {[
+                        { value: "prospection", label: "Prospection" },
+                        { value: "signe", label: "Signé" },
+                        { value: "en_cours", label: "En cours" },
+                        { value: "termine", label: "Terminé" }
+                      ].map((stage) => (
+                        <div 
+                          key={stage.value} 
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                          onClick={() => {
+                            setProjectStageFilters(prev => 
+                              prev.includes(stage.value)
+                                ? prev.filter(s => s !== stage.value)
+                                : [...prev, stage.value]
+                            );
+                          }}
+                        >
+                          <Checkbox 
+                            checked={projectStageFilters.includes(stage.value)}
+                            data-testid={`checkbox-stage-${stage.value}`}
+                          />
+                          <span className="text-sm">{stage.label}</span>
+                        </div>
+                      ))}
+                      {projectStageFilters.length > 0 && (
+                        <div className="border-t pt-2 mt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full text-xs"
+                            onClick={() => setProjectStageFilters([])}
+                            data-testid="button-clear-filters"
+                          >
+                            Effacer les filtres
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <div className="flex border rounded-md">
                   <Button
                     variant={projectViewMode === "grid" ? "secondary" : "ghost"}
@@ -2526,6 +2638,16 @@ export default function Projects() {
 
             {/* Projects Grid */}
             {(() => {
+              // Handle column sort
+              const handleSort = (columnId: string) => {
+                if (projectSortColumn === columnId) {
+                  setProjectSortDirection(projectSortDirection === "asc" ? "desc" : "asc");
+                } else {
+                  setProjectSortColumn(columnId);
+                  setProjectSortDirection("asc");
+                }
+              };
+
               // Filter projects based on search and stage
               const filteredProjects = projects.filter((project) => {
                 const matchesSearch = projectSearchQuery === "" || 
@@ -2533,17 +2655,54 @@ export default function Projects() {
                   project.description?.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
                   project.category?.toLowerCase().includes(projectSearchQuery.toLowerCase());
                 
-                const matchesStage = projectStageFilter === "all" || project.stage === projectStageFilter;
+                const matchesStage = projectStageFilters.length === 0 || projectStageFilters.includes(project.stage || "");
                 
                 return matchesSearch && matchesStage;
               });
 
+              // Sort filtered projects
+              const sortedProjects = [...filteredProjects].sort((a, b) => {
+                let comparison = 0;
+                
+                switch (projectSortColumn) {
+                  case "name":
+                    comparison = (a.name || "").localeCompare(b.name || "");
+                    break;
+                  case "client":
+                    const clientA = clients.find(c => c.id === a.clientId)?.name || "";
+                    const clientB = clients.find(c => c.id === b.clientId)?.name || "";
+                    comparison = clientA.localeCompare(clientB);
+                    break;
+                  case "stage":
+                    const stageOrder = { prospection: 0, signe: 1, en_cours: 2, termine: 3 };
+                    comparison = (stageOrder[a.stage as keyof typeof stageOrder] || 0) - (stageOrder[b.stage as keyof typeof stageOrder] || 0);
+                    break;
+                  case "category":
+                    comparison = (a.category || "").localeCompare(b.category || "");
+                    break;
+                  case "startDate":
+                    const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
+                    const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
+                    comparison = dateA - dateB;
+                    break;
+                  case "budget":
+                    const budgetA = parseFloat(a.budget || "0");
+                    const budgetB = parseFloat(b.budget || "0");
+                    comparison = budgetA - budgetB;
+                    break;
+                  default:
+                    comparison = 0;
+                }
+                
+                return projectSortDirection === "asc" ? comparison : -comparison;
+              });
+
               // Paginate filtered projects (only for list view)
               const getPaginatedProjects = () => {
-                if (projectViewMode === "grid") return filteredProjects; // No pagination for grid view
+                if (projectViewMode === "grid") return sortedProjects; // No pagination for grid view
                 const startIndex = (projectCurrentPage - 1) * projectPageSize;
                 const endIndex = startIndex + projectPageSize;
-                return filteredProjects.slice(startIndex, endIndex);
+                return sortedProjects.slice(startIndex, endIndex);
               };
 
               const projectTotalPages = Math.ceil(filteredProjects.length / projectPageSize);
@@ -2782,6 +2941,8 @@ export default function Projects() {
                                   actions: "Actions",
                                 };
                                 
+                                const isSortableColumn = !["progress", "actions"].includes(columnId);
+                                
                                 return (
                                   <SortableProjectColumnHeader
                                     key={columnId}
@@ -2789,6 +2950,10 @@ export default function Projects() {
                                     label={columnLabels[columnId] || columnId}
                                     className={columnId === "budget" ? "text-right" : columnId === "actions" ? "w-[80px] bg-white" : ""}
                                     isDraggable={columnId !== "actions"}
+                                    sortColumn={projectSortColumn}
+                                    sortDirection={projectSortDirection}
+                                    onSort={handleSort}
+                                    isSortable={isSortableColumn}
                                   />
                                 );
                               })}
@@ -3255,7 +3420,7 @@ export default function Projects() {
                   project.description?.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
                   project.category?.toLowerCase().includes(projectSearchQuery.toLowerCase());
                 
-                const matchesStage = projectStageFilter === "all" || project.stage === projectStageFilter;
+                const matchesStage = projectStageFilters.length === 0 || projectStageFilters.includes(project.stage || "");
                 
                 return matchesSearch && matchesStage;
               });
