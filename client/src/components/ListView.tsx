@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -129,32 +122,6 @@ export function ListView({
     return saved ? parseInt(saved) : 20;
   });
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // Column visibility states
-  const defaultTaskColumns = ['checkbox', 'title', 'assignedTo', 'status', 'priority', 'effort', 'dueDate', 'actions'];
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('taskListVisibleColumns');
-    return saved ? new Set(JSON.parse(saved)) : new Set(defaultTaskColumns);
-  });
-  const [isColumnSheetOpen, setIsColumnSheetOpen] = useState(false);
-  
-  const toggleColumnVisibility = (columnId: string) => {
-    setVisibleColumns(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(columnId)) {
-        if (columnId === "checkbox" || columnId === "title" || columnId === "actions") return prev;
-        newSet.delete(columnId);
-      } else {
-        newSet.add(columnId);
-      }
-      return newSet;
-    });
-  };
-  
-  // Save visible columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('taskListVisibleColumns', JSON.stringify(Array.from(visibleColumns)));
-  }, [visibleColumns]);
 
   // Save pageSize to localStorage when it changes
   useEffect(() => {
@@ -430,6 +397,20 @@ export function ListView({
   };
 
   const SortableTableHeader = ({ columnId }: { columnId: string }) => {
+    if (columnId === 'checkbox') {
+      return (
+        <TableHead className="w-12">
+          <input
+            type="checkbox"
+            checked={selectedTasks.size === tasks.length && tasks.length > 0}
+            onChange={toggleAllTasks}
+            className="cursor-pointer"
+            data-testid="checkbox-select-all"
+          />
+        </TableHead>
+      );
+    }
+
     const {
       attributes,
       listeners,
@@ -450,17 +431,17 @@ export function ListView({
     const isSorted = sortConfig?.column === columnId;
 
     return (
-      <div
+      <TableHead
         ref={setNodeRef}
         style={style}
         {...attributes}
-        className="font-semibold text-[11px] flex items-center"
+        className="font-semibold text-[11px] h-10"
         data-testid={`table-header-${columnId}`}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button
             {...listeners}
-            className="cursor-grab hover:bg-accent p-0.5 rounded"
+            className="cursor-grab hover:bg-accent p-1 rounded"
             title="Glisser pour réorganiser"
           >
             <GripVertical className="h-3 w-3 text-muted-foreground" />
@@ -480,7 +461,7 @@ export function ListView({
             )}
           </div>
         </div>
-      </div>
+      </TableHead>
     );
   };
 
@@ -557,450 +538,400 @@ export function ListView({
       
       <Card>
         <CardContent className="p-0">
-          <div className="flex justify-end p-2 border-b">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setIsColumnSheetOpen(true)}
-              data-testid="button-task-columns"
+          <div className="overflow-x-auto">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
-              <SlidersHorizontal className="w-4 h-4" />
-            </Button>
-          </div>
-          {(() => {
-            // Calculate visible data columns (exclude checkbox and actions)
-            const visibleDataColumns = columnOrder.filter((id: string) => 
-              visibleColumns.has(id) && id !== 'checkbox' && id !== 'actions'
-            );
-            const hasCheckbox = visibleColumns.has('checkbox');
-            const hasActions = visibleColumns.has('actions');
-            
-            // Build grid template conditionally
-            const gridParts = [];
-            if (hasCheckbox) gridParts.push('40px');
-            gridParts.push(`repeat(${visibleDataColumns.length}, minmax(0, 1fr))`);
-            if (hasActions) gridParts.push('80px');
-            const gridTemplate = gridParts.join(' ');
-            
-            return (
-              <div className="overflow-x-auto">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCorners}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                >
-                  {/* Table Header */}
-                  <div 
-                    className="gap-2 px-4 h-10 items-center text-xs font-medium text-muted-foreground bg-muted/50 rounded-t-md min-w-max"
-                    style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
-                  >
-                    {/* Checkbox column - outside SortableContext */}
-                    {hasCheckbox && (
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedTasks.size === tasks.length && tasks.length > 0}
-                          onChange={() => {
-                            if (selectedTasks.size === tasks.length) {
-                              setSelectedTasks(new Set());
-                            } else {
-                              setSelectedTasks(new Set(tasks.map(t => t.id)));
-                            }
-                          }}
-                          className="cursor-pointer"
-                          data-testid="checkbox-select-all-tasks"
-                        />
-                      </div>
-                    )}
-                    {/* Data columns - inside SortableContext */}
-                    <SortableContext items={visibleDataColumns}>
-                      {visibleDataColumns.map((columnId: string) => (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <SortableContext items={columnOrder}>
+                      {columnOrder.map((columnId: string) => (
                         <SortableTableHeader key={columnId} columnId={columnId} />
                       ))}
                     </SortableContext>
-                    {/* Actions column - outside SortableContext */}
-                    {hasActions && (
-                      <div className="text-right pr-2">Actions</div>
-                    )}
-                  </div>
-                  
-                  {/* Table Body */}
-                  <div className="divide-y divide-border">
-                    {tasks.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tasks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Aucune tâche
-                      </div>
-                    ) : (
-                      getPaginatedTasks().map((task) => {
-                        const assignedUser = users.find((u) => u.id === task.assignedToId);
-                        const taskColumn = columns.find(c => c.id === task.columnId);
-                        const isEditing = editingCell?.taskId === task.id;
-                        
-                        return (
-                          <div 
-                            key={task.id} 
-                            className="gap-2 px-4 py-2 items-center hover-elevate active-elevate-2 rounded-md min-w-max"
-                            style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
-                            data-testid={`table-row-${task.id}`}
-                          >
-                            {/* Checkbox */}
-                            {hasCheckbox && (
-                              <div className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTasks.has(task.id)}
-                                  onChange={() => toggleTaskSelection(task.id)}
-                                  className="cursor-pointer"
-                                  data-testid={`checkbox-task-${task.id}`}
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Data columns */}
-                            {visibleDataColumns.map((columnId: string) => {
-                              switch (columnId) {
-                                case 'title':
-                                  return (
-                                    <div 
-                                      key={columnId} 
-                                      className="font-medium cursor-pointer hover:text-primary text-[12px] truncate"
-                                      onClick={() => onEditTask(task)}
-                                      data-testid={`cell-title-${task.id}`}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    getPaginatedTasks().map((task) => {
+                      const assignedUser = users.find((u) => u.id === task.assignedToId);
+                      const taskColumn = columns.find(c => c.id === task.columnId);
+                      const isEditing = editingCell?.taskId === task.id;
+                      
+                      return (
+                        <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
+                          {columnOrder.map((columnId: string) => {
+                            switch (columnId) {
+                              case 'checkbox':
+                                return (
+                                  <TableCell key={columnId} className="w-12">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedTasks.has(task.id)}
+                                      onChange={() => toggleTaskSelection(task.id)}
+                                      className="cursor-pointer"
+                                      data-testid={`checkbox-task-${task.id}`}
+                                    />
+                                  </TableCell>
+                                );
+                              case 'title':
+                                return (
+                                  <TableCell 
+                                    key={columnId} 
+                                    className="font-medium cursor-pointer hover:text-primary text-[12px]"
+                                    onClick={() => onEditTask(task)}
+                                    data-testid={`cell-title-${task.id}`}
+                                  >
+                                    {task.title}
+                                  </TableCell>
+                                );
+                              case 'assignedTo':
+                                return (
+                                  <TableCell key={columnId}>
+                                    {assignedUser ? (
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage src={assignedUser.avatarUrl || ""} />
+                                          <AvatarFallback className="text-[10px]">
+                                            {assignedUser.firstName?.[0]}
+                                            {assignedUser.lastName?.[0]}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-[11px]">
+                                          {assignedUser.firstName} {assignedUser.lastName}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-muted-foreground">Non assigné</span>
+                                    )}
+                                  </TableCell>
+                                );
+                              case 'status':
+                                return (
+                                  <TableCell key={columnId}>
+                                    <Popover
+                                      open={isEditing && editingCell.field === 'status'}
+                                      onOpenChange={(open) => {
+                                        if (open) {
+                                          setEditingCell({ taskId: task.id, field: 'status' });
+                                        } else {
+                                          setEditingCell(null);
+                                        }
+                                      }}
                                     >
-                                      {task.title}
-                                    </div>
-                                  );
-                                case 'assignedTo':
-                                  return (
-                                    <div key={columnId} className="flex items-center">
-                                      {assignedUser ? (
-                                        <div className="flex items-center gap-2">
-                                          <Avatar className="h-6 w-6 flex-shrink-0">
-                                            <AvatarImage src={assignedUser.avatarUrl || ""} />
-                                            <AvatarFallback className="text-[10px]">
-                                              {assignedUser.firstName?.[0]}
-                                              {assignedUser.lastName?.[0]}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <span className="text-[11px] truncate">
-                                            {assignedUser.firstName} {assignedUser.lastName}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-[11px] text-muted-foreground">Non assigné</span>
-                                      )}
-                                    </div>
-                                  );
-                                case 'status':
-                                  return (
-                                    <div key={columnId} className="flex items-center">
-                                      <Popover
-                                        open={isEditing && editingCell.field === 'status'}
-                                        onOpenChange={(open) => {
-                                          if (open) {
-                                            setEditingCell({ taskId: task.id, field: 'status' });
-                                          } else {
-                                            setEditingCell(null);
-                                          }
-                                        }}
-                                      >
-                                        <PopoverTrigger asChild>
-                                          <Badge 
-                                            style={{ backgroundColor: taskColumn?.color || 'transparent' }}
-                                            className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[12px]"
-                                            data-testid={`badge-status-${task.id}`}
-                                          >
-                                            {taskColumn?.name || '—'}
-                                          </Badge>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-56 p-2 bg-white">
-                                          <div className="space-y-1">
-                                            {(() => {
-                                              // Only show columns from the task's project to prevent cross-project moves
-                                              const taskProjectColumns = columns
-                                                .filter(col => col.projectId === task.projectId)
-                                                .sort((a, b) => a.order - b.order);
-                                              
-                                              return taskProjectColumns.map(col => (
-                                                <button
-                                                  key={col.id}
-                                                  onClick={() => {
-                                                    const tasksInNewColumn = tasks.filter(t => t.columnId === col.id);
-                                                    const maxPosition = tasksInNewColumn.length > 0
-                                                      ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
-                                                      : -1;
-                                                    onUpdateTask(task.id, {
-                                                      columnId: col.id,
-                                                      positionInColumn: maxPosition + 1,
-                                                    });
-                                                    setEditingCell(null);
-                                                  }}
-                                                  className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
-                                                >
-                                                  <div
-                                                    className="w-3 h-3 rounded-full"
-                                                    style={{ backgroundColor: col.color }}
-                                                  />
-                                                  <span className="text-xs">{col.name}</span>
-                                                </button>
-                                              ));
-                                            })()}
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    </div>
-                                  );
-                                case 'priority':
-                                  return (
-                                    <div key={columnId} className="flex items-center">
-                                      <Popover
-                                        open={isEditing && editingCell.field === 'priority'}
-                                        onOpenChange={(open) => {
-                                          if (open) {
-                                            setEditingCell({ taskId: task.id, field: 'priority' });
-                                          } else {
-                                            setEditingCell(null);
-                                          }
-                                        }}
-                                      >
-                                        <PopoverTrigger asChild>
-                                          <Badge 
-                                            className={`text-[10px] cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
-                                            data-testid={`badge-priority-${task.id}`}
-                                          >
-                                            {getPriorityLabel(task.priority)}
-                                          </Badge>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-40 p-2 bg-white">
-                                          <div className="space-y-1">
-                                            {[
-                                              { value: 'high', label: 'Urgent', color: 'bg-red-100 text-red-700' },
-                                              { value: 'medium', label: 'Moyen', color: 'bg-yellow-100 text-yellow-700' },
-                                              { value: 'low', label: 'Faible', color: 'bg-green-100 text-green-700' },
-                                            ].map(priority => (
+                                      <PopoverTrigger asChild>
+                                        <Badge 
+                                          style={{ backgroundColor: taskColumn?.color || 'transparent' }}
+                                          className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[12px]"
+                                          data-testid={`badge-status-${task.id}`}
+                                        >
+                                          {taskColumn?.name || '—'}
+                                        </Badge>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-56 p-2 bg-white">
+                                        <div className="space-y-1">
+                                          {(() => {
+                                            // Only show columns from the task's project to prevent cross-project moves
+                                            const taskProjectColumns = columns
+                                              .filter(col => col.projectId === task.projectId)
+                                              .sort((a, b) => a.order - b.order);
+                                            
+                                            return taskProjectColumns.map(col => (
                                               <button
-                                                key={priority.value}
+                                                key={col.id}
                                                 onClick={() => {
-                                                  onUpdateTask(task.id, { priority: priority.value });
+                                                  const tasksInNewColumn = tasks.filter(t => t.columnId === col.id);
+                                                  const maxPosition = tasksInNewColumn.length > 0
+                                                    ? Math.max(...tasksInNewColumn.map(t => t.positionInColumn))
+                                                    : -1;
+                                                  onUpdateTask(task.id, {
+                                                    columnId: col.id,
+                                                    positionInColumn: maxPosition + 1,
+                                                  });
                                                   setEditingCell(null);
                                                 }}
-                                                className="w-full text-left px-3 py-2 rounded hover-elevate"
+                                                className="w-full text-left px-3 py-2 rounded hover-elevate flex items-center gap-2"
                                               >
-                                                <Badge className={`text-[10px] ${priority.color}`}>
-                                                  {priority.label}
-                                                </Badge>
+                                                <div
+                                                  className="w-3 h-3 rounded-full"
+                                                  style={{ backgroundColor: col.color }}
+                                                />
+                                                <span className="text-xs">{col.name}</span>
                                               </button>
-                                            ))}
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    </div>
-                                  );
-                                case 'effort':
-                                  return (
-                                    <div key={columnId} className="flex items-center">
-                                      <div className="flex items-center gap-0.5" data-testid={`stars-effort-${task.id}`}>
-                                        {[1, 2, 3, 4, 5].map(star => (
-                                          <Star
-                                            key={star}
-                                            className={`h-4 w-4 cursor-pointer transition-colors ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              onUpdateTask(task.id, { effort: star } as any);
-                                            }}
-                                            data-testid={`star-${star}-task-${task.id}`}
-                                          />
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                case 'dueDate':
-                                  const dueDateInfo = (() => {
-                                    if (!task.dueDate) return { progress: 0, color: '' };
-                                    
-                                    const due = new Date(task.dueDate).getTime();
-                                    const now = Date.now();
-                                    
-                                    // Calculate days remaining
-                                    const daysRemaining = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-                                    
-                                    // Calculate progress based on urgency (days remaining)
-                                    let progress = 0;
-                                    let color = '';
-                                    
-                                    if (daysRemaining <= 0) {
-                                      progress = 100;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-red-500 [&>div]:to-red-600';
-                                    } else if (daysRemaining <= 2) {
-                                      progress = 75;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-red-500';
-                                    } else if (daysRemaining <= 3) {
-                                      progress = 50;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-orange-500';
-                                    } else if (daysRemaining <= 5) {
-                                      progress = 35;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-yellow-400 [&>div]:to-orange-400';
-                                    } else if (daysRemaining <= 8) {
-                                      progress = 15;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
-                                    } else {
-                                      progress = 1;
-                                      color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
-                                    }
-                                    
-                                    return { progress, color };
-                                  })();
-                                  
-                                  return (
-                                    <div key={columnId} className="flex items-center">
-                                      <div className="flex flex-col gap-1.5">
-                                        <Popover
-                                          open={isEditing && editingCell.field === 'dueDate'}
-                                          onOpenChange={(open) => {
-                                            if (open) {
-                                              setEditingCell({ taskId: task.id, field: 'dueDate' });
-                                            } else {
-                                              setEditingCell(null);
-                                            }
-                                          }}
+                                            ));
+                                          })()}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  </TableCell>
+                                );
+                              case 'priority':
+                                return (
+                                  <TableCell key={columnId}>
+                                    <Popover
+                                      open={isEditing && editingCell.field === 'priority'}
+                                      onOpenChange={(open) => {
+                                        if (open) {
+                                          setEditingCell({ taskId: task.id, field: 'priority' });
+                                        } else {
+                                          setEditingCell(null);
+                                        }
+                                      }}
+                                    >
+                                      <PopoverTrigger asChild>
+                                        <Badge 
+                                          className={`text-[10px] cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                                          data-testid={`badge-priority-${task.id}`}
                                         >
-                                          <PopoverTrigger asChild>
-                                            <Badge
-                                              variant="outline"
-                                              className="cursor-pointer hover-elevate min-w-[100px] text-[12px]"
-                                              data-testid={`badge-due-date-${task.id}`}
-                                            >
-                                              {task.dueDate 
-                                                ? formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })
-                                                : '—'
-                                              }
-                                            </Badge>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-auto p-0 bg-white" align="start">
-                                            <Calendar
-                                              mode="single"
-                                              selected={task.dueDate ? new Date(task.dueDate) : undefined}
-                                              onSelect={(date) => {
-                                                onUpdateTask(task.id, { 
-                                                  dueDate: date ? formatDateForStorage(date) : null 
-                                                } as any);
+                                          {getPriorityLabel(task.priority)}
+                                        </Badge>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-40 p-2 bg-white">
+                                        <div className="space-y-1">
+                                          {[
+                                            { value: 'high', label: 'Urgent', color: 'bg-red-100 text-red-700' },
+                                            { value: 'medium', label: 'Moyen', color: 'bg-yellow-100 text-yellow-700' },
+                                            { value: 'low', label: 'Faible', color: 'bg-green-100 text-green-700' },
+                                          ].map(priority => (
+                                            <button
+                                              key={priority.value}
+                                              onClick={() => {
+                                                onUpdateTask(task.id, { priority: priority.value });
                                                 setEditingCell(null);
                                               }}
-                                              initialFocus
-                                            />
-                                          </PopoverContent>
-                                        </Popover>
-                                        {task.dueDate && (
-                                          <Progress 
-                                            value={dueDateInfo.progress} 
-                                            className={`h-1 w-full ${dueDateInfo.color}`}
-                                            data-testid={`progress-due-date-${task.id}`}
-                                          />
-                                        )}
-                                      </div>
+                                              className="w-full text-left px-3 py-2 rounded hover-elevate"
+                                            >
+                                              <Badge className={`text-[10px] ${priority.color}`}>
+                                                {priority.label}
+                                              </Badge>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  </TableCell>
+                                );
+                              case 'effort':
+                                return (
+                                  <TableCell key={columnId}>
+                                    <div className="flex items-center gap-0.5" data-testid={`stars-effort-${task.id}`}>
+                                      {[1, 2, 3, 4, 5].map(star => (
+                                        <Star
+                                          key={star}
+                                          className={`h-4 w-4 cursor-pointer transition-colors ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onUpdateTask(task.id, { effort: star } as any);
+                                          }}
+                                          data-testid={`star-${star}-task-${task.id}`}
+                                        />
+                                      ))}
                                     </div>
-                                  );
-                                default:
-                                  return null;
-                              }
-                            })}
-                            
-                            {/* Actions column */}
-                            {hasActions && (
-                              <div className="flex items-center justify-end">
-                                <div className="flex items-center gap-1">
-                                  {task.status === "done" ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-muted-foreground cursor-default"
-                                      disabled
-                                      data-testid={`button-complete-task-${task.id}`}
-                                      title="Terminée"
-                                    >
-                                      <CheckCircle2 className="h-4 w-4" />
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-green-600 hover:text-green-700"
-                                      onClick={() => {
-                                        const doneColumn = columns.find(c => 
-                                          c.name.toLowerCase().includes("terminé") || 
-                                          c.name.toLowerCase().includes("done") || 
-                                          c.name.toLowerCase().includes("complété")
-                                        );
-                                        
-                                        onUpdateTask(task.id, { 
-                                          status: "done",
-                                          ...(doneColumn && { columnId: doneColumn.id })
-                                        } as any);
-                                      }}
-                                      data-testid={`button-complete-task-${task.id}`}
-                                      title="Marquer comme terminée"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => onEditTask(task)}
-                                    data-testid={`button-edit-task-${task.id}`}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:text-destructive"
-                                    onClick={() => onDeleteTask(task)}
-                                    data-testid={`button-delete-task-${task.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                    
-                    {/* Quick add task row */}
-                    <div 
-                      className="gap-2 px-4 py-2 items-center border-t min-w-max"
-                      style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
-                    >
-                      {hasCheckbox && <div />}
-                      <div style={{ gridColumn: `span ${visibleDataColumns.length}` }} className="flex items-center gap-2">
-                        <Plus className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Nouvelle tâche..."
-                          value={quickAddTaskTitle}
-                          onChange={(e) => setQuickAddTaskTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && quickAddTaskTitle.trim()) {
-                              onCreateTask();
-                            } else if (e.key === "Escape") {
-                              setQuickAddTaskTitle("");
+                                  </TableCell>
+                                );
+                              case 'dueDate':
+                                const dueDateInfo = (() => {
+                                  if (!task.dueDate) return { progress: 0, color: '' };
+                                  
+                                  const due = new Date(task.dueDate).getTime();
+                                  const now = Date.now();
+                                  
+                                  // Calculate days remaining
+                                  const daysRemaining = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                                  
+                                  // Calculate progress based on urgency (days remaining)
+                                  let progress = 0;
+                                  let color = '';
+                                  
+                                  if (daysRemaining <= 0) {
+                                    // Overdue - 100% red
+                                    progress = 100;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-red-500 [&>div]:to-red-600';
+                                  } else if (daysRemaining <= 2) {
+                                    // 2 days or less - 70-80% orange
+                                    progress = 75;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-red-500';
+                                  } else if (daysRemaining <= 3) {
+                                    // 3 days - 50% orange
+                                    progress = 50;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-orange-400 [&>div]:to-orange-500';
+                                  } else if (daysRemaining <= 5) {
+                                    // 5 days - 35% yellow
+                                    progress = 35;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-yellow-400 [&>div]:to-orange-400';
+                                  } else if (daysRemaining <= 8) {
+                                    // 8 days - 15% green
+                                    progress = 15;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
+                                  } else {
+                                    // More than 8 days - 1% green
+                                    progress = 1;
+                                    color = '[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-500';
+                                  }
+                                  
+                                  return { progress, color };
+                                })();
+                                
+                                return (
+                                  <TableCell key={columnId}>
+                                    <div className="flex flex-col gap-1.5">
+                                      <Popover
+                                        open={isEditing && editingCell.field === 'dueDate'}
+                                        onOpenChange={(open) => {
+                                          if (open) {
+                                            setEditingCell({ taskId: task.id, field: 'dueDate' });
+                                          } else {
+                                            setEditingCell(null);
+                                          }
+                                        }}
+                                      >
+                                        <PopoverTrigger asChild>
+                                          <Badge
+                                            variant="outline"
+                                            className="cursor-pointer hover-elevate min-w-[100px] text-[12px]"
+                                            data-testid={`badge-due-date-${task.id}`}
+                                          >
+                                            {task.dueDate 
+                                              ? formatDate(new Date(task.dueDate), 'dd MMM yyyy', { locale: fr })
+                                              : '—'
+                                            }
+                                          </Badge>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0 bg-white" align="start">
+                                          <Calendar
+                                            mode="single"
+                                            selected={task.dueDate ? new Date(task.dueDate) : undefined}
+                                            onSelect={(date) => {
+                                              onUpdateTask(task.id, { 
+                                                dueDate: date ? formatDateForStorage(date) : null 
+                                              } as any);
+                                              setEditingCell(null);
+                                            }}
+                                            initialFocus
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                      {task.dueDate && (
+                                        <Progress 
+                                          value={dueDateInfo.progress} 
+                                          className={`h-1 w-full ${dueDateInfo.color}`}
+                                          data-testid={`progress-due-date-${task.id}`}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                );
+                              case 'actions':
+                                return (
+                                  <TableCell key={columnId}>
+                                    <div className="flex items-center gap-2">
+                                      {task.status === "done" ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground cursor-default"
+                                          disabled
+                                          data-testid={`button-complete-task-${task.id}`}
+                                          title="Terminée"
+                                        >
+                                          <CheckCircle2 className="h-4 w-4" />
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-green-600 hover:text-green-700"
+                                          onClick={() => {
+                                            const doneColumn = columns.find(c => 
+                                              c.name.toLowerCase().includes("terminé") || 
+                                              c.name.toLowerCase().includes("done") || 
+                                              c.name.toLowerCase().includes("complété")
+                                            );
+                                            
+                                            onUpdateTask(task.id, { 
+                                              status: "done",
+                                              ...(doneColumn && { columnId: doneColumn.id })
+                                            } as any);
+                                          }}
+                                          data-testid={`button-complete-task-${task.id}`}
+                                          title="Marquer comme terminée"
+                                        >
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => onEditTask(task)}
+                                        data-testid={`button-edit-task-${task.id}`}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        onClick={() => onDeleteTask(task)}
+                                        data-testid={`button-delete-task-${task.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                );
+                              default:
+                                return null;
                             }
-                          }}
-                          disabled={isQuickAddingTask}
-                          className="border-0 focus-visible:ring-0 text-[11px] h-8 flex-1"
-                          data-testid="input-quick-add-task"
-                        />
-                      </div>
-                      {hasActions && <div />}
-                    </div>
-                  </div>
-                </DndContext>
-              </div>
-            );
-          })()}
+                          })}
+                        </TableRow>
+                      );
+                    })
+                  )}
+                  {/* Quick add task row */}
+                  <TableRow className="h-12">
+                    {columnOrder.map((columnId: string) => {
+                      if (columnId === 'title') {
+                        return (
+                          <TableCell key={columnId} colSpan={columnOrder.length}>
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Nouvelle tâche..."
+                                value={quickAddTaskTitle}
+                                onChange={(e) => setQuickAddTaskTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && quickAddTaskTitle.trim()) {
+                                    onCreateTask();
+                                  } else if (e.key === "Escape") {
+                                    setQuickAddTaskTitle("");
+                                  }
+                                }}
+                                disabled={isQuickAddingTask}
+                                className="border-0 focus-visible:ring-0 text-[11px] h-8"
+                                data-testid="input-quick-add-task"
+                              />
+                            </div>
+                          </TableCell>
+                        );
+                      }
+                      return null;
+                    })}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </DndContext>
+          </div>
         </CardContent>
       </Card>
 
@@ -1118,44 +1049,6 @@ export function ListView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Sheet for column visibility management */}
-      <Sheet open={isColumnSheetOpen} onOpenChange={setIsColumnSheetOpen}>
-        <SheetContent className="w-80" data-testid="sheet-task-columns">
-          <SheetHeader>
-            <SheetTitle>Colonnes visibles</SheetTitle>
-          </SheetHeader>
-          <div className="py-4 space-y-4">
-            {defaultTaskColumns.map((columnId) => {
-              const columnLabels: Record<string, string> = {
-                checkbox: "Sélection",
-                title: "Tâche",
-                assignedTo: "Assigné à",
-                status: "Statut",
-                priority: "Priorité",
-                effort: "Effort",
-                dueDate: "Échéance",
-                actions: "Actions",
-              };
-              const isDisabled = columnId === "checkbox" || columnId === "title" || columnId === "actions";
-              return (
-                <div key={columnId} className="flex items-center justify-between">
-                  <Label htmlFor={`task-col-${columnId}`} className="text-sm">
-                    {columnLabels[columnId]}
-                  </Label>
-                  <Switch
-                    id={`task-col-${columnId}`}
-                    checked={visibleColumns.has(columnId)}
-                    onCheckedChange={() => toggleColumnVisibility(columnId)}
-                    disabled={isDisabled}
-                    data-testid={`switch-task-column-${columnId}`}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

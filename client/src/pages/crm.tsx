@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -131,7 +130,6 @@ export default function CRM() {
   });
   
   // Colonnes configurables
-  const defaultCrmColumns: ColumnId[] = ["client", "contacts", "type", "projets", "budget", "creation"];
   const [columns, setColumns] = useState<Column[]>([
     { id: "client", label: "Client", width: 2, className: "col-span-2" },
     { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
@@ -140,31 +138,6 @@ export default function CRM() {
     { id: "budget", label: "Budget", width: 2, className: "col-span-2" },
     { id: "creation", label: "Création", width: 2, className: "col-span-2" },
   ]);
-  
-  // Column visibility states
-  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(() => {
-    const saved = localStorage.getItem('crmVisibleColumns');
-    return saved ? new Set(JSON.parse(saved) as ColumnId[]) : new Set(defaultCrmColumns);
-  });
-  const [isColumnSheetOpen, setIsColumnSheetOpen] = useState(false);
-  
-  const toggleColumnVisibility = (columnId: ColumnId) => {
-    setVisibleColumns(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(columnId)) {
-        if (columnId === "client") return prev;
-        newSet.delete(columnId);
-      } else {
-        newSet.add(columnId);
-      }
-      return newSet;
-    });
-  };
-  
-  // Save visible columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('crmVisibleColumns', JSON.stringify(Array.from(visibleColumns)));
-  }, [visibleColumns]);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -754,17 +727,6 @@ export default function CRM() {
                     <LayoutGrid className="w-4 h-4" />
                   </Button>
                 </div>
-                {viewMode === "table" && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsColumnSheetOpen(true)}
-                    data-testid="button-crm-columns"
-                    className="hidden md:flex"
-                  >
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             </div>
           </CardHeader>
@@ -782,191 +744,180 @@ export default function CRM() {
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
                   >
-                    {(() => {
-                      const visibleDataColumns = columns.filter(col => visibleColumns.has(col.id));
-                      const gridTemplate = `48px repeat(${visibleDataColumns.length}, minmax(0, 1fr)) 80px`;
-                      
-                      return (
-                        <div className="space-y-2 hidden md:block relative">
-                          {/* Table Header with drag and drop */}
-                          <SortableContext
-                            items={visibleDataColumns.map(col => col.id)}
-                            strategy={horizontalListSortingStrategy}
-                          >
-                            <div 
-                              className="gap-2 px-4 h-10 items-center text-xs font-medium text-muted-foreground bg-muted/50"
-                              style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
-                            >
-                              <div className="flex items-center">
-                                <Checkbox
-                                  checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedClients(new Set(filteredClients.map(c => c.id)));
-                                    } else {
-                                      setSelectedClients(new Set());
-                                    }
-                                  }}
-                                  data-testid="checkbox-select-all"
-                                />
-                              </div>
-                              {visibleDataColumns.map((column) => (
-                                <div key={column.id}>
-                                  <DraggableColumnHeader 
-                                    id={column.id} 
-                                    label={column.label}
-                                    sortColumn={sortColumn}
-                                    sortDirection={sortDirection}
-                                    onSort={handleSort}
-                                  />
-                                </div>
-                              ))}
-                              <div className="sticky right-0 bg-muted/50 pl-2">Actions</div>
-                            </div>
-                          </SortableContext>
-                  
-                          {/* Table Rows */}
-                          {filteredClients.map((client) => {
-                            const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
-                            const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-                            const isSelected = selectedClients.has(client.id);
-
-                            return (
-                              <div
-                                key={client.id}
-                                className={`gap-2 px-4 py-2 items-center hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
-                                style={{ display: 'grid', gridTemplateColumns: gridTemplate }}
-                                data-testid={`row-client-${client.id}`}
-                              >
-                                <div className="flex items-center">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => {
-                                      const newSelected = new Set(selectedClients);
-                                      if (checked) {
-                                        newSelected.add(client.id);
-                                      } else {
-                                        newSelected.delete(client.id);
-                                      }
-                                      setSelectedClients(newSelected);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    data-testid={`checkbox-select-${client.id}`}
-                                  />
-                                </div>
-                                {visibleDataColumns.map((column) => {
-                                  const content = (() => {
-                                    switch (column.id) {
-                                      case "client":
-                                        return (
-                                          <div className="flex items-center gap-2">
-                                            <p className="text-xs font-medium text-foreground truncate">
-                                              {client.company || client.name}
-                                            </p>
-                                          </div>
-                                        );
-                                      case "contacts":
-                                        return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
-                                      case "type":
-                                        return (
-                                          <Badge className={getStatusBadgeColor(client.status)}>
-                                            {client.status === "prospecting" ? "Prospection" :
-                                             client.status === "qualified" ? "Qualifié" :
-                                             client.status === "negotiation" ? "Négociation" :
-                                             client.status === "won" ? "Gagné" :
-                                             client.status === "lost" ? "Perdu" : client.status}
-                                          </Badge>
-                                        );
-                                      case "projets":
-                                        return clientProjects.length > 0 ? (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <p className="text-xs text-foreground cursor-help">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              <div className="space-y-1">
-                                                {clientProjects.map((p: Project) => (
-                                                  <div key={p.id} className="text-[10px]">{p.name}</div>
-                                                ))}
-                                              </div>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        ) : (
-                                          <p className="text-xs text-foreground">0 projet</p>
-                                        );
-                                      case "budget":
-                                        const totalProjectBudget = clientProjects.reduce((sum, p: Project) => {
-                                          return sum + (parseFloat(p.budget || "0"));
-                                        }, 0);
-                                        return (
-                                          <p className="text-xs font-medium text-foreground">
-                                            €{totalProjectBudget > 0 ? totalProjectBudget.toLocaleString() : "0"}
-                                          </p>
-                                        );
-                                      case "creation":
-                                        return (
-                                          <p className="text-xs text-foreground">
-                                            {client.createdAt ? new Date(client.createdAt).toLocaleDateString('fr-FR') : "-"}
-                                          </p>
-                                        );
-                                      default:
-                                        return null;
-                                    }
-                                  })();
-
-                                  if (column.id === "client") {
-                                    return (
-                                      <Link key={column.id} href={`/crm/${client.id}`}>
-                                        <div className="flex items-center cursor-pointer truncate">
-                                          {content}
-                                        </div>
-                                      </Link>
-                                    );
-                                  }
-
-                                  return (
-                                    <div key={column.id} className="flex items-center">
-                                      {content}
-                                    </div>
-                                  );
-                                })}
-                                <div className="sticky right-0 bg-background flex items-center pl-2">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
-                                        <Edit className="w-4 h-4 mr-2" />
-                                        Modifier
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem data-testid={`button-message-${client.id}`}>
-                                        <MessageSquare className="w-4 h-4 mr-2" />
-                                        Message
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        className="text-red-600"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setClientToDelete(client.id);
-                                          setIsDeleteDialogOpen(true);
-                                        }}
-                                        data-testid={`button-delete-${client.id}`}
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Supprimer
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                              </div>
-                            );
-                          })}
+                    <div className="space-y-2 hidden md:block overflow-x-auto">
+                  {/* Table Header with drag and drop */}
+                  <SortableContext
+                    items={columns.map(col => col.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <div className="grid grid-cols-12 gap-2 px-4 h-10 items-center text-xs font-medium text-muted-foreground bg-muted/50">
+                      <div className="col-span-1 flex items-center">
+                        <Checkbox
+                          checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedClients(new Set(filteredClients.map(c => c.id)));
+                            } else {
+                              setSelectedClients(new Set());
+                            }
+                          }}
+                          data-testid="checkbox-select-all"
+                        />
+                      </div>
+                      {columns.map((column) => (
+                        <div key={column.id} className={column.className}>
+                          <DraggableColumnHeader 
+                            id={column.id} 
+                            label={column.label}
+                            sortColumn={sortColumn}
+                            sortDirection={sortDirection}
+                            onSort={handleSort}
+                          />
                         </div>
-                      );
-                    })()}
+                      ))}
+                      <div className="col-span-1">Actions</div>
+                    </div>
+                  </SortableContext>
+                  
+                  {/* Table Rows */}
+                  {filteredClients.map((client) => {
+                    const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
+                    const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+                    const isSelected = selectedClients.has(client.id);
+
+                    return (
+                      <div
+                        key={client.id}
+                        className={`grid grid-cols-12 gap-2 px-4 py-2 items-center hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
+                        data-testid={`row-client-${client.id}`}
+                      >
+                        <div className="col-span-1 flex items-center">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedClients);
+                              if (checked) {
+                                newSelected.add(client.id);
+                              } else {
+                                newSelected.delete(client.id);
+                              }
+                              setSelectedClients(newSelected);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`checkbox-select-${client.id}`}
+                          />
+                        </div>
+                        {columns.map((column) => {
+                          const content = (() => {
+                            switch (column.id) {
+                              case "client":
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs font-medium text-foreground">
+                                      {client.company || client.name}
+                                    </p>
+                                  </div>
+                                );
+                              case "contacts":
+                                return <Badge variant="outline">{clientContacts.length} contact{clientContacts.length > 1 ? 's' : ''}</Badge>;
+                              case "type":
+                                return (
+                                  <Badge className={getStatusBadgeColor(client.status)}>
+                                    {client.status === "prospecting" ? "Prospection" :
+                                     client.status === "qualified" ? "Qualifié" :
+                                     client.status === "negotiation" ? "Négociation" :
+                                     client.status === "won" ? "Gagné" :
+                                     client.status === "lost" ? "Perdu" : client.status}
+                                  </Badge>
+                                );
+                              case "projets":
+                                return clientProjects.length > 0 ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className="text-xs text-foreground cursor-help">{clientProjects.length} projet{clientProjects.length > 1 ? 's' : ''}</p>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="space-y-1">
+                                        {clientProjects.map((p: Project) => (
+                                          <div key={p.id} className="text-[10px]">{p.name}</div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <p className="text-xs text-foreground">0 projet</p>
+                                );
+                              case "budget":
+                                const totalProjectBudget = clientProjects.reduce((sum, p: Project) => {
+                                  return sum + (parseFloat(p.budget || "0"));
+                                }, 0);
+                                return (
+                                  <p className="text-xs font-medium text-foreground">
+                                    €{totalProjectBudget > 0 ? totalProjectBudget.toLocaleString() : "0"}
+                                  </p>
+                                );
+                              case "creation":
+                                return (
+                                  <p className="text-xs text-foreground">
+                                    {client.createdAt ? new Date(client.createdAt).toLocaleDateString('fr-FR') : "-"}
+                                  </p>
+                                );
+                              default:
+                                return null;
+                            }
+                          })();
+
+                          if (column.id === "client") {
+                            return (
+                              <Link key={column.id} href={`/crm/${client.id}`} className={column.className}>
+                                <div className="flex items-center cursor-pointer">
+                                  {content}
+                                </div>
+                              </Link>
+                            );
+                          }
+
+                          return (
+                            <div key={column.id} className={`${column.className} flex items-center`}>
+                              {content}
+                            </div>
+                          );
+                        })}
+                        <div className="col-span-1 flex items-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`button-message-${client.id}`}>
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Message
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setClientToDelete(client.id);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                data-testid={`button-delete-${client.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                   </DndContext>
                 )}
                 
@@ -1134,34 +1085,6 @@ export default function CRM() {
             </div>
           </DialogContent>
         </Dialog>
-        
-        {/* Sheet for column visibility management */}
-        <Sheet open={isColumnSheetOpen} onOpenChange={setIsColumnSheetOpen}>
-          <SheetContent className="w-80" data-testid="sheet-crm-columns">
-            <SheetHeader>
-              <SheetTitle>Colonnes visibles</SheetTitle>
-            </SheetHeader>
-            <div className="py-4 space-y-4">
-              {columns.map((column) => {
-                const isDisabled = column.id === "client";
-                return (
-                  <div key={column.id} className="flex items-center justify-between">
-                    <Label htmlFor={`crm-col-${column.id}`} className="text-sm">
-                      {column.label}
-                    </Label>
-                    <Switch
-                      id={`crm-col-${column.id}`}
-                      checked={visibleColumns.has(column.id)}
-                      onCheckedChange={() => toggleColumnVisibility(column.id)}
-                      disabled={isDisabled}
-                      data-testid={`switch-crm-column-${column.id}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
     </div>
   );
