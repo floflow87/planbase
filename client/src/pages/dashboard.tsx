@@ -16,7 +16,7 @@ import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
@@ -122,6 +122,20 @@ const translateActivityDescription = (description: string) => {
   }
   
   return description;
+};
+
+// Fonction pour obtenir l'URL de redirection d'une activité
+const getActivityUrl = (subjectType: string, subjectId: string): string | null => {
+  const routes: Record<string, string> = {
+    project: `/projects/${subjectId}`,
+    client: `/crm/${subjectId}`,
+    note: `/notes/${subjectId}`,
+    document: `/documents/${subjectId}`,
+    task: `/tasks`,
+    deal: `/crm`,
+    contact: `/crm`,
+  };
+  return routes[subjectType] || null;
 };
 
 export default function Dashboard() {
@@ -1132,8 +1146,10 @@ export default function Dashboard() {
                   const description = payload.description 
                     ? translateActivityDescription(payload.description)
                     : `${translatedSubject} ${translatedKind}`;
-                  return (
-                    <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
+                  const activityUrl = getActivityUrl(activity.subjectType, activity.subjectId);
+                  
+                  const activityContent = (
+                    <>
                       <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-foreground capitalize">
@@ -1143,6 +1159,21 @@ export default function Dashboard() {
                           {new Date(activity.createdAt).toLocaleDateString()}
                         </p>
                       </div>
+                    </>
+                  );
+                  
+                  return activityUrl ? (
+                    <Link 
+                      key={activity.id} 
+                      href={activityUrl}
+                      className="flex items-start gap-3 p-2 -mx-2 rounded-md hover-elevate cursor-pointer" 
+                      data-testid={`activity-${activity.id}`}
+                    >
+                      {activityContent}
+                    </Link>
+                  ) : (
+                    <div key={activity.id} className="flex items-start gap-3" data-testid={`activity-${activity.id}`}>
+                      {activityContent}
                     </div>
                   );
                 })}
