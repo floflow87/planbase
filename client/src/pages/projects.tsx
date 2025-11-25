@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1627,6 +1627,135 @@ function DraggableProjectCard({
   );
 }
 
+// Project Kanban View Component - encapsulates its own DndContext to avoid hook order issues
+interface ProjectKanbanViewProps {
+  projects: Project[];
+  clients: Client[];
+  tasks: Task[];
+  taskColumns: TaskColumn[];
+  onEditProject: (project: Project) => void;
+  onDeleteProject: (project: Project) => void;
+  onCompleteProject: (project: Project) => void;
+  updateProjectMutation: any;
+}
+
+function ProjectKanbanView({
+  projects,
+  clients,
+  tasks,
+  taskColumns,
+  onEditProject,
+  onDeleteProject,
+  onCompleteProject,
+  updateProjectMutation,
+}: ProjectKanbanViewProps) {
+  const [activeKanbanProjectId, setActiveKanbanProjectId] = useState<string | null>(null);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+  
+  const stages = [
+    { value: "prospection", label: "Prospection", color: "bg-yellow-100 border-yellow-200" },
+    { value: "signe", label: "Signé", color: "bg-purple-100 border-purple-200" },
+    { value: "en_cours", label: "En cours", color: "bg-blue-100 border-blue-200" },
+    { value: "termine", label: "Terminé", color: "bg-green-100 border-green-200" },
+  ];
+  
+  const validStages = stages.map(s => s.value);
+  
+  const handleKanbanDragStart = (event: DragStartEvent) => {
+    setActiveKanbanProjectId(event.active.id as string);
+  };
+  
+  const handleKanbanDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveKanbanProjectId(null);
+    
+    if (!over) return;
+    
+    const projectId = active.id as string;
+    const newStage = over.id as string;
+    
+    // Only update if dropping on a valid stage column
+    if (!validStages.includes(newStage)) return;
+    
+    // Get current project to check if stage actually changed
+    const project = projects.find(p => p.id === projectId);
+    if (!project || project.stage === newStage) return;
+    
+    // Update project stage
+    updateProjectMutation.mutate({
+      id: projectId,
+      data: { stage: newStage }
+    });
+  };
+  
+  // Get the active project for the drag overlay
+  const activeKanbanProject = activeKanbanProjectId 
+    ? projects.find(p => p.id === activeKanbanProjectId)
+    : null;
+  const activeKanbanClient = activeKanbanProject 
+    ? clients.find(c => c.id === activeKanbanProject.clientId)
+    : undefined;
+  
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleKanbanDragStart}
+      onDragEnd={handleKanbanDragEnd}
+    >
+      <div className="grid grid-cols-4 gap-4">
+        {stages.map((stage) => {
+          const stageProjects = projects.filter(p => p.stage === stage.value);
+          
+          return (
+            <KanbanStageColumn
+              key={stage.value}
+              stage={stage}
+              projects={stageProjects}
+              clients={clients}
+              tasks={tasks}
+              taskColumns={taskColumns}
+              onEditProject={onEditProject}
+              onDeleteProject={onDeleteProject}
+              onCompleteProject={onCompleteProject}
+            />
+          );
+        })}
+      </div>
+      <DragOverlay>
+        {activeKanbanProject ? (
+          <Card className="shadow-xl rotate-3 w-[280px] opacity-95 bg-white dark:bg-background">
+            <CardContent className="p-3">
+              <div className="flex items-start gap-3">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
+                    {activeKanbanClient?.name.substring(0, 2).toUpperCase() || "??"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-xs truncate">
+                    {activeKanbanProject.name}
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {activeKanbanClient?.name || "Client non défini"}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
 interface CategoryComboboxProps {
   value: string;
   onChange: (value: string) => void;
@@ -2807,7 +2936,7 @@ export default function Projects() {
                     onClick={() => setProjectViewMode("kanban")}
                     data-testid="button-project-view-kanban"
                   >
-                    <LayoutGrid className="w-4 h-4 rotate-90" />
+                    <Columns3 className="w-4 h-4" />
                   </Button>
                 </div>
                 <Button 
@@ -2969,71 +3098,35 @@ export default function Projects() {
               };
 
               if (projectViewMode === "kanban") {
-                const stages = [
-                  { value: "prospection", label: "Prospection", color: "bg-yellow-100 border-yellow-200" },
-                  { value: "signe", label: "Signé", color: "bg-purple-100 border-purple-200" },
-                  { value: "en_cours", label: "En cours", color: "bg-blue-100 border-blue-200" },
-                  { value: "termine", label: "Terminé", color: "bg-green-100 border-green-200" },
-                ];
-                
-                const handleKanbanDragEnd = (event: DragEndEvent) => {
-                  const { active, over } = event;
-                  if (!over) return;
-                  
-                  const projectId = active.id as string;
-                  const newStage = over.id as string;
-                  
-                  // Update project stage
-                  updateProjectMutation.mutate({
-                    id: projectId,
-                    data: { stage: newStage }
-                  });
-                };
-                
                 return (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={pointerWithin}
-                    onDragEnd={handleKanbanDragEnd}
-                  >
-                    <div className="grid grid-cols-4 gap-4">
-                      {stages.map((stage) => {
-                        const stageProjects = filteredProjects.filter(p => p.stage === stage.value);
-                        
-                        return (
-                          <KanbanStageColumn
-                            key={stage.value}
-                            stage={stage}
-                            projects={stageProjects}
-                            clients={clients}
-                            tasks={tasks}
-                            taskColumns={taskColumns}
-                            onEditProject={(project) => {
-                              setEditingProject(project);
-                              setProjectFormData({
-                                name: project.name,
-                                description: project.description || "",
-                                clientId: project.clientId || "",
-                                stage: project.stage || "prospection",
-                                category: project.category || "",
-                                startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                budget: project.budget || "",
-                              });
-                              setIsEditProjectDialogOpen(true);
-                            }}
-                            onDeleteProject={(project) => {
-                              setEditingProject(project);
-                              setIsDeleteProjectDialogOpen(true);
-                            }}
-                            onCompleteProject={(project) => {
-                              updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } });
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </DndContext>
+                  <ProjectKanbanView
+                    projects={filteredProjects}
+                    clients={clients}
+                    tasks={tasks}
+                    taskColumns={taskColumns}
+                    onEditProject={(project) => {
+                      setEditingProject(project);
+                      setProjectFormData({
+                        name: project.name,
+                        description: project.description || "",
+                        clientId: project.clientId || "",
+                        stage: project.stage || "prospection",
+                        category: project.category || "",
+                        startDate: project.startDate ? new Date(project.startDate) : undefined,
+                        endDate: project.endDate ? new Date(project.endDate) : undefined,
+                        budget: project.budget || "",
+                      });
+                      setIsEditProjectDialogOpen(true);
+                    }}
+                    onDeleteProject={(project) => {
+                      setEditingProject(project);
+                      setIsDeleteProjectDialogOpen(true);
+                    }}
+                    onCompleteProject={(project) => {
+                      updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } });
+                    }}
+                    updateProjectMutation={updateProjectMutation}
+                  />
                 );
               }
               
@@ -3201,7 +3294,7 @@ export default function Projects() {
                                   stage: "Étape",
                                   progress: "Progression",
                                   category: "Catégorie",
-                                  startDate: "Date de début",
+                                  startDate: "Début",
                                   budget: "Budget",
                                   actions: "Actions",
                                 };
@@ -3210,6 +3303,7 @@ export default function Projects() {
                                 
                                 const columnClasses: Record<string, string> = {
                                   name: "max-w-[250px]",
+                                  category: "max-w-[120px]",
                                   budget: "text-right",
                                   actions: "w-[80px] bg-white",
                                 };
@@ -3327,7 +3421,7 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               category: (
-                                <TableCell key="category">
+                                <TableCell key="category" className="max-w-[120px]">
                                   <Popover
                                     open={categoryPopoverOpen && editingCategoryProjectId === project.id}
                                     onOpenChange={(open) => {
