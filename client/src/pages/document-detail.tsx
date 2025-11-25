@@ -88,7 +88,19 @@ export default function DocumentDetail() {
   useEffect(() => {
     if (document && !title && !content.content?.length) {
       setTitle(document.name || "");
-      setContent(document.content || { type: 'doc', content: [] });
+      // Parse content if it's a JSON string, otherwise use as-is
+      let parsedContent = { type: 'doc', content: [] };
+      if (document.content) {
+        try {
+          parsedContent = typeof document.content === 'string' 
+            ? JSON.parse(document.content) 
+            : document.content;
+        } catch (e) {
+          console.error("Failed to parse document content:", e);
+          parsedContent = { type: 'doc', content: [] };
+        }
+      }
+      setContent(parsedContent);
       setStatus((document.status === "signed" ? "published" : document.status) as any);
     }
   }, [document]);
@@ -124,7 +136,14 @@ export default function DocumentDetail() {
     if (!document || !isEditMode || !autoSaveEnabled) return;
     
     const titleChanged = debouncedTitle !== document.name;
-    const contentChanged = JSON.stringify(debouncedContent) !== JSON.stringify(document.content);
+    // Normalize both contents to compare - parse document.content if it's a string
+    const normalizedDocContent = typeof document.content === 'string' 
+      ? document.content 
+      : JSON.stringify(document.content);
+    const normalizedCurrentContent = typeof debouncedContent === 'string' 
+      ? debouncedContent 
+      : JSON.stringify(debouncedContent);
+    const contentChanged = normalizedCurrentContent !== normalizedDocContent;
     const statusChanged = status !== document.status;
     
     if (!titleChanged && !contentChanged && !statusChanged) {
@@ -154,7 +173,7 @@ export default function DocumentDetail() {
 
     updateMutation.mutate({
       name: debouncedTitle || "Sans titre",
-      content: debouncedContent,
+      content: typeof debouncedContent === 'string' ? debouncedContent : JSON.stringify(debouncedContent),
       plainText,
       status,
     });
@@ -503,7 +522,7 @@ export default function DocumentDetail() {
                         
                         updateMutation.mutate({
                           name: title || "Sans titre",
-                          content,
+                          content: typeof content === 'string' ? content : JSON.stringify(content),
                           plainText,
                           status,
                         });
