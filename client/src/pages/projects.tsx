@@ -3317,7 +3317,7 @@ export default function Projects() {
                 >
                   <Card className="overflow-hidden">
                     <CardContent className="p-0">
-                      <div className="overflow-x-auto">
+                      <div>
                         <Table className="table-fixed w-full">
                           <TableHeader>
                             <SortableContext
@@ -3340,14 +3340,14 @@ export default function Projects() {
                                   const isSortableColumn = !["progress", "actions"].includes(columnId);
                                   
                                   const columnClasses: Record<string, string> = {
-                                    name: "w-auto min-w-[180px]",
-                                    client: "w-[110px]",
-                                    stage: "w-[90px]",
-                                    progress: "w-[130px]",
-                                    category: "w-[100px]",
-                                    startDate: "w-[90px]",
-                                    budget: "w-[90px] text-right",
-                                    actions: "w-[50px]",
+                                    name: "w-auto min-w-[145px]",
+                                    client: "w-[115px]",
+                                    stage: "w-[95px]",
+                                    progress: "w-[135px]",
+                                    category: "w-[105px]",
+                                    startDate: "w-[95px]",
+                                    budget: "w-[95px] text-right",
+                                    actions: "w-[55px]",
                                   };
                                   
                                   return (
@@ -3375,7 +3375,7 @@ export default function Projects() {
                             // Create a mapping of column IDs to their cell content
                             const cellContent: Record<string, JSX.Element> = {
                               name: (
-                                <TableCell key="name" className="min-w-[200px]">
+                                <TableCell key="name" className="min-w-[145px]">
                                   <Link href={`/projects/${project.id}`}>
                                     <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[12px] truncate" data-testid={`project-name-${project.id}`}>
                                       {project.name}
@@ -3389,14 +3389,14 @@ export default function Projects() {
                                 </TableCell>
                               ),
                               client: (
-                                <TableCell key="client" className="w-[120px]">
+                                <TableCell key="client" className="w-[115px]">
                                   <div className="flex items-center gap-2">
-                                    <Avatar className="h-6 w-6">
+                                    <Avatar className="h-6 w-6 flex-shrink-0">
                                       <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                                         {client?.name.substring(0, 2).toUpperCase() || "??"}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className="text-[11px]">{client?.name || "Non défini"}</span>
+                                    <span className="text-[11px] truncate">{client?.name || "Non défini"}</span>
                                   </div>
                                 </TableCell>
                               ),
