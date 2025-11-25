@@ -2537,7 +2537,7 @@ export default function Projects() {
               <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[200px] justify-between" data-testid="select-project-stage-filter">
+                    <Button variant="outline" className="w-[200px] justify-between bg-white dark:bg-background" data-testid="select-project-stage-filter">
                       <span className="truncate">
                         {projectStageFilters.length === 0 
                           ? "Toutes les étapes" 
@@ -2943,12 +2943,18 @@ export default function Projects() {
                                 
                                 const isSortableColumn = !["progress", "actions"].includes(columnId);
                                 
+                                const columnClasses: Record<string, string> = {
+                                  name: "max-w-[250px]",
+                                  budget: "text-right",
+                                  actions: "w-[80px] bg-white",
+                                };
+                                
                                 return (
                                   <SortableProjectColumnHeader
                                     key={columnId}
                                     id={columnId}
                                     label={columnLabels[columnId] || columnId}
-                                    className={columnId === "budget" ? "text-right" : columnId === "actions" ? "w-[80px] bg-white" : ""}
+                                    className={columnClasses[columnId] || ""}
                                     isDraggable={columnId !== "actions"}
                                     sortColumn={projectSortColumn}
                                     sortDirection={projectSortDirection}
@@ -2968,9 +2974,9 @@ export default function Projects() {
                             // Create a mapping of column IDs to their cell content
                             const cellContent: Record<string, JSX.Element> = {
                               name: (
-                                <TableCell key="name">
+                                <TableCell key="name" className="max-w-[250px]">
                                   <Link href={`/projects/${project.id}`}>
-                                    <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[12px]" data-testid={`project-name-${project.id}`}>
+                                    <div className="font-medium hover:text-primary cursor-pointer transition-colors text-[12px] truncate" data-testid={`project-name-${project.id}`}>
                                       {project.name}
                                     </div>
                                   </Link>
@@ -3207,12 +3213,12 @@ export default function Projects() {
                                   >
                                     <PopoverTrigger asChild>
                                       <button
-                                        className="flex items-center gap-1 text-[11px] hover-elevate active-elevate-2 rounded-md px-2 py-1"
+                                        className="flex items-center gap-1 text-[11px] hover-elevate active-elevate-2 rounded-md px-2 py-1 whitespace-nowrap"
                                         data-testid={`button-edit-start-date-${project.id}`}
                                       >
-                                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                        <CalendarIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                                         {project.startDate
-                                          ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                                          ? formatDate(new Date(project.startDate), "dd/MM/yy", { locale: fr })
                                           : <span className="text-muted-foreground">—</span>
                                         }
                                       </button>
