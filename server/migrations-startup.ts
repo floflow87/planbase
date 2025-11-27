@@ -23,6 +23,14 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS siret text;
     `);
     
+    // Add billing status columns to projects if they don't exist
+    await db.execute(sql`
+      ALTER TABLE projects 
+      ADD COLUMN IF NOT EXISTS billing_status text,
+      ADD COLUMN IF NOT EXISTS billing_due_date date;
+    `);
+    console.log("✅ Billing status columns added to projects");
+    
     // Add new client columns if they don't exist
     await db.execute(sql`
       ALTER TABLE clients 

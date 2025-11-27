@@ -168,6 +168,9 @@ export const projects = pgTable("projects", {
   billingRate: numeric("billing_rate", { precision: 14, scale: 2 }), // Hourly/daily rate
   totalBilled: numeric("total_billed", { precision: 14, scale: 2 }), // Total amount billed to client
   numberOfDays: numeric("number_of_days", { precision: 10, scale: 2 }), // Number of days for TJM calculation
+  // Billing status fields
+  billingStatus: text("billing_status"), // 'devis_envoye', 'devis_accepte', 'bon_commande', 'facture', 'paye', 'partiel', 'annule', 'retard'
+  billingDueDate: date("billing_due_date"), // Used when billingStatus is 'retard' to show late payment date
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -798,3 +801,17 @@ export type NoteLink = typeof noteLinks.$inferSelect;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type GoogleCalendarToken = typeof googleCalendarTokens.$inferSelect;
+
+// Billing Status Options with Colors
+export const billingStatusOptions = [
+  { value: "devis_envoye", label: "Devis envoyé", color: "#3B82F6" }, // Blue
+  { value: "devis_accepte", label: "Devis accepté", color: "#8B5CF6" }, // Purple
+  { value: "bon_commande", label: "Bon de commande émis", color: "#6366F1" }, // Indigo
+  { value: "facture", label: "Facturé", color: "#F59E0B" }, // Amber
+  { value: "paye", label: "Payé", color: "#10B981" }, // Green
+  { value: "partiel", label: "Partiel", color: "#06B6D4" }, // Cyan
+  { value: "annule", label: "Annulé", color: "#6B7280" }, // Gray
+  { value: "retard", label: "Retard", color: "#EF4444" }, // Red
+] as const;
+
+export type BillingStatus = typeof billingStatusOptions[number]["value"];
