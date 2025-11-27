@@ -809,7 +809,7 @@ export default function NoteDetail() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={projectSelectorOpen}
-                  className="justify-between min-w-[200px] text-[12px]"
+                  className="justify-between min-w-[200px] text-[12px] bg-white dark:bg-card"
                   data-testid="button-select-project"
                 >
                   {currentProject ? currentProject.name : "Sélectionner un projet"}
