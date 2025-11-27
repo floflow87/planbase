@@ -69,7 +69,7 @@ interface ListViewProps {
   setIsQuickAddingTask: (value: boolean) => void;
   onCreateTask: () => void;
   selectedProjectId?: string;
-  statusFilter: string;
+  statusFilter: string[];
   accountId?: string;
   userId?: string;
 }
@@ -215,20 +215,24 @@ export function ListView({
       filtered = filtered.filter(task => task.projectId === selectedProjectId);
     }
     
-    if (statusFilter && statusFilter !== "all") {
+    if (statusFilter && statusFilter.length > 0 && !statusFilter.includes("all")) {
       // When "all projects" is selected, filter by column name instead of ID
       // since different projects have different column IDs for the same status
       if (selectedProjectId === "all") {
-        const filterColumn = columns.find(c => c.id === statusFilter);
-        if (filterColumn) {
+        // Get the names of the selected columns
+        const filterColumnNames = statusFilter
+          .map(filterId => columns.find(c => c.id === filterId)?.name)
+          .filter((name): name is string => !!name);
+        
+        if (filterColumnNames.length > 0) {
           filtered = filtered.filter(task => {
             const taskColumn = columns.find(c => c.id === task.columnId);
-            return taskColumn?.name === filterColumn.name;
+            return taskColumn?.name && filterColumnNames.includes(taskColumn.name);
           });
         }
       } else {
-        // For a specific project, filter by column ID
-        filtered = filtered.filter(task => task.columnId === statusFilter);
+        // For a specific project, filter by column IDs
+        filtered = filtered.filter(task => task.columnId && statusFilter.includes(task.columnId));
       }
     }
     

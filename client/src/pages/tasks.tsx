@@ -702,7 +702,11 @@ export default function Tasks() {
   });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string[]>(() => {
+    const saved = localStorage.getItem("tasks_status_filter");
+    return saved ? JSON.parse(saved) : ["all"];
+  });
+  const [statusSelectorOpen, setStatusSelectorOpen] = useState(false);
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
 
@@ -828,10 +832,42 @@ export default function Tasks() {
     localStorage.setItem("tasks_selected_project_ids", JSON.stringify(selectedProjectIds));
   }, [selectedProjectIds]);
 
+  // Save status filter to localStorage
+  useEffect(() => {
+    localStorage.setItem("tasks_status_filter", JSON.stringify(statusFilter));
+  }, [statusFilter]);
+
   // Reset status filter to "all" when changing projects
   useEffect(() => {
-    setStatusFilter("all");
+    setStatusFilter(["all"]);
   }, [selectedProjectIds]);
+
+  // Toggle status selection
+  const toggleStatusSelection = (statusId: string) => {
+    if (statusId === "all") {
+      setStatusFilter(["all"]);
+    } else {
+      setStatusFilter((prev) => {
+        const withoutAll = prev.filter((s) => s !== "all");
+        if (withoutAll.includes(statusId)) {
+          const newFilter = withoutAll.filter((s) => s !== statusId);
+          return newFilter.length === 0 ? ["all"] : newFilter;
+        } else {
+          return [...withoutAll, statusId];
+        }
+      });
+    }
+  };
+
+  // Get the display label for status filter
+  const getStatusFilterLabel = () => {
+    if (statusFilter.includes("all")) return "Tous les statuts";
+    if (statusFilter.length === 1) {
+      const column = taskColumns.find((c) => c.id === statusFilter[0]);
+      return column?.name || "1 statut";
+    }
+    return `${statusFilter.length} statuts`;
+  };
 
   // Mutations
   const createTaskMutation = useMutation({
@@ -1480,39 +1516,87 @@ export default function Tasks() {
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {viewMode !== "kanban" && (
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40 h-9 text-sm bg-white" data-testid="select-status-filter">
-                  <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  {(() => {
-                    const filteredColumns = taskColumns
-                      .filter((col: TaskColumn) => selectedProjectIds.includes("all") || (col.projectId && selectedProjectIds.includes(col.projectId)))
-                      .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order);
-                    
-                    if (selectedProjectIds.includes("all") || selectedProjectIds.length > 1) {
-                      const uniqueNames = new Map<string, TaskColumn>();
-                      filteredColumns.forEach((col: TaskColumn) => {
-                        if (!uniqueNames.has(col.name)) {
-                          uniqueNames.set(col.name, col);
+              <Popover open={statusSelectorOpen} onOpenChange={setStatusSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={statusSelectorOpen}
+                    className="w-44 h-9 justify-between bg-white text-sm font-normal"
+                    data-testid="select-status-filter"
+                  >
+                    <span className="truncate">{getStatusFilterLabel()}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px] p-0 bg-white dark:bg-background">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un statut..." />
+                    <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
+                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                      <CommandItem
+                        onSelect={() => toggleStatusSelection("all")}
+                        data-testid="option-status-all"
+                      >
+                        <Checkbox
+                          checked={statusFilter.includes("all")}
+                          className="mr-2"
+                        />
+                        Tous les statuts
+                      </CommandItem>
+                      {(() => {
+                        const availableColumns = taskColumns
+                          .filter((col: TaskColumn) => selectedProjectIds.includes("all") || (col.projectId && selectedProjectIds.includes(col.projectId)))
+                          .sort((a: TaskColumn, b: TaskColumn) => a.order - b.order);
+                        
+                        if (selectedProjectIds.includes("all") || selectedProjectIds.length > 1) {
+                          const uniqueNames = new Map<string, TaskColumn>();
+                          availableColumns.forEach((col: TaskColumn) => {
+                            if (!uniqueNames.has(col.name)) {
+                              uniqueNames.set(col.name, col);
+                            }
+                          });
+                          return Array.from(uniqueNames.values()).map((column: TaskColumn) => (
+                            <CommandItem
+                              key={column.id}
+                              onSelect={() => toggleStatusSelection(column.id)}
+                              data-testid={`option-status-${column.id}`}
+                            >
+                              <Checkbox
+                                checked={statusFilter.includes(column.id)}
+                                className="mr-2"
+                              />
+                              <div 
+                                className="w-3 h-3 rounded-full mr-2"
+                                style={{ backgroundColor: column.color }}
+                              />
+                              {column.name}
+                            </CommandItem>
+                          ));
                         }
-                      });
-                      return Array.from(uniqueNames.values()).map((column: TaskColumn) => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.name}
-                        </SelectItem>
-                      ));
-                    }
-                    
-                    return filteredColumns.map((column: TaskColumn) => (
-                      <SelectItem key={column.id} value={column.id}>
-                        {column.name}
-                      </SelectItem>
-                    ));
-                  })()}
-                </SelectContent>
-              </Select>
+                        
+                        return availableColumns.map((column: TaskColumn) => (
+                          <CommandItem
+                            key={column.id}
+                            onSelect={() => toggleStatusSelection(column.id)}
+                            data-testid={`option-status-${column.id}`}
+                          >
+                            <Checkbox
+                              checked={statusFilter.includes(column.id)}
+                              className="mr-2"
+                            />
+                            <div 
+                              className="w-3 h-3 rounded-full mr-2"
+                              style={{ backgroundColor: column.color }}
+                            />
+                            {column.name}
+                          </CommandItem>
+                        ));
+                      })()}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             )}
             <div className="hidden md:flex border rounded-md">
               <Button

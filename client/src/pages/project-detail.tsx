@@ -992,7 +992,7 @@ export default function ProjectDetail() {
 
           <TabsContent value="tasks" className="mt-0">
             <Card>
-              <CardContent className="p-6 pt-[4px] pb-[4px]">
+              <CardContent className="pt-6">
                 <div className="flex justify-end mb-4">
                   <Button 
                     size="sm" 
@@ -1614,16 +1614,13 @@ export default function ProjectDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-task-detail">
-          <DialogHeader>
-            <DialogTitle>Détails de la tâche</DialogTitle>
-            <DialogDescription>
-              Modifiez les paramètres de la tâche. Les changements sont automatiquement sauvegardés.
-            </DialogDescription>
-          </DialogHeader>
+      <Sheet open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
+        <SheetContent className="sm:max-w-xl w-full overflow-y-auto" data-testid="dialog-task-detail">
+          <SheetHeader>
+            <SheetTitle>Détails de la tâche</SheetTitle>
+          </SheetHeader>
           {selectedTask && taskEditData.id && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div>
                 <Label htmlFor="task-title">Titre *</Label>
                 <Input
@@ -1713,11 +1710,11 @@ export default function ProjectDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Non défini</SelectItem>
-                      <SelectItem value="1">⭐ Très facile</SelectItem>
-                      <SelectItem value="2">⭐⭐ Facile</SelectItem>
-                      <SelectItem value="3">⭐⭐⭐ Moyen</SelectItem>
-                      <SelectItem value="4">⭐⭐⭐⭐ Difficile</SelectItem>
-                      <SelectItem value="5">⭐⭐⭐⭐⭐ Très difficile</SelectItem>
+                      <SelectItem value="1">1 - Très facile</SelectItem>
+                      <SelectItem value="2">2 - Facile</SelectItem>
+                      <SelectItem value="3">3 - Moyen</SelectItem>
+                      <SelectItem value="4">4 - Difficile</SelectItem>
+                      <SelectItem value="5">5 - Très difficile</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1749,7 +1746,7 @@ export default function ProjectDetail() {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <div className="flex justify-end pt-4 border-t">
             <Button 
               variant="outline" 
               onClick={() => setIsTaskDetailDialogOpen(false)}
@@ -1757,9 +1754,9 @@ export default function ProjectDetail() {
             >
               Fermer
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </SheetContent>
+      </Sheet>
       <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-task-confirm">
           <AlertDialogHeader>
