@@ -883,7 +883,7 @@ export default function Notes() {
                           {linkedProject ? (
                             <Badge
                               variant="outline"
-                              className="text-[10px] bg-violet-50 text-violet-700 border-violet-200 cursor-pointer hover-elevate"
+                              className="text-[10px] bg-white dark:bg-card text-violet-700 border-violet-200 cursor-pointer hover-elevate"
                               data-testid={`badge-project-${note.id}`}
                             >
                               {linkedProject.name}
@@ -891,7 +891,7 @@ export default function Notes() {
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[10px] bg-gray-50 text-gray-600 border-gray-200 cursor-pointer hover-elevate"
+                              className="text-[10px] bg-white dark:bg-card text-gray-600 border-gray-200 cursor-pointer hover-elevate"
                               data-testid={`badge-project-${note.id}`}
                             >
                               Aucun

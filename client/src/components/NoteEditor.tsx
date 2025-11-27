@@ -53,6 +53,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
@@ -107,6 +108,8 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     onTitleChange,
     title = "",
   } = props;
+  const [, navigate] = useLocation();
+  
   // Dialogue states
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -169,6 +172,19 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] p-4',
+      },
+      handleClick: (view, pos, event) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'A' && target.getAttribute('href')) {
+          const href = target.getAttribute('href')!;
+          // Check if this is an internal link (starts with /)
+          if (href.startsWith('/')) {
+            event.preventDefault();
+            navigate(href);
+            return true;
+          }
+        }
+        return false;
       },
     },
   });
