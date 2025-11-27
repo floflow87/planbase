@@ -48,6 +48,9 @@ import {
   Brain,
   Square,
   Upload,
+  Search,
+  X,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,6 +83,24 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -88,6 +109,11 @@ import type {
   MindmapNode as MindmapNodeType,
   MindmapEdge as MindmapEdgeType,
   MindmapKind,
+  Note,
+  Project,
+  Document,
+  Task,
+  Client,
 } from "@shared/schema";
 import { mindmapKindOptions, mindmapNodeTypeOptions } from "@shared/schema";
 
@@ -276,6 +302,17 @@ function MindmapCanvas() {
   const [editType, setEditType] = useState<MindmapNodeKind>("idea");
   const [editImageUrl, setEditImageUrl] = useState("");
 
+  const [newLinkedEntityType, setNewLinkedEntityType] = useState<string | null>(null);
+  const [newLinkedEntityId, setNewLinkedEntityId] = useState<string | null>(null);
+  const [newLinkedEntityName, setNewLinkedEntityName] = useState<string>("");
+  const [entitySearchOpen, setEntitySearchOpen] = useState(false);
+  const [entitySearchQuery, setEntitySearchQuery] = useState("");
+
+  const [editLinkedEntityType, setEditLinkedEntityType] = useState<string | null>(null);
+  const [editLinkedEntityId, setEditLinkedEntityId] = useState<string | null>(null);
+  const [editLinkedEntityName, setEditLinkedEntityName] = useState<string>("");
+  const [editEntitySearchOpen, setEditEntitySearchOpen] = useState(false);
+
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -284,6 +321,47 @@ function MindmapCanvas() {
     queryKey: ["/api/mindmaps", id],
     enabled: !!id,
   });
+
+  const { data: notes } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+  });
+
+  const { data: projects } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: documents } = useQuery<Document[]>({
+    queryKey: ["/api/documents"],
+  });
+
+  const { data: tasks } = useQuery<Task[]>({
+    queryKey: ["/api/tasks"],
+  });
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const getEntitiesForType = useCallback((type: MindmapNodeKind): Array<{ id: string; name: string }> => {
+    switch (type) {
+      case "note":
+        return (notes || []).map(n => ({ id: n.id, name: n.title }));
+      case "project":
+        return (projects || []).map(p => ({ id: p.id, name: p.name }));
+      case "document":
+        return (documents || []).map(d => ({ id: d.id, name: d.title }));
+      case "task":
+        return (tasks || []).map(t => ({ id: t.id, name: t.title }));
+      case "client":
+        return (clients || []).map(c => ({ id: c.id, name: c.name }));
+      default:
+        return [];
+    }
+  }, [notes, projects, documents, tasks, clients]);
+
+  const canLinkEntity = (type: MindmapNodeKind): boolean => {
+    return ["note", "project", "document", "task", "client"].includes(type);
+  };
 
   const layoutConfig: LayoutConfig = useMemo(() => {
     if (data?.mindmap?.layoutConfig && typeof data.mindmap.layoutConfig === "object") {
@@ -349,6 +427,8 @@ function MindmapCanvas() {
       type: MindmapNodeKind;
       x: number;
       y: number;
+      linkedEntityType?: string;
+      linkedEntityId?: string;
     }) => {
       const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
       return await res.json();
@@ -358,6 +438,9 @@ function MindmapCanvas() {
       setIsAddingNode(false);
       setNewNodeLabel("");
       setNewNodeDescription("");
+      setNewLinkedEntityType(null);
+      setNewLinkedEntityId(null);
+      setNewLinkedEntityName("");
       toast({ title: "Noeud créé" });
     },
     onError: (error: Error) => {
@@ -500,7 +583,38 @@ function MindmapCanvas() {
       type: newNodeKind,
       x: centerX,
       y: centerY,
+      linkedEntityType: newLinkedEntityType || undefined,
+      linkedEntityId: newLinkedEntityId || undefined,
     });
+  };
+
+  const handleSelectEntity = (entity: { id: string; name: string }) => {
+    setNewLinkedEntityId(entity.id);
+    setNewLinkedEntityName(entity.name);
+    setNewLinkedEntityType(newNodeKind);
+    if (!newNodeLabel.trim()) {
+      setNewNodeLabel(entity.name);
+    }
+    setEntitySearchOpen(false);
+  };
+
+  const handleClearLinkedEntity = () => {
+    setNewLinkedEntityId(null);
+    setNewLinkedEntityName("");
+    setNewLinkedEntityType(null);
+  };
+
+  const handleSelectEditEntity = (entity: { id: string; name: string }) => {
+    setEditLinkedEntityId(entity.id);
+    setEditLinkedEntityName(entity.name);
+    setEditLinkedEntityType(editType);
+    setEditEntitySearchOpen(false);
+  };
+
+  const handleClearEditLinkedEntity = () => {
+    setEditLinkedEntityId(null);
+    setEditLinkedEntityName("");
+    setEditLinkedEntityType(null);
   };
 
   const handleDeleteSelectedNode = () => {
@@ -644,32 +758,6 @@ function MindmapCanvas() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button data-testid="button-add-node">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {Object.entries(NODE_KIND_CONFIG).map(
-                ([kind, { label, icon: Icon, color }]) => (
-                  <DropdownMenuItem
-                    key={kind}
-                    onClick={() => {
-                      setNewNodeKind(kind as MindmapNodeKind);
-                      setIsAddingNode(true);
-                    }}
-                    data-testid={`menu-add-${kind}`}
-                  >
-                    <Icon className={`w-4 h-4 mr-2 ${color}`} />
-                    {label}
-                  </DropdownMenuItem>
-                )
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" data-testid="button-settings">
@@ -771,24 +859,123 @@ function MindmapCanvas() {
               <Maximize className="w-4 h-4" />
             </Button>
           </Panel>
+
+          <Panel position="top-right" className="mr-2">
+            <div className="flex flex-col gap-1 p-1.5 bg-card border rounded-lg shadow-lg">
+              {Object.entries(NODE_KIND_CONFIG).map(([kind, { label, icon: Icon, color }]) => (
+                <Tooltip key={kind} delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setNewNodeKind(kind as MindmapNodeKind);
+                        setIsAddingNode(true);
+                      }}
+                      data-testid={`toolbar-add-${kind}`}
+                      className="h-9 w-9"
+                    >
+                      <Icon className={`w-5 h-5 ${color}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="font-medium">
+                    {label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </Panel>
         </ReactFlow>
 
         {isAddingNode && (
-          <div className="absolute top-4 right-4 z-50">
+          <div className="absolute top-4 right-20 z-50">
             <Card className="w-80">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium">
-                    Nouveau {NODE_KIND_CONFIG[newNodeKind].label}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const NodeIcon = NODE_KIND_CONFIG[newNodeKind].icon;
+                      return <NodeIcon className={`w-5 h-5 ${NODE_KIND_CONFIG[newNodeKind].color}`} />;
+                    })()}
+                    <h3 className="font-medium">
+                      Nouveau {NODE_KIND_CONFIG[newNodeKind].label}
+                    </h3>
+                  </div>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={() => setIsAddingNode(false)}
+                    size="icon"
+                    onClick={() => {
+                      setIsAddingNode(false);
+                      handleClearLinkedEntity();
+                    }}
                   >
-                    Annuler
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
+
+                {canLinkEntity(newNodeKind) && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Link2 className="w-4 h-4" />
+                      Lier à un {NODE_KIND_CONFIG[newNodeKind].label.toLowerCase()} existant
+                    </Label>
+                    {newLinkedEntityId ? (
+                      <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                        <Badge variant="secondary" className="flex-1 justify-start">
+                          {newLinkedEntityName}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={handleClearLinkedEntity}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Popover open={entitySearchOpen} onOpenChange={setEntitySearchOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-muted-foreground"
+                            data-testid="button-search-entity"
+                          >
+                            <Search className="w-4 h-4 mr-2" />
+                            Rechercher...
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-0" align="start">
+                          <Command>
+                            <CommandInput
+                              placeholder={`Rechercher ${NODE_KIND_CONFIG[newNodeKind].label.toLowerCase()}...`}
+                              value={entitySearchQuery}
+                              onValueChange={setEntitySearchQuery}
+                            />
+                            <CommandList>
+                              <CommandEmpty>Aucun résultat trouvé</CommandEmpty>
+                              <CommandGroup>
+                                {getEntitiesForType(newNodeKind)
+                                  .filter(e => e.name.toLowerCase().includes(entitySearchQuery.toLowerCase()))
+                                  .slice(0, 10)
+                                  .map((entity) => (
+                                    <CommandItem
+                                      key={entity.id}
+                                      value={entity.name}
+                                      onSelect={() => handleSelectEntity(entity)}
+                                    >
+                                      {entity.name}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="node-label">Nom *</Label>
                   <Input
@@ -797,7 +984,7 @@ function MindmapCanvas() {
                     onChange={(e) => setNewNodeLabel(e.target.value)}
                     placeholder="Nom du noeud"
                     data-testid="input-node-label"
-                    autoFocus
+                    autoFocus={!canLinkEntity(newNodeKind)}
                   />
                 </div>
                 <div className="space-y-2">

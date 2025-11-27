@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { Plus, Trash2, Edit, Network, Calendar, User } from "lucide-react";
+import { Plus, Trash2, Edit, Network, Calendar, User, Brain, Film, Route, Map, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,24 +16,25 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Mindmap, MindmapKind, Client, Project } from "@shared/schema";
+import { mindmapKindOptions } from "@shared/schema";
 
-const MINDMAP_KIND_LABELS: Record<MindmapKind, { label: string; color: string }> = {
-  generic: { label: "Mindmap libre", color: "bg-gray-100 text-gray-800" },
-  user_journey: { label: "Parcours utilisateur", color: "bg-green-100 text-green-800" },
-  storyboard: { label: "Storyboard", color: "bg-blue-100 text-blue-800" },
-  sitemap: { label: "Sitemap", color: "bg-cyan-100 text-cyan-800" },
-  architecture: { label: "Architecture", color: "bg-purple-100 text-purple-800" },
-  brainstorm: { label: "Brainstorm", color: "bg-amber-100 text-amber-800" },
+const MINDMAP_KIND_LABELS: Record<MindmapKind, { label: string; color: string; icon: typeof Brain }> = {
+  generic: { label: "Mindmap libre", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200", icon: Brain },
+  storyboard: { label: "Storyboard", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: Film },
+  user_flow: { label: "Parcours utilisateur", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: Route },
+  architecture: { label: "Architecture", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", icon: Network },
+  sitemap: { label: "Sitemap", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200", icon: Map },
+  ideas: { label: "Idées", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200", icon: Lightbulb },
 };
 
 export default function Mindmaps() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [newMindmap, setNewMindmap] = useState({
     name: "",
     description: "",
-    kind: "brainstorm" as MindmapKind,
+    kind: "generic" as MindmapKind,
     clientId: "",
     projectId: "",
   });
@@ -57,8 +58,8 @@ export default function Mindmaps() {
     },
     onSuccess: (mindmap) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
-      setIsDialogOpen(false);
-      setNewMindmap({ name: "", description: "", kind: "brainstorm", clientId: "", projectId: "" });
+      setIsSheetOpen(false);
+      setNewMindmap({ name: "", description: "", kind: "generic", clientId: "", projectId: "" });
       toast({ title: "Mindmap créée", description: "Votre mindmap a été créée avec succès." });
       setLocation(`/mindmaps/${mindmap.id}`);
     },
@@ -136,19 +137,19 @@ export default function Mindmaps() {
           <h2 className="text-2xl font-semibold text-foreground">Mindmaps</h2>
           <p className="text-muted-foreground">Organisez visuellement vos idées, projets et flux</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTrigger asChild>
             <Button data-testid="button-new-mindmap">
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle Mindmap
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Créer une mindmap</DialogTitle>
-              <DialogDescription>Créez une nouvelle mindmap pour organiser vos idées visuellement.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
+          </SheetTrigger>
+          <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Créer une mindmap</SheetTitle>
+              <SheetDescription>Créez une nouvelle mindmap pour organiser vos idées visuellement.</SheetDescription>
+            </SheetHeader>
+            <div className="space-y-4 py-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nom *</Label>
                 <Input
@@ -179,8 +180,13 @@ export default function Mindmaps() {
                     <SelectValue placeholder="Sélectionner un type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(MINDMAP_KIND_LABELS).map(([key, { label }]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    {Object.entries(MINDMAP_KIND_LABELS).map(([key, { label, icon: Icon }]) => (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" />
+                          {label}
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -219,19 +225,20 @@ export default function Mindmaps() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsSheetOpen(false)} className="flex-1">Annuler</Button>
+                <Button 
+                  onClick={handleCreate} 
+                  disabled={createMutation.isPending}
+                  data-testid="button-create-mindmap"
+                  className="flex-1"
+                >
+                  {createMutation.isPending ? "Création..." : "Créer"}
+                </Button>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
-              <Button 
-                onClick={handleCreate} 
-                disabled={createMutation.isPending}
-                data-testid="button-create-mindmap"
-              >
-                {createMutation.isPending ? "Création..." : "Créer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {!mindmaps || mindmaps.length === 0 ? (
@@ -241,7 +248,7 @@ export default function Mindmaps() {
           <p className="text-muted-foreground text-center mb-4">
             Créez votre première mindmap pour organiser vos idées visuellement.
           </p>
-          <Button onClick={() => setIsDialogOpen(true)} data-testid="button-empty-new-mindmap">
+          <Button onClick={() => setIsSheetOpen(true)} data-testid="button-empty-new-mindmap">
             <Plus className="w-4 h-4 mr-2" />
             Créer une mindmap
           </Button>
@@ -278,8 +285,8 @@ export default function Mindmaps() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={MINDMAP_KIND_LABELS[mindmap.kind].color}>
-                    {MINDMAP_KIND_LABELS[mindmap.kind].label}
+                  <Badge className={MINDMAP_KIND_LABELS[mindmap.kind as MindmapKind]?.color || "bg-gray-100 text-gray-800"}>
+                    {MINDMAP_KIND_LABELS[mindmap.kind as MindmapKind]?.label || mindmap.kind}
                   </Badge>
                   {mindmap.clientId && getClientName(mindmap.clientId) && (
                     <Badge variant="outline" className="flex items-center gap-1">

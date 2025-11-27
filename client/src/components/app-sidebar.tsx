@@ -39,12 +39,9 @@ export function AppSidebar() {
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Product", url: "/product", icon: Package },
-  ];
-
-  const contentNav = [
+    { title: "Mindmaps", url: "/mindmaps", icon: Network },
     { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
-    { title: "Mindmaps", url: "/mindmaps", icon: Network },
   ];
 
   const businessNav = [
@@ -100,39 +97,6 @@ export function AppSidebar() {
                       disabled={restricted}
                       className={restricted ? "opacity-50 cursor-not-allowed" : ""}
                       data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                    >
-                      {restricted ? (
-                        <div>
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.title}</span>
-                        </div>
-                      ) : (
-                        <Link href={item.url}>
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {contentNav.map((item) => {
-                const restricted = isRestricted(item.url);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild={!restricted}
-                      isActive={location === item.url} 
-                      disabled={restricted}
-                      className={restricted ? "opacity-50 cursor-not-allowed" : ""}
-                      data-testid={`link-${item.title.toLowerCase()}`}
                     >
                       {restricted ? (
                         <div>
