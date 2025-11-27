@@ -636,15 +636,23 @@ export default function Dashboard() {
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
   // Calculer le CA global (somme des budgets des projets hors prospection)
-  const globalRevenue = projects
-    .filter(p => p.stage !== "prospection")
-    .reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  const projectsHorsProspection = projects.filter(p => p.stage !== "prospection");
+  const globalRevenue = projectsHorsProspection.reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
   
   // Calculer les paiements encaissés
   const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
   
   // Paiements en attente = CA global - montants encaissés
   const pendingPayments = Math.max(0, globalRevenue - totalPaid);
+
+  // DEBUG - à supprimer après vérification
+  console.log("=== DEBUG PAIEMENTS ===");
+  console.log("Projets hors prospection:", projectsHorsProspection.map(p => ({ name: p.name, stage: p.stage, budget: p.budget })));
+  console.log("CA Global (somme budgets hors prospection):", globalRevenue);
+  console.log("Paiements reçus:", payments.map(p => ({ projectId: p.projectId, amount: p.amount })));
+  console.log("Total Paiements encaissés:", totalPaid);
+  console.log("Paiements en attente (CA - encaissés):", pendingPayments);
+  console.log("========================");
 
   // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
