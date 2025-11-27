@@ -1030,32 +1030,32 @@ export default function ProjectDetail() {
 
         <Tabs defaultValue="tasks" className="w-full">
           <TabsList className="w-full justify-start mb-4">
-            <TabsTrigger value="tasks" className="gap-2">
+            <TabsTrigger value="tasks" className="gap-2 text-xs">
               <Users className="h-4 w-4" />
               Tâches
               <Badge variant="secondary" className="ml-1" data-testid="tasks-count">
                 {projectTasks.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-2">
+            <TabsTrigger value="notes" className="gap-2 text-xs">
               <FileText className="h-4 w-4" />
               Notes
               <Badge variant="secondary" className="ml-1" data-testid="notes-count">
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-2">
+            <TabsTrigger value="documents" className="gap-2 text-xs">
               <FileText className="h-4 w-4" />
               Documents
               <Badge variant="secondary" className="ml-1" data-testid="documents-count">
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-2" data-testid="tab-billing">
+            <TabsTrigger value="billing" className="gap-2 text-xs" data-testid="tab-billing">
               <DollarSign className="h-4 w-4" />
               Facturation
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-2" data-testid="tab-time">
+            <TabsTrigger value="time" className="gap-2 text-xs" data-testid="tab-time">
               <Timer className="h-4 w-4" />
               Temps
             </TabsTrigger>
@@ -1677,7 +1677,7 @@ export default function ProjectDetail() {
                   <div className="border rounded-lg p-4 space-y-4 bg-muted/30" data-testid="form-payment">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="payment-amount">Montant (€)</Label>
+                        <Label htmlFor="payment-amount" className="text-xs">Montant (€)</Label>
                         <Input
                           id="payment-amount"
                           type="number"
@@ -1700,13 +1700,13 @@ export default function ProjectDetail() {
                         )}
                       </div>
                       <div>
-                        <Label>Date du paiement</Label>
+                        <Label className="text-xs">Date du paiement</Label>
                         <Popover open={isPaymentDatePickerOpen} onOpenChange={setIsPaymentDatePickerOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               className={cn(
-                                "w-full justify-start text-left font-normal",
+                                "w-full justify-start text-left font-normal bg-white dark:bg-background",
                                 !paymentDate && "text-muted-foreground"
                               )}
                               data-testid="button-payment-date"
@@ -1731,7 +1731,7 @@ export default function ProjectDetail() {
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="payment-description">Description (optionnelle)</Label>
+                      <Label htmlFor="payment-description" className="text-xs">Description (optionnelle)</Label>
                       <Input
                         id="payment-description"
                         placeholder="Note ou référence du paiement"
@@ -1810,7 +1810,7 @@ export default function ProjectDetail() {
                               <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                              <div className="font-medium">
+                              <div className="text-[13px] font-semibold">
                                 {parseFloat(payment.amount).toFixed(2)} €
                               </div>
                               <div className="text-xs text-muted-foreground">
