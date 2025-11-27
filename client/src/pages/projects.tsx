@@ -98,6 +98,7 @@ import type {
   InsertTask,
   InsertTaskColumn,
 } from "@shared/schema";
+import { billingStatusOptions } from "@shared/schema";
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
@@ -120,6 +121,43 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
   
   // Default to in_progress for custom columns
   return "in_progress";
+}
+
+// Helper function to get billing status color classes
+function getBillingStatusColorForCard(status: string | null) {
+  switch (status) {
+    case "devis_envoye":
+      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
+    case "devis_accepte":
+      return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
+    case "bon_commande":
+      return "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800";
+    case "facture":
+      return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800";
+    case "paye":
+      return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
+    case "partiel":
+      return "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800";
+    case "annule":
+      return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-300 dark:border-gray-700";
+    case "retard":
+      return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-300 dark:border-gray-700";
+  }
+}
+
+// Helper function to calculate days overdue
+function getBillingDaysOverdueForCard(billingDueDate: string | null) {
+  if (!billingDueDate) return "";
+  const dueDate = new Date(billingDueDate);
+  const today = new Date();
+  const diffTime = today.getTime() - dueDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays > 0) {
+    return ` (${diffDays}j)`;
+  }
+  return "";
 }
 
 interface SortableTaskCardProps {
@@ -1605,11 +1643,22 @@ function DraggableProjectCard({
           </DropdownMenu>
         </div>
         
-        {incompleteTasks > 0 && (
-          <Badge variant="secondary" className="text-[10px] mt-2">
-            {incompleteTasks} tâche{incompleteTasks > 1 ? 's' : ''}
-          </Badge>
-        )}
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {incompleteTasks > 0 && (
+            <Badge variant="secondary" className="text-[10px]">
+              {incompleteTasks} tâche{incompleteTasks > 1 ? 's' : ''}
+            </Badge>
+          )}
+          {project.billingStatus && (
+            <Badge 
+              className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
+              data-testid={`badge-kanban-billing-status-${project.id}`}
+            >
+              {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
+              {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
+            </Badge>
+          )}
+        </div>
         
         {project.budget && (
           <div className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
@@ -3244,13 +3293,22 @@ export default function Projects() {
                           </div>
 
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge className={`${getStageColor(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
                                 {getStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
                                 <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
                                   {project.category}
+                                </Badge>
+                              )}
+                              {project.billingStatus && (
+                                <Badge 
+                                  className={`${getBillingStatusColorForCard(project.billingStatus)} text-xs`}
+                                  data-testid={`badge-billing-status-${project.id}`}
+                                >
+                                  {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
+                                  {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
                                 </Badge>
                               )}
                             </div>

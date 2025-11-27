@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn, Note, Document } from "@shared/schema";
+import { billingStatusOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -849,6 +850,28 @@ export default function ProjectDetail() {
                     {project.category}
                   </Badge>
                 )}
+                {project.billingStatus && (
+                  <Badge 
+                    data-testid="badge-billing-status"
+                    className="shrink-0"
+                    style={{ 
+                      backgroundColor: billingStatusOptions.find(o => o.value === project.billingStatus)?.color,
+                      color: 'white'
+                    }}
+                  >
+                    {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
+                    {project.billingStatus === "retard" && project.billingDueDate && (() => {
+                      const dueDate = new Date(project.billingDueDate);
+                      const today = new Date();
+                      const diffTime = today.getTime() - dueDate.getTime();
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      if (diffDays > 0) {
+                        return ` (${diffDays}j)`;
+                      }
+                      return "";
+                    })()}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {project.client ? (
@@ -1431,6 +1454,140 @@ export default function ProjectDetail() {
                     Nombre de jours pour le calcul du TJM théorique
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base">Statut de facturation</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="billing-status">Statut</Label>
+                  <Select
+                    value={project?.billingStatus || ""}
+                    onValueChange={async (value) => {
+                      try {
+                        const updateData: { billingStatus: string; billingDueDate?: string | null } = {
+                          billingStatus: value,
+                        };
+                        if (value !== "retard") {
+                          updateData.billingDueDate = null;
+                        }
+                        await apiRequest(`/api/projects/${id}`, "PATCH", updateData);
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                        const statusOption = billingStatusOptions.find(o => o.value === value);
+                        toast({
+                          title: "Statut de facturation mis à jour",
+                          description: statusOption?.label || value,
+                          variant: "success",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="billing-status" data-testid="select-billing-status">
+                      <SelectValue placeholder="Sélectionner un statut">
+                        {project?.billingStatus && (
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full shrink-0" 
+                              style={{ backgroundColor: billingStatusOptions.find(o => o.value === project.billingStatus)?.color }}
+                            />
+                            <span>{billingStatusOptions.find(o => o.value === project.billingStatus)?.label}</span>
+                          </div>
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {billingStatusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} data-testid={`option-billing-status-${option.value}`}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full shrink-0" 
+                              style={{ backgroundColor: option.color }}
+                            />
+                            <span>{option.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    État actuel de la facturation du projet
+                  </p>
+                </div>
+
+                {project?.billingStatus === "retard" && (
+                  <div>
+                    <Label>Date de facturation prévue</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !project?.billingDueDate && "text-muted-foreground"
+                          )}
+                          data-testid="button-billing-due-date"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {project?.billingDueDate 
+                            ? format(new Date(project.billingDueDate), "dd MMM yyyy", { locale: fr })
+                            : "Sélectionner une date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={project?.billingDueDate ? new Date(project.billingDueDate) : undefined}
+                          onSelect={async (date) => {
+                            try {
+                              await apiRequest(`/api/projects/${id}`, "PATCH", {
+                                billingDueDate: date ? formatDateForStorage(date) : null,
+                              });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                              toast({
+                                title: "Date de facturation mise à jour",
+                                description: date ? format(date, "dd MMM yyyy", { locale: fr }) : "Date supprimée",
+                                variant: "success",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Erreur",
+                                description: error.message,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {project?.billingDueDate && (() => {
+                        const dueDate = new Date(project.billingDueDate);
+                        const today = new Date();
+                        const diffTime = today.getTime() - dueDate.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        if (diffDays > 0) {
+                          return <span className="text-destructive font-medium">En retard de {diffDays} jour{diffDays > 1 ? 's' : ''}</span>;
+                        } else if (diffDays === 0) {
+                          return <span className="text-amber-600 font-medium">Échéance aujourd'hui</span>;
+                        } else {
+                          return <span className="text-muted-foreground">Dans {Math.abs(diffDays)} jour{Math.abs(diffDays) > 1 ? 's' : ''}</span>;
+                        }
+                      })()}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
