@@ -595,6 +595,111 @@ export default function ProjectDetail() {
     },
   });
 
+  // Create note linked to project
+  const createNoteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("/api/notes", "POST", {
+        title: `Note - ${project?.name || "Nouveau"}`,
+        content: { type: 'doc', content: [] },
+        plainText: "",
+        status: "draft",
+        visibility: "private",
+      });
+      return await response.json();
+    },
+    onSuccess: async (newNote) => {
+      // Link note to project
+      await apiRequest(`/api/notes/${newNote.id}/links`, "POST", {
+        targetType: "project",
+        targetId: id,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", id, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/note-links"] });
+      toast({
+        title: "Note créée",
+        description: "La note a été créée et liée au projet",
+        variant: "success",
+      });
+      setLocation(`/notes/${newNote.id}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer la note",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create task linked to project
+  const createTaskMutation = useMutation({
+    mutationFn: async () => {
+      const defaultColumn = columns[0];
+      const response = await apiRequest("/api/tasks", "POST", {
+        title: "Nouvelle tâche",
+        description: "",
+        projectId: id,
+        columnId: defaultColumn?.id || null,
+        priority: "medium",
+        status: "todo",
+      });
+      return await response.json();
+    },
+    onSuccess: (newTask) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", id, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Tâche créée",
+        description: "La tâche a été créée et liée au projet",
+        variant: "success",
+      });
+      // Open task detail dialog
+      setSelectedTask(newTask);
+      setIsTaskDetailDialogOpen(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer la tâche",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create document linked to project
+  const createDocumentMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("/api/documents", "POST", {
+        name: `Document - ${project?.name || "Nouveau"}`,
+        templateId: null,
+        formData: {},
+        content: "",
+        plainText: "",
+        status: "draft",
+        projectId: id,
+      });
+      return await response.json();
+    },
+    onSuccess: (newDocument) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", id, "documents"] });
+      toast({
+        title: "Document créé",
+        description: "Le document a été créé et lié au projet",
+        variant: "success",
+      });
+      setLocation(`/documents/${newDocument.id}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer le document",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Debounced autosave for task edits
   useEffect(() => {
     if (!selectedTask || !taskEditData.id) return;
@@ -888,6 +993,17 @@ export default function ProjectDetail() {
           <TabsContent value="tasks" className="mt-0">
             <Card>
               <CardContent className="p-6 pt-[4px] pb-[4px]">
+                <div className="flex justify-end mb-4">
+                  <Button 
+                    size="sm" 
+                    onClick={() => createTaskMutation.mutate()}
+                    disabled={createTaskMutation.isPending}
+                    data-testid="button-create-task"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {createTaskMutation.isPending ? "Création..." : "Créer une tâche"}
+                  </Button>
+                </div>
                 {projectTasks.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucune tâche associée à ce projet.
@@ -985,6 +1101,17 @@ export default function ProjectDetail() {
           <TabsContent value="notes" className="mt-0">
             <Card>
               <CardContent className="pt-6">
+                <div className="flex justify-end mb-4">
+                  <Button 
+                    size="sm" 
+                    onClick={() => createNoteMutation.mutate()}
+                    disabled={createNoteMutation.isPending}
+                    data-testid="button-create-note"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {createNoteMutation.isPending ? "Création..." : "Créer une note"}
+                  </Button>
+                </div>
                 {projectNotes.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucune note liée à ce projet.
@@ -1028,6 +1155,17 @@ export default function ProjectDetail() {
           <TabsContent value="documents" className="mt-0">
             <Card>
               <CardContent className="pt-6">
+                <div className="flex justify-end mb-4">
+                  <Button 
+                    size="sm" 
+                    onClick={() => createDocumentMutation.mutate()}
+                    disabled={createDocumentMutation.isPending}
+                    data-testid="button-create-document"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {createDocumentMutation.isPending ? "Création..." : "Créer un document"}
+                  </Button>
+                </div>
                 {projectDocuments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-[12px]">
                     Aucun document lié à ce projet.
