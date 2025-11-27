@@ -52,10 +52,8 @@ export default function Mindmaps() {
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<Mindmap>) => {
-      return await apiRequest("/api/mindmaps", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest("/api/mindmaps", "POST", data);
+      return await res.json();
     },
     onSuccess: (mindmap) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
@@ -71,7 +69,7 @@ export default function Mindmaps() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/mindmaps/${id}`, { method: "DELETE" });
+      return await apiRequest(`/api/mindmaps/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });

@@ -221,10 +221,8 @@ function MindmapCanvas() {
       positionX: number;
       positionY: number;
     }) => {
-      return await apiRequest(`/api/mindmaps/${id}/nodes`, {
-        method: "POST",
-        body: JSON.stringify(nodeData),
-      });
+      const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
+      return await res.json();
     },
     onSuccess: (newNode: MindmapNodeType) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
@@ -262,10 +260,7 @@ function MindmapCanvas() {
       nodeId: string;
       updates: Partial<MindmapNodeType>;
     }) => {
-      return await apiRequest(`/api/mindmap-nodes/${nodeId}`, {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      });
+      return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "PATCH", updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
@@ -281,9 +276,7 @@ function MindmapCanvas() {
 
   const deleteNodeMutation = useMutation({
     mutationFn: async (nodeId: string) => {
-      return await apiRequest(`/api/mindmap-nodes/${nodeId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "DELETE");
     },
     onSuccess: (_, nodeId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
@@ -308,10 +301,8 @@ function MindmapCanvas() {
       sourceNodeId: string;
       targetNodeId: string;
     }) => {
-      return await apiRequest(`/api/mindmaps/${id}/edges`, {
-        method: "POST",
-        body: JSON.stringify(edgeData),
-      });
+      const res = await apiRequest(`/api/mindmaps/${id}/edges`, "POST", edgeData);
+      return await res.json();
     },
     onSuccess: (newEdge: MindmapEdgeType) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
@@ -328,10 +319,7 @@ function MindmapCanvas() {
 
   const updateMindmapMutation = useMutation({
     mutationFn: async (updates: Partial<Mindmap>) => {
-      return await apiRequest(`/api/mindmaps/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      });
+      return await apiRequest(`/api/mindmaps/${id}`, "PATCH", updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
