@@ -239,6 +239,28 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Activity kinds fixed");
     
+    // Create project_payments table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_payments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        amount numeric(14, 2) NOT NULL,
+        payment_date date NOT NULL,
+        description text,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    // Create index on account_id and project_id for project_payments
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_payments_account_project_idx 
+      ON project_payments(account_id, project_id);
+    `);
+    console.log("✅ Project payments table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

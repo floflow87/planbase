@@ -1033,6 +1033,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // PROJECT PAYMENTS - Protected Routes
+  // ============================================
+
+  // Get all payments for a project
+  app.get("/api/projects/:projectId/payments", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const payments = await storage.getPaymentsByProjectId(req.params.projectId);
+      res.json(payments);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new payment
+  app.post("/api/projects/:projectId/payments", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const payment = await storage.createPayment({
+        ...req.body,
+        accountId: req.accountId!,
+        projectId: req.params.projectId,
+        createdBy: req.userId!,
+      });
+
+      // Get all payments for this project to calculate total paid
+      const payments = await storage.getPaymentsByProjectId(req.params.projectId);
+      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const budget = parseFloat(project.budget || "0");
+
+      // Auto-update billing status based on payment progress
+      let newBillingStatus = project.billingStatus;
+      if (budget > 0) {
+        if (totalPaid >= budget) {
+          newBillingStatus = "paye";
+        } else if (totalPaid > 0) {
+          newBillingStatus = "partiel";
+        }
+      }
+
+      // Update project billing status if it changed
+      if (newBillingStatus !== project.billingStatus) {
+        await storage.updateProject(project.id, { billingStatus: newBillingStatus });
+      }
+
+      res.json({ payment, totalPaid, billingStatus: newBillingStatus });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a payment
+  app.patch("/api/payments/:paymentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const payment = await storage.getPayment(req.params.paymentId);
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      if (payment.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updatedPayment = await storage.updatePayment(req.params.paymentId, req.body);
+
+      // Recalculate billing status
+      const payments = await storage.getPaymentsByProjectId(payment.projectId);
+      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const project = await storage.getProject(payment.projectId);
+      const budget = parseFloat(project?.budget || "0");
+
+      let newBillingStatus = project?.billingStatus;
+      if (budget > 0) {
+        if (totalPaid >= budget) {
+          newBillingStatus = "paye";
+        } else if (totalPaid > 0) {
+          newBillingStatus = "partiel";
+        }
+      }
+
+      if (project && newBillingStatus !== project.billingStatus) {
+        await storage.updateProject(project.id, { billingStatus: newBillingStatus });
+      }
+
+      res.json({ payment: updatedPayment, totalPaid, billingStatus: newBillingStatus });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a payment
+  app.delete("/api/payments/:paymentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const payment = await storage.getPayment(req.params.paymentId);
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      if (payment.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deletePayment(req.params.paymentId);
+
+      // Recalculate billing status after deletion
+      const payments = await storage.getPaymentsByProjectId(payment.projectId);
+      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const project = await storage.getProject(payment.projectId);
+      const budget = parseFloat(project?.budget || "0");
+
+      let newBillingStatus = project?.billingStatus;
+      if (budget > 0) {
+        if (totalPaid >= budget) {
+          newBillingStatus = "paye";
+        } else if (totalPaid > 0) {
+          newBillingStatus = "partiel";
+        } else {
+          // Reset to previous status if no payments (keep current if set)
+          if (project?.billingStatus === "paye" || project?.billingStatus === "partiel") {
+            newBillingStatus = "facture"; // Reset to "facture" if we had payments before
+          }
+        }
+      }
+
+      if (project && newBillingStatus !== project.billingStatus) {
+        await storage.updateProject(project.id, { billingStatus: newBillingStatus });
+      }
+
+      res.json({ success: true, totalPaid, billingStatus: newBillingStatus });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TASKS - Protected Routes
   // ============================================
 

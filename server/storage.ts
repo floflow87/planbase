@@ -10,6 +10,7 @@ import {
   type ClientCustomFieldValue, type InsertClientCustomFieldValue,
   type Project, type InsertProject,
   type ProjectCategory, type InsertProjectCategory,
+  type ProjectPayment, type InsertProjectPayment,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
@@ -29,7 +30,7 @@ import {
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   type TimeEntry, type InsertTimeEntry,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
 } from "@shared/schema";
@@ -108,6 +109,13 @@ export interface IStorage {
   getProjectCategoriesByAccountId(accountId: string): Promise<ProjectCategory[]>;
   getProjectCategoryByNormalizedName(accountId: string, name: string): Promise<ProjectCategory | undefined>;
   createProjectCategory(category: InsertProjectCategory): Promise<ProjectCategory>;
+
+  // Project Payments
+  getPaymentsByProjectId(projectId: string): Promise<ProjectPayment[]>;
+  getPayment(id: string): Promise<ProjectPayment | undefined>;
+  createPayment(payment: InsertProjectPayment): Promise<ProjectPayment>;
+  updatePayment(id: string, payment: Partial<InsertProjectPayment>): Promise<ProjectPayment | undefined>;
+  deletePayment(id: string): Promise<boolean>;
 
   // Task Columns
   getTaskColumn(id: string): Promise<TaskColumn | undefined>;
@@ -572,6 +580,45 @@ export class DatabaseStorage implements IStorage {
       .values(insertCategory)
       .returning();
     return category;
+  }
+
+  // Project Payments
+  async getPaymentsByProjectId(projectId: string): Promise<ProjectPayment[]> {
+    return await db
+      .select()
+      .from(projectPayments)
+      .where(eq(projectPayments.projectId, projectId))
+      .orderBy(desc(projectPayments.paymentDate));
+  }
+
+  async getPayment(id: string): Promise<ProjectPayment | undefined> {
+    const [payment] = await db
+      .select()
+      .from(projectPayments)
+      .where(eq(projectPayments.id, id));
+    return payment || undefined;
+  }
+
+  async createPayment(paymentData: InsertProjectPayment): Promise<ProjectPayment> {
+    const [payment] = await db
+      .insert(projectPayments)
+      .values(paymentData)
+      .returning();
+    return payment;
+  }
+
+  async updatePayment(id: string, updateData: Partial<InsertProjectPayment>): Promise<ProjectPayment | undefined> {
+    const [payment] = await db
+      .update(projectPayments)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(projectPayments.id, id))
+      .returning();
+    return payment || undefined;
+  }
+
+  async deletePayment(id: string): Promise<boolean> {
+    const result = await db.delete(projectPayments).where(eq(projectPayments.id, id));
+    return result.length > 0;
   }
 
   // Task Columns
