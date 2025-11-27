@@ -347,31 +347,45 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     setLinkText('');
   }, [editor, linkUrl]);
 
-  // Image upload handler
+  // Image upload handler - converts to base64 for reliable storage
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !editor) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner un fichier image valide');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('L\'image est trop volumineuse. Taille maximum: 5 MB');
+      return;
+    }
+
     setUploading(true);
     try {
-      // Upload to Supabase Storage
-      const fileName = `${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage
-        .from('note-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Convert image to base64
+      const reader = new FileReader();
+      
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Échec de la lecture du fichier'));
+          }
+        };
+        reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+      });
 
-      if (error) throw error;
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('note-images')
-        .getPublicUrl(fileName);
-
-      // Insert image into editor
-      editor.chain().focus().setImage({ src: publicUrl }).run();
+      // Insert image into editor with base64 data
+      editor.chain().focus().setImage({ src: base64Data }).run();
     } catch (error: any) {
       console.error('Upload failed:', error);
       alert('Échec de l\'upload de l\'image: ' + error.message);
