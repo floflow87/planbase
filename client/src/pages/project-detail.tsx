@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Project, Task, Client, AppUser, TaskColumn, Note, Document } from "@shared/schema";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
@@ -468,6 +468,26 @@ export default function ProjectDetail() {
   const { data: projectCategories = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['/api/project-categories'],
   });
+
+  // Fetch all projects to get all existing categories
+  const { data: allProjects = [] } = useQuery<Project[]>({
+    queryKey: ['/api/projects'],
+  });
+
+  // Merge all categories: from database + from all projects
+  const allCategories = useMemo(() => {
+    const dbCategoryNames = projectCategories.map(c => c.name);
+    const projectCategoryNames = allProjects
+      .filter(p => p.category && p.category.trim())
+      .map(p => p.category!);
+    const allNames = new Set([...dbCategoryNames, ...projectCategoryNames]);
+    return Array.from(allNames)
+      .sort()
+      .map((name, index) => {
+        const existing = projectCategories.find(c => c.name === name);
+        return existing || { id: `temp-${index}`, name };
+      });
+  }, [projectCategories, allProjects]);
 
   const { data: projectDocuments = [] } = useQuery<Document[]>({
     queryKey: ['/api/projects', id, 'documents'],
@@ -1347,7 +1367,7 @@ export default function ProjectDetail() {
               <CategoryCombobox
                 value={projectFormData.category || ""}
                 onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
-                categories={projectCategories}
+                categories={allCategories}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Sélectionnez une catégorie existante ou créez-en une nouvelle
