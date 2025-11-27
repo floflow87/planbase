@@ -256,6 +256,40 @@
     pointer-events: none;
   }
 
+  /* TipTap Task List - Remove bullet points, only show checkbox */
+  ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  ul[data-type="taskList"] li > label {
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+  }
+
+  ul[data-type="taskList"] li > div {
+    flex: 1;
+  }
+
+  /* Ensure nested task lists also have no bullets */
+  ul[data-type="taskList"] ul[data-type="taskList"] {
+    padding-left: 1.5rem;
+  }
+
+  /* Style the checkbox */
+  ul[data-type="taskList"] input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+    accent-color: hsl(var(--primary));
+  }
+
   /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
    * buttons/badges can remove the automatic brightness adjustment on interactions
    * and program their own. */

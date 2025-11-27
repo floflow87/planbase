@@ -253,14 +253,38 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       }
     };
 
+    const handleSlashProject = () => {
+      setEntityType('project');
+      setEntitySearch('');
+      setEntityDialogOpen(true);
+    };
+
+    const handleSlashTask = () => {
+      setEntityType('task');
+      setEntitySearch('');
+      setEntityDialogOpen(true);
+    };
+
+    const handleSlashClient = () => {
+      setEntityType('client');
+      setEntitySearch('');
+      setEntityDialogOpen(true);
+    };
+
     window.addEventListener('slash-command-image', handleSlashImage);
     window.addEventListener('slash-command-url', handleSlashUrl);
     window.addEventListener('slash-command-voice', handleSlashVoice);
+    window.addEventListener('slash-command-project', handleSlashProject);
+    window.addEventListener('slash-command-task', handleSlashTask);
+    window.addEventListener('slash-command-client', handleSlashClient);
 
     return () => {
       window.removeEventListener('slash-command-image', handleSlashImage);
       window.removeEventListener('slash-command-url', handleSlashUrl);
       window.removeEventListener('slash-command-voice', handleSlashVoice);
+      window.removeEventListener('slash-command-project', handleSlashProject);
+      window.removeEventListener('slash-command-task', handleSlashTask);
+      window.removeEventListener('slash-command-client', handleSlashClient);
     };
   }, [editor]);
 

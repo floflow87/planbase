@@ -19,6 +19,9 @@ import {
   Link,
   Mic,
   Image,
+  FolderKanban,
+  CheckCircle,
+  Users,
 } from 'lucide-react';
 
 export interface SlashCommand {
@@ -166,6 +169,36 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-voice'));
+    },
+  },
+  {
+    id: 'projet',
+    label: 'Lier un projet',
+    description: 'Insérer un lien vers un projet',
+    icon: FolderKanban,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      window.dispatchEvent(new CustomEvent('slash-command-project'));
+    },
+  },
+  {
+    id: 'tache',
+    label: 'Lier une tâche',
+    description: 'Insérer un lien vers une tâche',
+    icon: CheckCircle,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      window.dispatchEvent(new CustomEvent('slash-command-task'));
+    },
+  },
+  {
+    id: 'client',
+    label: 'Lier un client',
+    description: 'Insérer un lien vers un client',
+    icon: Users,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      window.dispatchEvent(new CustomEvent('slash-command-client'));
     },
   },
 ];
