@@ -656,11 +656,12 @@ function MindmapCanvas() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [viewportRestored, setViewportRestored] = useState(false);
   const [isAddingNode, setIsAddingNode] = useState(false);
   const [newNodeKind, setNewNodeKind] = useState<MindmapNodeKind>("idea");
   const [newNodeLabel, setNewNodeLabel] = useState("");
@@ -684,6 +685,8 @@ function MindmapCanvas() {
 
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [showEdgeDeleteDialog, setShowEdgeDeleteDialog] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
@@ -818,6 +821,8 @@ function MindmapCanvas() {
 
       const flowEdges: Edge[] = data.edges.map((edge) => {
         const edgeStyle = edge.style as EdgeStyle || {};
+        // Default style is solid (no strokeDasharray), only dashed if explicitly set
+        const isDashed = edgeStyle.strokeDasharray === "5,5";
         return {
           id: edge.id,
           source: edge.sourceNodeId,
@@ -825,12 +830,14 @@ function MindmapCanvas() {
           label: edge.label || undefined,
           type: "default",
           animated: edge.isDraft,
-          markerEnd: edgeStyle.markerEnd || (edge.isDraft ? undefined : { type: MarkerType.ArrowClosed }),
-          markerStart: edgeStyle.markerStart,
+          markerEnd: edgeStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
+                     edgeStyle.markerEnd === "none" ? undefined :
+                     (edge.isDraft ? undefined : { type: MarkerType.ArrowClosed }),
+          markerStart: edgeStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } : undefined,
           style: {
             stroke: edgeStyle.stroke || (edge.isDraft ? "#94a3b8" : "#22c55e"),
             strokeWidth: edgeStyle.strokeWidth || (edge.isDraft ? 1 : 2),
-            strokeDasharray: edgeStyle.strokeDasharray,
+            strokeDasharray: isDashed ? "5,5" : undefined,
           },
           data: {
             isDraft: edge.isDraft,
@@ -844,6 +851,32 @@ function MindmapCanvas() {
       setEdges(flowEdges);
     }
   }, [data, setNodes, setEdges, layoutConfig, handleNodeStyleUpdate, handleTextNodeEdit]);
+
+  // Restore viewport from localStorage when nodes are loaded
+  useEffect(() => {
+    if (nodes.length > 0 && !viewportRestored && id) {
+      const savedViewport = localStorage.getItem(`mindmap-viewport-${id}`);
+      if (savedViewport) {
+        try {
+          const viewport = JSON.parse(savedViewport);
+          setTimeout(() => {
+            setViewport(viewport, { duration: 0 });
+          }, 100);
+        } catch (e) {
+          console.error("Failed to restore viewport:", e);
+        }
+      }
+      setViewportRestored(true);
+    }
+  }, [nodes.length, viewportRestored, id, setViewport]);
+
+  // Save viewport to localStorage on move end
+  const handleMoveEnd = useCallback(() => {
+    if (id) {
+      const viewport = getViewport();
+      localStorage.setItem(`mindmap-viewport-${id}`, JSON.stringify(viewport));
+    }
+  }, [id, getViewport]);
 
   useEffect(() => {
     if (selectedNode) {
@@ -1039,32 +1072,42 @@ function MindmapCanvas() {
   });
 
   const handleEdgeStyleUpdate = useCallback((edgeId: string, styleUpdate: Partial<EdgeStyle>) => {
+    const updateEdge = (edge: Edge): Edge => {
+      const currentStyle = edge.data?.edgeStyle || {};
+      const newStyle = { ...currentStyle, ...styleUpdate };
+      
+      const updatedEdge: Edge = {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: newStyle.stroke || edge.style?.stroke,
+          strokeWidth: newStyle.strokeWidth || edge.style?.strokeWidth,
+          strokeDasharray: styleUpdate.strokeDasharray !== undefined ? styleUpdate.strokeDasharray : edge.style?.strokeDasharray,
+        },
+        markerEnd: newStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
+                   newStyle.markerEnd === "none" ? undefined : edge.markerEnd,
+        markerStart: newStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } :
+                    newStyle.markerStart === "none" ? undefined : edge.markerStart,
+        data: {
+          ...edge.data,
+          edgeStyle: newStyle,
+        },
+      };
+      return updatedEdge;
+    };
+
     setEdges((eds) =>
-      eds.map((edge) => {
-        if (edge.id === edgeId) {
-          const currentStyle = edge.data?.edgeStyle || {};
-          const newStyle = { ...currentStyle, ...styleUpdate };
-          return {
-            ...edge,
-            style: {
-              ...edge.style,
-              stroke: newStyle.stroke || edge.style?.stroke,
-              strokeWidth: newStyle.strokeWidth || edge.style?.strokeWidth,
-              strokeDasharray: newStyle.strokeDasharray,
-            },
-            markerEnd: newStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
-                       newStyle.markerEnd === "none" ? undefined : edge.markerEnd,
-            markerStart: newStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } :
-                        newStyle.markerStart === "none" ? undefined : edge.markerStart,
-            data: {
-              ...edge.data,
-              edgeStyle: newStyle,
-            },
-          };
-        }
-        return edge;
-      })
+      eds.map((edge) => edge.id === edgeId ? updateEdge(edge) : edge)
     );
+    
+    // Also update selectedEdge to reflect changes immediately
+    setSelectedEdge((currentEdge) => {
+      if (currentEdge && currentEdge.id === edgeId) {
+        return updateEdge(currentEdge);
+      }
+      return currentEdge;
+    });
+
     updateEdgeMutation.mutate({
       edgeId,
       updates: {
@@ -1162,6 +1205,60 @@ function MindmapCanvas() {
     deleteNodeMutation.mutate(selectedNode.id);
   };
 
+  const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner un fichier image valide",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const maxSize = 2 * 1024 * 1024; // 2MB max for base64
+    if (file.size > maxSize) {
+      toast({
+        title: "Erreur",
+        description: "L'image est trop volumineuse. Taille maximum: 2 MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Échec de la lecture du fichier'));
+          }
+        };
+        reader.onerror = () => reject(new Error('Erreur lors de la lecture du fichier'));
+      });
+
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
+      setEditImageUrl(base64Data);
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Échec de l'upload de l'image: " + error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingImage(false);
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    }
+  }, [toast]);
+
   const handleSelectEntity = (entity: { id: string; name: string }) => {
     setNewLinkedEntityType(newNodeKind);
     setNewLinkedEntityId(entity.id);
@@ -1240,8 +1337,10 @@ function MindmapCanvas() {
         <div className="flex items-center gap-2">
           <Select value={currentKind} onValueChange={(v) => handleKindChange(v as MindmapKind)}>
             <SelectTrigger className="w-[200px]" data-testid="select-view-kind">
-              <CurrentKindIcon className="w-4 h-4 mr-2" />
-              <SelectValue />
+              <div className="flex items-center gap-2">
+                <CurrentKindIcon className="w-4 h-4" />
+                <span>{mindmapKindOptions.find(o => o.value === currentKind)?.label || "Mindmap"}</span>
+              </div>
             </SelectTrigger>
             <SelectContent>
               {mindmapKindOptions.map((option) => {
@@ -1430,8 +1529,9 @@ function MindmapCanvas() {
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
+          onMoveEnd={handleMoveEnd}
           nodeTypes={nodeTypes}
-          fitView
+          fitView={!viewportRestored}
           className="bg-muted/30"
           data-testid="mindmap-canvas"
         >
@@ -1688,14 +1788,39 @@ function MindmapCanvas() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-image">URL de l'image</Label>
-                  <Input
-                    id="edit-image"
-                    value={editImageUrl}
-                    onChange={(e) => setEditImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    data-testid="input-edit-image"
+                  <Label>Image</Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={imageInputRef}
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    data-testid="input-file-image"
                   />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                      className="flex-1"
+                      data-testid="button-upload-image"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {isUploadingImage ? "Upload..." : "Choisir une image"}
+                    </Button>
+                    {editImageUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditImageUrl("")}
+                        data-testid="button-remove-image"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                   {editImageUrl && (
                     <div className="mt-2 rounded overflow-hidden border">
                       <img src={editImageUrl} alt="" className="w-full h-24 object-cover" />
@@ -1847,20 +1972,31 @@ function MindmapCanvas() {
                         variant={!selectedEdge.markerEnd && !selectedEdge.markerStart ? "default" : "outline"}
                         size="sm"
                         onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "none", markerStart: "none" })}
+                        title="Aucune flèche"
                       >
-                        Aucune
+                        <Minus className="w-4 h-4" />
                       </Button>
                       <Button
                         variant={selectedEdge.markerEnd && !selectedEdge.markerStart ? "default" : "outline"}
                         size="sm"
                         onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "arrow", markerStart: "none" })}
+                        title="Flèche vers la droite"
                       >
                         <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={!selectedEdge.markerEnd && selectedEdge.markerStart ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "none", markerStart: "arrow" })}
+                        title="Flèche vers la gauche"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
                       </Button>
                       <Button
                         variant={selectedEdge.markerEnd && selectedEdge.markerStart ? "default" : "outline"}
                         size="sm"
                         onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "arrow", markerStart: "arrow" })}
+                        title="Flèches des deux côtés"
                       >
                         <ArrowLeftRight className="w-4 h-4" />
                       </Button>

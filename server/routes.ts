@@ -3316,6 +3316,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Template nodes for different mindmap types
+  const MINDMAP_TEMPLATES: Record<string, Array<{ title: string; type: string; x: number; y: number; description?: string }>> = {
+    generic: [
+      { title: "Idée principale", type: "idea", x: 400, y: 300 },
+    ],
+    storyboard: [
+      { title: "Scène 1 - Introduction", type: "idea", x: 100, y: 200, description: "Présentation du contexte" },
+      { title: "Scène 2 - Développement", type: "idea", x: 350, y: 200, description: "Action principale" },
+      { title: "Scène 3 - Climax", type: "idea", x: 600, y: 200, description: "Point culminant" },
+      { title: "Scène 4 - Conclusion", type: "idea", x: 850, y: 200, description: "Résolution" },
+    ],
+    user_flow: [
+      { title: "Point d'entrée", type: "idea", x: 100, y: 250, description: "Début du parcours" },
+      { title: "Étape 1", type: "task", x: 300, y: 150 },
+      { title: "Étape 2", type: "task", x: 500, y: 150 },
+      { title: "Décision", type: "idea", x: 500, y: 350, description: "Point de décision" },
+      { title: "Objectif atteint", type: "idea", x: 750, y: 250, description: "Succès du parcours" },
+    ],
+    architecture: [
+      { title: "Frontend", type: "project", x: 200, y: 100, description: "Interface utilisateur" },
+      { title: "API Gateway", type: "project", x: 400, y: 250, description: "Point d'entrée des requêtes" },
+      { title: "Backend", type: "project", x: 600, y: 100, description: "Logique métier" },
+      { title: "Base de données", type: "document", x: 600, y: 400, description: "Stockage des données" },
+      { title: "Services externes", type: "client", x: 200, y: 400, description: "API tierces" },
+    ],
+    sitemap: [
+      { title: "Accueil", type: "idea", x: 400, y: 50 },
+      { title: "À propos", type: "document", x: 150, y: 200 },
+      { title: "Services", type: "document", x: 350, y: 200 },
+      { title: "Portfolio", type: "document", x: 550, y: 200 },
+      { title: "Contact", type: "document", x: 750, y: 200 },
+      { title: "Blog", type: "note", x: 400, y: 350 },
+    ],
+    ideas: [
+      { title: "Idée centrale", type: "idea", x: 400, y: 250 },
+      { title: "Branche 1", type: "idea", x: 200, y: 100 },
+      { title: "Branche 2", type: "idea", x: 600, y: 100 },
+      { title: "Branche 3", type: "idea", x: 200, y: 400 },
+      { title: "Branche 4", type: "idea", x: 600, y: 400 },
+    ],
+  };
+
   // Create a new mindmap
   app.post("/api/mindmaps", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
@@ -3325,6 +3367,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.userId || null,
       });
       const mindmap = await storage.createMindmap(data);
+      
+      // Create template nodes based on mindmap kind
+      const templateNodes = MINDMAP_TEMPLATES[mindmap.kind] || MINDMAP_TEMPLATES.generic;
+      const createdNodes: any[] = [];
+      
+      for (const template of templateNodes) {
+        const node = await storage.createMindmapNode({
+          accountId: req.accountId!,
+          mindmapId: mindmap.id,
+          title: template.title,
+          description: template.description || null,
+          type: template.type,
+          x: template.x.toString(),
+          y: template.y.toString(),
+        });
+        createdNodes.push(node);
+      }
+      
+      // Create edges for connecting nodes based on template type
+      if (mindmap.kind === "storyboard" && createdNodes.length >= 4) {
+        // Connect scenes sequentially
+        for (let i = 0; i < createdNodes.length - 1; i++) {
+          await storage.createMindmapEdge({
+            accountId: req.accountId!,
+            mindmapId: mindmap.id,
+            sourceNodeId: createdNodes[i].id,
+            targetNodeId: createdNodes[i + 1].id,
+            isDraft: true,
+          });
+        }
+      } else if (mindmap.kind === "user_flow" && createdNodes.length >= 5) {
+        // Connect flow: entry -> step1 -> step2 -> goal, entry -> decision
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[0].id, targetNodeId: createdNodes[1].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[1].id, targetNodeId: createdNodes[2].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[2].id, targetNodeId: createdNodes[4].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[0].id, targetNodeId: createdNodes[3].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[3].id, targetNodeId: createdNodes[4].id, isDraft: true });
+      } else if (mindmap.kind === "architecture" && createdNodes.length >= 5) {
+        // Connect architecture: frontend <-> api, backend <-> api, backend <-> db, api <-> external
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[0].id, targetNodeId: createdNodes[1].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[1].id, targetNodeId: createdNodes[2].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[2].id, targetNodeId: createdNodes[3].id, isDraft: true });
+        await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[1].id, targetNodeId: createdNodes[4].id, isDraft: true });
+      } else if (mindmap.kind === "sitemap" && createdNodes.length >= 6) {
+        // Connect sitemap: home -> all pages
+        for (let i = 1; i < createdNodes.length; i++) {
+          await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[0].id, targetNodeId: createdNodes[i].id, isDraft: true });
+        }
+      } else if (mindmap.kind === "ideas" && createdNodes.length >= 5) {
+        // Connect ideas: center -> all branches
+        for (let i = 1; i < createdNodes.length; i++) {
+          await storage.createMindmapEdge({ accountId: req.accountId!, mindmapId: mindmap.id, sourceNodeId: createdNodes[0].id, targetNodeId: createdNodes[i].id, isDraft: true });
+        }
+      }
       
       // Log activity
       await storage.createActivity({
