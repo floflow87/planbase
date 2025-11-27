@@ -15,6 +15,7 @@ import { Color } from '@tiptap/extension-color';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
+import { SlashCommands } from '@/components/SlashCommands';
 import { 
   Bold, 
   Italic, 
@@ -158,6 +159,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         inline: false,
         allowBase64: true,
       }),
+      SlashCommands,
     ],
     content,
     editable,
@@ -205,6 +207,62 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Handle slash command events
+  useEffect(() => {
+    const handleSlashImage = () => {
+      fileInputRef.current?.click();
+    };
+
+    const handleSlashUrl = () => {
+      setLinkDialogOpen(true);
+    };
+
+    const handleSlashVoice = () => {
+      // Trigger voice dictation if supported
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'fr-FR';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        recognition.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join('');
+          
+          if (event.results[event.results.length - 1].isFinal && editor) {
+            editor.chain().focus().insertContent(transcript).run();
+          }
+        };
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          alert('Erreur de reconnaissance vocale: ' + event.error);
+        };
+        
+        recognition.start();
+        
+        // Stop after 30 seconds max
+        setTimeout(() => {
+          recognition.stop();
+        }, 30000);
+      } else {
+        alert('La reconnaissance vocale n\'est pas supportée par votre navigateur');
+      }
+    };
+
+    window.addEventListener('slash-command-image', handleSlashImage);
+    window.addEventListener('slash-command-url', handleSlashUrl);
+    window.addEventListener('slash-command-voice', handleSlashVoice);
+
+    return () => {
+      window.removeEventListener('slash-command-image', handleSlashImage);
+      window.removeEventListener('slash-command-url', handleSlashUrl);
+      window.removeEventListener('slash-command-voice', handleSlashVoice);
+    };
+  }, [editor]);
 
   // Expose imperative methods for external control
   useImperativeHandle(ref, () => ({
