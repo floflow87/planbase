@@ -1,0 +1,385 @@
+Développe pour Planbase un module Mindmap complet, intégré au monorepo existant (Node + Express + React + Supabase), conforme à l’architecture actuelle (backend et frontend unifiés, Supabase en multi-tenant avec RLS).
+
+Je décris ci-dessous l’ensemble des spécifications fonctionnelles, techniques, UI, modèles de données, interactions, templates et comportements attendus.
+
+Merci d’implémenter ce module de A → Z.
+
+⭐️ Objectif global
+
+Créer un module Mindmap avancé utilisé pour :
+
+parcours utilisateur (user flow),
+
+storyboard,
+
+sitemap,
+
+architecture fonctionnelle ou technique,
+
+brainstorming / idées libres,
+
+liaison entre objets de l’application (notes, projets, documents, clients, tâches),
+
+exploration visuelle d’un projet,
+
+création progressive puis rattachement ultérieur à un client ou un projet.
+
+Le module doit permettre :
+
+création libre d’une mindmap,
+
+gestion de nœuds variés,
+
+liens en mode draft,
+
+bouton “Connecter les nœuds” pour transformer les liens draft en liens métier réels,
+
+rattachement optionnel à un client ou projet,
+
+plusieurs mindmaps par client et par projet,
+
+templates,
+
+plusieurs vues UI (dépliée / semi / pliée),
+
+autocomplete intelligent lors de la création de nœuds.
+
+🧩 1. Modèle de données Supabase (multi-tenant + RLS)
+Table mindmaps
+mindmaps (
+  id uuid primary key,
+  account_id uuid not null,
+  title text not null,
+  kind text default 'generic',   -- 'generic' | 'user_journey' | 'storyboard' | 'sitemap' | 'architecture'
+  client_id uuid null,
+  project_id uuid null,
+  layout_config jsonb null,      -- config UI selon le template
+  created_by uuid not null,
+  created_at timestamptz default now()
+)
+
+Table mindmap_nodes
+mindmap_nodes (
+  id uuid primary key,
+  mindmap_id uuid not null references mindmaps(id),
+  account_id uuid not null,
+  type text not null,            -- 'note' | 'project' | 'document' | 'task' | 'idea' | 'client' | 'generic'
+  title text not null,
+  description text null,
+  image_url text null,           -- pour storyboard / parcours / archi
+  linked_entity_type text null,  -- 'note' | 'project' | 'document' | 'task' | 'client'
+  linked_entity_id uuid null,
+  x float not null,
+  y float not null,
+  created_at timestamptz default now()
+)
+
+Table mindmap_edges
+mindmap_edges (
+  id uuid primary key,
+  mindmap_id uuid not null references mindmaps(id),
+  account_id uuid not null,
+  source_node_id uuid not null references mindmap_nodes(id),
+  target_node_id uuid not null references mindmap_nodes(id),
+  is_draft boolean default true,
+  linked_entity_link_id uuid null, 
+  created_at timestamptz default now()
+)
+
+RLS
+
+Toutes les tables doivent être protégées avec :
+
+account_id = auth.jwt()->>'account_id'
+
+🚀 2. Backend – API à implémenter (Express)
+Mindmaps
+
+POST /api/mindmaps
+Crée une mindmap (pas besoin de client/projet au départ).
+
+GET /api/mindmaps/:id
+
+PATCH /api/mindmaps/:id
+Pour rattacher un client ou projet + mettre à jour layout_config.
+
+DELETE /api/mindmaps/:id
+
+Nœuds
+
+POST /api/mindmaps/:id/nodes
+Créer un nœud (titre, type, position).
+
+PATCH /api/mindmaps/:id/nodes/:nodeId
+Déplacement, édition, ajout d’image, changement de type.
+
+DELETE /api/mindmaps/:id/nodes/:nodeId
+
+Edges
+
+POST /api/mindmaps/:id/edges
+Crée un edge en mode is_draft=true.
+
+DELETE /api/mindmaps/:id/edges/:edgeId
+
+POST /api/mindmaps/:id/connect-nodes
+→ transforme les edges draft en vrais liens métier :
+
+crée des liens dans une table entity_links (à créer si nécessaire),
+
+remplit linked_entity_link_id,
+
+passe is_draft=false.
+
+🎨 3. UI / Frontend – Comportements attendus
+
+Le module doit être construit avec React + React Flow ou équivalent.
+
+3.1. Canvas Mindmap
+
+Vue pannable + zoomable.
+
+Drag & drop des nœuds.
+
+Drag & drop des liens.
+
+Suppression des liens (visuel et métier).
+
+Sidebar pour créer des nœuds.
+
+3.2. Nœuds – types supportés
+
+Un nœud peut être :
+
+Idea (libre)
+
+Note
+
+Projet
+
+Document
+
+Tâche
+
+Client
+
+Chaque nœud peut :
+
+afficher un titre,
+
+afficher une description,
+
+afficher / uploader une image,
+
+pointer vers un objet réel de l’app (linked_entity_type / linked_entity_id).
+
+3.3. Création d’un nœud avec autocomplete intelligent
+
+Lorsqu’on crée un nœud :
+
+Champ “Titre” + champ “Type”
+
+Si le type correspond à un objet existant (ex : Note, Projet, Tâche, Client, Document) →
+autocomplete qui recherche dans Supabase :
+
+notes
+
+projets
+
+documents
+
+tâches
+
+clients
+
+Si l’utilisateur sélectionne un élément :
+
+le nœud devient automatiquement lié :
+
+linked_entity_type
+
+linked_entity_id
+
+title = nom de l’entité
+
+Si pas sélectionné → c’est un nœud libre.
+
+3.4. Vues & Templates (important)
+
+Chaque mindmap peut être affichée selon plusieurs vues configurées par layout_config :
+
+1) Vue Dépliée (Storyboard)
+
+affiche image + description + titre
+
+nœuds rectangulaires larges
+
+pensée pour faire un storyboard ou une timeline
+
+2) Vue User Flow (Semi-dépliée)
+
+titre obligatoire
+
+description optionnelle
+
+image facultative
+
+idéale pour parcours utilisateur
+
+3) Vue Architecture
+
+icônes système / modules
+
+pas d’image
+
+description optionnelle
+
+nœuds compacts
+
+4) Vue Idées / Brainstorm
+
+bulles arrondies
+
+juste un titre
+
+style Post-it
+
+5) Vue Sitemap (Pliée)
+
+uniquement titre
+
+pas d’image ni description
+
+hierarchie claire
+
+L’utilisateur peut afficher / masquer :
+
+titre
+
+description
+
+image
+
+tags (futur)
+
+statut (futur)
+
+3.5. Gestion des templates (à la création)
+
+Au moment de créer une nouvelle mindmap :
+
+Afficher des templates :
+
+“Page blanche”
+
+“Parcours utilisateur”
+
+“Storyboard”
+
+“Sitemap”
+
+“Architecture”
+
+“Idées / Brainstorm”
+
+Chaque template doit :
+
+créer automatiquement les nœuds & edges par défaut (optionnel)
+
+définir un layout_config adapté
+
+🔗 4. Mode Draft & Bouton “Connecter les nœuds”
+
+Toutes les relations créées via la mindmap sont d’abord du draft (is_draft=true).
+
+Un bouton global “Connecter les nœuds” :
+
+Récupère tous les edges draft
+
+Si les deux nœuds sont liés à des objets métier →
+créer une relation dans la table entity_links (à créer)
+
+Mettre à jour linked_entity_link_id
+
+Passer is_draft=false
+
+Recharger la mindmap
+
+Cela permet une réflexion libre sans risquer d’impacter le reste de l’app, avant une étape de validation.
+
+🧭 5. Suppression des liens
+
+L’utilisateur doit pouvoir :
+
+supprimer un edge visuel (draft uniquement)
+
+supprimer un edge réel (→ casser le lien métier + supprimer l’edge)
+
+Si un linked_entity_link_id existe → proposer :
+
+“Supprimer seulement le lien visuel”
+
+“Supprimer aussi le lien dans le projet”
+
+🧭 6. Rattachement client / projet (optionnel)
+
+Une mindmap peut être :
+
+libre (pas de client / projet)
+
+rattachée à un client
+
+rattachée à un projet (qui lui-même est rattaché à un client)
+
+Depuis les propriétés de la mindmap, permettre :
+
+choisir un client
+
+choisir un projet (filtré par client)
+
+changement possible à tout moment
+
+Lorsqu’on crée un nœud lié à un projet ou note existante →
+la mindmap propose automatiquement de se rattacher si elle ne l’est pas encore.
+
+🧭 7. Fonction “Voir sur une mindmap” depuis une entité
+
+Depuis une note, un projet, un client, un document, une tâche :
+
+Bouton “Voir sur une mindmap”
+
+Modale :
+
+“Nouvelle mindmap”
+
+“Choisir une mindmap existante”
+
+Quand sélectionnée :
+
+créer un nouveau nœud lié à l’élément (linked_entity_type, linked_entity_id)
+
+positionner au centre de la carte
+
+ouvrir la mindmap
+
+🎯 8. Objectif final
+
+Un module Mindmap complet, flexible, multi-usage, qui devient :
+
+la vue visuelle du client,
+
+la vue user flow,
+
+la vue sitemap,
+
+la vue storyboard,
+
+la vue architecture,
+
+la vue idées,
+
+un outil d’organisation,
+
+un outil de création de lien dans le système.
+
+Il doit être pensé proprement, scalable, clair, totalement intégré à l’architecture Planbase.
