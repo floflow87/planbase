@@ -1,5 +1,5 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -837,8 +837,15 @@ export default function Tasks() {
     localStorage.setItem("tasks_status_filter", JSON.stringify(statusFilter));
   }, [statusFilter]);
 
-  // Reset status filter to "all" when changing projects
+  // Track if initial mount has happened
+  const isInitialMount = useRef(true);
+  
+  // Reset status filter to "all" when changing projects (but not on initial mount)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setStatusFilter(["all"]);
   }, [selectedProjectIds]);
 
