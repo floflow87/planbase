@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3 } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2023,6 +2023,27 @@ export default function Projects() {
   const [editingBudgetProjectId, setEditingBudgetProjectId] = useState<string | null>(null);
   const [tempBudgetValue, setTempBudgetValue] = useState("");
 
+  // Inline billing status editing
+  const [editingBillingStatusProjectId, setEditingBillingStatusProjectId] = useState<string | null>(null);
+  const [billingStatusPopoverOpen, setBillingStatusPopoverOpen] = useState(false);
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("projectColumnVisibility");
+    return saved ? JSON.parse(saved) : {
+      name: true,
+      client: true,
+      stage: true,
+      progress: true,
+      category: true,
+      startDate: true,
+      budget: true,
+      billingStatus: true,
+      actions: true,
+    };
+  });
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high">("medium");
@@ -3372,7 +3393,7 @@ export default function Projects() {
                                   actions: "Actions",
                                 };
                                 
-                                const isSortableColumn = !["progress", "actions", "billingStatus"].includes(columnId);
+                                const isSortableColumn = !["progress", "actions"].includes(columnId);
                                 
                                 const columnClasses: Record<string, string> = {
                                   name: "max-w-[250px]",
@@ -3736,17 +3757,59 @@ export default function Projects() {
                               ),
                               billingStatus: (
                                 <TableCell key="billingStatus" className="max-w-[130px]">
-                                  {project.billingStatus ? (
-                                    <Badge 
-                                      className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
-                                      data-testid={`badge-table-billing-status-${project.id}`}
-                                    >
-                                      {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-                                      {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-[11px] text-muted-foreground">—</span>
-                                  )}
+                                  <Popover
+                                    open={billingStatusPopoverOpen && editingBillingStatusProjectId === project.id}
+                                    onOpenChange={(open) => {
+                                      setBillingStatusPopoverOpen(open);
+                                      if (open) {
+                                        setEditingBillingStatusProjectId(project.id);
+                                      } else {
+                                        setEditingBillingStatusProjectId(null);
+                                      }
+                                    }}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        className="hover-elevate active-elevate-2 rounded-md"
+                                        data-testid={`button-edit-billing-status-${project.id}`}
+                                      >
+                                        {project.billingStatus ? (
+                                          <Badge 
+                                            className={`${getBillingStatusColorForCard(project.billingStatus)} cursor-pointer text-[10px]`}
+                                            data-testid={`badge-table-billing-status-${project.id}`}
+                                          >
+                                            {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
+                                            {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-[11px] text-muted-foreground px-2 py-1">—</span>
+                                        )}
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2 bg-white dark:bg-gray-900" align="start">
+                                      <div className="space-y-1">
+                                        {billingStatusOptions.map((status) => (
+                                          <button
+                                            key={status.value}
+                                            onClick={() => {
+                                              updateProjectMutation.mutate({
+                                                id: project.id,
+                                                data: { billingStatus: status.value }
+                                              });
+                                              setBillingStatusPopoverOpen(false);
+                                              setEditingBillingStatusProjectId(null);
+                                            }}
+                                            className="w-full text-left px-3 py-2 rounded hover-elevate"
+                                            data-testid={`item-billing-status-${status.value}`}
+                                          >
+                                            <Badge className={`${getBillingStatusColorForCard(status.value)} text-[10px]`}>
+                                              {status.label}
+                                            </Badge>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
                                 </TableCell>
                               ),
                               actions: (
@@ -3789,6 +3852,21 @@ export default function Projects() {
                                       >
                                         <CheckCircle className="h-4 w-4 mr-2" />
                                         Marquer comme terminé
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        data-testid={`button-mark-invoiced-${project.id}`}
+                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "facture" } })}
+                                      >
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        Marquer comme facturé
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        data-testid={`button-mark-paid-${project.id}`}
+                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "paye" } })}
+                                      >
+                                        <Banknote className="h-4 w-4 mr-2" />
+                                        Marquer comme payé
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
