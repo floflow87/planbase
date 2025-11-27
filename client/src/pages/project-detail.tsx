@@ -503,21 +503,23 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  // Fetch payments for this project
-  const { data: payments = [] } = useQuery<ProjectPayment[]>({
+  // Fetch payments for this project (API now returns totals)
+  interface PaymentsResponse {
+    payments: ProjectPayment[];
+    totalPaid: number;
+    remainingAmount: number;
+    budget: number;
+    billingStatus: string | null;
+  }
+  const { data: paymentsData } = useQuery<PaymentsResponse>({
     queryKey: ['/api/projects', id, 'payments'],
     enabled: !!id,
   });
 
-  // Calculate total paid and remaining amount
-  const totalPaid = useMemo(() => {
-    return payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
-  }, [payments]);
-
-  const remainingAmount = useMemo(() => {
-    const budget = parseFloat(project?.budget || "0");
-    return Math.max(0, budget - totalPaid);
-  }, [project?.budget, totalPaid]);
+  // Extract data from API response
+  const payments = paymentsData?.payments || [];
+  const totalPaid = paymentsData?.totalPaid || 0;
+  const remainingAmount = paymentsData?.remainingAmount || 0;
 
   // Initialize billing fields when project loads
   useEffect(() => {

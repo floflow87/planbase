@@ -1047,7 +1047,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
       const payments = await storage.getPaymentsByProjectId(req.params.projectId);
-      res.json(payments);
+      
+      // Calculate totals for convenience
+      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const budget = parseFloat(project.budget || "0");
+      const remainingAmount = Math.max(0, budget - totalPaid);
+      
+      res.json({
+        payments,
+        totalPaid,
+        remainingAmount,
+        budget,
+        billingStatus: project.billingStatus,
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
