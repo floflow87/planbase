@@ -952,6 +952,7 @@ export const mindmapNodeTypeOptions = [
   { value: "task", label: "Tâche", icon: "CheckSquare", color: "#5EEAD4" },
   { value: "client", label: "Client", icon: "User", color: "#FCA5A5" },
   { value: "generic", label: "Générique", icon: "Square", color: "#D1D5DB" },
+  { value: "text", label: "Texte libre", icon: "Type", color: "#A3A3A3" },
 ] as const;
 
 export type MindmapNodeType = typeof mindmapNodeTypeOptions[number]["value"];

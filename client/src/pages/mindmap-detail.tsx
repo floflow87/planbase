@@ -189,6 +189,12 @@ const NODE_KIND_CONFIG: Record<
     color: "text-gray-600",
     bgColor: "bg-gray-50 border-gray-200 dark:bg-gray-950/30 dark:border-gray-800",
   },
+  text: {
+    label: "Texte libre",
+    icon: Type,
+    color: "text-neutral-600",
+    bgColor: "bg-neutral-50 border-neutral-200 dark:bg-neutral-950/30 dark:border-neutral-800",
+  },
 };
 
 interface CustomNodeData {
@@ -313,6 +319,9 @@ function MindmapCanvas() {
   const [editLinkedEntityName, setEditLinkedEntityName] = useState<string>("");
   const [editEntitySearchOpen, setEditEntitySearchOpen] = useState(false);
 
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [showEdgeDeleteDialog, setShowEdgeDeleteDialog] = useState(false);
+
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -399,8 +408,16 @@ function MindmapCanvas() {
         target: edge.targetNodeId,
         label: edge.label || undefined,
         type: "default",
-        animated: false,
-        style: edge.style as Record<string, unknown> || {},
+        animated: edge.isDraft,
+        style: {
+          ...((edge.style as Record<string, unknown>) || {}),
+          stroke: edge.isDraft ? "#94a3b8" : "#22c55e",
+          strokeWidth: edge.isDraft ? 1 : 2,
+        },
+        data: {
+          isDraft: edge.isDraft,
+          linkedEntityLinkId: edge.linkedEntityLinkId,
+        },
       }));
 
       setNodes(flowNodes);
@@ -517,6 +534,57 @@ function MindmapCanvas() {
     },
   });
 
+  const deleteEdgeMutation = useMutation({
+    mutationFn: async ({ edgeId, deleteEntityLink }: { edgeId: string; deleteEntityLink: boolean }) => {
+      const url = `/api/mindmap-edges/${edgeId}/with-entity-link?deleteEntityLink=${deleteEntityLink}`;
+      return await apiRequest(url, "DELETE");
+    },
+    onSuccess: (_, { edgeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      setSelectedEdge(null);
+      setShowEdgeDeleteDialog(false);
+      toast({ title: "Connexion supprimée" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const connectNodesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest(`/api/mindmaps/${id}/connect-nodes`, "POST");
+      return await res.json();
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+      if (result.connected > 0) {
+        toast({ 
+          title: "Connexions créées",
+          description: `${result.connected} connexion(s) métier créée(s). ${result.skipped} lien(s) visuel(s) conservé(s).`
+        });
+      } else if (result.skipped > 0) {
+        toast({ 
+          title: "Aucune connexion créée",
+          description: `${result.skipped} lien(s) visuel(s) ne peuvent pas être convertis (nœuds non liés à des entités).`
+        });
+      } else {
+        toast({ title: "Aucun lien draft à connecter" });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateMindmapMutation = useMutation({
     mutationFn: async (updates: Partial<Mindmap>) => {
       return await apiRequest(`/api/mindmaps/${id}`, "PATCH", updates);
@@ -562,6 +630,12 @@ function MindmapCanvas() {
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNode(node);
+    setSelectedEdge(null);
+  }, []);
+
+  const onEdgeClick = useCallback((_: any, edge: Edge) => {
+    setSelectedEdge(edge);
+    setSelectedNode(null);
   }, []);
 
   const handleAddNode = () => {
@@ -758,6 +832,16 @@ function MindmapCanvas() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <Button
+            variant="outline"
+            onClick={() => connectNodesMutation.mutate()}
+            disabled={connectNodesMutation.isPending}
+            data-testid="button-connect-nodes"
+          >
+            <Link2 className="w-4 h-4 mr-2" />
+            {connectNodesMutation.isPending ? "Connexion..." : "Connecter"}
+          </Button>
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" data-testid="button-settings">
@@ -798,6 +882,65 @@ function MindmapCanvas() {
                     }}
                   />
                 </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>Client (optionnel)</Label>
+                  <Select
+                    value={data.mindmap.clientId || "none"}
+                    onValueChange={(value) => {
+                      const clientId = value === "none" ? null : value;
+                      updateMindmapMutation.mutate({ 
+                        clientId,
+                        projectId: clientId === null ? null : data.mindmap.projectId 
+                      });
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-mindmap-client">
+                      <SelectValue placeholder="Aucun client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucun client</SelectItem>
+                      {(clients || []).map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Projet (optionnel)</Label>
+                  <Select
+                    value={data.mindmap.projectId || "none"}
+                    onValueChange={(value) => {
+                      updateMindmapMutation.mutate({ 
+                        projectId: value === "none" ? null : value 
+                      });
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-mindmap-project">
+                      <SelectValue placeholder="Aucun projet" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucun projet</SelectItem>
+                      {(projects || [])
+                        .filter(p => !data.mindmap.clientId || p.clientId === data.mindmap.clientId)
+                        .map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {data.mindmap.clientId && (
+                    <p className="text-xs text-muted-foreground">
+                      Filtré par le client sélectionné
+                    </p>
+                  )}
+                </div>
               </div>
             </SheetContent>
           </Sheet>
@@ -813,6 +956,7 @@ function MindmapCanvas() {
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
           fitView
           className="bg-muted/30"
@@ -1123,6 +1267,77 @@ function MindmapCanvas() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedEdge && (
+          <div className="absolute top-4 left-4 z-50 w-72">
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Connexion</h4>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedEdge(null)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  {selectedEdge.data?.isDraft ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Draft</Badge>
+                      <span>Lien visuel uniquement</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="bg-green-600">Connecté</Badge>
+                      <span>Lien métier actif</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      deleteEdgeMutation.mutate({ 
+                        edgeId: selectedEdge.id, 
+                        deleteEntityLink: false 
+                      });
+                    }}
+                    disabled={deleteEdgeMutation.isPending}
+                    data-testid="button-delete-edge-visual"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer le lien visuel
+                  </Button>
+
+                  {selectedEdge.data?.linkedEntityLinkId && (
+                    <Button
+                      variant="destructive"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        deleteEdgeMutation.mutate({ 
+                          edgeId: selectedEdge.id, 
+                          deleteEntityLink: true 
+                        });
+                      }}
+                      disabled={deleteEdgeMutation.isPending}
+                      data-testid="button-delete-edge-business"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Supprimer la connexion métier
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

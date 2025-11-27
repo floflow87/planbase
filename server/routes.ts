@@ -3587,6 +3587,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // CONNECT MINDMAP NODES (Draft to Business Links)
+  // ============================================
+
+  // Connect all draft edges to business entity links
+  app.post("/api/mindmaps/:mindmapId/connect-nodes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const mindmapId = req.params.mindmapId;
+      
+      // Verify mindmap exists
+      const mindmap = await storage.getMindmap(accountId, mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      // Get all edges and nodes for this mindmap
+      const edges = await storage.getMindmapEdgesByMindmapId(accountId, mindmapId);
+      const nodes = await storage.getMindmapNodesByMindmapId(accountId, mindmapId);
+      
+      // Create a map of nodes by ID for quick lookup
+      const nodesMap = new Map(nodes.map(n => [n.id, n]));
+      
+      // Filter draft edges only
+      const draftEdges = edges.filter(e => e.isDraft);
+      
+      const results = {
+        connected: 0,
+        skipped: 0,
+        errors: [] as string[],
+      };
+      
+      for (const edge of draftEdges) {
+        const sourceNode = nodesMap.get(edge.sourceNodeId);
+        const targetNode = nodesMap.get(edge.targetNodeId);
+        
+        // Both nodes must have linked entities
+        if (
+          sourceNode?.linkedEntityType && sourceNode?.linkedEntityId &&
+          targetNode?.linkedEntityType && targetNode?.linkedEntityId
+        ) {
+          try {
+            // Create entity link
+            const entityLink = await storage.createEntityLink({
+              accountId,
+              sourceType: sourceNode.linkedEntityType,
+              sourceId: sourceNode.linkedEntityId,
+              targetType: targetNode.linkedEntityType,
+              targetId: targetNode.linkedEntityId,
+              createdBy: req.userId!,
+            });
+            
+            // Update edge with entity link ID and set isDraft = false
+            await storage.updateMindmapEdge(accountId, edge.id, {
+              isDraft: false,
+              linkedEntityLinkId: entityLink.id,
+            });
+            
+            results.connected++;
+          } catch (err: any) {
+            results.errors.push(`Edge ${edge.id}: ${err.message}`);
+          }
+        } else {
+          // Skip edges where nodes don't have linked entities
+          results.skipped++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        ...results,
+        totalDraftEdges: draftEdges.length,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete edge with option to also delete entity link
+  // Use query param ?deleteEntityLink=true to also delete the business link
+  app.delete("/api/mindmap-edges/:id/with-entity-link", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const edgeId = req.params.id;
+      const shouldDeleteEntityLink = req.query.deleteEntityLink === "true";
+      
+      const edge = await storage.getMindmapEdge(accountId, edgeId);
+      if (!edge) {
+        return res.status(404).json({ error: "Edge not found" });
+      }
+      
+      // If edge has an entity link and user wants to delete it
+      if (shouldDeleteEntityLink && edge.linkedEntityLinkId) {
+        await storage.deleteEntityLink(accountId, edge.linkedEntityLinkId);
+      }
+      
+      // Delete the edge
+      const success = await storage.deleteMindmapEdge(accountId, edgeId);
+      
+      res.json({ 
+        success, 
+        entityLinkDeleted: shouldDeleteEntityLink && edge.linkedEntityLinkId ? true : false 
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // DEBUG: Connection info
   // ============================================
   
