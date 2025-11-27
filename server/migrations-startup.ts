@@ -261,6 +261,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project payments table created");
     
+    // Add is_favorite column to notes if it doesn't exist
+    await db.execute(sql`
+      ALTER TABLE notes 
+      ADD COLUMN IF NOT EXISTS is_favorite boolean NOT NULL DEFAULT false;
+    `);
+    console.log("✅ Notes is_favorite column added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

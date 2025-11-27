@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,7 +152,17 @@ export default function Notes() {
   // Column order and sorting state with localStorage persistence
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('noteListColumnOrder');
-    return saved ? JSON.parse(saved) : ['checkbox', 'title', 'status', 'visibility', 'createdAt', 'updatedAt', 'project', 'actions'];
+    const defaultOrder = ['checkbox', 'favorite', 'title', 'status', 'visibility', 'createdAt', 'updatedAt', 'project', 'actions'];
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure 'favorite' is included for existing users
+      if (!parsed.includes('favorite')) {
+        const checkboxIdx = parsed.indexOf('checkbox');
+        parsed.splice(checkboxIdx + 1, 0, 'favorite');
+      }
+      return parsed;
+    }
+    return defaultOrder;
   });
   const [sortColumn, setSortColumn] = useState<string>(() => {
     const saved = localStorage.getItem('noteListSortColumn');
@@ -263,8 +273,22 @@ export default function Notes() {
       );
     }
 
-    // Sort by selected column
+    // Sort by selected column, but favorites always come first (sorted alphabetically among themselves)
     return result.sort((a, b) => {
+      // Favorites always first
+      const aFavorite = a.isFavorite || false;
+      const bFavorite = b.isFavorite || false;
+      
+      if (aFavorite !== bFavorite) {
+        return aFavorite ? -1 : 1;
+      }
+      
+      // If both are favorites, sort alphabetically by title
+      if (aFavorite && bFavorite) {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      
+      // Normal sorting for non-favorites
       let comparison = 0;
       
       switch (sortColumn) {
@@ -653,7 +677,8 @@ export default function Notes() {
                   {columnOrder.map((columnId) => {
                     const columnConfig: Record<string, { label: string; colSpan: number; isSortable: boolean; isDraggable: boolean }> = {
                       checkbox: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
-                      title: { label: 'Titre', colSpan: 3, isSortable: true, isDraggable: true },
+                      favorite: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
+                      title: { label: 'Titre', colSpan: 2, isSortable: true, isDraggable: true },
                       status: { label: 'Statut', colSpan: 1, isSortable: true, isDraggable: true },
                       visibility: { label: 'Visibilité', colSpan: 1, isSortable: true, isDraggable: true },
                       createdAt: { label: 'Date de création', colSpan: 2, isSortable: true, isDraggable: true },
@@ -672,6 +697,14 @@ export default function Notes() {
                             onCheckedChange={toggleAllNotes}
                             data-testid="checkbox-select-all"
                           />
+                        </div>
+                      );
+                    }
+                    
+                    if (columnId === 'favorite') {
+                      return (
+                        <div key={columnId} className="col-span-1 flex items-center justify-center">
+                          <Star className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                       );
                     }
@@ -714,7 +747,8 @@ export default function Notes() {
                 
                 const columnConfig: Record<string, { colSpan: number }> = {
                   checkbox: { colSpan: 1 },
-                  title: { colSpan: 3 },
+                  favorite: { colSpan: 1 },
+                  title: { colSpan: 2 },
                   status: { colSpan: 1 },
                   visibility: { colSpan: 1 },
                   createdAt: { colSpan: 2 },
@@ -734,10 +768,36 @@ export default function Notes() {
                       />
                     </div>
                   ),
+                  favorite: (
+                    <div 
+                      key="favorite" 
+                      className="col-span-1 flex items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => {
+                          updateNoteMutation.mutate({
+                            noteId: note.id,
+                            data: { isFavorite: !note.isFavorite }
+                          });
+                        }}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        data-testid={`button-favorite-${note.id}`}
+                      >
+                        <Star 
+                          className={`h-4 w-4 transition-colors ${
+                            note.isFavorite 
+                              ? 'fill-yellow-400 text-yellow-400' 
+                              : 'text-muted-foreground hover:text-yellow-400'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  ),
                   title: (
                     <div 
                       key="title"
-                      className="col-span-3 flex flex-col gap-1 cursor-pointer"
+                      className="col-span-2 flex flex-col gap-1 cursor-pointer"
                       onClick={() => navigate(`/notes/${note.id}`)}
                     >
                       <div className="font-medium text-foreground truncate text-[12px]">

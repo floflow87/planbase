@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, date, check, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, date, check, index, uniqueIndex, primaryKey, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -307,6 +307,7 @@ export const notes = pgTable("notes", {
   summary: text("summary"),
   status: text("status").notNull().default("active"), // 'draft', 'active', 'archived'
   visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
+  isFavorite: boolean("is_favorite").notNull().default(false), // favorites appear at top
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
