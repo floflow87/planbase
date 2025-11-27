@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,17 @@ export function ListView({
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
   const [isAttachToProjectDialogOpen, setIsAttachToProjectDialogOpen] = useState(false);
   const [attachProjectId, setAttachProjectId] = useState<string>("");
+  
+  // Fixed columns that are not draggable
+  const FIXED_COLUMNS = ['checkbox', 'actions'];
+  
+  // Memoized movable columns - excludes fixed columns and respects visibility
+  const movableColumns = useMemo(() => 
+    columnOrder.filter(id => 
+      !FIXED_COLUMNS.includes(id) && columnVisibility[id] !== false
+    ), 
+    [columnOrder, columnVisibility]
+  );
   
   // Pagination states
   const [pageSize, setPageSize] = useState(() => {
@@ -422,20 +433,6 @@ export function ListView({
   };
 
   const SortableTableHeader = ({ columnId }: { columnId: string }) => {
-    if (columnId === 'checkbox') {
-      return (
-        <TableHead className="w-12">
-          <input
-            type="checkbox"
-            checked={selectedTasks.size === tasks.length && tasks.length > 0}
-            onChange={toggleAllTasks}
-            className="cursor-pointer"
-            data-testid="checkbox-select-all"
-          />
-        </TableHead>
-      );
-    }
-
     const {
       attributes,
       listeners,
@@ -452,7 +449,6 @@ export function ListView({
     };
 
     const header = columnHeaders[columnId as keyof typeof columnHeaders];
-    const isSortable = columnId !== 'actions' && columnId !== 'checkbox';
     const isSorted = sortConfig?.column === columnId;
 
     return (
@@ -473,17 +469,15 @@ export function ListView({
           </button>
           
           <div 
-            className={`flex items-center gap-1 flex-1 ${isSortable ? 'cursor-pointer' : ''}`}
-            onClick={() => isSortable && handleSort(columnId)}
+            className="flex items-center gap-1 flex-1 cursor-pointer"
+            onClick={() => handleSort(columnId)}
           >
             {header.label}
-            {isSortable && (
-              <span className="ml-1">
-                {!isSorted && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
-                {isSorted && sortConfig.direction === 'asc' && <ArrowUp className="h-3 w-3 text-foreground" />}
-                {isSorted && sortConfig.direction === 'desc' && <ArrowDown className="h-3 w-3 text-foreground" />}
-              </span>
-            )}
+            <span className="ml-1">
+              {!isSorted && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+              {isSorted && sortConfig.direction === 'asc' && <ArrowUp className="h-3 w-3 text-foreground" />}
+              {isSorted && sortConfig.direction === 'desc' && <ArrowDown className="h-3 w-3 text-foreground" />}
+            </span>
           </div>
         </div>
       </TableHead>
@@ -585,11 +579,26 @@ export function ListView({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
-                    <SortableContext items={columnOrder}>
-                      {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId: string) => (
+                    {/* Fixed checkbox header */}
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.size === tasks.length && tasks.length > 0}
+                        onChange={toggleAllTasks}
+                        className="cursor-pointer"
+                        data-testid="checkbox-select-all"
+                      />
+                    </TableHead>
+                    {/* Sortable columns */}
+                    <SortableContext items={movableColumns}>
+                      {movableColumns.map((columnId: string) => (
                         <SortableTableHeader key={columnId} columnId={columnId} />
                       ))}
                     </SortableContext>
+                    {/* Fixed actions header */}
+                    <TableHead className="w-24 text-right font-semibold text-[11px] h-10" data-testid="table-header-actions">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -607,20 +616,19 @@ export function ListView({
                       
                       return (
                         <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
-                          {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId: string) => {
+                          {/* Fixed checkbox cell */}
+                          <TableCell className="w-12">
+                            <input
+                              type="checkbox"
+                              checked={selectedTasks.has(task.id)}
+                              onChange={() => toggleTaskSelection(task.id)}
+                              className="cursor-pointer"
+                              data-testid={`checkbox-task-${task.id}`}
+                            />
+                          </TableCell>
+                          {/* Movable columns */}
+                          {movableColumns.map((columnId: string) => {
                             switch (columnId) {
-                              case 'checkbox':
-                                return (
-                                  <TableCell key={columnId} className="w-12">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedTasks.has(task.id)}
-                                      onChange={() => toggleTaskSelection(task.id)}
-                                      className="cursor-pointer"
-                                      data-testid={`checkbox-task-${task.id}`}
-                                    />
-                                  </TableCell>
-                                );
                               case 'title':
                                 return (
                                   <TableCell 
@@ -868,69 +876,67 @@ export function ListView({
                                     </div>
                                   </TableCell>
                                 );
-                              case 'actions':
-                                return (
-                                  <TableCell key={columnId}>
-                                    <div className="flex items-center gap-2">
-                                      {task.status === "done" ? (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-muted-foreground cursor-default"
-                                          disabled
-                                          data-testid={`button-complete-task-${task.id}`}
-                                          title="Terminée"
-                                        >
-                                          <CheckCircle2 className="h-4 w-4" />
-                                        </Button>
-                                      ) : (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-green-600 hover:text-green-700"
-                                          onClick={() => {
-                                            const doneColumn = columns.find(c => 
-                                              c.name.toLowerCase().includes("terminé") || 
-                                              c.name.toLowerCase().includes("done") || 
-                                              c.name.toLowerCase().includes("complété")
-                                            );
-                                            
-                                            onUpdateTask(task.id, { 
-                                              status: "done",
-                                              ...(doneColumn && { columnId: doneColumn.id })
-                                            } as any);
-                                          }}
-                                          data-testid={`button-complete-task-${task.id}`}
-                                          title="Marquer comme terminée"
-                                        >
-                                          <Check className="h-4 w-4" />
-                                        </Button>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => onEditTask(task)}
-                                        data-testid={`button-edit-task-${task.id}`}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:text-destructive"
-                                        onClick={() => onDeleteTask(task)}
-                                        data-testid={`button-delete-task-${task.id}`}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                );
                               default:
                                 return null;
                             }
                           })}
+                          {/* Fixed actions cell */}
+                          <TableCell className="w-24">
+                            <div className="flex items-center gap-2 justify-end">
+                              {task.status === "done" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground cursor-default"
+                                  disabled
+                                  data-testid={`button-complete-task-${task.id}`}
+                                  title="Terminée"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-green-600 hover:text-green-700"
+                                  onClick={() => {
+                                    const doneColumn = columns.find(c => 
+                                      c.name.toLowerCase().includes("terminé") || 
+                                      c.name.toLowerCase().includes("done") || 
+                                      c.name.toLowerCase().includes("complété")
+                                    );
+                                    
+                                    onUpdateTask(task.id, { 
+                                      status: "done",
+                                      ...(doneColumn && { columnId: doneColumn.id })
+                                    } as any);
+                                  }}
+                                  data-testid={`button-complete-task-${task.id}`}
+                                  title="Marquer comme terminée"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => onEditTask(task)}
+                                data-testid={`button-edit-task-${task.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => onDeleteTask(task)}
+                                data-testid={`button-delete-task-${task.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })

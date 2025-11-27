@@ -42,7 +42,6 @@ import { CSS } from "@dnd-kit/utilities";
 interface SortableNoteColumnHeaderProps {
   id: string;
   label: string;
-  colSpan: number;
   className?: string;
   isDraggable?: boolean;
   sortColumn: string;
@@ -55,7 +54,6 @@ interface SortableNoteColumnHeaderProps {
 function SortableNoteColumnHeader({
   id,
   label,
-  colSpan,
   className = '',
   isDraggable = true,
   sortColumn,
@@ -76,15 +74,6 @@ function SortableNoteColumnHeader({
     disabled: !isDraggable,
   });
 
-  const colSpanClasses: Record<number, string> = {
-    1: 'col-span-1',
-    2: 'col-span-2',
-    3: 'col-span-3',
-    4: 'col-span-4',
-    5: 'col-span-5',
-    6: 'col-span-6',
-  };
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -97,7 +86,7 @@ function SortableNoteColumnHeader({
     <div
       ref={setNodeRef}
       style={style}
-      className={`${colSpanClasses[colSpan] || 'col-span-1'} flex items-center gap-1 ${isDraggable ? 'cursor-move' : ''} ${className}`}
+      className={`flex-1 min-w-0 flex items-center gap-1 ${isDraggable ? 'cursor-move' : ''} ${className}`}
     >
       {isDraggable && (
         <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" {...attributes} {...listeners} />
@@ -696,55 +685,49 @@ export default function Notes() {
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <SortableContext
-                items={columnOrder.filter(id => id !== 'checkbox' && id !== 'actions')}
+                items={columnOrder.filter(id => id !== 'checkbox' && id !== 'favorite' && id !== 'actions')}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-muted-foreground items-center">
-                  {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId) => {
-                    const columnConfig: Record<string, { label: string; colSpan: number; isSortable: boolean; isDraggable: boolean }> = {
-                      checkbox: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
-                      favorite: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
-                      title: { label: 'Titre', colSpan: 2, isSortable: true, isDraggable: true },
-                      status: { label: 'Statut', colSpan: 1, isSortable: true, isDraggable: true },
-                      visibility: { label: 'Visibilité', colSpan: 1, isSortable: true, isDraggable: true },
-                      createdAt: { label: 'Date de création', colSpan: 2, isSortable: true, isDraggable: true },
-                      updatedAt: { label: 'Dernière modification', colSpan: 2, isSortable: true, isDraggable: true },
-                      project: { label: 'Projet rattaché', colSpan: 1, isSortable: true, isDraggable: true },
-                      actions: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
+                <div className="flex items-center gap-4 text-[11px] font-medium text-muted-foreground">
+                  {/* Fixed checkbox column */}
+                  <div className="w-8 flex-shrink-0 flex items-center">
+                    <Checkbox
+                      checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
+                      onCheckedChange={toggleAllNotes}
+                      data-testid="checkbox-select-all"
+                    />
+                  </div>
+                  
+                  {/* Fixed favorite column */}
+                  {columnVisibility['favorite'] !== false && (
+                    <div className="w-8 flex-shrink-0 flex items-center justify-center">
+                      <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                  
+                  {/* Dynamic columns */}
+                  {columnOrder.filter(col => 
+                    col !== 'checkbox' && 
+                    col !== 'favorite' && 
+                    col !== 'actions' && 
+                    columnVisibility[col] !== false
+                  ).map((columnId) => {
+                    const columnConfig: Record<string, { label: string; isSortable: boolean; isDraggable: boolean }> = {
+                      title: { label: 'Titre', isSortable: true, isDraggable: true },
+                      status: { label: 'Statut', isSortable: true, isDraggable: true },
+                      visibility: { label: 'Visibilité', isSortable: true, isDraggable: true },
+                      createdAt: { label: 'Date de création', isSortable: true, isDraggable: true },
+                      updatedAt: { label: 'Dernière modification', isSortable: true, isDraggable: true },
+                      project: { label: 'Projet rattaché', isSortable: true, isDraggable: true },
                     };
                     
-                    const config = columnConfig[columnId] || { label: columnId, colSpan: 1, isSortable: false, isDraggable: true };
-                    
-                    if (columnId === 'checkbox') {
-                      return (
-                        <div key={columnId} className="col-span-1 flex items-center">
-                          <Checkbox
-                            checked={filteredNotes.length > 0 && selectedNotes.size === filteredNotes.length}
-                            onCheckedChange={toggleAllNotes}
-                            data-testid="checkbox-select-all"
-                          />
-                        </div>
-                      );
-                    }
-                    
-                    if (columnId === 'favorite') {
-                      return (
-                        <div key={columnId} className="col-span-1 flex items-center justify-center">
-                          <Star className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                      );
-                    }
-                    
-                    if (columnId === 'actions') {
-                      return <div key={columnId} className="col-span-1"></div>;
-                    }
+                    const config = columnConfig[columnId] || { label: columnId, isSortable: false, isDraggable: true };
                     
                     return (
                       <SortableNoteColumnHeader
                         key={columnId}
                         id={columnId}
                         label={config.label}
-                        colSpan={config.colSpan}
                         isDraggable={config.isDraggable}
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
@@ -753,6 +736,9 @@ export default function Notes() {
                       />
                     );
                   })}
+                  
+                  {/* Fixed actions column */}
+                  <div className="w-10 flex-shrink-0"></div>
                 </div>
               </SortableContext>
             </div>
@@ -771,59 +757,11 @@ export default function Notes() {
                 const linkedProject = getLinkedProject(note.id);
                 const isSelected = selectedNotes.has(note.id);
                 
-                const columnConfig: Record<string, { colSpan: number }> = {
-                  checkbox: { colSpan: 1 },
-                  favorite: { colSpan: 1 },
-                  title: { colSpan: 2 },
-                  status: { colSpan: 1 },
-                  visibility: { colSpan: 1 },
-                  createdAt: { colSpan: 2 },
-                  updatedAt: { colSpan: 2 },
-                  project: { colSpan: 1 },
-                  actions: { colSpan: 1 },
-                };
-                
                 const cellContent: Record<string, JSX.Element> = {
-                  checkbox: (
-                    <div key="checkbox" className="col-span-1 flex items-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleNoteSelection(note.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        data-testid={`checkbox-note-${note.id}`}
-                      />
-                    </div>
-                  ),
-                  favorite: (
-                    <div 
-                      key="favorite" 
-                      className="col-span-1 flex items-center justify-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => {
-                          updateNoteMutation.mutate({
-                            noteId: note.id,
-                            data: { isFavorite: !note.isFavorite }
-                          });
-                        }}
-                        className="p-1 rounded hover:bg-muted transition-colors"
-                        data-testid={`button-favorite-${note.id}`}
-                      >
-                        <Star 
-                          className={`h-4 w-4 transition-colors ${
-                            note.isFavorite 
-                              ? 'fill-yellow-400 text-yellow-400' 
-                              : 'text-muted-foreground hover:text-yellow-400'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  ),
                   title: (
                     <div 
                       key="title"
-                      className="col-span-2 flex flex-col gap-1 cursor-pointer"
+                      className="flex-1 min-w-0 flex flex-col gap-1 cursor-pointer"
                       onClick={() => navigate(`/notes/${note.id}`)}
                     >
                       <div className="font-medium text-foreground truncate text-[12px]">
@@ -838,7 +776,7 @@ export default function Notes() {
                     </div>
                   ),
                   status: (
-                    <div key="status" className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <div key="status" className="flex-1 min-w-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Badge
@@ -894,7 +832,7 @@ export default function Notes() {
                     </div>
                   ),
                   visibility: (
-                    <div key="visibility" className="col-span-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <div key="visibility" className="flex-1 min-w-0 flex items-center" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Badge
@@ -950,12 +888,12 @@ export default function Notes() {
                     </div>
                   ),
                   createdAt: (
-                    <div key="createdAt" className="col-span-2 flex items-center text-[11px] text-muted-foreground">
+                    <div key="createdAt" className="flex-1 min-w-0 flex items-center text-[11px] text-muted-foreground">
                       {format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}
                     </div>
                   ),
                   updatedAt: (
-                    <div key="updatedAt" className="col-span-2 flex items-center text-[11px] text-muted-foreground">
+                    <div key="updatedAt" className="flex-1 min-w-0 flex items-center text-[11px] text-muted-foreground">
                       {formatDistanceToNow(new Date(note.updatedAt), { 
                         addSuffix: true, 
                         locale: fr 
@@ -963,7 +901,7 @@ export default function Notes() {
                     </div>
                   ),
                   project: (
-                    <div key="project" className="col-span-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div key="project" className="flex-1 min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           {linkedProject ? (
@@ -1016,7 +954,7 @@ export default function Notes() {
                     </div>
                   ),
                   actions: (
-                    <div key="actions" className="col-span-1 flex items-center justify-end">
+                    <div key="actions" className="w-10 flex-shrink-0 flex items-center justify-end">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button
@@ -1071,10 +1009,56 @@ export default function Notes() {
                 return (
                   <div
                     key={note.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate items-center"
+                    className="flex items-center gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate"
                     data-testid={`row-note-${note.id}`}
                   >
-                    {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId) => cellContent[columnId])}
+                    {/* Fixed checkbox column */}
+                    <div className="w-8 flex-shrink-0 flex items-center">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleNoteSelection(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid={`checkbox-note-${note.id}`}
+                      />
+                    </div>
+                    
+                    {/* Fixed favorite column */}
+                    {columnVisibility['favorite'] !== false && (
+                      <div 
+                        className="w-8 flex-shrink-0 flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => {
+                            updateNoteMutation.mutate({
+                              noteId: note.id,
+                              data: { isFavorite: !note.isFavorite }
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          data-testid={`button-favorite-${note.id}`}
+                        >
+                          <Star 
+                            className={`h-4 w-4 transition-colors ${
+                              note.isFavorite 
+                                ? 'fill-yellow-400 text-yellow-400' 
+                                : 'text-muted-foreground hover:text-yellow-400'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Dynamic columns */}
+                    {columnOrder.filter(col => 
+                      col !== 'checkbox' && 
+                      col !== 'favorite' && 
+                      col !== 'actions' && 
+                      columnVisibility[col] !== false
+                    ).map((columnId) => cellContent[columnId])}
+                    
+                    {/* Fixed actions column */}
+                    {cellContent.actions}
                   </div>
                 );
               })
@@ -1082,10 +1066,13 @@ export default function Notes() {
 
             {/* Quick add note row */}
             {filteredNotes.length > 0 && (
-              <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border items-center bg-muted/20">
-                <div className="col-span-1"></div>
-                <div className="col-span-11 flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/20">
+                <div className="w-8 flex-shrink-0"></div>
+                {columnVisibility['favorite'] !== false && (
+                  <div className="w-8 flex-shrink-0"></div>
+                )}
+                <div className="flex-1 flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <Input
                     placeholder="Créer une nouvelle note..."
                     value={quickAddNoteTitle}
@@ -1099,10 +1086,11 @@ export default function Notes() {
                       }
                     }}
                     disabled={isQuickAddingNote}
-                    className="border-0 focus-visible:ring-0 text-sm h-8"
+                    className="border-0 focus-visible:ring-0 text-sm h-8 flex-1"
                     data-testid="input-quick-add-note"
                   />
                 </div>
+                <div className="w-10 flex-shrink-0"></div>
               </div>
             )}
           </div>

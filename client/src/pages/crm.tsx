@@ -145,14 +145,14 @@ export default function CRM() {
     };
   });
   
-  // Colonnes configurables
+  // Colonnes configurables (flex layout - pas de col-span)
   const [columns, setColumns] = useState<Column[]>([
-    { id: "client", label: "Client", width: 2, className: "col-span-2" },
-    { id: "contacts", label: "Contacts", width: 2, className: "col-span-2" },
-    { id: "type", label: "Type", width: 1, className: "col-span-1", style: { minWidth: '75px' } },
-    { id: "projets", label: "Projets", width: 1, className: "col-span-1" },
-    { id: "budget", label: "Budget", width: 2, className: "col-span-2", style: { maxWidth: 'calc(100% - 2.5px)' } },
-    { id: "creation", label: "Création", width: 2, className: "col-span-2", style: { maxWidth: 'calc(100% - 2.5px)' } },
+    { id: "client", label: "Client", width: 1, className: "" },
+    { id: "contacts", label: "Contacts", width: 1, className: "" },
+    { id: "type", label: "Type", width: 1, className: "" },
+    { id: "projets", label: "Projets", width: 1, className: "" },
+    { id: "budget", label: "Budget", width: 1, className: "" },
+    { id: "creation", label: "Création", width: 1, className: "" },
   ]);
   
   const sensors = useSensors(
@@ -777,8 +777,9 @@ export default function CRM() {
                     items={columns.map(col => col.id)}
                     strategy={horizontalListSortingStrategy}
                   >
-                    <div className="grid grid-cols-12 gap-2 px-4 h-10 items-center text-xs font-medium text-muted-foreground bg-muted/50">
-                      <div className="col-span-1 flex items-center">
+                    <div className="flex items-center gap-3 px-4 h-10 text-xs font-medium text-muted-foreground bg-muted/50">
+                      {/* Fixed checkbox column */}
+                      <div className="w-8 flex-shrink-0 flex items-center">
                         <Checkbox
                           checked={selectedClients.size === filteredClients.length && filteredClients.length > 0}
                           onCheckedChange={(checked) => {
@@ -791,8 +792,9 @@ export default function CRM() {
                           data-testid="checkbox-select-all"
                         />
                       </div>
+                      {/* Dynamic columns */}
                       {columns.filter(col => columnVisibility[col.id] !== false).map((column) => (
-                        <div key={column.id} className={column.className} style={column.style}>
+                        <div key={column.id} className="flex-1 min-w-0">
                           <DraggableColumnHeader 
                             id={column.id} 
                             label={column.label}
@@ -802,7 +804,8 @@ export default function CRM() {
                           />
                         </div>
                       ))}
-                      <div className="col-span-1">Actions</div>
+                      {/* Fixed actions column */}
+                      <div className="w-20 flex-shrink-0 text-right">Actions</div>
                     </div>
                   </SortableContext>
                   
@@ -815,10 +818,11 @@ export default function CRM() {
                     return (
                       <div
                         key={client.id}
-                        className={`grid grid-cols-12 gap-2 px-4 py-2 items-center hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
+                        className={`flex items-center gap-3 px-4 py-2 hover-elevate active-elevate-2 rounded-md border-b border-border ${isSelected ? 'bg-muted/50' : ''}`}
                         data-testid={`row-client-${client.id}`}
                       >
-                        <div className="col-span-1 flex items-center">
+                        {/* Fixed checkbox column */}
+                        <div className="w-8 flex-shrink-0 flex items-center">
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={(checked) => {
@@ -834,13 +838,14 @@ export default function CRM() {
                             data-testid={`checkbox-select-${client.id}`}
                           />
                         </div>
+                        {/* Dynamic columns */}
                         {columns.filter(col => columnVisibility[col.id] !== false).map((column) => {
                           const content = (() => {
                             switch (column.id) {
                               case "client":
                                 return (
                                   <div className="flex items-center gap-2">
-                                    <p className="text-xs font-medium text-foreground">
+                                    <p className="text-xs font-medium text-foreground truncate">
                                       {client.company || client.name}
                                     </p>
                                   </div>
@@ -896,7 +901,7 @@ export default function CRM() {
 
                           if (column.id === "client") {
                             return (
-                              <Link key={column.id} href={`/crm/${client.id}`} className={column.className} style={column.style}>
+                              <Link key={column.id} href={`/crm/${client.id}`} className="flex-1 min-w-0">
                                 <div className="flex items-center cursor-pointer">
                                   {content}
                                 </div>
@@ -905,12 +910,13 @@ export default function CRM() {
                           }
 
                           return (
-                            <div key={column.id} className={`${column.className} flex items-center`} style={column.style}>
+                            <div key={column.id} className="flex-1 min-w-0 flex items-center">
                               {content}
                             </div>
                           );
                         })}
-                        <div className="col-span-1 flex items-center">
+                        {/* Fixed actions column */}
+                        <div className="w-20 flex-shrink-0 flex items-center justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm" data-testid={`button-actions-${client.id}`}>
