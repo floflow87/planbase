@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -194,6 +194,12 @@ export default function Dashboard() {
   // Get ALL task columns (including global and project-specific)
   const { data: allTaskColumns = [] } = useQuery<TaskColumn[]>({
     queryKey: ["/api/task-columns"],
+  });
+
+  // Fetch all payments for the account
+  const { data: payments = [] } = useQuery<ProjectPayment[]>({
+    queryKey: ["/api/payments"],
+    enabled: !!accountId,
   });
 
   // Create client mutation
@@ -625,12 +631,16 @@ export default function Dashboard() {
   // Par définition, tous les projets sont "en cours" sauf ceux qui sont terminés
   const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
   const totalProjectsCount = projects.length;
-  const clientsCount = clients.length;
   
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
-  // KPI data from real data
+  // Calculer les paiements en attente (différence entre budget total et paiements effectués)
+  const totalBudget = projects.reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+  const pendingPayments = Math.max(0, totalBudget - totalPaid);
+
+  // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
     title: string;
     value: string;
@@ -642,33 +652,22 @@ export default function Dashboard() {
     link?: { label: string; href: string };
   }> = [
     {
-      title: "Projets en cours",
-      value: activeProjectsCount.toString(),
-      change: totalProjectsCount > 0 ? `${totalProjectsCount} au total` : "0 au total",
-      changeType: "neutral",
-      icon: FolderKanban,
-      iconBg: "bg-violet-100",
-      iconColor: "text-violet-600",
-      link: { label: "Voir tous", href: "/projects?tab=projects" },
-    },
-    {
-      title: "Clients / prospects",
-      value: clientsCount.toString(),
-      change: "+12.5%",
-      changeType: "positive",
-      icon: Users,
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      link: { label: "Voir tous", href: "/crm" },
-    },
-    {
       title: "Chiffre d'affaires",
-      value: `€${periodRevenue.toLocaleString()}`,
+      value: `${periodRevenue.toLocaleString()} €`,
       change: periodLabel,
       changeType: "neutral",
       icon: Euro,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
+    },
+    {
+      title: "Paiements en attente",
+      value: `${pendingPayments.toLocaleString()} €`,
+      change: `${totalPaid.toLocaleString()} € reçus`,
+      changeType: "negative",
+      icon: CreditCard,
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
     },
     {
       title: "Tâches en cours",
@@ -679,6 +678,16 @@ export default function Dashboard() {
       iconBg: "bg-orange-100",
       iconColor: "text-orange-600",
       link: { label: "Voir tout", href: "/tasks" },
+    },
+    {
+      title: "Projets en cours",
+      value: activeProjectsCount.toString(),
+      change: totalProjectsCount > 0 ? `${totalProjectsCount} au total` : "0 au total",
+      changeType: "neutral",
+      icon: FolderKanban,
+      iconBg: "bg-violet-100",
+      iconColor: "text-violet-600",
+      link: { label: "Voir tous", href: "/projects?tab=projects" },
     },
   ];
 

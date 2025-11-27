@@ -1036,6 +1036,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PROJECT PAYMENTS - Protected Routes
   // ============================================
 
+  // Get all payments for the account
+  app.get("/api/payments", requireAuth, async (req, res) => {
+    try {
+      const payments = await storage.getPaymentsByAccountId(req.accountId!);
+      res.json(payments);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Get all payments for a project
   app.get("/api/projects/:projectId/payments", requireAuth, async (req, res) => {
     try {
