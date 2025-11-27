@@ -753,6 +753,41 @@ export default function ProjectDetail() {
     return colors[stage] || "";
   };
 
+  const getBillingStatusColor = (status: string | null) => {
+    switch (status) {
+      case "devis_envoye":
+        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
+      case "devis_accepte":
+        return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
+      case "bon_commande":
+        return "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800";
+      case "facture":
+        return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800";
+      case "paye":
+        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
+      case "partiel":
+        return "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800";
+      case "annule":
+        return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-300 dark:border-gray-700";
+      case "retard":
+        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-300 dark:border-gray-700";
+    }
+  };
+
+  const getBillingDaysOverdue = (billingDueDate: string | null) => {
+    if (!billingDueDate) return "";
+    const dueDate = new Date(billingDueDate);
+    const today = new Date();
+    const diffTime = today.getTime() - dueDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) {
+      return ` (${diffDays}j)`;
+    }
+    return "";
+  };
+
   const handleEditProject = () => {
     if (!project) return;
     setProjectFormData({
@@ -853,23 +888,10 @@ export default function ProjectDetail() {
                 {project.billingStatus && (
                   <Badge 
                     data-testid="badge-billing-status"
-                    className="shrink-0"
-                    style={{ 
-                      backgroundColor: billingStatusOptions.find(o => o.value === project.billingStatus)?.color,
-                      color: 'white'
-                    }}
+                    className={`${getBillingStatusColor(project.billingStatus)} shrink-0`}
                   >
                     {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-                    {project.billingStatus === "retard" && project.billingDueDate && (() => {
-                      const dueDate = new Date(project.billingDueDate);
-                      const today = new Date();
-                      const diffTime = today.getTime() - dueDate.getTime();
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      if (diffDays > 0) {
-                        return ` (${diffDays}j)`;
-                      }
-                      return "";
-                    })()}
+                    {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
                   </Badge>
                 )}
               </div>
