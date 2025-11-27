@@ -497,9 +497,10 @@ export default function Dashboard() {
         });
       }
     } else if (revenuePeriod === "projection") {
-      // Remaining months of current year (next month to December)
+      // Projection: mois en cours (à partir de demain) + mois restants jusqu'à décembre
+      // Si on est le 27 novembre, on inclut novembre (pour les projets du 28+) et décembre
       const currentMonth = now.getMonth();
-      for (let i = currentMonth + 1; i < 12; i++) {
+      for (let i = currentMonth; i < 12; i++) {
         months.push({
           month: monthNames[i],
           monthIndex: i,
@@ -541,11 +542,23 @@ export default function Dashboard() {
     });
     
     // Sum budgets and count projects by start month (excluding prospection stage)
+    // Pour le mode projection, on prend uniquement les projets à partir de demain
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
     projects.forEach(project => {
       if (project.startDate && project.budget && project.stage !== "prospection") {
         const startDate = new Date(project.startDate);
         const projectMonth = startDate.getMonth();
         const projectYear = startDate.getFullYear();
+        
+        // En mode projection, on filtre les projets à partir de demain
+        if (revenuePeriod === "projection") {
+          if (startDate < tomorrow) {
+            return; // Ignorer les projets avant demain
+          }
+        }
         
         // Check if this project's start date is in the selected period
         const matchingMonth = months.find(
@@ -611,6 +624,14 @@ export default function Dashboard() {
     return { revenue, label };
   }, [revenueData, revenuePeriod]);
 
+  // CA Potentiel = Tous les projets en prospection (passés, futurs, non datés)
+  // Ce sont les projets non signés qui représentent du chiffre potentiel
+  const potentialRevenue = useMemo(() => {
+    return projects
+      .filter(p => p.stage === "prospection")
+      .reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  }, [projects]);
+
   const onClientSubmit = (data: InsertClient) => {
     createClientMutation.mutate(data);
   };
@@ -669,6 +690,7 @@ export default function Dashboard() {
     iconBg: string;
     iconColor: string;
     link?: { label: string; href: string };
+    subValue?: string; // Pour afficher le CA potentiel sous le CA N
   }> = [
     {
       title: "Chiffre d'affaires",
@@ -678,6 +700,7 @@ export default function Dashboard() {
       icon: Euro,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
+      subValue: potentialRevenue > 0 ? `${potentialRevenue.toLocaleString()} € potentiel` : undefined,
     },
     {
       title: "Paiements en attente",
@@ -1067,6 +1090,11 @@ export default function Dashboard() {
                         ) : null}
                         {kpi.change}
                       </p>
+                      {kpi.subValue && (
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          {kpi.subValue}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
