@@ -17,6 +17,8 @@ import ReactFlow, {
   NodeTypes,
   ReactFlowProvider,
   useReactFlow,
+  Handle,
+  Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -129,8 +131,30 @@ function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
 
   return (
     <div
-      className={`px-4 py-3 rounded-lg border-2 shadow-sm min-w-[150px] max-w-[250px] ${config.bgColor} ${data.isDraft ? "border-dashed" : ""}`}
+      className={`relative px-4 py-3 rounded-lg border-2 shadow-sm min-w-[150px] max-w-[250px] ${config.bgColor} ${data.isDraft ? "border-dashed" : ""}`}
     >
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`w-4 h-4 ${config.color}`} />
         <Badge variant="outline" className="text-xs">
