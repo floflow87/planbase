@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -3023,6 +3024,16 @@ export default function Projects() {
                     <Columns3 className="w-4 h-4" />
                   </Button>
                 </div>
+                {projectViewMode === "list" && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsColumnSettingsOpen(true)}
+                    data-testid="button-column-settings"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button 
                   data-testid="button-create-project"
                   onClick={() => {
@@ -3098,6 +3109,10 @@ export default function Projects() {
                     const budgetA = parseFloat(a.budget || "0");
                     const budgetB = parseFloat(b.budget || "0");
                     comparison = budgetA - budgetB;
+                    break;
+                  case "billingStatus":
+                    const billingOrder: Record<string, number> = { brouillon: 0, devis_envoye: 1, devis_accepte: 2, bon_commande: 3, facture: 4, paye: 5, partiel: 6, annule: 7, retard: 8 };
+                    comparison = (billingOrder[a.billingStatus || ""] ?? 99) - (billingOrder[b.billingStatus || ""] ?? 99);
                     break;
                   default:
                     comparison = 0;
@@ -3380,7 +3395,7 @@ export default function Projects() {
                             strategy={horizontalListSortingStrategy}
                           >
                             <TableRow className="bg-muted/40">
-                              {projectColumnOrder.map((columnId) => {
+                              {projectColumnOrder.filter(col => columnVisibility[col] !== false).map((columnId) => {
                                 const columnLabels: Record<string, string> = {
                                   name: "Projet",
                                   client: "Client",
@@ -3888,17 +3903,17 @@ export default function Projects() {
                           
                             return (
                               <TableRow key={project.id} className="h-12" data-testid={`project-row-${project.id}`}>
-                                {projectColumnOrder.map((columnId) => cellContent[columnId])}
+                                {projectColumnOrder.filter(col => columnVisibility[col] !== false).map((columnId) => cellContent[columnId])}
                               </TableRow>
                             );
                           })}
                           
                           {/* Quick add project row */}
                           <TableRow className="h-12">
-                            {projectColumnOrder.map((columnId) => {
+                            {projectColumnOrder.filter(col => columnVisibility[col] !== false).map((columnId) => {
                               if (columnId === 'name') {
                                 return (
-                                  <TableCell key={columnId} colSpan={projectColumnOrder.length}>
+                                  <TableCell key={columnId} colSpan={projectColumnOrder.filter(col => columnVisibility[col] !== false).length}>
                                     <div className="flex items-center gap-2">
                                       <Plus className="h-4 w-4 text-muted-foreground" />
                                       <Input
@@ -4034,6 +4049,46 @@ export default function Projects() {
               );
             })()}
       </div>
+
+      {/* Column Settings Sheet */}
+      <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
+        <SheetContent className="w-80" data-testid="sheet-column-settings">
+          <SheetHeader>
+            <SheetTitle>Personnaliser les colonnes</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            {[
+              { id: "name", label: "Projet", disabled: true },
+              { id: "client", label: "Client" },
+              { id: "stage", label: "Étape" },
+              { id: "progress", label: "Progression" },
+              { id: "category", label: "Catégorie" },
+              { id: "startDate", label: "Début" },
+              { id: "budget", label: "Budget" },
+              { id: "billingStatus", label: "Facturation" },
+              { id: "actions", label: "Actions", disabled: true },
+            ].map((column) => (
+              <div key={column.id} className="flex items-center justify-between">
+                <Label htmlFor={`toggle-${column.id}`} className="text-sm">
+                  {column.label}
+                </Label>
+                <Switch
+                  id={`toggle-${column.id}`}
+                  checked={columnVisibility[column.id] ?? true}
+                  disabled={column.disabled}
+                  onCheckedChange={(checked) => {
+                    const newVisibility = { ...columnVisibility, [column.id]: checked };
+                    setColumnVisibility(newVisibility);
+                    localStorage.setItem("projectColumnVisibility", JSON.stringify(newVisibility));
+                  }}
+                  data-testid={`toggle-column-${column.id}`}
+                />
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
           <SheetHeader>
