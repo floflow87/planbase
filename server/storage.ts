@@ -29,10 +29,15 @@ import {
   type Appointment, type InsertAppointment,
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   type TimeEntry, type InsertTimeEntry,
+  type Mindmap, type InsertMindmap,
+  type MindmapNode, type InsertMindmapNode,
+  type MindmapEdge, type InsertMindmapEdge,
+  type EntityLink, type InsertEntityLink,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
+  mindmaps, mindmapNodes, mindmapEdges, entityLinks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -259,6 +264,36 @@ export interface IStorage {
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
   updateTimeEntry(accountId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
   deleteTimeEntry(accountId: string, id: string): Promise<boolean>;
+
+  // Mindmaps
+  getMindmap(accountId: string, id: string): Promise<Mindmap | undefined>;
+  getMindmapWithDetails(accountId: string, id: string): Promise<{ mindmap: Mindmap; nodes: MindmapNode[]; edges: MindmapEdge[] } | undefined>;
+  getMindmapsByAccountId(accountId: string): Promise<Mindmap[]>;
+  getMindmapsByClientId(accountId: string, clientId: string): Promise<Mindmap[]>;
+  getMindmapsByProjectId(accountId: string, projectId: string): Promise<Mindmap[]>;
+  createMindmap(mindmap: InsertMindmap): Promise<Mindmap>;
+  updateMindmap(accountId: string, id: string, mindmap: Partial<InsertMindmap>): Promise<Mindmap | undefined>;
+  deleteMindmap(accountId: string, id: string): Promise<boolean>;
+
+  // Mindmap Nodes
+  getMindmapNode(accountId: string, id: string): Promise<MindmapNode | undefined>;
+  getMindmapNodesByMindmapId(accountId: string, mindmapId: string): Promise<MindmapNode[]>;
+  createMindmapNode(node: InsertMindmapNode): Promise<MindmapNode>;
+  updateMindmapNode(accountId: string, id: string, node: Partial<InsertMindmapNode>): Promise<MindmapNode | undefined>;
+  deleteMindmapNode(accountId: string, id: string): Promise<boolean>;
+
+  // Mindmap Edges
+  getMindmapEdge(accountId: string, id: string): Promise<MindmapEdge | undefined>;
+  getMindmapEdgesByMindmapId(accountId: string, mindmapId: string): Promise<MindmapEdge[]>;
+  createMindmapEdge(edge: InsertMindmapEdge): Promise<MindmapEdge>;
+  updateMindmapEdge(accountId: string, id: string, edge: Partial<InsertMindmapEdge>): Promise<MindmapEdge | undefined>;
+  deleteMindmapEdge(accountId: string, id: string): Promise<boolean>;
+
+  // Entity Links
+  getEntityLink(accountId: string, id: string): Promise<EntityLink | undefined>;
+  getEntityLinksByAccountId(accountId: string): Promise<EntityLink[]>;
+  createEntityLink(link: InsertEntityLink): Promise<EntityLink>;
+  deleteEntityLink(accountId: string, id: string): Promise<boolean>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -1490,6 +1525,191 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(timeEntries)
       .where(and(eq(timeEntries.id, id), eq(timeEntries.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Mindmaps
+  async getMindmap(accountId: string, id: string): Promise<Mindmap | undefined> {
+    const [mindmap] = await db
+      .select()
+      .from(mindmaps)
+      .where(and(eq(mindmaps.id, id), eq(mindmaps.accountId, accountId)));
+    return mindmap || undefined;
+  }
+
+  async getMindmapWithDetails(accountId: string, id: string): Promise<{ mindmap: Mindmap; nodes: MindmapNode[]; edges: MindmapEdge[] } | undefined> {
+    const mindmap = await this.getMindmap(accountId, id);
+    if (!mindmap) return undefined;
+
+    const nodes = await this.getMindmapNodesByMindmapId(accountId, id);
+    const edges = await this.getMindmapEdgesByMindmapId(accountId, id);
+
+    return { mindmap, nodes, edges };
+  }
+
+  async getMindmapsByAccountId(accountId: string): Promise<Mindmap[]> {
+    return await db
+      .select()
+      .from(mindmaps)
+      .where(eq(mindmaps.accountId, accountId))
+      .orderBy(desc(mindmaps.createdAt));
+  }
+
+  async getMindmapsByClientId(accountId: string, clientId: string): Promise<Mindmap[]> {
+    return await db
+      .select()
+      .from(mindmaps)
+      .where(and(eq(mindmaps.accountId, accountId), eq(mindmaps.clientId, clientId)))
+      .orderBy(desc(mindmaps.createdAt));
+  }
+
+  async getMindmapsByProjectId(accountId: string, projectId: string): Promise<Mindmap[]> {
+    return await db
+      .select()
+      .from(mindmaps)
+      .where(and(eq(mindmaps.accountId, accountId), eq(mindmaps.projectId, projectId)))
+      .orderBy(desc(mindmaps.createdAt));
+  }
+
+  async createMindmap(mindmap: InsertMindmap): Promise<Mindmap> {
+    const [newMindmap] = await db
+      .insert(mindmaps)
+      .values(mindmap)
+      .returning();
+    return newMindmap;
+  }
+
+  async updateMindmap(accountId: string, id: string, updates: Partial<InsertMindmap>): Promise<Mindmap | undefined> {
+    const [updated] = await db
+      .update(mindmaps)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(mindmaps.id, id), eq(mindmaps.accountId, accountId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteMindmap(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(mindmaps)
+      .where(and(eq(mindmaps.id, id), eq(mindmaps.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Mindmap Nodes
+  async getMindmapNode(accountId: string, id: string): Promise<MindmapNode | undefined> {
+    const [node] = await db
+      .select()
+      .from(mindmapNodes)
+      .where(and(eq(mindmapNodes.id, id), eq(mindmapNodes.accountId, accountId)));
+    return node || undefined;
+  }
+
+  async getMindmapNodesByMindmapId(accountId: string, mindmapId: string): Promise<MindmapNode[]> {
+    return await db
+      .select()
+      .from(mindmapNodes)
+      .where(and(eq(mindmapNodes.mindmapId, mindmapId), eq(mindmapNodes.accountId, accountId)))
+      .orderBy(asc(mindmapNodes.createdAt));
+  }
+
+  async createMindmapNode(node: InsertMindmapNode): Promise<MindmapNode> {
+    const [newNode] = await db
+      .insert(mindmapNodes)
+      .values(node)
+      .returning();
+    return newNode;
+  }
+
+  async updateMindmapNode(accountId: string, id: string, updates: Partial<InsertMindmapNode>): Promise<MindmapNode | undefined> {
+    const [updated] = await db
+      .update(mindmapNodes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(mindmapNodes.id, id), eq(mindmapNodes.accountId, accountId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteMindmapNode(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(mindmapNodes)
+      .where(and(eq(mindmapNodes.id, id), eq(mindmapNodes.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Mindmap Edges
+  async getMindmapEdge(accountId: string, id: string): Promise<MindmapEdge | undefined> {
+    const [edge] = await db
+      .select()
+      .from(mindmapEdges)
+      .where(and(eq(mindmapEdges.id, id), eq(mindmapEdges.accountId, accountId)));
+    return edge || undefined;
+  }
+
+  async getMindmapEdgesByMindmapId(accountId: string, mindmapId: string): Promise<MindmapEdge[]> {
+    return await db
+      .select()
+      .from(mindmapEdges)
+      .where(and(eq(mindmapEdges.mindmapId, mindmapId), eq(mindmapEdges.accountId, accountId)))
+      .orderBy(asc(mindmapEdges.createdAt));
+  }
+
+  async createMindmapEdge(edge: InsertMindmapEdge): Promise<MindmapEdge> {
+    const [newEdge] = await db
+      .insert(mindmapEdges)
+      .values(edge)
+      .returning();
+    return newEdge;
+  }
+
+  async updateMindmapEdge(accountId: string, id: string, updates: Partial<InsertMindmapEdge>): Promise<MindmapEdge | undefined> {
+    const [updated] = await db
+      .update(mindmapEdges)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(mindmapEdges.id, id), eq(mindmapEdges.accountId, accountId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteMindmapEdge(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(mindmapEdges)
+      .where(and(eq(mindmapEdges.id, id), eq(mindmapEdges.accountId, accountId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Entity Links
+  async getEntityLink(accountId: string, id: string): Promise<EntityLink | undefined> {
+    const [link] = await db
+      .select()
+      .from(entityLinks)
+      .where(and(eq(entityLinks.id, id), eq(entityLinks.accountId, accountId)));
+    return link || undefined;
+  }
+
+  async getEntityLinksByAccountId(accountId: string): Promise<EntityLink[]> {
+    return await db
+      .select()
+      .from(entityLinks)
+      .where(eq(entityLinks.accountId, accountId))
+      .orderBy(desc(entityLinks.createdAt));
+  }
+
+  async createEntityLink(link: InsertEntityLink): Promise<EntityLink> {
+    const [newLink] = await db
+      .insert(entityLinks)
+      .values(link)
+      .returning();
+    return newLink;
+  }
+
+  async deleteEntityLink(accountId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(entityLinks)
+      .where(and(eq(entityLinks.id, id), eq(entityLinks.accountId, accountId)))
       .returning();
     return result.length > 0;
   }

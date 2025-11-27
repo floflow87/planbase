@@ -22,6 +22,8 @@ import Documents from "@/pages/documents";
 import DocumentTemplates from "@/pages/documents-templates";
 import DocumentTemplateForm from "@/pages/documents-template-form";
 import DocumentDetail from "@/pages/document-detail";
+import Mindmaps from "@/pages/mindmaps";
+import MindmapDetail from "@/pages/mindmap-detail";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
 import Marketing from "@/pages/marketing";
@@ -84,6 +86,12 @@ function Router() {
       </Route>
       <Route path="/documents">
         <ProtectedRoute><Documents /></ProtectedRoute>
+      </Route>
+      <Route path="/mindmaps/:id">
+        <ProtectedRoute><MindmapDetail /></ProtectedRoute>
+      </Route>
+      <Route path="/mindmaps">
+        <ProtectedRoute><Mindmaps /></ProtectedRoute>
       </Route>
       <Route path="/roadmap">
         <ProtectedRoute><Roadmap /></ProtectedRoute>
@@ -169,6 +177,8 @@ function AppLayout() {
     if (path.startsWith("/notes/")) return "Note";
     if (path === "/notes") return "Notes";
     if (path === "/documents") return "Documents";
+    if (path.startsWith("/mindmaps/")) return "Mindmap";
+    if (path === "/mindmaps") return "Mindmaps";
     if (path === "/roadmap") return "Roadmap";
     if (path === "/product") return "Produits";
     if (path === "/marketing") return "Marketing";

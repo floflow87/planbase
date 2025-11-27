@@ -675,6 +675,83 @@ export const googleCalendarTokens = pgTable("google_calendar_tokens", {
 }));
 
 // ============================================
+// MINDMAPS
+// ============================================
+
+export const mindmaps = pgTable("mindmaps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  kind: text("kind").notNull().default("brainstorm"), // 'generic', 'user_journey', 'storyboard', 'sitemap', 'architecture', 'brainstorm'
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  layoutConfig: jsonb("layout_config").notNull().default({}), // UI config for showing/hiding fields based on view
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  clientIdx: index().on(table.accountId, table.clientId),
+  projectIdx: index().on(table.accountId, table.projectId),
+}));
+
+export const mindmapNodes = pgTable("mindmap_nodes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mindmapId: uuid("mindmap_id").notNull().references(() => mindmaps.id, { onDelete: "cascade" }),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("idea"), // 'idea', 'note', 'project', 'document', 'task', 'client', 'generic'
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  linkedEntityType: text("linked_entity_type"), // 'note', 'project', 'document', 'task', 'client'
+  linkedEntityId: uuid("linked_entity_id"),
+  x: numeric("x", { precision: 10, scale: 2 }).notNull().default("0"),
+  y: numeric("y", { precision: 10, scale: 2 }).notNull().default("0"),
+  style: jsonb("style").notNull().default({}), // Custom styling per node
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  mindmapIdx: index().on(table.mindmapId),
+  accountIdx: index().on(table.accountId),
+  linkedEntityIdx: index().on(table.linkedEntityType, table.linkedEntityId),
+}));
+
+export const mindmapEdges = pgTable("mindmap_edges", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mindmapId: uuid("mindmap_id").notNull().references(() => mindmaps.id, { onDelete: "cascade" }),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  sourceNodeId: uuid("source_node_id").notNull().references(() => mindmapNodes.id, { onDelete: "cascade" }),
+  targetNodeId: uuid("target_node_id").notNull().references(() => mindmapNodes.id, { onDelete: "cascade" }),
+  isDraft: boolean("is_draft").notNull().default(true), // Draft links are visual only, not connected to business logic
+  linkedEntityLinkId: uuid("linked_entity_link_id"), // Reference to entity_links table when not draft
+  label: text("label"),
+  style: jsonb("style").notNull().default({}), // Custom styling per edge
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  mindmapIdx: index().on(table.mindmapId),
+  accountIdx: index().on(table.accountId),
+  sourceIdx: index().on(table.sourceNodeId),
+  targetIdx: index().on(table.targetNodeId),
+}));
+
+export const entityLinks = pgTable("entity_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  sourceType: text("source_type").notNull(), // 'note', 'project', 'document', 'task', 'client'
+  sourceId: uuid("source_id").notNull(),
+  targetType: text("target_type").notNull(), // 'note', 'project', 'document', 'task', 'client'
+  targetId: uuid("target_id").notNull(),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  sourceIdx: index().on(table.sourceType, table.sourceId),
+  targetIdx: index().on(table.targetType, table.targetId),
+}));
+
+// ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
 
@@ -753,6 +830,26 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ i
 export const updateAppointmentSchema = insertAppointmentSchema.omit({ accountId: true, createdBy: true, googleEventId: true }).partial();
 export const insertGoogleCalendarTokenSchema = createInsertSchema(googleCalendarTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
+// Mindmap schemas
+export const insertMindmapSchema = createInsertSchema(mindmaps).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  layoutConfig: z.record(z.any()).optional().default({}),
+});
+export const updateMindmapSchema = insertMindmapSchema.omit({ accountId: true, createdBy: true }).partial();
+
+export const insertMindmapNodeSchema = createInsertSchema(mindmapNodes).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  x: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  y: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  style: z.record(z.any()).optional().default({}),
+});
+export const updateMindmapNodeSchema = insertMindmapNodeSchema.omit({ accountId: true, mindmapId: true }).partial();
+
+export const insertMindmapEdgeSchema = createInsertSchema(mindmapEdges).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  style: z.record(z.any()).optional().default({}),
+});
+export const updateMindmapEdgeSchema = insertMindmapEdgeSchema.omit({ accountId: true, mindmapId: true }).partial();
+
+export const insertEntityLinkSchema = createInsertSchema(entityLinks).omit({ id: true, createdAt: true });
+
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
@@ -787,6 +884,13 @@ export type InsertNoteLink = z.infer<typeof insertNoteLinkSchema>;
 export type InsertDocumentLink = z.infer<typeof insertDocumentLinkSchema>;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type InsertGoogleCalendarToken = z.infer<typeof insertGoogleCalendarTokenSchema>;
+export type InsertMindmap = z.infer<typeof insertMindmapSchema>;
+export type InsertMindmapNode = z.infer<typeof insertMindmapNodeSchema>;
+export type InsertMindmapEdge = z.infer<typeof insertMindmapEdgeSchema>;
+export type InsertEntityLink = z.infer<typeof insertEntityLinkSchema>;
+export type UpdateMindmap = z.infer<typeof updateMindmapSchema>;
+export type UpdateMindmapNode = z.infer<typeof updateMindmapNodeSchema>;
+export type UpdateMindmapEdge = z.infer<typeof updateMindmapEdgeSchema>;
 
 // Select types
 export type Account = typeof accounts.$inferSelect;
@@ -822,6 +926,35 @@ export type NoteLink = typeof noteLinks.$inferSelect;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type GoogleCalendarToken = typeof googleCalendarTokens.$inferSelect;
+export type Mindmap = typeof mindmaps.$inferSelect;
+export type MindmapNode = typeof mindmapNodes.$inferSelect;
+export type MindmapEdge = typeof mindmapEdges.$inferSelect;
+export type EntityLink = typeof entityLinks.$inferSelect;
+
+// Mindmap Kind Options
+export const mindmapKindOptions = [
+  { value: "generic", label: "Mindmap libre", icon: "Brain" },
+  { value: "user_journey", label: "Parcours utilisateur", icon: "Route" },
+  { value: "storyboard", label: "Storyboard", icon: "Film" },
+  { value: "sitemap", label: "Sitemap", icon: "Map" },
+  { value: "architecture", label: "Architecture", icon: "Network" },
+  { value: "brainstorm", label: "Brainstorm", icon: "Lightbulb" },
+] as const;
+
+export type MindmapKind = typeof mindmapKindOptions[number]["value"];
+
+// Mindmap Node Type Options
+export const mindmapNodeTypeOptions = [
+  { value: "idea", label: "Idée", icon: "Lightbulb", color: "#FDE047" },
+  { value: "note", label: "Note", icon: "StickyNote", color: "#93C5FD" },
+  { value: "project", label: "Projet", icon: "Folder", color: "#86EFAC" },
+  { value: "document", label: "Document", icon: "FileText", color: "#C4B5FD" },
+  { value: "task", label: "Tâche", icon: "CheckSquare", color: "#5EEAD4" },
+  { value: "client", label: "Client", icon: "User", color: "#FCA5A5" },
+  { value: "generic", label: "Générique", icon: "Square", color: "#D1D5DB" },
+] as const;
+
+export type MindmapNodeType = typeof mindmapNodeTypeOptions[number]["value"];
 
 // Billing Status Options with Colors
 export const billingStatusOptions = [

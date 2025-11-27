@@ -31,6 +31,10 @@ import {
   insertClientCommentSchema,
   insertAppointmentSchema,
   updateAppointmentSchema,
+  insertMindmapSchema,
+  insertMindmapNodeSchema,
+  insertMindmapEdgeSchema,
+  insertEntityLinkSchema,
   type ClientCustomField,
   accounts,
 } from "@shared/schema";
@@ -3260,6 +3264,323 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const success = await storage.deleteAppointment(req.accountId!, req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MINDMAPS
+  // ============================================
+
+  // Get all mindmaps for the current account
+  app.get("/api/mindmaps", requireAuth, async (req, res) => {
+    try {
+      const mindmaps = await storage.getMindmapsByAccountId(req.accountId!);
+      res.json(mindmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get mindmaps by client
+  app.get("/api/clients/:clientId/mindmaps", requireAuth, async (req, res) => {
+    try {
+      const mindmaps = await storage.getMindmapsByClientId(req.accountId!, req.params.clientId);
+      res.json(mindmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get mindmaps by project
+  app.get("/api/projects/:projectId/mindmaps", requireAuth, async (req, res) => {
+    try {
+      const mindmaps = await storage.getMindmapsByProjectId(req.accountId!, req.params.projectId);
+      res.json(mindmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get a single mindmap with all nodes and edges
+  app.get("/api/mindmaps/:id", requireAuth, async (req, res) => {
+    try {
+      const result = await storage.getMindmapWithDetails(req.accountId!, req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new mindmap
+  app.post("/api/mindmaps", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertMindmapSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId || null,
+      });
+      const mindmap = await storage.createMindmap(data);
+      
+      // Log activity
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "mindmap",
+        subjectId: mindmap.id,
+        kind: "created",
+        payload: { name: mindmap.name },
+        createdBy: req.userId || null,
+      });
+      
+      res.json(mindmap);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a mindmap
+  app.patch("/api/mindmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmap(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const mindmap = await storage.updateMindmap(req.accountId!, req.params.id, req.body);
+      res.json(mindmap);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a mindmap (cascades to nodes and edges)
+  app.delete("/api/mindmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmap(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const success = await storage.deleteMindmap(req.accountId!, req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MINDMAP NODES
+  // ============================================
+
+  // Get nodes for a mindmap
+  app.get("/api/mindmaps/:mindmapId/nodes", requireAuth, async (req, res) => {
+    try {
+      // Verify mindmap exists and belongs to account
+      const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const nodes = await storage.getMindmapNodesByMindmapId(req.accountId!, req.params.mindmapId);
+      res.json(nodes);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new node
+  app.post("/api/mindmaps/:mindmapId/nodes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      // Verify mindmap exists and belongs to account
+      const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const data = insertMindmapNodeSchema.parse({
+        ...req.body,
+        mindmapId: req.params.mindmapId,
+        accountId: req.accountId!,
+      });
+      const node = await storage.createMindmapNode(data);
+      res.json(node);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a node
+  app.patch("/api/mindmap-nodes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmapNode(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Node not found" });
+      }
+      
+      const node = await storage.updateMindmapNode(req.accountId!, req.params.id, req.body);
+      res.json(node);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Batch update nodes (for drag & drop position updates)
+  app.patch("/api/mindmaps/:mindmapId/nodes/batch", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      // Verify mindmap exists
+      const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const { updates } = req.body;
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "Updates must be an array" });
+      }
+      
+      const results = await Promise.all(
+        updates.map((update: { id: string; positionX?: number; positionY?: number }) =>
+          storage.updateMindmapNode(req.accountId!, update.id, {
+            positionX: update.positionX,
+            positionY: update.positionY,
+          })
+        )
+      );
+      
+      res.json({ success: true, updated: results.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a node
+  app.delete("/api/mindmap-nodes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmapNode(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Node not found" });
+      }
+      
+      const success = await storage.deleteMindmapNode(req.accountId!, req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MINDMAP EDGES
+  // ============================================
+
+  // Get edges for a mindmap
+  app.get("/api/mindmaps/:mindmapId/edges", requireAuth, async (req, res) => {
+    try {
+      // Verify mindmap exists and belongs to account
+      const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const edges = await storage.getMindmapEdgesByMindmapId(req.accountId!, req.params.mindmapId);
+      res.json(edges);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new edge
+  app.post("/api/mindmaps/:mindmapId/edges", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      // Verify mindmap exists and belongs to account
+      const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
+      if (!mindmap) {
+        return res.status(404).json({ error: "Mindmap not found" });
+      }
+      
+      const data = insertMindmapEdgeSchema.parse({
+        ...req.body,
+        mindmapId: req.params.mindmapId,
+        accountId: req.accountId!,
+      });
+      const edge = await storage.createMindmapEdge(data);
+      res.json(edge);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update an edge
+  app.patch("/api/mindmap-edges/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmapEdge(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Edge not found" });
+      }
+      
+      const edge = await storage.updateMindmapEdge(req.accountId!, req.params.id, req.body);
+      res.json(edge);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete an edge
+  app.delete("/api/mindmap-edges/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getMindmapEdge(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Edge not found" });
+      }
+      
+      const success = await storage.deleteMindmapEdge(req.accountId!, req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ENTITY LINKS (for mindmap draft mode)
+  // ============================================
+
+  // Get entity links for account
+  app.get("/api/entity-links", requireAuth, async (req, res) => {
+    try {
+      const links = await storage.getEntityLinksByAccountId(req.accountId!);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create entity link (when connecting mindmap nodes to existing entities)
+  app.post("/api/entity-links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const data = insertEntityLinkSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+      });
+      const link = await storage.createEntityLink(data);
+      res.json(link);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete entity link
+  app.delete("/api/entity-links/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getEntityLink(req.accountId!, req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Entity link not found" });
+      }
+      
+      const success = await storage.deleteEntityLink(req.accountId!, req.params.id);
+      res.json({ success });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

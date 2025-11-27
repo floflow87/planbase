@@ -268,6 +268,143 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Notes is_favorite column added");
     
+    // Create mindmaps table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS mindmaps (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        description text,
+        kind text NOT NULL DEFAULT 'brainstorm' CHECK (kind IN ('generic', 'user_journey', 'storyboard', 'sitemap', 'architecture', 'brainstorm')),
+        client_id uuid REFERENCES clients(id) ON DELETE SET NULL,
+        project_id uuid REFERENCES projects(id) ON DELETE SET NULL,
+        layout_config jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    // Migrate title to name if table was created with old schema
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mindmaps' AND column_name = 'title') THEN
+          ALTER TABLE mindmaps RENAME COLUMN title TO name;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mindmaps' AND column_name = 'description') THEN
+          ALTER TABLE mindmaps ADD COLUMN description text;
+        END IF;
+      END $$;
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmaps_account_idx ON mindmaps(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmaps_client_idx ON mindmaps(account_id, client_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmaps_project_idx ON mindmaps(account_id, project_id);
+    `);
+    console.log("✅ Mindmaps table created");
+    
+    // Create mindmap_nodes table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS mindmap_nodes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        mindmap_id uuid NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        type text NOT NULL DEFAULT 'idea' CHECK (type IN ('idea', 'note', 'project', 'document', 'task', 'client', 'generic')),
+        title text NOT NULL,
+        description text,
+        image_url text,
+        linked_entity_type text CHECK (linked_entity_type IS NULL OR linked_entity_type IN ('note', 'project', 'document', 'task', 'client')),
+        linked_entity_id uuid,
+        x numeric(10, 2) NOT NULL DEFAULT 0,
+        y numeric(10, 2) NOT NULL DEFAULT 0,
+        style jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_nodes_mindmap_idx ON mindmap_nodes(mindmap_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_nodes_account_idx ON mindmap_nodes(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_nodes_linked_entity_idx ON mindmap_nodes(linked_entity_type, linked_entity_id);
+    `);
+    console.log("✅ Mindmap nodes table created");
+    
+    // Create mindmap_edges table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS mindmap_edges (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        mindmap_id uuid NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        source_node_id uuid NOT NULL REFERENCES mindmap_nodes(id) ON DELETE CASCADE,
+        target_node_id uuid NOT NULL REFERENCES mindmap_nodes(id) ON DELETE CASCADE,
+        is_draft boolean NOT NULL DEFAULT true,
+        linked_entity_link_id uuid,
+        label text,
+        style jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_edges_mindmap_idx ON mindmap_edges(mindmap_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_edges_account_idx ON mindmap_edges(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_edges_source_idx ON mindmap_edges(source_node_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mindmap_edges_target_idx ON mindmap_edges(target_node_id);
+    `);
+    console.log("✅ Mindmap edges table created");
+    
+    // Create entity_links table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS entity_links (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        source_type text NOT NULL CHECK (source_type IN ('note', 'project', 'document', 'task', 'client')),
+        source_id uuid NOT NULL,
+        target_type text NOT NULL CHECK (target_type IN ('note', 'project', 'document', 'task', 'client')),
+        target_id uuid NOT NULL,
+        created_by uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS entity_links_account_idx ON entity_links(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS entity_links_source_idx ON entity_links(source_type, source_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS entity_links_target_idx ON entity_links(target_type, target_id);
+    `);
+    console.log("✅ Entity links table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
