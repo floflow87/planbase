@@ -807,7 +807,7 @@ export const billingStatusOptions = [
   { value: "brouillon", label: "Brouillon", color: "#C4B5FD" }, // Violet pastel
   { value: "devis_envoye", label: "Devis envoyé", color: "#FDE047" }, // Yellow pastel
   { value: "devis_accepte", label: "Devis accepté", color: "#93C5FD" }, // Blue pastel
-  { value: "bon_commande", label: "Bon de commande émis", color: "#93C5FD" }, // Blue pastel
+  { value: "bon_commande", label: "BDC émis", color: "#93C5FD" }, // Blue pastel
   { value: "facture", label: "Facturé", color: "#93C5FD" }, // Blue pastel
   { value: "paye", label: "Payé", color: "#86EFAC" }, // Green pastel
   { value: "partiel", label: "Partiel", color: "#5EEAD4" }, // Turquoise pastel
