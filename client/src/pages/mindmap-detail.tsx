@@ -187,12 +187,11 @@ function MindmapCanvas() {
       const flowNodes: Node[] = data.nodes.map((node) => ({
         id: node.id,
         type: "custom",
-        position: { x: node.positionX, y: node.positionY },
+        position: { x: parseFloat(node.x), y: parseFloat(node.y) },
         data: {
-          label: node.label,
+          label: node.title,
           description: node.description,
-          kind: node.kind,
-          isDraft: node.isDraft,
+          kind: node.type,
           linkedEntityType: node.linkedEntityType,
           linkedEntityId: node.linkedEntityId,
         },
@@ -203,9 +202,9 @@ function MindmapCanvas() {
         source: edge.sourceNodeId,
         target: edge.targetNodeId,
         label: edge.label || undefined,
-        type: edge.edgeType || "default",
-        animated: edge.edgeType === "animated",
-        style: { stroke: edge.color || undefined },
+        type: "default",
+        animated: false,
+        style: edge.style as Record<string, unknown> || {},
       }));
 
       setNodes(flowNodes);
@@ -215,11 +214,11 @@ function MindmapCanvas() {
 
   const createNodeMutation = useMutation({
     mutationFn: async (nodeData: {
-      label: string;
+      title: string;
       description?: string;
-      kind: MindmapNodeKind;
-      positionX: number;
-      positionY: number;
+      type: MindmapNodeKind;
+      x: number;
+      y: number;
     }) => {
       const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
       return await res.json();
@@ -229,12 +228,11 @@ function MindmapCanvas() {
       const flowNode: Node = {
         id: newNode.id,
         type: "custom",
-        position: { x: newNode.positionX, y: newNode.positionY },
+        position: { x: parseFloat(newNode.x), y: parseFloat(newNode.y) },
         data: {
-          label: newNode.label,
+          label: newNode.title,
           description: newNode.description,
-          kind: newNode.kind,
-          isDraft: newNode.isDraft,
+          kind: newNode.type,
         },
       };
       setNodes((nds) => [...nds, flowNode]);
@@ -357,8 +355,8 @@ function MindmapCanvas() {
       updateNodeMutation.mutate({
         nodeId: node.id,
         updates: {
-          positionX: Math.round(node.position.x),
-          positionY: Math.round(node.position.y),
+          x: Math.round(node.position.x).toString(),
+          y: Math.round(node.position.y).toString(),
         },
       });
     },
@@ -383,11 +381,11 @@ function MindmapCanvas() {
     const centerY = 150 + Math.random() * 300;
 
     createNodeMutation.mutate({
-      label: newNodeLabel,
+      title: newNodeLabel,
       description: newNodeDescription || undefined,
-      kind: newNodeKind,
-      positionX: centerX,
-      positionY: centerY,
+      type: newNodeKind,
+      x: centerX,
+      y: centerY,
     });
   };
 
