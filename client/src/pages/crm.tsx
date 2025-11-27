@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -128,6 +129,20 @@ export default function CRM() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
     const saved = localStorage.getItem('crmSortDirection');
     return saved === "asc" || saved === "desc" ? saved : "desc";
+  });
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  
+  // Column visibility state with localStorage persistence
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('crmColumnVisibility');
+    return saved ? JSON.parse(saved) : {
+      client: true,
+      contacts: true,
+      type: true,
+      projets: true,
+      budget: true,
+      creation: true,
+    };
   });
   
   // Colonnes configurables
@@ -728,6 +743,17 @@ export default function CRM() {
                     <LayoutGrid className="w-4 h-4" />
                   </Button>
                 </div>
+                {viewMode === "table" && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsColumnSettingsOpen(true)}
+                    data-testid="button-column-settings"
+                    className="hidden md:flex"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -765,7 +791,7 @@ export default function CRM() {
                           data-testid="checkbox-select-all"
                         />
                       </div>
-                      {columns.map((column) => (
+                      {columns.filter(col => columnVisibility[col.id] !== false).map((column) => (
                         <div key={column.id} className={column.className} style={column.style}>
                           <DraggableColumnHeader 
                             id={column.id} 
@@ -808,7 +834,7 @@ export default function CRM() {
                             data-testid={`checkbox-select-${client.id}`}
                           />
                         </div>
-                        {columns.map((column) => {
+                        {columns.filter(col => columnVisibility[col.id] !== false).map((column) => {
                           const content = (() => {
                             switch (column.id) {
                               case "client":
@@ -1086,6 +1112,42 @@ export default function CRM() {
             </div>
           </DialogContent>
         </Dialog>
+        
+        {/* Column Settings Sheet */}
+        <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
+          <SheetContent className="w-80" data-testid="sheet-column-settings">
+            <SheetHeader>
+              <SheetTitle>Personnaliser les colonnes</SheetTitle>
+            </SheetHeader>
+            <div className="py-4 space-y-4">
+              {[
+                { id: "client", label: "Client", disabled: true },
+                { id: "contacts", label: "Contacts" },
+                { id: "type", label: "Type" },
+                { id: "projets", label: "Projets" },
+                { id: "budget", label: "Budget" },
+                { id: "creation", label: "Date de création" },
+              ].map((column) => (
+                <div key={column.id} className="flex items-center justify-between">
+                  <Label htmlFor={`toggle-crm-${column.id}`} className="text-sm">
+                    {column.label}
+                  </Label>
+                  <Switch
+                    id={`toggle-crm-${column.id}`}
+                    checked={columnVisibility[column.id] ?? true}
+                    disabled={column.disabled}
+                    onCheckedChange={(checked) => {
+                      const newVisibility = { ...columnVisibility, [column.id]: checked };
+                      setColumnVisibility(newVisibility);
+                      localStorage.setItem("crmColumnVisibility", JSON.stringify(newVisibility));
+                    }}
+                    data-testid={`toggle-column-${column.id}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

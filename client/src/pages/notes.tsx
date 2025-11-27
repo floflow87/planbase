@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
@@ -173,6 +176,21 @@ export default function Notes() {
     return (saved as 'asc' | 'desc') || 'desc';
   });
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  
+  // Column visibility state with localStorage persistence
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('noteColumnVisibility');
+    return saved ? JSON.parse(saved) : {
+      favorite: true,
+      title: true,
+      status: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true,
+      project: true,
+    };
+  });
 
   // Sensors for drag and drop
   const sensors = useSensors(
@@ -638,6 +656,14 @@ export default function Notes() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsColumnSettingsOpen(true)}
+              data-testid="button-column-settings"
+            >
+              <Settings2 className="w-4 h-4" />
+            </Button>
             <Link href="/notes/new">
               <Button className="gap-2 text-[12px]" data-testid="button-nouvelle-note">
                 <Plus className="w-4 h-4" />
@@ -674,7 +700,7 @@ export default function Notes() {
                 strategy={horizontalListSortingStrategy}
               >
                 <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-muted-foreground items-center">
-                  {columnOrder.map((columnId) => {
+                  {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId) => {
                     const columnConfig: Record<string, { label: string; colSpan: number; isSortable: boolean; isDraggable: boolean }> = {
                       checkbox: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
                       favorite: { label: '', colSpan: 1, isSortable: false, isDraggable: false },
@@ -1048,7 +1074,7 @@ export default function Notes() {
                     className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-border last:border-b-0 hover-elevate items-center"
                     data-testid={`row-note-${note.id}`}
                   >
-                    {columnOrder.map((columnId) => cellContent[columnId])}
+                    {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId) => cellContent[columnId])}
                   </div>
                 );
               })
@@ -1211,6 +1237,43 @@ export default function Notes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Column Settings Sheet */}
+      <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
+        <SheetContent className="w-80" data-testid="sheet-column-settings">
+          <SheetHeader>
+            <SheetTitle>Personnaliser les colonnes</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            {[
+              { id: "favorite", label: "Favoris" },
+              { id: "title", label: "Titre", disabled: true },
+              { id: "status", label: "Statut" },
+              { id: "visibility", label: "Visibilité" },
+              { id: "createdAt", label: "Date de création" },
+              { id: "updatedAt", label: "Dernière modification" },
+              { id: "project", label: "Projet rattaché" },
+            ].map((column) => (
+              <div key={column.id} className="flex items-center justify-between">
+                <Label htmlFor={`toggle-note-${column.id}`} className="text-sm">
+                  {column.label}
+                </Label>
+                <Switch
+                  id={`toggle-note-${column.id}`}
+                  checked={columnVisibility[column.id] ?? true}
+                  disabled={column.disabled}
+                  onCheckedChange={(checked) => {
+                    const newVisibility = { ...columnVisibility, [column.id]: checked };
+                    setColumnVisibility(newVisibility);
+                    localStorage.setItem("noteColumnVisibility", JSON.stringify(newVisibility));
+                  }}
+                  data-testid={`toggle-column-${column.id}`}
+                />
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -112,6 +119,20 @@ export function ListView({
     return saved ? JSON.parse(saved) : null;
   });
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false);
+  
+  // Column visibility state with localStorage persistence
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('taskColumnVisibility');
+    return saved ? JSON.parse(saved) : {
+      title: true,
+      assignedTo: true,
+      status: true,
+      priority: true,
+      effort: true,
+      dueDate: true,
+    };
+  });
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
   const [isAttachToProjectDialogOpen, setIsAttachToProjectDialogOpen] = useState(false);
   const [attachProjectId, setAttachProjectId] = useState<string>("");
@@ -471,6 +492,18 @@ export function ListView({
 
   return (
     <div className="space-y-4">
+      {/* Column settings button */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsColumnSettingsOpen(true)}
+          data-testid="button-column-settings"
+        >
+          <Settings2 className="w-4 h-4" />
+        </Button>
+      </div>
+      
       {selectedTasks.size > 0 && (
         <div className="flex items-center gap-2 p-3 bg-accent rounded-md">
           <span className="text-xs font-medium">
@@ -553,7 +586,7 @@ export function ListView({
                 <TableHeader>
                   <TableRow className="bg-muted/40">
                     <SortableContext items={columnOrder}>
-                      {columnOrder.map((columnId: string) => (
+                      {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId: string) => (
                         <SortableTableHeader key={columnId} columnId={columnId} />
                       ))}
                     </SortableContext>
@@ -574,7 +607,7 @@ export function ListView({
                       
                       return (
                         <TableRow key={task.id} className="h-12" data-testid={`table-row-${task.id}`}>
-                          {columnOrder.map((columnId: string) => {
+                          {columnOrder.filter(col => col === 'checkbox' || col === 'actions' || columnVisibility[col] !== false).map((columnId: string) => {
                             switch (columnId) {
                               case 'checkbox':
                                 return (
@@ -1053,6 +1086,42 @@ export function ListView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Column Settings Sheet */}
+      <Sheet open={isColumnSettingsOpen} onOpenChange={setIsColumnSettingsOpen}>
+        <SheetContent className="w-80" data-testid="sheet-column-settings">
+          <SheetHeader>
+            <SheetTitle>Personnaliser les colonnes</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-4">
+            {[
+              { id: "title", label: "Titre", disabled: true },
+              { id: "assignedTo", label: "Assigné à" },
+              { id: "status", label: "Statut" },
+              { id: "priority", label: "Priorité" },
+              { id: "effort", label: "Effort" },
+              { id: "dueDate", label: "Échéance" },
+            ].map((column) => (
+              <div key={column.id} className="flex items-center justify-between">
+                <Label htmlFor={`toggle-task-${column.id}`} className="text-sm">
+                  {column.label}
+                </Label>
+                <Switch
+                  id={`toggle-task-${column.id}`}
+                  checked={columnVisibility[column.id] ?? true}
+                  disabled={column.disabled}
+                  onCheckedChange={(checked) => {
+                    const newVisibility = { ...columnVisibility, [column.id]: checked };
+                    setColumnVisibility(newVisibility);
+                    localStorage.setItem("taskColumnVisibility", JSON.stringify(newVisibility));
+                  }}
+                  data-testid={`toggle-column-${column.id}`}
+                />
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
