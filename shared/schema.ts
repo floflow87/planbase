@@ -804,14 +804,15 @@ export type GoogleCalendarToken = typeof googleCalendarTokens.$inferSelect;
 
 // Billing Status Options with Colors
 export const billingStatusOptions = [
-  { value: "devis_envoye", label: "Devis envoyé", color: "#3B82F6" }, // Blue
-  { value: "devis_accepte", label: "Devis accepté", color: "#8B5CF6" }, // Purple
-  { value: "bon_commande", label: "Bon de commande émis", color: "#6366F1" }, // Indigo
-  { value: "facture", label: "Facturé", color: "#F59E0B" }, // Amber
-  { value: "paye", label: "Payé", color: "#10B981" }, // Green
-  { value: "partiel", label: "Partiel", color: "#06B6D4" }, // Cyan
-  { value: "annule", label: "Annulé", color: "#6B7280" }, // Gray
-  { value: "retard", label: "Retard", color: "#EF4444" }, // Red
+  { value: "brouillon", label: "Brouillon", color: "#C4B5FD" }, // Violet pastel
+  { value: "devis_envoye", label: "Devis envoyé", color: "#FDE047" }, // Yellow pastel
+  { value: "devis_accepte", label: "Devis accepté", color: "#93C5FD" }, // Blue pastel
+  { value: "bon_commande", label: "Bon de commande émis", color: "#93C5FD" }, // Blue pastel
+  { value: "facture", label: "Facturé", color: "#93C5FD" }, // Blue pastel
+  { value: "paye", label: "Payé", color: "#86EFAC" }, // Green pastel
+  { value: "partiel", label: "Partiel", color: "#5EEAD4" }, // Turquoise pastel
+  { value: "annule", label: "Annulé", color: "#D1D5DB" }, // Gray pastel
+  { value: "retard", label: "Retard", color: "#FCA5A5" }, // Red pastel
 ] as const;
 
 export type BillingStatus = typeof billingStatusOptions[number]["value"];
