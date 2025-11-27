@@ -1,0 +1,120 @@
+Ton plan en 5 phases me va parfaitement. C’est exactement la bonne progression pour construire progressivement un module aussi riche.
+J’ai juste besoin qu’on verrouille quelques points clés dès la Phase 1 pour garantir la scalabilité du module et éviter du rework.
+
+🔹 Phase 1 — Fondations (important)
+
+Merci d’intégrer dès cette phase :
+
+Le modèle de données complet, même si toutes les fonctionnalités ne sont pas encore utilisées :
+
+mindmaps.kind (storyboard, user flow, sitemap, architecture, brainstorm…)
+
+mindmaps.layout_config (structure JSON pour gérer l’affichage/masquage de certains champs selon les vues)
+
+mindmap_nodes.type + linked_entity_type + linked_entity_id
+
+mindmap_edges.is_draft + linked_entity_link_id
+
+Multi-tenant + RLS dès le départ
+Toutes les tables doivent fonctionner avec :
+
+account_id = auth.jwt()->>'account_id'
+
+
+pour éviter toute fuite de données inter-comptes.
+
+Une API cohérente et complète dès la V1, notamment :
+
+GET /mindmaps/:id → retourne { mindmap, nodes, edges } en un seul appel.
+
+L’objectif : poser une structure entièrement future-proof, même si certaines logiques (autocomplete, templates, connecteur métier) arrivent plus tard.
+
+🔹 Phase 2 — Canvas
+
+Rien à ajouter, sauf une clarification :
+À la fin de cette phase, je dois pouvoir utiliser la mindmap comme outil de brainstorm simple, même si tout est en mode draft.
+
+🔹 Phase 3 — Templates & Vues
+
+Merci d’implémenter dès cette phase :
+
+un sélecteur de vue (Storyboard, User Flow, Architecture, Sitemap, Idées),
+
+la gestion de layout_config pour afficher / masquer :
+
+titre
+
+description
+
+image
+
+tags (futur)
+
+statut (futur)
+
+Même si on démarre avec des templates simples, la structure doit déjà permettre d’en ajouter facilement.
+
+🔹 Phase 4 — Intégration
+
+Merci d’intégrer les trois mécaniques essentielles :
+
+Autocomplete intelligent lors de la création d’un nœud
+Recherche sur :
+
+notes
+
+projets
+
+documents
+
+tâches
+
+clients
+→ et remplissage automatique de linked_entity_type / linked_entity_id.
+
+Mode draft + bouton “Connecter les nœuds”
+
+tous les edges créés dans le canvas = is_draft=true
+
+le bouton “Connecter” :
+
+crée les liens métier réels (dans une table dédiée)
+
+remplit linked_entity_link_id
+
+passe is_draft=false
+
+gestion des suppressions :
+
+edge draft → suppression simple
+
+edge réel → proposer de supprimer aussi le lien métier
+
+Propriétés de la mindmap : rattacher à un client ou un projet
+
+mindmap créable librement
+
+rattachement optionnel ensuite
+
+🔹 Phase 5 — Navigation + Polish
+
+Important à ajouter dans cette phase :
+
+Depuis Note / Document / Tâche / Projet / Client :
+bouton “Voir sur une mindmap”
+→ modale pour choisir une map ou en créer une nouvelle
+→ création automatique d’un nœud lié à l’entité.
+
+🎯 Résumé
+
+Ton phasage est parfait, je veux juste garantir que la structure complète est posée dès la Phase 1, notamment :
+
+les champs qui permettent les templates,
+
+le multi-tenant propre,
+
+le modèle de nœud extensible,
+
+et la logique draft.
+
+Le reste peut arriver progressivement comme tu l’as planifié.
