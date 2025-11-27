@@ -635,10 +635,16 @@ export default function Dashboard() {
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
-  // Calculer les paiements en attente (différence entre budget total et paiements effectués)
-  const totalBudget = projects.reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  // Calculer le CA global (somme des budgets des projets hors prospection)
+  const globalRevenue = projects
+    .filter(p => p.stage !== "prospection")
+    .reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  
+  // Calculer les paiements encaissés
   const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
-  const pendingPayments = Math.max(0, totalBudget - totalPaid);
+  
+  // Paiements en attente = CA global - montants encaissés
+  const pendingPayments = Math.max(0, globalRevenue - totalPaid);
 
   // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
