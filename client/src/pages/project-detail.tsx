@@ -754,7 +754,7 @@ export default function ProjectDetail() {
   };
 
   const getBillingStatusColor = (status: string | null) => {
-    switch (status) {
+    switch (status || "brouillon") {
       case "brouillon":
         return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800";
       case "devis_envoye":
@@ -906,15 +906,13 @@ export default function ProjectDetail() {
                     {project.budget}
                   </Badge>
                 )}
-                {project.billingStatus && (
-                  <Badge 
-                    data-testid="badge-billing-status-budget"
-                    className={`${getBillingStatusColor(project.billingStatus)} shrink-0`}
-                  >
-                    {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-                    {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
-                  </Badge>
-                )}
+                <Badge 
+                  data-testid="badge-billing-status-budget"
+                  className={`${getBillingStatusColor(project.billingStatus)} shrink-0`}
+                >
+                  {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                  {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
+                </Badge>
               </div>
             </div>
           </div>
@@ -1259,7 +1257,7 @@ export default function ProjectDetail() {
                 <div>
                   <Label htmlFor="billing-status">Statut de facturation</Label>
                   <Select
-                    value={project?.billingStatus || ""}
+                    value={project?.billingStatus || "brouillon"}
                     onValueChange={async (value) => {
                       try {
                         const updateData: { billingStatus: string; billingDueDate?: string | null } = {
@@ -1288,15 +1286,13 @@ export default function ProjectDetail() {
                   >
                     <SelectTrigger id="billing-status" data-testid="select-billing-status">
                       <SelectValue placeholder="Sélectionner un statut">
-                        {project?.billingStatus && (
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full shrink-0" 
-                              style={{ backgroundColor: billingStatusOptions.find(o => o.value === project.billingStatus)?.color }}
-                            />
-                            <span>{billingStatusOptions.find(o => o.value === project.billingStatus)?.label}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full shrink-0" 
+                            style={{ backgroundColor: billingStatusOptions.find(o => o.value === (project?.billingStatus || "brouillon"))?.color }}
+                          />
+                          <span>{billingStatusOptions.find(o => o.value === (project?.billingStatus || "brouillon"))?.label}</span>
+                        </div>
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>

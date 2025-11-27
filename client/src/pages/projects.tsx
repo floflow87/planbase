@@ -126,7 +126,7 @@ function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "
 
 // Helper function to get billing status color classes (pastel colors)
 function getBillingStatusColorForCard(status: string | null) {
-  switch (status) {
+  switch (status || "brouillon") {
     case "brouillon":
       return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800";
     case "devis_envoye":
@@ -1652,15 +1652,13 @@ function DraggableProjectCard({
               {incompleteTasks} tâche{incompleteTasks > 1 ? 's' : ''}
             </Badge>
           )}
-          {project.billingStatus && (
-            <Badge 
-              className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
-              data-testid={`badge-kanban-billing-status-${project.id}`}
-            >
-              {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-              {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
-            </Badge>
-          )}
+          <Badge 
+            className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
+            data-testid={`badge-kanban-billing-status-${project.id}`}
+          >
+            {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+            {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
+          </Badge>
         </div>
         
         {project.budget && (
@@ -3112,7 +3110,7 @@ export default function Projects() {
                     break;
                   case "billingStatus":
                     const billingOrder: Record<string, number> = { brouillon: 0, devis_envoye: 1, devis_accepte: 2, bon_commande: 3, facture: 4, paye: 5, partiel: 6, annule: 7, retard: 8 };
-                    comparison = (billingOrder[a.billingStatus || ""] ?? 99) - (billingOrder[b.billingStatus || ""] ?? 99);
+                    comparison = (billingOrder[a.billingStatus || "brouillon"] ?? 0) - (billingOrder[b.billingStatus || "brouillon"] ?? 0);
                     break;
                   default:
                     comparison = 0;
@@ -3340,15 +3338,13 @@ export default function Projects() {
                                   {project.category}
                                 </Badge>
                               )}
-                              {project.billingStatus && (
-                                <Badge 
-                                  className={`${getBillingStatusColorForCard(project.billingStatus)} text-xs`}
-                                  data-testid={`badge-billing-status-${project.id}`}
-                                >
-                                  {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-                                  {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
-                                </Badge>
-                              )}
+                              <Badge 
+                                className={`${getBillingStatusColorForCard(project.billingStatus)} text-xs`}
+                                data-testid={`badge-billing-status-${project.id}`}
+                              >
+                                {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                                {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
+                              </Badge>
                             </div>
 
                             {project.description && (
@@ -3788,17 +3784,13 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-billing-status-${project.id}`}
                                       >
-                                        {project.billingStatus ? (
-                                          <Badge 
-                                            className={`${getBillingStatusColorForCard(project.billingStatus)} cursor-pointer text-[10px]`}
-                                            data-testid={`badge-table-billing-status-${project.id}`}
-                                          >
-                                            {billingStatusOptions.find(o => o.value === project.billingStatus)?.label}
-                                            {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-[11px] text-muted-foreground px-2 py-1">—</span>
-                                        )}
+                                        <Badge 
+                                          className={`${getBillingStatusColorForCard(project.billingStatus)} cursor-pointer text-[10px]`}
+                                          data-testid={`badge-table-billing-status-${project.id}`}
+                                        >
+                                          {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                                          {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
+                                        </Badge>
                                       </button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-56 p-2 bg-white dark:bg-gray-900" align="start">
