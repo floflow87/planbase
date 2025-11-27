@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note, Document } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment } from "@shared/schema";
 import { billingStatusOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -444,6 +444,14 @@ export default function ProjectDetail() {
   const [billingRateValue, setBillingRateValue] = useState<string>("");
   const [numberOfDaysValue, setNumberOfDaysValue] = useState<string>("");
 
+  // Payment tracking state
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [paymentDescription, setPaymentDescription] = useState<string>("");
+  const [isPaymentDatePickerOpen, setIsPaymentDatePickerOpen] = useState(false);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
   });
@@ -494,6 +502,22 @@ export default function ProjectDetail() {
     queryKey: ['/api/projects', id, 'documents'],
     enabled: !!id,
   });
+
+  // Fetch payments for this project
+  const { data: payments = [] } = useQuery<ProjectPayment[]>({
+    queryKey: ['/api/projects', id, 'payments'],
+    enabled: !!id,
+  });
+
+  // Calculate total paid and remaining amount
+  const totalPaid = useMemo(() => {
+    return payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+  }, [payments]);
+
+  const remainingAmount = useMemo(() => {
+    const budget = parseFloat(project?.budget || "0");
+    return Math.max(0, budget - totalPaid);
+  }, [project?.budget, totalPaid]);
 
   // Initialize billing fields when project loads
   useEffect(() => {
@@ -1600,6 +1624,257 @@ export default function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Payment Tracking Section */}
+            <Card className="mt-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Euro className="h-5 w-5" />
+                    Suivi des paiements
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowPaymentForm(true);
+                      setPaymentAmount(remainingAmount > 0 ? remainingAmount.toFixed(2) : "");
+                      setPaymentDate(new Date());
+                      setPaymentDescription("");
+                    }}
+                    data-testid="button-add-payment"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ajouter un paiement
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Progress bar */}
+                {project?.budget && parseFloat(project.budget) > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Progression du paiement</span>
+                      <span className="font-medium">
+                        {totalPaid.toFixed(2)} € / {parseFloat(project.budget).toFixed(2)} €
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.min(100, (totalPaid / parseFloat(project.budget)) * 100)} 
+                      className="h-2"
+                      data-testid="progress-payment"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{((totalPaid / parseFloat(project.budget)) * 100).toFixed(0)}% payé</span>
+                      <span>{remainingAmount > 0 ? `${remainingAmount.toFixed(2)} € restant` : "Entièrement payé"}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment form */}
+                {showPaymentForm && (
+                  <div className="border rounded-lg p-4 space-y-4 bg-muted/30" data-testid="form-payment">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="payment-amount">Montant (€)</Label>
+                        <Input
+                          id="payment-amount"
+                          type="number"
+                          step="0.01"
+                          placeholder={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          data-testid="input-payment-amount"
+                        />
+                        {remainingAmount > 0 && paymentAmount !== remainingAmount.toFixed(2) && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="px-0 h-auto text-xs"
+                            onClick={() => setPaymentAmount(remainingAmount.toFixed(2))}
+                            data-testid="button-autofill-amount"
+                          >
+                            Compléter avec le solde ({remainingAmount.toFixed(2)} €)
+                          </Button>
+                        )}
+                      </div>
+                      <div>
+                        <Label>Date du paiement</Label>
+                        <Popover open={isPaymentDatePickerOpen} onOpenChange={setIsPaymentDatePickerOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !paymentDate && "text-muted-foreground"
+                              )}
+                              data-testid="button-payment-date"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {paymentDate ? format(paymentDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={paymentDate}
+                              onSelect={(date) => {
+                                setPaymentDate(date);
+                                setIsPaymentDatePickerOpen(false);
+                              }}
+                              initialFocus
+                              locale={fr}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="payment-description">Description (optionnelle)</Label>
+                      <Input
+                        id="payment-description"
+                        placeholder="Note ou référence du paiement"
+                        value={paymentDescription}
+                        onChange={(e) => setPaymentDescription(e.target.value)}
+                        data-testid="input-payment-description"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowPaymentForm(false)}
+                        data-testid="button-cancel-payment"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!paymentAmount || !paymentDate) {
+                            toast({
+                              title: "Erreur",
+                              description: "Veuillez remplir le montant et la date",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          try {
+                            await apiRequest(`/api/projects/${id}/payments`, "POST", {
+                              amount: paymentAmount,
+                              paymentDate: formatDateForStorage(paymentDate),
+                              description: paymentDescription || null,
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                            setShowPaymentForm(false);
+                            setPaymentAmount("");
+                            setPaymentDescription("");
+                            toast({
+                              title: "Paiement enregistré",
+                              description: `Paiement de ${parseFloat(paymentAmount).toFixed(2)} € enregistré`,
+                              variant: "success",
+                            });
+                          } catch (error: any) {
+                            toast({
+                              title: "Erreur",
+                              description: error.message || "Impossible d'enregistrer le paiement",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        data-testid="button-save-payment"
+                      >
+                        Enregistrer
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment history */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Historique des paiements</h4>
+                  {payments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic py-4 text-center">
+                      Aucun paiement enregistré
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {payments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                          data-testid={`payment-item-${payment.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                              <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <div className="font-medium">
+                                {parseFloat(payment.amount).toFixed(2)} €
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(payment.paymentDate), "dd MMM yyyy", { locale: fr })}
+                                {payment.description && ` — ${payment.description}`}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletePaymentId(payment.id)}
+                            data-testid={`button-delete-payment-${payment.id}`}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Delete Payment Confirmation Dialog */}
+            <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer ce paiement ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irréversible. Le paiement sera définitivement supprimé et le statut de facturation sera recalculé.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-testid="button-cancel-delete-payment">Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      if (deletePaymentId) {
+                        try {
+                          await apiRequest(`/api/payments/${deletePaymentId}`, "DELETE");
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                          setDeletePaymentId(null);
+                          toast({
+                            title: "Paiement supprimé",
+                            description: "Le paiement a été supprimé avec succès",
+                            variant: "success",
+                          });
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: error.message || "Impossible de supprimer le paiement",
+                            variant: "destructive",
+                          });
+                        }
+                      }
+                    }}
+                    className="bg-destructive hover:bg-destructive/90"
+                    data-testid="button-confirm-delete-payment"
+                  >
+                    Supprimer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="time" className="mt-0">
