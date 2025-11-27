@@ -640,19 +640,24 @@ export default function Dashboard() {
   const globalRevenue = projectsHorsProspection.reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
   
   // Calculer les paiements encaissés
-  const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+  // Logique: Si un projet est marqué comme "paye", on prend son budget entier
+  // Sinon, on prend la somme des paiements individuels pour ce projet
+  const totalPaid = projectsHorsProspection.reduce((sum, project) => {
+    const projectBudget = parseFloat(project.budget || "0");
+    
+    // Si le projet est marqué comme payé, on considère tout le budget comme encaissé
+    if (project.billingStatus === "paye") {
+      return sum + projectBudget;
+    }
+    
+    // Sinon, on additionne les paiements individuels pour ce projet
+    const projectPayments = payments.filter(p => p.projectId === project.id);
+    const paidAmount = projectPayments.reduce((s, p) => s + parseFloat(p.amount || "0"), 0);
+    return sum + paidAmount;
+  }, 0);
   
   // Paiements en attente = CA global - montants encaissés
   const pendingPayments = Math.max(0, globalRevenue - totalPaid);
-
-  // DEBUG - à supprimer après vérification
-  console.log("=== DEBUG PAIEMENTS ===");
-  console.log("Projets hors prospection:", projectsHorsProspection.map(p => ({ name: p.name, stage: p.stage, budget: p.budget })));
-  console.log("CA Global (somme budgets hors prospection):", globalRevenue);
-  console.log("Paiements reçus:", payments.map(p => ({ projectId: p.projectId, amount: p.amount })));
-  console.log("Total Paiements encaissés:", totalPaid);
-  console.log("Paiements en attente (CA - encaissés):", pendingPayments);
-  console.log("========================");
 
   // KPI data from real data - Ordre: CA, Paiements en attente, Tâches, Projets
   const kpis: Array<{
