@@ -683,7 +683,7 @@ export const mindmaps = pgTable("mindmaps", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
-  kind: text("kind").notNull().default("brainstorm"), // 'generic', 'user_journey', 'storyboard', 'sitemap', 'architecture', 'brainstorm'
+  kind: text("kind").notNull().default("generic"), // 'generic', 'storyboard', 'user_flow', 'architecture', 'sitemap', 'ideas'
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   layoutConfig: jsonb("layout_config").notNull().default({}), // UI config for showing/hiding fields based on view
@@ -934,11 +934,11 @@ export type EntityLink = typeof entityLinks.$inferSelect;
 // Mindmap Kind Options
 export const mindmapKindOptions = [
   { value: "generic", label: "Mindmap libre", icon: "Brain" },
-  { value: "user_journey", label: "Parcours utilisateur", icon: "Route" },
   { value: "storyboard", label: "Storyboard", icon: "Film" },
-  { value: "sitemap", label: "Sitemap", icon: "Map" },
+  { value: "user_flow", label: "Parcours utilisateur", icon: "Route" },
   { value: "architecture", label: "Architecture", icon: "Network" },
-  { value: "brainstorm", label: "Brainstorm", icon: "Lightbulb" },
+  { value: "sitemap", label: "Sitemap", icon: "Map" },
+  { value: "ideas", label: "Idées", icon: "Lightbulb" },
 ] as const;
 
 export type MindmapKind = typeof mindmapKindOptions[number]["value"];

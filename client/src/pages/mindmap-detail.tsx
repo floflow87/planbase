@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useParams, useLocation } from "wouter";
@@ -24,7 +24,6 @@ import "reactflow/dist/style.css";
 import {
   ArrowLeft,
   Plus,
-  Save,
   Trash2,
   Lightbulb,
   FileText,
@@ -36,6 +35,19 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
+  Eye,
+  EyeOff,
+  Image,
+  Type,
+  AlignLeft,
+  ExternalLink,
+  Film,
+  Route,
+  Map,
+  Network,
+  Brain,
+  Square,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,14 +76,46 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import type {
   Mindmap,
   MindmapNode as MindmapNodeType,
   MindmapEdge as MindmapEdgeType,
-  MindmapNodeKind,
+  MindmapKind,
 } from "@shared/schema";
+import { mindmapKindOptions, mindmapNodeTypeOptions } from "@shared/schema";
+
+type MindmapNodeKind = typeof mindmapNodeTypeOptions[number]["value"];
+
+interface LayoutConfig {
+  showTitle: boolean;
+  showDescription: boolean;
+  showImage: boolean;
+}
+
+const DEFAULT_LAYOUT_CONFIGS: Record<MindmapKind, LayoutConfig> = {
+  generic: { showTitle: true, showDescription: true, showImage: true },
+  storyboard: { showTitle: true, showDescription: true, showImage: true },
+  user_flow: { showTitle: true, showDescription: true, showImage: false },
+  architecture: { showTitle: true, showDescription: true, showImage: false },
+  sitemap: { showTitle: true, showDescription: false, showImage: false },
+  ideas: { showTitle: true, showDescription: false, showImage: false },
+};
+
+const KIND_ICONS: Record<MindmapKind, typeof Brain> = {
+  generic: Brain,
+  storyboard: Film,
+  user_flow: Route,
+  architecture: Network,
+  sitemap: Map,
+  ideas: Lightbulb,
+};
 
 const NODE_KIND_CONFIG: Record<
   MindmapNodeKind,
@@ -81,57 +125,67 @@ const NODE_KIND_CONFIG: Record<
     label: "Idée",
     icon: Lightbulb,
     color: "text-amber-600",
-    bgColor: "bg-amber-50 border-amber-200",
+    bgColor: "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800",
   },
   note: {
     label: "Note",
     icon: StickyNote,
     color: "text-blue-600",
-    bgColor: "bg-blue-50 border-blue-200",
+    bgColor: "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
   },
   project: {
     label: "Projet",
     icon: FolderOpen,
     color: "text-violet-600",
-    bgColor: "bg-violet-50 border-violet-200",
+    bgColor: "bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800",
   },
   document: {
     label: "Document",
     icon: FileText,
     color: "text-green-600",
-    bgColor: "bg-green-50 border-green-200",
+    bgColor: "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800",
   },
   task: {
     label: "Tâche",
     icon: CheckSquare,
     color: "text-orange-600",
-    bgColor: "bg-orange-50 border-orange-200",
+    bgColor: "bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800",
   },
   client: {
     label: "Client",
     icon: User,
     color: "text-cyan-600",
-    bgColor: "bg-cyan-50 border-cyan-200",
+    bgColor: "bg-cyan-50 border-cyan-200 dark:bg-cyan-950/30 dark:border-cyan-800",
+  },
+  generic: {
+    label: "Générique",
+    icon: Square,
+    color: "text-gray-600",
+    bgColor: "bg-gray-50 border-gray-200 dark:bg-gray-950/30 dark:border-gray-800",
   },
 };
 
 interface CustomNodeData {
   label: string;
   description?: string;
+  imageUrl?: string;
   kind: MindmapNodeKind;
   isDraft?: boolean;
   linkedEntityType?: string;
   linkedEntityId?: string;
-  onDelete?: (id: string) => void;
+  layoutConfig: LayoutConfig;
 }
 
 function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
-  const config = NODE_KIND_CONFIG[data.kind];
+  const config = NODE_KIND_CONFIG[data.kind] || NODE_KIND_CONFIG.generic;
   const Icon = config.icon;
+  const { showTitle, showDescription, showImage } = data.layoutConfig;
+
+  const isCompact = !showDescription && !showImage;
 
   return (
     <div
-      className={`relative px-4 py-3 rounded-lg border-2 shadow-sm min-w-[150px] max-w-[250px] ${config.bgColor} ${data.isDraft ? "border-dashed" : ""}`}
+      className={`relative rounded-lg border-2 shadow-sm ${config.bgColor} ${data.isDraft ? "border-dashed" : ""} ${isCompact ? "px-3 py-2 min-w-[100px]" : "px-4 py-3 min-w-[150px] max-w-[280px]"}`}
     >
       <Handle
         type="target"
@@ -155,21 +209,41 @@ function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
         id="right"
         className="!w-3 !h-3 !bg-primary !border-2 !border-background"
       />
+      
+      {showImage && data.imageUrl && (
+        <div className="mb-2 -mx-1 -mt-1 rounded-t overflow-hidden">
+          <img 
+            src={data.imageUrl} 
+            alt="" 
+            className="w-full h-24 object-cover"
+          />
+        </div>
+      )}
+      
       <div className="flex items-center gap-2 mb-1">
-        <Icon className={`w-4 h-4 ${config.color}`} />
-        <Badge variant="outline" className="text-xs">
-          {config.label}
-        </Badge>
+        <Icon className={`w-4 h-4 flex-shrink-0 ${config.color}`} />
+        {!isCompact && (
+          <Badge variant="outline" className="text-xs">
+            {config.label}
+          </Badge>
+        )}
         {data.isDraft && (
           <Badge variant="secondary" className="text-xs">
             Draft
           </Badge>
         )}
+        {data.linkedEntityId && (
+          <ExternalLink className="w-3 h-3 text-muted-foreground" />
+        )}
       </div>
-      <div className="font-medium text-sm text-foreground truncate">
-        {data.label}
-      </div>
-      {data.description && (
+      
+      {showTitle && (
+        <div className={`font-medium text-foreground truncate ${isCompact ? "text-xs" : "text-sm"}`}>
+          {data.label}
+        </div>
+      )}
+      
+      {showDescription && data.description && (
         <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
           {data.description}
         </div>
@@ -197,6 +271,11 @@ function MindmapCanvas() {
   const [newNodeLabel, setNewNodeLabel] = useState("");
   const [newNodeDescription, setNewNodeDescription] = useState("");
 
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editType, setEditType] = useState<MindmapNodeKind>("idea");
+  const [editImageUrl, setEditImageUrl] = useState("");
+
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -205,6 +284,19 @@ function MindmapCanvas() {
     queryKey: ["/api/mindmaps", id],
     enabled: !!id,
   });
+
+  const layoutConfig: LayoutConfig = useMemo(() => {
+    if (data?.mindmap?.layoutConfig && typeof data.mindmap.layoutConfig === "object") {
+      const config = data.mindmap.layoutConfig as LayoutConfig;
+      return {
+        showTitle: config.showTitle ?? true,
+        showDescription: config.showDescription ?? true,
+        showImage: config.showImage ?? true,
+      };
+    }
+    const kind = data?.mindmap?.kind as MindmapKind || "generic";
+    return DEFAULT_LAYOUT_CONFIGS[kind] || DEFAULT_LAYOUT_CONFIGS.generic;
+  }, [data?.mindmap?.layoutConfig, data?.mindmap?.kind]);
 
   useEffect(() => {
     if (data) {
@@ -215,9 +307,11 @@ function MindmapCanvas() {
         data: {
           label: node.title,
           description: node.description,
-          kind: node.type,
+          imageUrl: node.imageUrl,
+          kind: node.type as MindmapNodeKind,
           linkedEntityType: node.linkedEntityType,
           linkedEntityId: node.linkedEntityId,
+          layoutConfig,
         },
       }));
 
@@ -234,7 +328,19 @@ function MindmapCanvas() {
       setNodes(flowNodes);
       setEdges(flowEdges);
     }
-  }, [data, setNodes, setEdges]);
+  }, [data, setNodes, setEdges, layoutConfig]);
+
+  useEffect(() => {
+    if (selectedNode) {
+      const nodeData = data?.nodes.find(n => n.id === selectedNode.id);
+      if (nodeData) {
+        setEditTitle(nodeData.title);
+        setEditDescription(nodeData.description || "");
+        setEditType(nodeData.type as MindmapNodeKind);
+        setEditImageUrl(nodeData.imageUrl || "");
+      }
+    }
+  }, [selectedNode, data?.nodes]);
 
   const createNodeMutation = useMutation({
     mutationFn: async (nodeData: {
@@ -247,19 +353,8 @@ function MindmapCanvas() {
       const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
       return await res.json();
     },
-    onSuccess: (newNode: MindmapNodeType) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-      const flowNode: Node = {
-        id: newNode.id,
-        type: "custom",
-        position: { x: parseFloat(newNode.x), y: parseFloat(newNode.y) },
-        data: {
-          label: newNode.title,
-          description: newNode.description,
-          kind: newNode.type,
-        },
-      };
-      setNodes((nds) => [...nds, flowNode]);
       setIsAddingNode(false);
       setNewNodeLabel("");
       setNewNodeDescription("");
@@ -326,7 +421,7 @@ function MindmapCanvas() {
       const res = await apiRequest(`/api/mindmaps/${id}/edges`, "POST", edgeData);
       return await res.json();
     },
-    onSuccess: (newEdge: MindmapEdgeType) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
       toast({ title: "Connexion créée" });
     },
@@ -345,7 +440,7 @@ function MindmapCanvas() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-      toast({ title: "Mindmap mise à jour" });
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -363,12 +458,7 @@ function MindmapCanvas() {
           sourceNodeId: connection.source,
           targetNodeId: connection.target,
         });
-        setEdges((eds) =>
-          addEdge(
-            { ...connection, id: `temp-${Date.now()}`, animated: true },
-            eds
-          )
-        );
+        setEdges((eds) => addEdge(connection, eds));
       }
     },
     [createEdgeMutation, setEdges]
@@ -419,6 +509,35 @@ function MindmapCanvas() {
     }
   };
 
+  const handleKindChange = (newKind: MindmapKind) => {
+    const defaultConfig = DEFAULT_LAYOUT_CONFIGS[newKind];
+    updateMindmapMutation.mutate({
+      kind: newKind,
+      layoutConfig: defaultConfig,
+    });
+  };
+
+  const handleLayoutToggle = (key: keyof LayoutConfig) => {
+    const newConfig = { ...layoutConfig, [key]: !layoutConfig[key] };
+    updateMindmapMutation.mutate({ layoutConfig: newConfig });
+  };
+
+  const handleSaveNodeEdit = () => {
+    if (!selectedNode) return;
+    
+    updateNodeMutation.mutate({
+      nodeId: selectedNode.id,
+      updates: {
+        title: editTitle,
+        description: editDescription || null,
+        type: editType,
+        imageUrl: editImageUrl || null,
+      },
+    });
+    
+    toast({ title: "Noeud mis à jour" });
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -439,6 +558,9 @@ function MindmapCanvas() {
       </div>
     );
   }
+
+  const currentKind = (data.mindmap.kind as MindmapKind) || "generic";
+  const CurrentKindIcon = KIND_ICONS[currentKind] || Brain;
 
   return (
     <div className="h-full flex flex-col" ref={reactFlowWrapper}>
@@ -463,7 +585,65 @@ function MindmapCanvas() {
             )}
           </div>
         </div>
+        
         <div className="flex items-center gap-2">
+          <Select value={currentKind} onValueChange={(v) => handleKindChange(v as MindmapKind)}>
+            <SelectTrigger className="w-[200px]" data-testid="select-view-kind">
+              <CurrentKindIcon className="w-4 h-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {mindmapKindOptions.map((option) => {
+                const KindIcon = KIND_ICONS[option.value as MindmapKind] || Brain;
+                return (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center gap-2">
+                      <KindIcon className="w-4 h-4" />
+                      {option.label}
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" data-testid="button-display-settings">
+                <Eye className="w-4 h-4 mr-2" />
+                Affichage
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Options d'affichage</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={layoutConfig.showTitle}
+                onCheckedChange={() => handleLayoutToggle("showTitle")}
+                data-testid="toggle-show-title"
+              >
+                <Type className="w-4 h-4 mr-2" />
+                Afficher le titre
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={layoutConfig.showDescription}
+                onCheckedChange={() => handleLayoutToggle("showDescription")}
+                data-testid="toggle-show-description"
+              >
+                <AlignLeft className="w-4 h-4 mr-2" />
+                Afficher la description
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={layoutConfig.showImage}
+                onCheckedChange={() => handleLayoutToggle("showImage")}
+                data-testid="toggle-show-image"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                Afficher l'image
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button data-testid="button-add-node">
@@ -489,6 +669,7 @@ function MindmapCanvas() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" data-testid="button-settings">
@@ -643,11 +824,11 @@ function MindmapCanvas() {
         )}
 
         {selectedNode && (
-          <div className="absolute bottom-4 left-4 z-50">
-            <Card className="w-64">
-              <CardContent className="p-4 space-y-3">
+          <div className="absolute top-4 left-4 z-50 w-80">
+            <Card>
+              <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">Noeud sélectionné</h4>
+                  <h4 className="font-medium">Modifier le noeud</h4>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -656,21 +837,106 @@ function MindmapCanvas() {
                     Fermer
                   </Button>
                 </div>
-                <p className="text-sm truncate">{selectedNode.data.label}</p>
-                <Badge className={NODE_KIND_CONFIG[selectedNode.data.kind as MindmapNodeKind].bgColor}>
-                  {NODE_KIND_CONFIG[selectedNode.data.kind as MindmapNodeKind].label}
-                </Badge>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDeleteSelectedNode}
-                  disabled={deleteNodeMutation.isPending}
-                  className="w-full"
-                  data-testid="button-delete-node"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Supprimer
-                </Button>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">Titre</Label>
+                  <Input
+                    id="edit-title"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    data-testid="input-edit-title"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-type">Type</Label>
+                  <Select value={editType} onValueChange={(v) => setEditType(v as MindmapNodeKind)}>
+                    <SelectTrigger data-testid="select-edit-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(NODE_KIND_CONFIG).map(([kind, { label, icon: Icon, color }]) => (
+                        <SelectItem key={kind} value={kind}>
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${color}`} />
+                            {label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Description..."
+                    data-testid="input-edit-description"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-image">URL de l'image</Label>
+                  <Input
+                    id="edit-image"
+                    value={editImageUrl}
+                    onChange={(e) => setEditImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    data-testid="input-edit-image"
+                  />
+                  {editImageUrl && (
+                    <div className="mt-2 rounded overflow-hidden border">
+                      <img src={editImageUrl} alt="" className="w-full h-24 object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                {selectedNode.data.linkedEntityId && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 text-sm">
+                      <ExternalLink className="w-4 h-4" />
+                      <span className="text-muted-foreground">Lié à :</span>
+                      <Badge variant="outline">
+                        {selectedNode.data.linkedEntityType} : {selectedNode.data.linkedEntityId.slice(0, 8)}...
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="mt-1 h-auto p-0"
+                      onClick={() => {
+                        toast({ title: "Fonctionnalité à venir", description: "L'ouverture dans l'app sera bientôt disponible" });
+                      }}
+                    >
+                      Ouvrir dans l'app
+                    </Button>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveNodeEdit}
+                    disabled={updateNodeMutation.isPending}
+                    className="flex-1"
+                    data-testid="button-save-node"
+                  >
+                    Enregistrer
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={handleDeleteSelectedNode}
+                    disabled={deleteNodeMutation.isPending}
+                    data-testid="button-delete-node"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
