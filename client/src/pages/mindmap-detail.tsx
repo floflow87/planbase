@@ -19,7 +19,12 @@ import ReactFlow, {
   useReactFlow,
   Handle,
   Position,
+  MarkerType,
+  EdgeTypes,
+  getBezierPath,
+  EdgeProps,
 } from "reactflow";
+import { NodeToolbar } from "@reactflow/node-toolbar";
 import "reactflow/dist/style.css";
 import {
   ArrowLeft,
@@ -51,6 +56,15 @@ import {
   Search,
   X,
   Link2,
+  Palette,
+  Bold,
+  Minus,
+  Circle,
+  ArrowRight,
+  ArrowLeftRight,
+  ArrowUp,
+  ArrowDown,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -125,6 +139,56 @@ interface LayoutConfig {
   showImage: boolean;
 }
 
+interface NodeStyle {
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  fontSize?: number;
+  fontWeight?: "normal" | "bold";
+}
+
+interface EdgeStyle {
+  stroke?: string;
+  strokeWidth?: number;
+  strokeDasharray?: string;
+  markerStart?: string;
+  markerEnd?: string;
+}
+
+const NODE_COLORS = [
+  { name: "Défaut", value: "" },
+  { name: "Rouge", value: "#fecaca" },
+  { name: "Orange", value: "#fed7aa" },
+  { name: "Jaune", value: "#fef08a" },
+  { name: "Vert", value: "#bbf7d0" },
+  { name: "Bleu", value: "#bfdbfe" },
+  { name: "Violet", value: "#ddd6fe" },
+  { name: "Rose", value: "#fbcfe8" },
+  { name: "Gris", value: "#e5e7eb" },
+];
+
+const BORDER_COLORS = [
+  { name: "Défaut", value: "" },
+  { name: "Noir", value: "#000000" },
+  { name: "Rouge", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Jaune", value: "#eab308" },
+  { name: "Vert", value: "#22c55e" },
+  { name: "Bleu", value: "#3b82f6" },
+  { name: "Violet", value: "#8b5cf6" },
+  { name: "Rose", value: "#ec4899" },
+];
+
+const EDGE_COLORS = [
+  { name: "Gris", value: "#94a3b8" },
+  { name: "Noir", value: "#1f2937" },
+  { name: "Rouge", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Vert", value: "#22c55e" },
+  { name: "Bleu", value: "#3b82f6" },
+  { name: "Violet", value: "#8b5cf6" },
+];
+
 const DEFAULT_LAYOUT_CONFIGS: Record<MindmapKind, LayoutConfig> = {
   generic: { showTitle: true, showDescription: true, showImage: true },
   storyboard: { showTitle: true, showDescription: true, showImage: true },
@@ -190,10 +254,10 @@ const NODE_KIND_CONFIG: Record<
     bgColor: "bg-gray-50 border-gray-200 dark:bg-gray-950/30 dark:border-gray-800",
   },
   text: {
-    label: "Texte libre",
+    label: "Texte",
     icon: Type,
     color: "text-neutral-600",
-    bgColor: "bg-neutral-50 border-neutral-200 dark:bg-neutral-950/30 dark:border-neutral-800",
+    bgColor: "bg-white border-transparent dark:bg-neutral-900",
   },
 };
 
@@ -206,18 +270,217 @@ interface CustomNodeData {
   linkedEntityType?: string;
   linkedEntityId?: string;
   layoutConfig: LayoutConfig;
+  nodeStyle?: NodeStyle;
+  isEditing?: boolean;
+  onStartEdit?: () => void;
+  onEndEdit?: (newText: string) => void;
+  onUpdateStyle?: (style: Partial<NodeStyle>) => void;
 }
 
-function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
+function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [text, setText] = useState(data.label);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const nodeStyle = data.nodeStyle || {};
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (text !== data.label && data.onEndEdit) {
+      data.onEndEdit(text);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setText(data.label);
+      setIsEditing(false);
+    }
+  };
+
+  const style: React.CSSProperties = {
+    backgroundColor: nodeStyle.backgroundColor || "transparent",
+    borderColor: nodeStyle.borderColor || "transparent",
+    borderWidth: nodeStyle.borderWidth || 0,
+    borderStyle: nodeStyle.borderWidth ? "solid" : "none",
+    fontSize: nodeStyle.fontSize || 14,
+    fontWeight: nodeStyle.fontWeight || "normal",
+  };
+
+  return (
+    <div className="relative">
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!w-2 !h-2 !bg-primary/50 !border-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-2 !h-2 !bg-primary/50 !border-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="!w-2 !h-2 !bg-primary/50 !border-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="!w-2 !h-2 !bg-primary/50 !border-0"
+      />
+      
+      {selected && (
+        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
+                <div 
+                  className="w-4 h-4 rounded border"
+                  style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
+                />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="grid grid-cols-5 gap-1">
+                {NODE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border ${!color.value ? "bg-white" : ""}`}
+                    style={{ backgroundColor: color.value || undefined }}
+                    onClick={() => data.onUpdateStyle?.({ backgroundColor: color.value || undefined })}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
+                <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2 space-y-2">
+              <div className="grid grid-cols-5 gap-1">
+                {BORDER_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border-2 ${!color.value ? "bg-white border-gray-200" : ""}`}
+                    style={{ borderColor: color.value || undefined, backgroundColor: "transparent" }}
+                    onClick={() => data.onUpdateStyle?.({ borderColor: color.value || undefined })}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Épaisseur:</span>
+                {[0, 1, 2, 3, 4].map((w) => (
+                  <button
+                    key={w}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.borderWidth === w ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={() => data.onUpdateStyle?.({ borderWidth: w })}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
+                <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="flex items-center gap-1">
+                {[12, 14, 16, 18, 20, 24].map((size) => (
+                  <button
+                    key={size}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.fontSize === size ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={() => data.onUpdateStyle?.({ fontSize: size })}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => data.onUpdateStyle?.({ fontWeight: nodeStyle.fontWeight === "bold" ? "normal" : "bold" })}
+            title="Gras"
+          >
+            <Bold className="w-4 h-4" />
+          </Button>
+        </NodeToolbar>
+      )}
+      
+      {isEditing ? (
+        <textarea
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          className="min-w-[100px] max-w-[300px] p-2 rounded resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+          style={style}
+          rows={Math.max(1, text.split("\n").length)}
+        />
+      ) : (
+        <div
+          className="min-w-[60px] p-2 rounded cursor-text whitespace-pre-wrap"
+          style={style}
+          onDoubleClick={() => setIsEditing(true)}
+        >
+          {data.label || "Double-cliquer pour éditer"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
   const config = NODE_KIND_CONFIG[data.kind] || NODE_KIND_CONFIG.generic;
   const Icon = config.icon;
   const { showTitle, showDescription, showImage } = data.layoutConfig;
+  const nodeStyle = data.nodeStyle || {};
 
   const isCompact = !showDescription && !showImage;
 
+  const customStyle: React.CSSProperties = {
+    backgroundColor: nodeStyle.backgroundColor || undefined,
+    borderColor: nodeStyle.borderColor || undefined,
+    borderWidth: nodeStyle.borderWidth ? `${nodeStyle.borderWidth}px` : undefined,
+  };
+
+  const textStyle: React.CSSProperties = {
+    fontSize: nodeStyle.fontSize || undefined,
+    fontWeight: nodeStyle.fontWeight || undefined,
+  };
+
   return (
     <div
-      className={`relative rounded-lg border-2 shadow-sm ${config.bgColor} ${data.isDraft ? "border-dashed" : ""} ${isCompact ? "px-3 py-2 min-w-[100px]" : "px-4 py-3 min-w-[150px] max-w-[280px]"}`}
+      className={`relative rounded-lg border-2 shadow-sm ${!nodeStyle.backgroundColor ? config.bgColor : ""} ${data.isDraft ? "border-dashed" : ""} ${isCompact ? "px-3 py-2 min-w-[100px]" : "px-4 py-3 min-w-[150px] max-w-[280px]"}`}
+      style={customStyle}
     >
       <Handle
         type="target"
@@ -241,6 +504,102 @@ function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
         id="right"
         className="!w-3 !h-3 !bg-primary !border-2 !border-background"
       />
+
+      {selected && (
+        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
+                <div 
+                  className="w-4 h-4 rounded border"
+                  style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
+                />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="grid grid-cols-5 gap-1">
+                {NODE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border ${!color.value ? "bg-white" : ""}`}
+                    style={{ backgroundColor: color.value || undefined }}
+                    onClick={() => data.onUpdateStyle?.({ backgroundColor: color.value || undefined })}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
+                <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2 space-y-2">
+              <div className="grid grid-cols-5 gap-1">
+                {BORDER_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border-2 ${!color.value ? "bg-white border-gray-200" : ""}`}
+                    style={{ borderColor: color.value || undefined, backgroundColor: "transparent" }}
+                    onClick={() => data.onUpdateStyle?.({ borderColor: color.value || undefined })}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Épaisseur:</span>
+                {[0, 1, 2, 3, 4].map((w) => (
+                  <button
+                    key={w}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.borderWidth === w ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={() => data.onUpdateStyle?.({ borderWidth: w })}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
+                <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="flex items-center gap-1">
+                {[12, 14, 16, 18, 20, 24].map((size) => (
+                  <button
+                    key={size}
+                    className={`px-2 py-1 text-xs rounded ${nodeStyle.fontSize === size ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                    onClick={() => data.onUpdateStyle?.({ fontSize: size })}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => data.onUpdateStyle?.({ fontWeight: nodeStyle.fontWeight === "bold" ? "normal" : "bold" })}
+            title="Gras"
+          >
+            <Bold className="w-4 h-4" />
+          </Button>
+        </NodeToolbar>
+      )}
       
       {showImage && data.imageUrl && (
         <div className="mb-2 -mx-1 -mt-1 rounded-t overflow-hidden">
@@ -270,13 +629,16 @@ function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
       </div>
       
       {showTitle && (
-        <div className={`font-medium text-foreground truncate ${isCompact ? "text-xs" : "text-sm"}`}>
+        <div 
+          className={`font-medium text-foreground truncate ${isCompact ? "text-xs" : "text-sm"}`}
+          style={textStyle}
+        >
           {data.label}
         </div>
       )}
       
       {showDescription && data.description && (
-        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <div className="text-xs text-muted-foreground mt-1 line-clamp-2" style={textStyle}>
           {data.description}
         </div>
       )}
@@ -286,6 +648,7 @@ function CustomMindmapNode({ id, data }: { id: string; data: CustomNodeData }) {
 
 const nodeTypes: NodeTypes = {
   custom: CustomMindmapNode,
+  text: TextNode,
 };
 
 function MindmapCanvas() {
@@ -385,11 +748,59 @@ function MindmapCanvas() {
     return DEFAULT_LAYOUT_CONFIGS[kind] || DEFAULT_LAYOUT_CONFIGS.generic;
   }, [data?.mindmap?.layoutConfig, data?.mindmap?.kind]);
 
+  const handleNodeStyleUpdate = useCallback((nodeId: string, styleUpdate: Partial<NodeStyle>) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const currentStyle = node.data.nodeStyle || {};
+          const newStyle = { ...currentStyle, ...styleUpdate };
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              nodeStyle: newStyle,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    updateNodeMutation.mutate({
+      nodeId,
+      updates: {
+        style: styleUpdate,
+      },
+    });
+  }, []);
+
+  const handleTextNodeEdit = useCallback((nodeId: string, newText: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newText,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    updateNodeMutation.mutate({
+      nodeId,
+      updates: {
+        title: newText,
+      },
+    });
+  }, []);
+
   useEffect(() => {
     if (data) {
       const flowNodes: Node[] = data.nodes.map((node) => ({
         id: node.id,
-        type: "custom",
+        type: node.type === "text" ? "text" : "custom",
         position: { x: parseFloat(node.x), y: parseFloat(node.y) },
         data: {
           label: node.title,
@@ -399,31 +810,40 @@ function MindmapCanvas() {
           linkedEntityType: node.linkedEntityType,
           linkedEntityId: node.linkedEntityId,
           layoutConfig,
+          nodeStyle: node.style as NodeStyle || {},
+          onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
+          onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
         },
       }));
 
-      const flowEdges: Edge[] = data.edges.map((edge) => ({
-        id: edge.id,
-        source: edge.sourceNodeId,
-        target: edge.targetNodeId,
-        label: edge.label || undefined,
-        type: "default",
-        animated: edge.isDraft,
-        style: {
-          ...((edge.style as Record<string, unknown>) || {}),
-          stroke: edge.isDraft ? "#94a3b8" : "#22c55e",
-          strokeWidth: edge.isDraft ? 1 : 2,
-        },
-        data: {
-          isDraft: edge.isDraft,
-          linkedEntityLinkId: edge.linkedEntityLinkId,
-        },
-      }));
+      const flowEdges: Edge[] = data.edges.map((edge) => {
+        const edgeStyle = edge.style as EdgeStyle || {};
+        return {
+          id: edge.id,
+          source: edge.sourceNodeId,
+          target: edge.targetNodeId,
+          label: edge.label || undefined,
+          type: "default",
+          animated: edge.isDraft,
+          markerEnd: edgeStyle.markerEnd || (edge.isDraft ? undefined : { type: MarkerType.ArrowClosed }),
+          markerStart: edgeStyle.markerStart,
+          style: {
+            stroke: edgeStyle.stroke || (edge.isDraft ? "#94a3b8" : "#22c55e"),
+            strokeWidth: edgeStyle.strokeWidth || (edge.isDraft ? 1 : 2),
+            strokeDasharray: edgeStyle.strokeDasharray,
+          },
+          data: {
+            isDraft: edge.isDraft,
+            linkedEntityLinkId: edge.linkedEntityLinkId,
+            edgeStyle: edgeStyle,
+          },
+        };
+      });
 
       setNodes(flowNodes);
       setEdges(flowEdges);
     }
-  }, [data, setNodes, setEdges, layoutConfig]);
+  }, [data, setNodes, setEdges, layoutConfig, handleNodeStyleUpdate, handleTextNodeEdit]);
 
   useEffect(() => {
     if (selectedNode) {
@@ -458,7 +878,6 @@ function MindmapCanvas() {
       setNewLinkedEntityType(null);
       setNewLinkedEntityId(null);
       setNewLinkedEntityName("");
-      toast({ title: "Noeud créé" });
     },
     onError: (error: Error) => {
       toast({
@@ -502,7 +921,6 @@ function MindmapCanvas() {
         eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
       );
       setSelectedNode(null);
-      toast({ title: "Noeud supprimé" });
     },
     onError: (error: Error) => {
       toast({
@@ -523,7 +941,28 @@ function MindmapCanvas() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
-      toast({ title: "Connexion créée" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateEdgeMutation = useMutation({
+    mutationFn: async ({
+      edgeId,
+      updates,
+    }: {
+      edgeId: string;
+      updates: Partial<MindmapEdgeType>;
+    }) => {
+      return await apiRequest(`/api/mindmap-edges/${edgeId}`, "PATCH", updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
     },
     onError: (error: Error) => {
       toast({
@@ -544,7 +983,6 @@ function MindmapCanvas() {
       setEdges((eds) => eds.filter((e) => e.id !== edgeId));
       setSelectedEdge(null);
       setShowEdgeDeleteDialog(false);
-      toast({ title: "Connexion supprimée" });
     },
     onError: (error: Error) => {
       toast({
@@ -572,8 +1010,6 @@ function MindmapCanvas() {
           title: "Aucune connexion créée",
           description: `${result.skipped} lien(s) visuel(s) ne peuvent pas être convertis (nœuds non liés à des entités).`
         });
-      } else {
-        toast({ title: "Aucun lien draft à connecter" });
       }
     },
     onError: (error: Error) => {
@@ -602,6 +1038,41 @@ function MindmapCanvas() {
     },
   });
 
+  const handleEdgeStyleUpdate = useCallback((edgeId: string, styleUpdate: Partial<EdgeStyle>) => {
+    setEdges((eds) =>
+      eds.map((edge) => {
+        if (edge.id === edgeId) {
+          const currentStyle = edge.data?.edgeStyle || {};
+          const newStyle = { ...currentStyle, ...styleUpdate };
+          return {
+            ...edge,
+            style: {
+              ...edge.style,
+              stroke: newStyle.stroke || edge.style?.stroke,
+              strokeWidth: newStyle.strokeWidth || edge.style?.strokeWidth,
+              strokeDasharray: newStyle.strokeDasharray,
+            },
+            markerEnd: newStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
+                       newStyle.markerEnd === "none" ? undefined : edge.markerEnd,
+            markerStart: newStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } :
+                        newStyle.markerStart === "none" ? undefined : edge.markerStart,
+            data: {
+              ...edge.data,
+              edgeStyle: newStyle,
+            },
+          };
+        }
+        return edge;
+      })
+    );
+    updateEdgeMutation.mutate({
+      edgeId,
+      updates: {
+        style: styleUpdate,
+      },
+    });
+  }, [updateEdgeMutation]);
+
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
@@ -620,8 +1091,8 @@ function MindmapCanvas() {
       updateNodeMutation.mutate({
         nodeId: node.id,
         updates: {
-          x: Math.round(node.position.x).toString(),
-          y: Math.round(node.position.y).toString(),
+          x: node.position.x.toString(),
+          y: node.position.y.toString(),
         },
       });
     },
@@ -629,8 +1100,12 @@ function MindmapCanvas() {
   );
 
   const onNodeClick = useCallback((_: any, node: Node) => {
-    setSelectedNode(node);
-    setSelectedEdge(null);
+    if (node.type === "text") {
+      setSelectedNode(null);
+    } else {
+      setSelectedNode(node);
+      setSelectedEdge(null);
+    }
   }, []);
 
   const onEdgeClick = useCallback((_: any, edge: Edge) => {
@@ -638,81 +1113,38 @@ function MindmapCanvas() {
     setSelectedNode(null);
   }, []);
 
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+  }, []);
+
   const handleAddNode = () => {
-    if (!newNodeLabel.trim()) {
-      toast({
-        title: "Nom requis",
-        description: "Veuillez entrer un nom pour le noeud.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const centerX = 200 + Math.random() * 400;
-    const centerY = 150 + Math.random() * 300;
-
+    if (!newNodeLabel.trim() && newNodeKind !== "text") return;
+    
+    const viewportCenter = { x: 400, y: 300 };
     createNodeMutation.mutate({
-      title: newNodeLabel,
+      title: newNodeLabel || "Texte...",
       description: newNodeDescription || undefined,
       type: newNodeKind,
-      x: centerX,
-      y: centerY,
+      x: viewportCenter.x + Math.random() * 100 - 50,
+      y: viewportCenter.y + Math.random() * 100 - 50,
       linkedEntityType: newLinkedEntityType || undefined,
       linkedEntityId: newLinkedEntityId || undefined,
     });
   };
 
-  const handleSelectEntity = (entity: { id: string; name: string }) => {
-    setNewLinkedEntityId(entity.id);
-    setNewLinkedEntityName(entity.name);
-    setNewLinkedEntityType(newNodeKind);
-    if (!newNodeLabel.trim()) {
-      setNewNodeLabel(entity.name);
-    }
-    setEntitySearchOpen(false);
-  };
-
-  const handleClearLinkedEntity = () => {
-    setNewLinkedEntityId(null);
-    setNewLinkedEntityName("");
-    setNewLinkedEntityType(null);
-  };
-
-  const handleSelectEditEntity = (entity: { id: string; name: string }) => {
-    setEditLinkedEntityId(entity.id);
-    setEditLinkedEntityName(entity.name);
-    setEditLinkedEntityType(editType);
-    setEditEntitySearchOpen(false);
-  };
-
-  const handleClearEditLinkedEntity = () => {
-    setEditLinkedEntityId(null);
-    setEditLinkedEntityName("");
-    setEditLinkedEntityType(null);
-  };
-
-  const handleDeleteSelectedNode = () => {
-    if (selectedNode) {
-      deleteNodeMutation.mutate(selectedNode.id);
-    }
-  };
-
-  const handleKindChange = (newKind: MindmapKind) => {
-    const defaultConfig = DEFAULT_LAYOUT_CONFIGS[newKind];
-    updateMindmapMutation.mutate({
-      kind: newKind,
-      layoutConfig: defaultConfig,
+  const handleAddTextNode = () => {
+    const viewportCenter = { x: 400, y: 300 };
+    createNodeMutation.mutate({
+      title: "Texte...",
+      type: "text",
+      x: viewportCenter.x + Math.random() * 100 - 50,
+      y: viewportCenter.y + Math.random() * 100 - 50,
     });
-  };
-
-  const handleLayoutToggle = (key: keyof LayoutConfig) => {
-    const newConfig = { ...layoutConfig, [key]: !layoutConfig[key] };
-    updateMindmapMutation.mutate({ layoutConfig: newConfig });
   };
 
   const handleSaveNodeEdit = () => {
     if (!selectedNode) return;
-    
     updateNodeMutation.mutate({
       nodeId: selectedNode.id,
       updates: {
@@ -722,37 +1154,72 @@ function MindmapCanvas() {
         imageUrl: editImageUrl || null,
       },
     });
-    
-    toast({ title: "Noeud mis à jour" });
+    setSelectedNode(null);
+  };
+
+  const handleDeleteSelectedNode = () => {
+    if (!selectedNode) return;
+    deleteNodeMutation.mutate(selectedNode.id);
+  };
+
+  const handleSelectEntity = (entity: { id: string; name: string }) => {
+    setNewLinkedEntityType(newNodeKind);
+    setNewLinkedEntityId(entity.id);
+    setNewLinkedEntityName(entity.name);
+    setNewNodeLabel(entity.name);
+    setEntitySearchOpen(false);
+    setEntitySearchQuery("");
+  };
+
+  const handleClearLinkedEntity = () => {
+    setNewLinkedEntityType(null);
+    setNewLinkedEntityId(null);
+    setNewLinkedEntityName("");
+  };
+
+  const handleLayoutToggle = (key: keyof LayoutConfig) => {
+    const newConfig = {
+      ...layoutConfig,
+      [key]: !layoutConfig[key],
+    };
+    updateMindmapMutation.mutate({
+      layoutConfig: newConfig,
+    });
+  };
+
+  const handleKindChange = (kind: MindmapKind) => {
+    updateMindmapMutation.mutate({
+      kind,
+      layoutConfig: DEFAULT_LAYOUT_CONFIGS[kind],
+    });
   };
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Skeleton className="w-full h-full" />
+      <div className="flex-1 p-6">
+        <Skeleton className="h-[600px] w-full" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Card className="p-6">
-          <p className="text-muted-foreground">Mindmap non trouvée</p>
-          <Button onClick={() => setLocation("/mindmaps")} className="mt-4">
-            Retour aux mindmaps
-          </Button>
+      <div className="flex-1 p-6">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-destructive">Erreur lors du chargement de la mindmap</p>
+          </CardContent>
         </Card>
       </div>
     );
   }
 
-  const currentKind = (data.mindmap.kind as MindmapKind) || "generic";
+  const currentKind = data.mindmap.kind as MindmapKind;
   const CurrentKindIcon = KIND_ICONS[currentKind] || Brain;
 
   return (
-    <div className="h-full flex flex-col" ref={reactFlowWrapper}>
-      <div className="flex items-center justify-between p-4 border-b bg-card">
+    <div className="flex-1 flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -760,16 +1227,12 @@ function MindmapCanvas() {
             onClick={() => setLocation("/mindmaps")}
             data-testid="button-back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold" data-testid="mindmap-title">
-              {data.mindmap.name}
-            </h1>
+            <h1 className="text-xl font-semibold">{data.mindmap.name}</h1>
             {data.mindmap.description && (
-              <p className="text-sm text-muted-foreground">
-                {data.mindmap.description}
-              </p>
+              <p className="text-sm text-muted-foreground">{data.mindmap.description}</p>
             )}
           </div>
         </div>
@@ -831,16 +1294,6 @@ function MindmapCanvas() {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button
-            variant="outline"
-            onClick={() => connectNodesMutation.mutate()}
-            disabled={connectNodesMutation.isPending}
-            data-testid="button-connect-nodes"
-          >
-            <Link2 className="w-4 h-4 mr-2" />
-            {connectNodesMutation.isPending ? "Connexion..." : "Connecter"}
-          </Button>
 
           <Sheet>
             <SheetTrigger asChild>
@@ -941,6 +1394,25 @@ function MindmapCanvas() {
                     </p>
                   )}
                 </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label>Connexions métier</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Convertit les liens visuels (draft) en connexions métier réelles entre les entités liées.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => connectNodesMutation.mutate()}
+                    disabled={connectNodesMutation.isPending}
+                    data-testid="button-connect-nodes"
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    {connectNodesMutation.isPending ? "Connexion..." : "Connecter les nœuds"}
+                  </Button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>
@@ -957,6 +1429,7 @@ function MindmapCanvas() {
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           fitView
           className="bg-muted/30"
@@ -973,6 +1446,7 @@ function MindmapCanvas() {
               if (kind === "document") return "#22c55e";
               if (kind === "task") return "#f97316";
               if (kind === "client") return "#06b6d4";
+              if (kind === "text") return "#737373";
               return "#9ca3af";
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
@@ -1013,8 +1487,12 @@ function MindmapCanvas() {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        setNewNodeKind(kind as MindmapNodeKind);
-                        setIsAddingNode(true);
+                        if (kind === "text") {
+                          handleAddTextNode();
+                        } else {
+                          setNewNodeKind(kind as MindmapNodeKind);
+                          setIsAddingNode(true);
+                        }
                       }}
                       data-testid={`toolbar-add-${kind}`}
                       className="h-9 w-9"
@@ -1031,7 +1509,7 @@ function MindmapCanvas() {
           </Panel>
         </ReactFlow>
 
-        {isAddingNode && (
+        {isAddingNode && newNodeKind !== "text" && (
           <div className="absolute top-4 right-20 z-50">
             <Card className="w-80">
               <CardContent className="p-4 space-y-4">
@@ -1154,7 +1632,7 @@ function MindmapCanvas() {
           </div>
         )}
 
-        {selectedNode && (
+        {selectedNode && selectedNode.type !== "text" && (
           <div className="absolute top-4 left-4 z-50 w-80">
             <Card>
               <CardContent className="p-4 space-y-4">
@@ -1274,11 +1752,11 @@ function MindmapCanvas() {
         )}
 
         {selectedEdge && (
-          <div className="absolute top-4 left-4 z-50 w-72">
+          <div className="absolute top-4 left-4 z-50 w-80">
             <Card>
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Connexion</h4>
+                  <h4 className="font-medium">Connecteur</h4>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1300,6 +1778,94 @@ function MindmapCanvas() {
                       <span>Lien métier actif</span>
                     </div>
                   )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Couleur</Label>
+                    <div className="flex flex-wrap gap-1">
+                      {EDGE_COLORS.map((color) => (
+                        <button
+                          key={color.value}
+                          className={`w-6 h-6 rounded border-2 ${
+                            (selectedEdge.style?.stroke === color.value) ? "ring-2 ring-primary" : ""
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { stroke: color.value })}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Épaisseur</Label>
+                    <div className="flex gap-1">
+                      {[
+                        { label: "Fin", value: 1 },
+                        { label: "Moyen", value: 2 },
+                        { label: "Épais", value: 4 },
+                      ].map((opt) => (
+                        <Button
+                          key={opt.value}
+                          variant={selectedEdge.style?.strokeWidth === opt.value ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { strokeWidth: opt.value })}
+                        >
+                          {opt.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Style</Label>
+                    <div className="flex gap-1">
+                      <Button
+                        variant={!selectedEdge.style?.strokeDasharray ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { strokeDasharray: undefined })}
+                      >
+                        Continu
+                      </Button>
+                      <Button
+                        variant={selectedEdge.style?.strokeDasharray === "5,5" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { strokeDasharray: "5,5" })}
+                      >
+                        Pointillé
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Flèches</Label>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        variant={!selectedEdge.markerEnd && !selectedEdge.markerStart ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "none", markerStart: "none" })}
+                      >
+                        Aucune
+                      </Button>
+                      <Button
+                        variant={selectedEdge.markerEnd && !selectedEdge.markerStart ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "arrow", markerStart: "none" })}
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant={selectedEdge.markerEnd && selectedEdge.markerStart ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleEdgeStyleUpdate(selectedEdge.id, { markerEnd: "arrow", markerStart: "arrow" })}
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
