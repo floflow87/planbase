@@ -1,5 +1,5 @@
 // Projects page with task management
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2046,6 +2046,18 @@ export default function Projects() {
     .map(p => p.category!)
     .filter((cat, index, self) => self.indexOf(cat) === index)
     .slice(0, 5);
+  
+  // Merge all categories: from database + from projects (for CategoryCombobox)
+  const allCategories = useMemo(() => {
+    const dbCategoryNames = projectCategories.map(c => c.name);
+    const allNames = new Set([...dbCategoryNames, ...uniqueCategories]);
+    return Array.from(allNames)
+      .sort()
+      .map((name, index) => {
+        const existing = projectCategories.find(c => c.name === name);
+        return existing || { id: `temp-${index}`, name };
+      });
+  }, [projectCategories, uniqueCategories]);
 
   useEffect(() => {
     if (projects.length > 0 && !selectedProjectId) {
@@ -3933,7 +3945,7 @@ export default function Projects() {
                 <CategoryCombobox
                   value={projectFormData.category || ""}
                   onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
-                  categories={projectCategories}
+                  categories={allCategories}
                 />
               </div>
             </div>
@@ -4145,7 +4157,7 @@ export default function Projects() {
                 <CategoryCombobox
                   value={projectFormData.category || ""}
                   onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
-                  categories={projectCategories}
+                  categories={allCategories}
                 />
               </div>
             </div>
