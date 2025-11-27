@@ -189,6 +189,21 @@ export const projectCategories = pgTable("project_categories", {
   accountNameIdx: uniqueIndex().on(table.accountId, table.name), // Ensure unique category names per account
 }));
 
+// Project Payments (for tracking partial and total payments)
+export const projectPayments = pgTable("project_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  paymentDate: date("payment_date").notNull(),
+  description: text("description"), // Optional note about the payment
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+}));
+
 // Task Columns (for Kanban board customization)
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -696,6 +711,9 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true,
   numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
 });
 export const insertProjectCategorySchema = createInsertSchema(projectCategories).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProjectPaymentSchema = createInsertSchema(projectPayments).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  amount: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+});
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
@@ -745,6 +763,7 @@ export type InsertClientCustomField = z.infer<typeof insertClientCustomFieldSche
 export type InsertClientCustomFieldValue = z.infer<typeof insertClientCustomFieldValueSchema>;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type InsertProjectCategory = z.infer<typeof insertProjectCategorySchema>;
+export type InsertProjectPayment = z.infer<typeof insertProjectPaymentSchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
@@ -779,6 +798,7 @@ export type ClientCustomField = typeof clientCustomFields.$inferSelect;
 export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type ProjectCategory = typeof projectCategories.$inferSelect;
+export type ProjectPayment = typeof projectPayments.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
