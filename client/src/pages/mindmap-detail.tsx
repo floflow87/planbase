@@ -65,6 +65,12 @@ import {
   ArrowUp,
   ArrowDown,
   MoreHorizontal,
+  Grid3X3,
+  AlignHorizontalJustifyCenter,
+  AlignVerticalJustifyCenter,
+  AlignHorizontalDistributeCenter,
+  AlignVerticalDistributeCenter,
+  Magnet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -688,6 +694,11 @@ function MindmapCanvas() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  // Snap to grid state
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [gridSize, setGridSize] = useState<16 | 24 | 32>(16);
+  const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number; y?: number }>({});
+
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -1129,8 +1140,57 @@ function MindmapCanvas() {
     [createEdgeMutation, setEdges]
   );
 
+  // Alignment detection during drag
+  const onNodeDrag = useCallback(
+    (_: any, node: Node) => {
+      if (!snapEnabled) {
+        setAlignmentGuides({});
+        return;
+      }
+
+      const ALIGNMENT_THRESHOLD = 5;
+      const guides: { x?: number; y?: number } = {};
+      const nodeX = node.position.x;
+      const nodeY = node.position.y;
+      const nodeWidth = 200; // approximate node width
+      const nodeHeight = 80; // approximate node height
+      const nodeCenterX = nodeX + nodeWidth / 2;
+      const nodeCenterY = nodeY + nodeHeight / 2;
+
+      nodes.forEach((otherNode) => {
+        if (otherNode.id === node.id) return;
+
+        const otherX = otherNode.position.x;
+        const otherY = otherNode.position.y;
+        const otherCenterX = otherX + nodeWidth / 2;
+        const otherCenterY = otherY + nodeHeight / 2;
+
+        // Vertical center alignment
+        if (Math.abs(nodeCenterX - otherCenterX) < ALIGNMENT_THRESHOLD) {
+          guides.x = otherCenterX;
+        }
+        // Left edge alignment
+        if (Math.abs(nodeX - otherX) < ALIGNMENT_THRESHOLD) {
+          guides.x = otherX;
+        }
+        // Horizontal center alignment
+        if (Math.abs(nodeCenterY - otherCenterY) < ALIGNMENT_THRESHOLD) {
+          guides.y = otherCenterY;
+        }
+        // Top edge alignment
+        if (Math.abs(nodeY - otherY) < ALIGNMENT_THRESHOLD) {
+          guides.y = otherY;
+        }
+      });
+
+      setAlignmentGuides(guides);
+    },
+    [nodes, snapEnabled]
+  );
+
   const onNodeDragStop = useCallback(
     (_: any, node: Node) => {
+      setAlignmentGuides({});
       updateNodeMutation.mutate({
         nodeId: node.id,
         updates: {
@@ -1141,6 +1201,154 @@ function MindmapCanvas() {
     },
     [updateNodeMutation]
   );
+
+  // Align selected nodes horizontally (same Y)
+  const alignNodesHorizontal = useCallback(() => {
+    if (!selectedNode) return;
+
+    const selectedNodes = nodes.filter(n => n.selected || n.id === selectedNode.id);
+    if (selectedNodes.length < 2) {
+      toast({ title: "Sélectionnez au moins 2 nodes", variant: "destructive" });
+      return;
+    }
+
+    // Use the first selected node's Y as reference
+    const referenceY = selectedNodes[0].position.y;
+
+    selectedNodes.forEach((node) => {
+      if (node.position.y !== referenceY) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { y: referenceY.toString() },
+        });
+      }
+    });
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (selectedNodes.some((n) => n.id === node.id)) {
+          return { ...node, position: { ...node.position, y: referenceY } };
+        }
+        return node;
+      })
+    );
+
+    toast({ title: "Nodes alignés horizontalement" });
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
+
+  // Align selected nodes vertically (same X)
+  const alignNodesVertical = useCallback(() => {
+    if (!selectedNode) return;
+
+    const selectedNodes = nodes.filter(n => n.selected || n.id === selectedNode.id);
+    if (selectedNodes.length < 2) {
+      toast({ title: "Sélectionnez au moins 2 nodes", variant: "destructive" });
+      return;
+    }
+
+    // Use the first selected node's X as reference
+    const referenceX = selectedNodes[0].position.x;
+
+    selectedNodes.forEach((node) => {
+      if (node.position.x !== referenceX) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { x: referenceX.toString() },
+        });
+      }
+    });
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (selectedNodes.some((n) => n.id === node.id)) {
+          return { ...node, position: { ...node.position, x: referenceX } };
+        }
+        return node;
+      })
+    );
+
+    toast({ title: "Nodes alignés verticalement" });
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
+
+  // Distribute nodes horizontally with equal spacing
+  const distributeNodesHorizontal = useCallback(() => {
+    if (!selectedNode) return;
+
+    const selectedNodes = nodes.filter(n => n.selected || n.id === selectedNode.id);
+    if (selectedNodes.length < 3) {
+      toast({ title: "Sélectionnez au moins 3 nodes", variant: "destructive" });
+      return;
+    }
+
+    // Sort by X position
+    const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+    const firstX = sortedNodes[0].position.x;
+    const lastX = sortedNodes[sortedNodes.length - 1].position.x;
+    const spacing = (lastX - firstX) / (sortedNodes.length - 1);
+
+    sortedNodes.forEach((node, index) => {
+      const newX = firstX + spacing * index;
+      if (node.position.x !== newX) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { x: newX.toString() },
+        });
+      }
+    });
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        const sortedIndex = sortedNodes.findIndex((n) => n.id === node.id);
+        if (sortedIndex >= 0) {
+          const newX = firstX + spacing * sortedIndex;
+          return { ...node, position: { ...node.position, x: newX } };
+        }
+        return node;
+      })
+    );
+
+    toast({ title: "Nodes distribués horizontalement" });
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
+
+  // Distribute nodes vertically with equal spacing
+  const distributeNodesVertical = useCallback(() => {
+    if (!selectedNode) return;
+
+    const selectedNodes = nodes.filter(n => n.selected || n.id === selectedNode.id);
+    if (selectedNodes.length < 3) {
+      toast({ title: "Sélectionnez au moins 3 nodes", variant: "destructive" });
+      return;
+    }
+
+    // Sort by Y position
+    const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+    const firstY = sortedNodes[0].position.y;
+    const lastY = sortedNodes[sortedNodes.length - 1].position.y;
+    const spacing = (lastY - firstY) / (sortedNodes.length - 1);
+
+    sortedNodes.forEach((node, index) => {
+      const newY = firstY + spacing * index;
+      if (node.position.y !== newY) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { y: newY.toString() },
+        });
+      }
+    });
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        const sortedIndex = sortedNodes.findIndex((n) => n.id === node.id);
+        if (sortedIndex >= 0) {
+          const newY = firstY + spacing * sortedIndex;
+          return { ...node, position: { ...node.position, y: newY } };
+        }
+        return node;
+      })
+    );
+
+    toast({ title: "Nodes distribués verticalement" });
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     if (node.type === "text") {
@@ -1525,6 +1733,7 @@ function MindmapCanvas() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
@@ -1532,10 +1741,41 @@ function MindmapCanvas() {
           onMoveEnd={handleMoveEnd}
           nodeTypes={nodeTypes}
           fitView={!viewportRestored}
+          snapToGrid={snapEnabled}
+          snapGrid={[gridSize, gridSize]}
+          selectionOnDrag
+          selectNodesOnDrag
           className="bg-muted/30"
           data-testid="mindmap-canvas"
         >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+          {/* Alignment guides */}
+          {alignmentGuides.x !== undefined && (
+            <svg className="absolute inset-0 pointer-events-none z-50" style={{ overflow: 'visible' }}>
+              <line
+                x1={alignmentGuides.x}
+                y1={-9999}
+                x2={alignmentGuides.x}
+                y2={9999}
+                stroke="#7c3aed"
+                strokeWidth={1}
+                strokeDasharray="4,4"
+              />
+            </svg>
+          )}
+          {alignmentGuides.y !== undefined && (
+            <svg className="absolute inset-0 pointer-events-none z-50" style={{ overflow: 'visible' }}>
+              <line
+                x1={-9999}
+                y1={alignmentGuides.y}
+                x2={9999}
+                y2={alignmentGuides.y}
+                stroke="#7c3aed"
+                strokeWidth={1}
+                strokeDasharray="4,4"
+              />
+            </svg>
+          )}
+          <Background variant={BackgroundVariant.Dots} gap={snapEnabled ? gridSize : 20} size={1} />
           <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(n) => {
@@ -1576,6 +1816,133 @@ function MindmapCanvas() {
             >
               <Maximize className="w-4 h-4" />
             </Button>
+          </Panel>
+
+          {/* Snap to grid and alignment controls */}
+          <Panel position="bottom-left" className="flex gap-1 p-2">
+            <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={snapEnabled ? "default" : "ghost"}
+                    size="icon"
+                    onClick={() => setSnapEnabled(!snapEnabled)}
+                    data-testid="button-snap-toggle"
+                    className="h-8 w-8"
+                  >
+                    <Magnet className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  {snapEnabled ? "Désactiver" : "Activer"} snap-to-grid
+                </TooltipContent>
+              </Tooltip>
+
+              <DropdownMenu>
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        data-testid="button-grid-size"
+                      >
+                        <Grid3X3 className="w-4 h-4 mr-1" />
+                        {gridSize}px
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="font-medium">
+                    Taille de la grille
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Taille de grille</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setGridSize(16)} className={gridSize === 16 ? "bg-accent" : ""}>
+                    16px (fine)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGridSize(24)} className={gridSize === 24 ? "bg-accent" : ""}>
+                    24px (moyenne)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGridSize(32)} className={gridSize === 32 ? "bg-accent" : ""}>
+                    32px (large)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={alignNodesHorizontal}
+                    data-testid="button-align-horizontal"
+                    className="h-8 w-8"
+                  >
+                    <AlignHorizontalJustifyCenter className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Aligner horizontalement
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={alignNodesVertical}
+                    data-testid="button-align-vertical"
+                    className="h-8 w-8"
+                  >
+                    <AlignVerticalJustifyCenter className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Aligner verticalement
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={distributeNodesHorizontal}
+                    data-testid="button-distribute-horizontal"
+                    className="h-8 w-8"
+                  >
+                    <AlignHorizontalDistributeCenter className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Distribuer horizontalement
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={distributeNodesVertical}
+                    data-testid="button-distribute-vertical"
+                    className="h-8 w-8"
+                  >
+                    <AlignVerticalDistributeCenter className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Distribuer verticalement
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </Panel>
 
           <Panel position="top-right" className="mr-2">
