@@ -3497,6 +3497,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Mindmap not found" });
       }
       
+      console.log("📝 Creating node with body:", JSON.stringify(req.body, null, 2));
+      
       const data = insertMindmapNodeSchema.parse({
         ...req.body,
         mindmapId: req.params.mindmapId,
@@ -3505,6 +3507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const node = await storage.createMindmapNode(data);
       res.json(node);
     } catch (error: any) {
+      console.error("❌ Node creation error:", error.message);
       res.status(400).json({ error: error.message });
     }
   });

@@ -837,9 +837,14 @@ export const insertMindmapSchema = createInsertSchema(mindmaps).omit({ id: true,
 export const updateMindmapSchema = insertMindmapSchema.omit({ accountId: true, createdBy: true }).partial();
 
 export const insertMindmapNodeSchema = createInsertSchema(mindmapNodes).omit({ id: true, createdAt: true, updatedAt: true }).extend({
-  x: z.union([z.string(), z.number()]).transform((val) => val.toString()),
-  y: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  type: z.string().optional().default("idea"),
+  x: z.union([z.string(), z.number()]).transform((val) => val.toString()).optional().default("0"),
+  y: z.union([z.string(), z.number()]).transform((val) => val.toString()).optional().default("0"),
   style: z.record(z.any()).optional().default({}),
+  description: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
+  linkedEntityType: z.string().nullable().optional(),
+  linkedEntityId: z.string().nullable().optional(),
 });
 export const updateMindmapNodeSchema = insertMindmapNodeSchema.omit({ accountId: true, mindmapId: true }).partial();
 
