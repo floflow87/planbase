@@ -58,6 +58,10 @@ import {
   Link2,
   Palette,
   Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Highlighter,
   Minus,
   Circle,
   ArrowRight,
@@ -73,6 +77,154 @@ import {
   Magnet,
   Hand,
   MousePointer2,
+  LayoutGrid,
+  GitBranch,
+  Workflow,
+  CircleDot,
+  TreeDeciduous,
+  Layers,
+  Home,
+  Globe,
+  Server,
+  BookOpen,
+  Target,
+  Users,
+  Phone,
+  Mail,
+  Calendar,
+  Clock,
+  Star,
+  Heart,
+  Bookmark,
+  Flag,
+  Award,
+  Zap,
+  TrendingUp,
+  BarChart2,
+  PieChart,
+  Activity,
+  Database,
+  Code,
+  Terminal,
+  Layout,
+  Smartphone,
+  Monitor,
+  Tablet,
+  MousePointer,
+  Play,
+  Pause,
+  SkipForward,
+  MessageSquare,
+  MessageCircle,
+  Bell,
+  Lock,
+  Unlock,
+  Key,
+  Shield,
+  AlertTriangle,
+  Info,
+  HelpCircle,
+  ChevronRight,
+  ChevronDown,
+  Copy,
+  Clipboard,
+  Edit,
+  Trash,
+  Save,
+  Download,
+  Share2,
+  RefreshCw,
+  RotateCcw,
+  Move,
+  Maximize2,
+  Minimize2,
+  Box,
+  Package,
+  ShoppingCart,
+  CreditCard,
+  DollarSign,
+  Tag,
+  Briefcase,
+  Building,
+  MapPin,
+  Navigation,
+  Compass,
+  Sun,
+  Moon,
+  Cloud,
+  Droplet,
+  Wind,
+  ThermometerSun,
+  Camera,
+  Video,
+  Mic,
+  Headphones,
+  Music,
+  Volume2,
+  Wifi,
+  Bluetooth,
+  Battery,
+  Cpu,
+  HardDrive,
+  Printer,
+  Plug,
+  Power,
+  ToggleLeft,
+  ToggleRight,
+  Send,
+  Inbox,
+  Archive,
+  Folder,
+  File,
+  FileImage,
+  FileVideo,
+  FileAudio,
+  FileCode,
+  FilePlus,
+  FileCheck,
+  Paperclip,
+  Scissors,
+  Wand2,
+  Sparkles,
+  Flame,
+  Gift,
+  Cake,
+  Coffee,
+  Pizza,
+  Apple,
+  Grape,
+  Candy,
+  Gem,
+  Crown,
+  Glasses,
+  Smile,
+  Frown,
+  Meh,
+  ThumbsUp,
+  ThumbsDown,
+  Hand as HandIcon,
+  Footprints,
+  PersonStanding,
+  Bike,
+  Car,
+  Plane,
+  Train,
+  Bus,
+  Rocket,
+  Anchor,
+  Umbrella,
+  Paintbrush,
+  Palette as PaletteIcon,
+  Brush,
+  Eraser,
+  Ruler,
+  Triangle,
+  Pentagon,
+  Hexagon,
+  Octagon,
+  Shapes,
+  CircleDashed,
+  SquareDashed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,7 +305,166 @@ interface NodeStyle {
   borderWidth?: number;
   fontSize?: number;
   fontWeight?: "normal" | "bold";
+  fontStyle?: "normal" | "italic";
+  textColor?: string;
+  hasShadow?: boolean;
+  customIcon?: string;
+  width?: number;
+  height?: number;
+  richContent?: string;
 }
+
+// Icon packs organized by category
+const ICON_PACKS: Record<string, { label: string; icons: { name: string; icon: typeof Lightbulb }[] }> = {
+  ux: {
+    label: "UX / Design",
+    icons: [
+      { name: "Layout", icon: Layout },
+      { name: "MousePointer", icon: MousePointer },
+      { name: "Smartphone", icon: Smartphone },
+      { name: "Monitor", icon: Monitor },
+      { name: "Tablet", icon: Tablet },
+      { name: "Shapes", icon: Shapes },
+      { name: "Paintbrush", icon: Paintbrush },
+      { name: "Brush", icon: Brush },
+      { name: "PaletteIcon", icon: PaletteIcon },
+      { name: "Eye", icon: Eye },
+      { name: "EyeOff", icon: EyeOff },
+      { name: "Layers", icon: Layers },
+      { name: "Maximize2", icon: Maximize2 },
+      { name: "Minimize2", icon: Minimize2 },
+    ],
+  },
+  web: {
+    label: "Pages Web",
+    icons: [
+      { name: "Home", icon: Home },
+      { name: "Globe", icon: Globe },
+      { name: "Search", icon: Search },
+      { name: "Menu", icon: MoreHorizontal },
+      { name: "Link", icon: Link2 },
+      { name: "ExternalLink", icon: ExternalLink },
+      { name: "FileText", icon: FileText },
+      { name: "Image", icon: Image },
+      { name: "Video", icon: Video },
+      { name: "Play", icon: Play },
+      { name: "Pause", icon: Pause },
+      { name: "Lock", icon: Lock },
+      { name: "Unlock", icon: Unlock },
+      { name: "Send", icon: Send },
+    ],
+  },
+  architecture: {
+    label: "Architecture",
+    icons: [
+      { name: "Server", icon: Server },
+      { name: "Database", icon: Database },
+      { name: "Code", icon: Code },
+      { name: "Terminal", icon: Terminal },
+      { name: "Cpu", icon: Cpu },
+      { name: "HardDrive", icon: HardDrive },
+      { name: "Cloud", icon: Cloud },
+      { name: "Wifi", icon: Wifi },
+      { name: "Network", icon: Network },
+      { name: "Key", icon: Key },
+      { name: "Shield", icon: Shield },
+      { name: "Box", icon: Box },
+      { name: "Package", icon: Package },
+      { name: "Plug", icon: Plug },
+    ],
+  },
+  storytelling: {
+    label: "Storytelling",
+    icons: [
+      { name: "BookOpen", icon: BookOpen },
+      { name: "Film", icon: Film },
+      { name: "Camera", icon: Camera },
+      { name: "Mic", icon: Mic },
+      { name: "Music", icon: Music },
+      { name: "Headphones", icon: Headphones },
+      { name: "MessageSquare", icon: MessageSquare },
+      { name: "MessageCircle", icon: MessageCircle },
+      { name: "Heart", icon: Heart },
+      { name: "Star", icon: Star },
+      { name: "Sparkles", icon: Sparkles },
+      { name: "Wand2", icon: Wand2 },
+      { name: "PersonStanding", icon: PersonStanding },
+      { name: "Rocket", icon: Rocket },
+    ],
+  },
+  tasks: {
+    label: "Tâches / Projets",
+    icons: [
+      { name: "Target", icon: Target },
+      { name: "CheckSquare", icon: CheckSquare },
+      { name: "Calendar", icon: Calendar },
+      { name: "Clock", icon: Clock },
+      { name: "Flag", icon: Flag },
+      { name: "Bookmark", icon: Bookmark },
+      { name: "Award", icon: Award },
+      { name: "Zap", icon: Zap },
+      { name: "TrendingUp", icon: TrendingUp },
+      { name: "BarChart2", icon: BarChart2 },
+      { name: "PieChart", icon: PieChart },
+      { name: "Activity", icon: Activity },
+      { name: "RefreshCw", icon: RefreshCw },
+      { name: "AlertTriangle", icon: AlertTriangle },
+    ],
+  },
+  crm: {
+    label: "CRM",
+    icons: [
+      { name: "User", icon: User },
+      { name: "Users", icon: Users },
+      { name: "Building", icon: Building },
+      { name: "Briefcase", icon: Briefcase },
+      { name: "Phone", icon: Phone },
+      { name: "Mail", icon: Mail },
+      { name: "Inbox", icon: Inbox },
+      { name: "Bell", icon: Bell },
+      { name: "DollarSign", icon: DollarSign },
+      { name: "CreditCard", icon: CreditCard },
+      { name: "ShoppingCart", icon: ShoppingCart },
+      { name: "Tag", icon: Tag },
+      { name: "MapPin", icon: MapPin },
+      { name: "ThumbsUp", icon: ThumbsUp },
+    ],
+  },
+};
+
+// Get icon component from name
+function getIconByName(name: string): typeof Lightbulb | null {
+  for (const category of Object.values(ICON_PACKS)) {
+    const found = category.icons.find(i => i.name === name);
+    if (found) return found.icon;
+  }
+  return null;
+}
+
+// Text colors for rich text
+const TEXT_COLORS = [
+  { name: "Défaut", value: "" },
+  { name: "Noir", value: "#000000" },
+  { name: "Gris", value: "#6b7280" },
+  { name: "Rouge", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Jaune", value: "#eab308" },
+  { name: "Vert", value: "#22c55e" },
+  { name: "Bleu", value: "#3b82f6" },
+  { name: "Violet", value: "#8b5cf6" },
+  { name: "Rose", value: "#ec4899" },
+];
+
+// Highlight colors
+const HIGHLIGHT_COLORS = [
+  { name: "Aucun", value: "" },
+  { name: "Jaune", value: "#fef08a" },
+  { name: "Vert", value: "#bbf7d0" },
+  { name: "Bleu", value: "#bfdbfe" },
+  { name: "Rose", value: "#fbcfe8" },
+  { name: "Orange", value: "#fed7aa" },
+  { name: "Violet", value: "#ddd6fe" },
+];
 
 interface EdgeStyle {
   stroke?: string;
@@ -285,10 +596,17 @@ interface CustomNodeData {
   onUpdateStyle?: (style: Partial<NodeStyle>) => void;
 }
 
-function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(data.label);
+  const [richContent, setRichContent] = useState(data.nodeStyle?.richContent || "");
+  const [isResizing, setIsResizing] = useState(false);
+  const [dimensions, setDimensions] = useState({
+    width: data.nodeStyle?.width || 200,
+    height: data.nodeStyle?.height || 80,
+  });
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const nodeStyle = data.nodeStyle || {};
 
   useEffect(() => {
@@ -312,6 +630,32 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
     }
   };
 
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dimensions.width;
+    const startHeight = dimensions.height;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(100, startWidth + (e.clientX - startX));
+      const newHeight = Math.max(40, startHeight + (e.clientY - startY));
+      setDimensions({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      data.onUpdateStyle?.({ width: dimensions.width, height: dimensions.height });
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   const style: React.CSSProperties = {
     backgroundColor: nodeStyle.backgroundColor || "transparent",
     borderColor: nodeStyle.borderColor || "transparent",
@@ -319,10 +663,15 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
     borderStyle: nodeStyle.borderWidth ? "solid" : "none",
     fontSize: nodeStyle.fontSize || 14,
     fontWeight: nodeStyle.fontWeight || "normal",
+    fontStyle: nodeStyle.fontStyle || "normal",
+    color: nodeStyle.textColor || "inherit",
+    width: dimensions.width,
+    minHeight: dimensions.height,
+    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <Handle
         type="target"
         position={Position.Top}
@@ -347,7 +696,8 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
       />
       
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
+          {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
@@ -372,8 +722,33 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
             </PopoverContent>
           </Popover>
 
+          {/* Text color */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur du texte">
+                <Type className="w-4 h-4" style={{ color: nodeStyle.textColor || "currentColor" }} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="grid grid-cols-5 gap-1">
+                {TEXT_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border flex items-center justify-center ${!color.value ? "bg-white" : ""}`}
+                    style={{ backgroundColor: color.value || undefined }}
+                    onClick={() => data.onUpdateStyle?.({ textColor: color.value || undefined })}
+                    title={color.name}
+                  >
+                    <span className="text-xs font-bold" style={{ color: color.value ? "#fff" : "#000" }}>A</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Separator orientation="vertical" className="h-5" />
 
+          {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
@@ -409,6 +784,7 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
 
           <Separator orientation="vertical" className="h-5" />
 
+          {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
@@ -417,7 +793,7 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2">
               <div className="flex items-center gap-1">
-                {[12, 14, 16, 18, 20, 24].map((size) => (
+                {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => (
                   <button
                     key={size}
                     className={`px-2 py-1 text-xs rounded ${nodeStyle.fontSize === size ? "bg-primary text-primary-foreground" : "bg-muted"}`}
@@ -430,6 +806,7 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
             </PopoverContent>
           </Popover>
 
+          {/* Bold */}
           <Button
             variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
             size="icon"
@@ -438,6 +815,52 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
             title="Gras"
           >
             <Bold className="w-4 h-4" />
+          </Button>
+
+          {/* Italic */}
+          <Button
+            variant={nodeStyle.fontStyle === "italic" ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => data.onUpdateStyle?.({ fontStyle: nodeStyle.fontStyle === "italic" ? "normal" : "italic" })}
+            title="Italique"
+          >
+            <Italic className="w-4 h-4" />
+          </Button>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          {/* Highlight */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Surlignage">
+                <Highlighter className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+              <div className="grid grid-cols-4 gap-1">
+                {HIGHLIGHT_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`w-6 h-6 rounded border ${!color.value ? "bg-white" : ""}`}
+                    style={{ backgroundColor: color.value || undefined }}
+                    onClick={() => data.onUpdateStyle?.({ backgroundColor: color.value || undefined })}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Shadow toggle */}
+          <Button
+            variant={nodeStyle.hasShadow ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow })}
+            title="Ombre"
+          >
+            <Layers className="w-4 h-4" />
           </Button>
         </NodeToolbar>
       )}
@@ -449,17 +872,27 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
           onChange={(e) => setText(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="min-w-[100px] max-w-[300px] p-2 rounded resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+          className="p-3 rounded resize-none focus:outline-none focus:ring-2 focus:ring-primary"
           style={style}
           rows={Math.max(1, text.split("\n").length)}
         />
       ) : (
         <div
-          className="min-w-[60px] p-2 rounded cursor-text whitespace-pre-wrap"
+          className="p-3 rounded cursor-text whitespace-pre-wrap relative"
           style={style}
           onDoubleClick={() => setIsEditing(true)}
         >
           {data.label || "Double-cliquer pour éditer"}
+          
+          {/* Resize handle */}
+          {selected && (
+            <div
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center"
+              onMouseDown={handleResizeStart}
+            >
+              <div className="w-2 h-2 border-b-2 border-r-2 border-muted-foreground opacity-50" />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -467,10 +900,17 @@ function TextNode({ id, data, selected }: { id: string; data: CustomNodeData; se
 }
 
 function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [selectedIconCategory, setSelectedIconCategory] = useState<string>("ux");
+  
   const config = NODE_KIND_CONFIG[data.kind] || NODE_KIND_CONFIG.generic;
-  const Icon = config.icon;
-  const { showTitle, showDescription, showImage } = data.layoutConfig;
   const nodeStyle = data.nodeStyle || {};
+  
+  // Use custom icon if set, otherwise use default from config
+  const CustomIcon = nodeStyle.customIcon ? getIconByName(nodeStyle.customIcon) : null;
+  const Icon = CustomIcon || config.icon;
+  
+  const { showTitle, showDescription, showImage } = data.layoutConfig;
 
   const isCompact = !showDescription && !showImage;
 
@@ -478,6 +918,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
     backgroundColor: nodeStyle.backgroundColor || undefined,
     borderColor: nodeStyle.borderColor || undefined,
     borderWidth: nodeStyle.borderWidth ? `${nodeStyle.borderWidth}px` : undefined,
+    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
   };
 
   const textStyle: React.CSSProperties = {
@@ -487,7 +928,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
 
   return (
     <div
-      className={`relative rounded-lg border-2 shadow-sm ${!nodeStyle.backgroundColor ? config.bgColor : ""} ${data.isDraft ? "border-dashed" : ""} ${isCompact ? "px-3 py-2 min-w-[100px]" : "px-4 py-3 min-w-[150px] max-w-[280px]"}`}
+      className={`relative rounded-lg border-2 ${nodeStyle.hasShadow ? "" : "shadow-sm"} ${!nodeStyle.backgroundColor ? config.bgColor : ""} ${data.isDraft ? "border-dashed" : ""} ${isCompact ? "px-3 py-2 min-w-[100px]" : "px-4 py-3 min-w-[150px] max-w-[280px]"}`}
       style={customStyle}
     >
       <Handle
@@ -514,7 +955,8 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
       />
 
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex items-center gap-1 p-1 bg-card border rounded-lg shadow-lg">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[450px]">
+          {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
@@ -541,6 +983,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
 
           <Separator orientation="vertical" className="h-5" />
 
+          {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
@@ -576,6 +1019,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
 
           <Separator orientation="vertical" className="h-5" />
 
+          {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
@@ -597,6 +1041,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
             </PopoverContent>
           </Popover>
 
+          {/* Bold */}
           <Button
             variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
             size="icon"
@@ -605,6 +1050,75 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
             title="Gras"
           >
             <Bold className="w-4 h-4" />
+          </Button>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          {/* Icon picker */}
+          <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Changer l'icône">
+                <Icon className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-2" align="start">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Choisir une icône</div>
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(ICON_PACKS).map(([key, pack]) => (
+                    <Button
+                      key={key}
+                      variant={selectedIconCategory === key ? "default" : "outline"}
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedIconCategory(key)}
+                    >
+                      {pack.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1 max-h-[200px] overflow-y-auto">
+                  {/* Reset to default icon */}
+                  <button
+                    className={`w-8 h-8 rounded border flex items-center justify-center hover:bg-muted ${!nodeStyle.customIcon ? "ring-2 ring-primary" : ""}`}
+                    onClick={() => {
+                      data.onUpdateStyle?.({ customIcon: undefined });
+                      setIconPickerOpen(false);
+                    }}
+                    title="Icône par défaut"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  {ICON_PACKS[selectedIconCategory]?.icons.map((iconItem) => {
+                    const IconComponent = iconItem.icon;
+                    return (
+                      <button
+                        key={iconItem.name}
+                        className={`w-8 h-8 rounded border flex items-center justify-center hover:bg-muted ${nodeStyle.customIcon === iconItem.name ? "ring-2 ring-primary" : ""}`}
+                        onClick={() => {
+                          data.onUpdateStyle?.({ customIcon: iconItem.name });
+                          setIconPickerOpen(false);
+                        }}
+                        title={iconItem.name}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Shadow toggle */}
+          <Button
+            variant={nodeStyle.hasShadow ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow })}
+            title="Ombre"
+          >
+            <Layers className="w-4 h-4" />
           </Button>
         </NodeToolbar>
       )}
@@ -620,7 +1134,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
       )}
       
       <div className="flex items-center gap-2 mb-1">
-        <Icon className={`w-4 h-4 flex-shrink-0 ${config.color}`} />
+        <Icon className={`w-4 h-4 flex-shrink-0 ${nodeStyle.customIcon ? "text-foreground" : config.color}`} />
         {!isCompact && (
           <Badge variant="outline" className="text-xs">
             {config.label}
@@ -656,7 +1170,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
 
 const nodeTypes: NodeTypes = {
   custom: CustomMindmapNode,
-  text: TextNode,
+  text: RichTextNode,
 };
 
 function MindmapCanvas() {
@@ -1370,6 +1884,220 @@ function MindmapCanvas() {
 
     toast({ title: "Nodes distribués verticalement" });
   }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
+
+  // Auto-layout types
+  type LayoutType = "tree" | "flowchart" | "grid" | "circle" | "hierarchy";
+
+  // Auto-reorganize nodes with different layout algorithms
+  const reorganizeNodes = useCallback((layoutType: LayoutType) => {
+    if (nodes.length === 0) {
+      toast({ title: "Aucun node à réorganiser", variant: "destructive" });
+      return;
+    }
+
+    const NODE_WIDTH = 180;
+    const NODE_HEIGHT = 80;
+    const H_SPACING = 60;
+    const V_SPACING = 80;
+
+    let newPositions: Record<string, { x: number; y: number }> = {};
+
+    switch (layoutType) {
+      case "tree": {
+        // Tree layout: hierarchical from top to bottom
+        // Find root nodes (nodes with no incoming edges)
+        const targetIds = new Set(edges.map(e => e.target));
+        const rootNodes = nodes.filter(n => !targetIds.has(n.id));
+        
+        // Build adjacency list
+        const children: Record<string, string[]> = {};
+        edges.forEach(e => {
+          if (!children[e.source]) children[e.source] = [];
+          children[e.source].push(e.target);
+        });
+
+        // BFS to calculate positions
+        let level = 0;
+        let queue = rootNodes.length > 0 ? [...rootNodes] : [nodes[0]];
+        const visited = new Set<string>();
+        
+        while (queue.length > 0) {
+          const levelNodes = queue.slice();
+          queue = [];
+          const levelWidth = levelNodes.length * (NODE_WIDTH + H_SPACING);
+          const startX = -levelWidth / 2;
+          
+          levelNodes.forEach((node, i) => {
+            if (visited.has(node.id)) return;
+            visited.add(node.id);
+            
+            newPositions[node.id] = {
+              x: startX + i * (NODE_WIDTH + H_SPACING),
+              y: level * (NODE_HEIGHT + V_SPACING),
+            };
+            
+            const nodeChildren = children[node.id] || [];
+            nodeChildren.forEach(childId => {
+              const child = nodes.find(n => n.id === childId);
+              if (child && !visited.has(child.id)) {
+                queue.push(child);
+              }
+            });
+          });
+          level++;
+        }
+        
+        // Position remaining unvisited nodes
+        nodes.forEach((node, i) => {
+          if (!visited.has(node.id)) {
+            newPositions[node.id] = {
+              x: i * (NODE_WIDTH + H_SPACING),
+              y: level * (NODE_HEIGHT + V_SPACING),
+            };
+          }
+        });
+        break;
+      }
+
+      case "flowchart": {
+        // Flowchart layout: left to right
+        const sourceIds = new Set(edges.map(e => e.source));
+        const targetIds = new Set(edges.map(e => e.target));
+        const startNodes = nodes.filter(n => !targetIds.has(n.id));
+        
+        const children: Record<string, string[]> = {};
+        edges.forEach(e => {
+          if (!children[e.source]) children[e.source] = [];
+          children[e.source].push(e.target);
+        });
+
+        let column = 0;
+        let queue = startNodes.length > 0 ? [...startNodes] : [nodes[0]];
+        const visited = new Set<string>();
+        
+        while (queue.length > 0) {
+          const columnNodes = queue.slice();
+          queue = [];
+          const columnHeight = columnNodes.length * (NODE_HEIGHT + V_SPACING);
+          const startY = -columnHeight / 2;
+          
+          columnNodes.forEach((node, i) => {
+            if (visited.has(node.id)) return;
+            visited.add(node.id);
+            
+            newPositions[node.id] = {
+              x: column * (NODE_WIDTH + H_SPACING * 2),
+              y: startY + i * (NODE_HEIGHT + V_SPACING),
+            };
+            
+            const nodeChildren = children[node.id] || [];
+            nodeChildren.forEach(childId => {
+              const child = nodes.find(n => n.id === childId);
+              if (child && !visited.has(child.id)) {
+                queue.push(child);
+              }
+            });
+          });
+          column++;
+        }
+        
+        // Position remaining unvisited nodes
+        nodes.forEach((node, i) => {
+          if (!visited.has(node.id)) {
+            newPositions[node.id] = {
+              x: column * (NODE_WIDTH + H_SPACING * 2),
+              y: i * (NODE_HEIGHT + V_SPACING),
+            };
+          }
+        });
+        break;
+      }
+
+      case "grid": {
+        // Grid layout: nodes arranged in a grid
+        const cols = Math.ceil(Math.sqrt(nodes.length));
+        nodes.forEach((node, i) => {
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          newPositions[node.id] = {
+            x: col * (NODE_WIDTH + H_SPACING),
+            y: row * (NODE_HEIGHT + V_SPACING),
+          };
+        });
+        break;
+      }
+
+      case "circle": {
+        // Circular layout: nodes arranged in a circle
+        const radius = Math.max(200, nodes.length * 40);
+        const angleStep = (2 * Math.PI) / nodes.length;
+        nodes.forEach((node, i) => {
+          const angle = i * angleStep - Math.PI / 2;
+          newPositions[node.id] = {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+          };
+        });
+        break;
+      }
+
+      case "hierarchy": {
+        // Hierarchical layout: based on node types
+        const typeGroups: Record<string, typeof nodes> = {};
+        nodes.forEach(node => {
+          const type = node.data?.kind || "generic";
+          if (!typeGroups[type]) typeGroups[type] = [];
+          typeGroups[type].push(node);
+        });
+
+        let yOffset = 0;
+        Object.entries(typeGroups).forEach(([type, typeNodes]) => {
+          const groupWidth = typeNodes.length * (NODE_WIDTH + H_SPACING);
+          const startX = -groupWidth / 2;
+          
+          typeNodes.forEach((node, i) => {
+            newPositions[node.id] = {
+              x: startX + i * (NODE_WIDTH + H_SPACING),
+              y: yOffset,
+            };
+          });
+          
+          yOffset += NODE_HEIGHT + V_SPACING * 1.5;
+        });
+        break;
+      }
+    }
+
+    // Apply new positions
+    Object.entries(newPositions).forEach(([nodeId, pos]) => {
+      updateNodeMutation.mutate({
+        nodeId,
+        updates: { x: pos.x.toString(), y: pos.y.toString() },
+      });
+    });
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        const newPos = newPositions[node.id];
+        if (newPos) {
+          return { ...node, position: newPos };
+        }
+        return node;
+      })
+    );
+
+    // Fit view after reorganization
+    setTimeout(() => fitView({ padding: 0.2 }), 100);
+
+    const layoutNames: Record<LayoutType, string> = {
+      tree: "Arbre",
+      flowchart: "Flowchart",
+      grid: "Grille",
+      circle: "Cercle",
+      hierarchy: "Hiérarchie",
+    };
+    toast({ title: `Layout "${layoutNames[layoutType]}" appliqué` });
+  }, [nodes, edges, updateNodeMutation, setNodes, fitView, toast]);
 
   // Delete selected nodes
   const deleteSelectedNodes = useCallback(() => {
@@ -2129,6 +2857,54 @@ function MindmapCanvas() {
                   Distribuer verticalement
                 </TooltipContent>
               </Tooltip>
+            </div>
+
+            {/* Auto-reorganize layouts */}
+            <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
+              <DropdownMenu>
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        data-testid="button-auto-layout"
+                      >
+                        <Workflow className="w-4 h-4 mr-1" />
+                        Réorganiser
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="font-medium">
+                    Réorganiser automatiquement
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuLabel>Choisir un layout</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => reorganizeNodes("tree")}>
+                    <TreeDeciduous className="w-4 h-4 mr-2" />
+                    Arbre
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => reorganizeNodes("flowchart")}>
+                    <GitBranch className="w-4 h-4 mr-2" />
+                    Flowchart
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => reorganizeNodes("grid")}>
+                    <LayoutGrid className="w-4 h-4 mr-2" />
+                    Grille
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => reorganizeNodes("circle")}>
+                    <CircleDot className="w-4 h-4 mr-2" />
+                    Cercle
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => reorganizeNodes("hierarchy")}>
+                    <Layers className="w-4 h-4 mr-2" />
+                    Hiérarchie
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </Panel>
 
