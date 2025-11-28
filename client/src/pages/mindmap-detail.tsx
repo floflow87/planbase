@@ -71,6 +71,8 @@ import {
   AlignHorizontalDistributeCenter,
   AlignVerticalDistributeCenter,
   Magnet,
+  Hand,
+  MousePointer2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -698,6 +700,9 @@ function MindmapCanvas() {
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [gridSize, setGridSize] = useState<16 | 24 | 32>(24);
   const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number; y?: number }>({});
+
+  // Interaction mode: "pan" (hand - navigate) or "select" (pointer - select multiple)
+  const [interactionMode, setInteractionMode] = useState<"pan" | "select">("pan");
 
   // Clipboard state for copy-paste (serialized data, not React Flow instances)
   interface ClipboardNode {
@@ -1886,8 +1891,9 @@ function MindmapCanvas() {
           fitView={!viewportRestored}
           snapToGrid={snapEnabled}
           snapGrid={[gridSize, gridSize]}
-          selectionOnDrag
-          selectNodesOnDrag
+          panOnDrag={interactionMode === "pan"}
+          selectionOnDrag={interactionMode === "select"}
+          selectNodesOnDrag={interactionMode === "select"}
           className="bg-muted/30"
           data-testid="mindmap-canvas"
         >
@@ -1961,8 +1967,46 @@ function MindmapCanvas() {
             </Button>
           </Panel>
 
-          {/* Snap to grid and alignment controls */}
+          {/* Interaction mode and Snap to grid controls */}
           <Panel position="bottom-left" className="flex gap-1 p-2">
+            {/* Interaction mode toggle */}
+            <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={interactionMode === "pan" ? "default" : "ghost"}
+                    size="icon"
+                    onClick={() => setInteractionMode("pan")}
+                    data-testid="button-mode-pan"
+                    className="h-8 w-8"
+                  >
+                    <Hand className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Mode navigation (déplacer le canvas)
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={interactionMode === "select" ? "default" : "ghost"}
+                    size="icon"
+                    onClick={() => setInteractionMode("select")}
+                    data-testid="button-mode-select"
+                    className="h-8 w-8"
+                  >
+                    <MousePointer2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Mode sélection (sélectionner plusieurs éléments)
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Snap to grid controls */}
             <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
