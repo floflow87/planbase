@@ -696,8 +696,24 @@ function MindmapCanvas() {
 
   // Snap to grid state
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [gridSize, setGridSize] = useState<16 | 24 | 32>(16);
+  const [gridSize, setGridSize] = useState<16 | 24 | 32>(24);
   const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number; y?: number }>({});
+
+  // Clipboard state for copy-paste (serialized data, not React Flow instances)
+  interface ClipboardNode {
+    label: string;
+    description?: string;
+    kind: MindmapNodeKind;
+    x: number;
+    y: number;
+    imageUrl?: string;
+    originalId: string;
+  }
+  interface ClipboardEdge {
+    sourceId: string;
+    targetId: string;
+  }
+  const [clipboard, setClipboard] = useState<{ nodes: ClipboardNode[]; edges: ClipboardEdge[] } | null>(null);
 
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
@@ -1349,6 +1365,133 @@ function MindmapCanvas() {
 
     toast({ title: "Nodes distribués verticalement" });
   }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
+
+  // Delete selected nodes
+  const deleteSelectedNodes = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length === 0 && selectedNode) {
+      deleteNodeMutation.mutate(selectedNode.id);
+      return;
+    }
+    
+    selectedNodes.forEach((node) => {
+      deleteNodeMutation.mutate(node.id);
+    });
+    
+    if (selectedNodes.length > 0) {
+      toast({ title: `${selectedNodes.length} node(s) supprimé(s)` });
+    }
+  }, [nodes, selectedNode, deleteNodeMutation, toast]);
+
+  // Copy selected nodes to clipboard (serialize data, not React Flow instances)
+  const copySelectedNodes = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    let nodesToCopy = selectedNodes;
+    
+    if (selectedNodes.length === 0 && selectedNode) {
+      nodesToCopy = [selectedNode];
+    }
+    
+    if (nodesToCopy.length === 0) {
+      toast({ title: "Sélectionnez des nodes à copier", variant: "destructive" });
+      return;
+    }
+
+    // Serialize nodes to plain data
+    const serializedNodes: ClipboardNode[] = nodesToCopy.map(n => ({
+      label: n.data.label || "",
+      description: n.data.description,
+      kind: n.data.kind || "idea",
+      x: n.position.x,
+      y: n.position.y,
+      imageUrl: n.data.imageUrl,
+      originalId: n.id,
+    }));
+
+    // Also copy edges between selected nodes
+    const selectedNodeIds = new Set(nodesToCopy.map(n => n.id));
+    const serializedEdges: ClipboardEdge[] = edges
+      .filter(e => selectedNodeIds.has(e.source) && selectedNodeIds.has(e.target))
+      .map(e => ({ sourceId: e.source, targetId: e.target }));
+
+    setClipboard({ nodes: serializedNodes, edges: serializedEdges });
+    toast({ title: `${nodesToCopy.length} node(s) copié(s)` });
+  }, [nodes, edges, selectedNode, toast]);
+
+  // Paste nodes from clipboard
+  const pasteNodes = useCallback(async () => {
+    if (!clipboard || clipboard.nodes.length === 0) {
+      toast({ title: "Rien à coller", variant: "destructive" });
+      return;
+    }
+
+    const PASTE_OFFSET = 50;
+    const idMapping: Record<string, string> = {};
+
+    try {
+      // Create new nodes with offset positions
+      for (const node of clipboard.nodes) {
+        const result = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", {
+          title: node.label || "Copie",
+          description: node.description || undefined,
+          type: node.kind || "idea",
+          x: node.x + PASTE_OFFSET,
+          y: node.y + PASTE_OFFSET,
+          imageUrl: node.imageUrl || undefined,
+        });
+        const newNode = await result.json();
+        idMapping[node.originalId] = newNode.id;
+      }
+
+      // Create edges between pasted nodes
+      for (const edge of clipboard.edges) {
+        if (idMapping[edge.sourceId] && idMapping[edge.targetId]) {
+          await apiRequest(`/api/mindmaps/${id}/edges`, "POST", {
+            sourceNodeId: idMapping[edge.sourceId],
+            targetNodeId: idMapping[edge.targetId],
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+      toast({ title: `${clipboard.nodes.length} node(s) collé(s)` });
+    } catch (error) {
+      console.error("Paste error:", error);
+      toast({ title: "Erreur lors du collage", variant: "destructive" });
+    }
+  }, [clipboard, id, toast]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're in an input or textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        return;
+      }
+
+      // Delete / Backspace - delete selected nodes
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteSelectedNodes();
+      }
+
+      // Ctrl/Cmd + C - copy
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        e.preventDefault();
+        copySelectedNodes();
+      }
+
+      // Ctrl/Cmd + V - paste
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        e.preventDefault();
+        pasteNodes();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteSelectedNodes, copySelectedNodes, pasteNodes]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     if (node.type === "text") {
