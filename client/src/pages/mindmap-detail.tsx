@@ -226,6 +226,13 @@ import {
   CircleDashed,
   SquareDashed,
 } from "lucide-react";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Highlight from '@tiptap/extension-highlight';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -598,37 +605,53 @@ interface CustomNodeData {
 
 function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [text, setText] = useState(data.label);
-  const [richContent, setRichContent] = useState(data.nodeStyle?.richContent || "");
   const [isResizing, setIsResizing] = useState(false);
   const [dimensions, setDimensions] = useState({
-    width: data.nodeStyle?.width || 200,
-    height: data.nodeStyle?.height || 80,
+    width: data.nodeStyle?.width || 250,
+    height: data.nodeStyle?.height || 100,
   });
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeStyle = data.nodeStyle || {};
-
+  
+  const initialContent = data.nodeStyle?.richContent || data.label || "";
+  
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+      }),
+      Highlight.configure({ multicolor: true }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      TextStyle,
+      Color,
+    ],
+    content: initialContent,
+    editable: isEditing,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      const plainText = editor.getText();
+      data.onUpdateStyle?.({ richContent: html });
+      if (plainText !== data.label) {
+        data.onEndEdit?.(plainText);
+      }
+    },
+  });
+  
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (editor) {
+      editor.setEditable(isEditing);
+      if (isEditing) {
+        editor.commands.focus('end');
+      }
     }
-  }, [isEditing]);
-
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (text !== data.label && data.onEndEdit) {
-      data.onEndEdit(text);
+  }, [editor, isEditing]);
+  
+  useEffect(() => {
+    if (editor && data.nodeStyle?.richContent && data.nodeStyle.richContent !== editor.getHTML()) {
+      editor.commands.setContent(data.nodeStyle.richContent);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setText(data.label);
-      setIsEditing(false);
-    }
-  };
+  }, [editor, data.nodeStyle?.richContent]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -640,8 +663,8 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
     const startHeight = dimensions.height;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(100, startWidth + (e.clientX - startX));
-      const newHeight = Math.max(40, startHeight + (e.clientY - startY));
+      const newWidth = Math.max(150, startWidth + (e.clientX - startX));
+      const newHeight = Math.max(60, startHeight + (e.clientY - startY));
       setDimensions({ width: newWidth, height: newHeight });
     };
 
@@ -657,17 +680,15 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
   };
 
   const style: React.CSSProperties = {
-    backgroundColor: nodeStyle.backgroundColor || "transparent",
+    backgroundColor: nodeStyle.backgroundColor || "rgba(255,255,255,0.95)",
     borderColor: nodeStyle.borderColor || "transparent",
-    borderWidth: nodeStyle.borderWidth || 0,
-    borderStyle: nodeStyle.borderWidth ? "solid" : "none",
+    borderWidth: nodeStyle.borderWidth || 1,
+    borderStyle: "solid",
     fontSize: nodeStyle.fontSize || 14,
-    fontWeight: nodeStyle.fontWeight || "normal",
-    fontStyle: nodeStyle.fontStyle || "normal",
     color: nodeStyle.textColor || "inherit",
     width: dimensions.width,
     minHeight: dimensions.height,
-    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : undefined,
+    boxShadow: nodeStyle.hasShadow ? "0 4px 12px rgba(0,0,0,0.15)" : "0 1px 3px rgba(0,0,0,0.08)",
   };
 
   return (
@@ -806,45 +827,92 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
             </PopoverContent>
           </Popover>
 
-          {/* Bold */}
+          {/* Bold (TipTap) */}
           <Button
-            variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
+            variant={editor?.isActive('bold') ? "default" : "ghost"}
             size="icon"
             className="h-7 w-7"
-            onClick={() => data.onUpdateStyle?.({ fontWeight: nodeStyle.fontWeight === "bold" ? "normal" : "bold" })}
-            title="Gras"
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+            title="Gras (Ctrl+B)"
           >
             <Bold className="w-4 h-4" />
           </Button>
 
-          {/* Italic */}
+          {/* Italic (TipTap) */}
           <Button
-            variant={nodeStyle.fontStyle === "italic" ? "default" : "ghost"}
+            variant={editor?.isActive('italic') ? "default" : "ghost"}
             size="icon"
             className="h-7 w-7"
-            onClick={() => data.onUpdateStyle?.({ fontStyle: nodeStyle.fontStyle === "italic" ? "normal" : "italic" })}
-            title="Italique"
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+            title="Italique (Ctrl+I)"
           >
             <Italic className="w-4 h-4" />
           </Button>
 
           <Separator orientation="vertical" className="h-5" />
 
-          {/* Highlight */}
+          {/* Bullet List (TipTap) */}
+          <Button
+            variant={editor?.isActive('bulletList') ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+            title="Liste à puces"
+          >
+            <List className="w-4 h-4" />
+          </Button>
+
+          {/* Ordered List (TipTap) */}
+          <Button
+            variant={editor?.isActive('orderedList') ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            title="Liste numérotée"
+          >
+            <ListOrdered className="w-4 h-4" />
+          </Button>
+
+          {/* Task List (TipTap) */}
+          <Button
+            variant={editor?.isActive('taskList') ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => editor?.chain().focus().toggleTaskList().run()}
+            title="Liste de tâches"
+          >
+            <CheckSquare className="w-4 h-4" />
+          </Button>
+
+          <Separator orientation="vertical" className="h-5" />
+
+          {/* Highlight (TipTap) */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="Surlignage">
+              <Button 
+                variant={editor?.isActive('highlight') ? "default" : "ghost"} 
+                size="icon" 
+                className="h-7 w-7" 
+                title="Surlignage"
+              >
                 <Highlighter className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-2">
               <div className="grid grid-cols-4 gap-1">
+                <button
+                  className="w-6 h-6 rounded border bg-white flex items-center justify-center"
+                  onClick={() => editor?.chain().focus().unsetHighlight().run()}
+                  title="Sans surlignage"
+                >
+                  <X className="w-3 h-3" />
+                </button>
                 {HIGHLIGHT_COLORS.map((color) => (
                   <button
                     key={color.value}
-                    className={`w-6 h-6 rounded border ${!color.value ? "bg-white" : ""}`}
-                    style={{ backgroundColor: color.value || undefined }}
-                    onClick={() => data.onUpdateStyle?.({ backgroundColor: color.value || undefined })}
+                    className="w-6 h-6 rounded border"
+                    style={{ backgroundColor: color.value }}
+                    onClick={() => editor?.chain().focus().toggleHighlight({ color: color.value }).run()}
                     title={color.name}
                   />
                 ))}
@@ -862,39 +930,46 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           >
             <Layers className="w-4 h-4" />
           </Button>
+
+          {/* Edit mode toggle */}
+          <Separator orientation="vertical" className="h-5" />
+          <Button
+            variant={isEditing ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setIsEditing(!isEditing)}
+            title={isEditing ? "Terminer l'édition" : "Éditer le texte"}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
         </NodeToolbar>
       )}
       
-      {isEditing ? (
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          className="p-3 rounded resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-          style={style}
-          rows={Math.max(1, text.split("\n").length)}
-        />
-      ) : (
-        <div
-          className="p-3 rounded cursor-text whitespace-pre-wrap relative"
-          style={style}
-          onDoubleClick={() => setIsEditing(true)}
-        >
-          {data.label || "Double-cliquer pour éditer"}
-          
-          {/* Resize handle */}
-          {selected && (
-            <div
-              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center"
-              onMouseDown={handleResizeStart}
-            >
-              <div className="w-2 h-2 border-b-2 border-r-2 border-muted-foreground opacity-50" />
-            </div>
-          )}
-        </div>
-      )}
+      <div
+        className="p-3 rounded relative overflow-hidden"
+        style={style}
+        onDoubleClick={() => !isEditing && setIsEditing(true)}
+      >
+        {editor ? (
+          <EditorContent 
+            editor={editor} 
+            className={`prose prose-sm max-w-none focus:outline-none ${!isEditing ? 'cursor-text' : ''}`}
+            style={{ fontSize: nodeStyle.fontSize || 14 }}
+          />
+        ) : (
+          <div className="text-muted-foreground italic">Double-cliquer pour éditer</div>
+        )}
+        
+        {/* Resize handle */}
+        {selected && (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center"
+            onMouseDown={handleResizeStart}
+          >
+            <div className="w-2 h-2 border-b-2 border-r-2 border-muted-foreground opacity-50" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1213,7 +1288,12 @@ function MindmapCanvas() {
   // Snap to grid state
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [gridSize, setGridSize] = useState<16 | 24 | 32>(24);
-  const [alignmentGuides, setAlignmentGuides] = useState<{ x?: number; y?: number }>({});
+  const [alignmentGuides, setAlignmentGuides] = useState<{ 
+    x?: number; 
+    y?: number; 
+    xCenter?: number; // Center vertical alignment
+    yCenter?: number; // Center horizontal alignment
+  }>({});
 
   // Interaction mode: "pan" (hand - navigate) or "select" (pointer - select multiple)
   const [interactionMode, setInteractionMode] = useState<"pan" | "select">("pan");
@@ -1683,38 +1763,63 @@ function MindmapCanvas() {
         return;
       }
 
-      const ALIGNMENT_THRESHOLD = 5;
-      const guides: { x?: number; y?: number } = {};
+      const ALIGNMENT_THRESHOLD = 8;
+      const guides: { x?: number; y?: number; xCenter?: number; yCenter?: number } = {};
       const nodeX = node.position.x;
       const nodeY = node.position.y;
       const nodeWidth = 200; // approximate node width
       const nodeHeight = 80; // approximate node height
       const nodeCenterX = nodeX + nodeWidth / 2;
       const nodeCenterY = nodeY + nodeHeight / 2;
+      const nodeRight = nodeX + nodeWidth;
+      const nodeBottom = nodeY + nodeHeight;
 
       nodes.forEach((otherNode) => {
         if (otherNode.id === node.id) return;
 
         const otherX = otherNode.position.x;
         const otherY = otherNode.position.y;
-        const otherCenterX = otherX + nodeWidth / 2;
-        const otherCenterY = otherY + nodeHeight / 2;
+        const otherWidth = 200;
+        const otherHeight = 80;
+        const otherCenterX = otherX + otherWidth / 2;
+        const otherCenterY = otherY + otherHeight / 2;
+        const otherRight = otherX + otherWidth;
+        const otherBottom = otherY + otherHeight;
 
-        // Vertical center alignment
+        // VERTICAL alignments (X axis)
+        // Center-to-center vertical alignment (priority)
         if (Math.abs(nodeCenterX - otherCenterX) < ALIGNMENT_THRESHOLD) {
-          guides.x = otherCenterX;
+          guides.xCenter = otherCenterX;
         }
         // Left edge alignment
         if (Math.abs(nodeX - otherX) < ALIGNMENT_THRESHOLD) {
           guides.x = otherX;
         }
-        // Horizontal center alignment
+        // Right edge alignment
+        if (Math.abs(nodeRight - otherRight) < ALIGNMENT_THRESHOLD && !guides.x) {
+          guides.x = otherRight - nodeWidth;
+        }
+        // Left to right edge alignment
+        if (Math.abs(nodeX - otherRight) < ALIGNMENT_THRESHOLD && !guides.x) {
+          guides.x = otherRight;
+        }
+
+        // HORIZONTAL alignments (Y axis)
+        // Center-to-center horizontal alignment (priority)
         if (Math.abs(nodeCenterY - otherCenterY) < ALIGNMENT_THRESHOLD) {
-          guides.y = otherCenterY;
+          guides.yCenter = otherCenterY;
         }
         // Top edge alignment
         if (Math.abs(nodeY - otherY) < ALIGNMENT_THRESHOLD) {
           guides.y = otherY;
+        }
+        // Bottom edge alignment
+        if (Math.abs(nodeBottom - otherBottom) < ALIGNMENT_THRESHOLD && !guides.y) {
+          guides.y = otherBottom - nodeHeight;
+        }
+        // Top to bottom edge alignment
+        if (Math.abs(nodeY - otherBottom) < ALIGNMENT_THRESHOLD && !guides.y) {
+          guides.y = otherBottom;
         }
       });
 
@@ -2626,6 +2731,7 @@ function MindmapCanvas() {
           data-testid="mindmap-canvas"
         >
           {/* Alignment guides */}
+          {/* Edge alignment lines (dashed, violet) */}
           {alignmentGuides.x !== undefined && (
             <svg className="absolute inset-0 pointer-events-none z-50" style={{ overflow: 'visible' }}>
               <line
@@ -2649,6 +2755,31 @@ function MindmapCanvas() {
                 stroke="#7c3aed"
                 strokeWidth={1}
                 strokeDasharray="4,4"
+              />
+            </svg>
+          )}
+          {/* Center alignment lines (solid, cyan) */}
+          {alignmentGuides.xCenter !== undefined && (
+            <svg className="absolute inset-0 pointer-events-none z-50" style={{ overflow: 'visible' }}>
+              <line
+                x1={alignmentGuides.xCenter}
+                y1={-9999}
+                x2={alignmentGuides.xCenter}
+                y2={9999}
+                stroke="#06b6d4"
+                strokeWidth={2}
+              />
+            </svg>
+          )}
+          {alignmentGuides.yCenter !== undefined && (
+            <svg className="absolute inset-0 pointer-events-none z-50" style={{ overflow: 'visible' }}>
+              <line
+                x1={-9999}
+                y1={alignmentGuides.yCenter}
+                x2={9999}
+                y2={alignmentGuides.yCenter}
+                stroke="#06b6d4"
+                strokeWidth={2}
               />
             </svg>
           )}
@@ -2696,7 +2827,7 @@ function MindmapCanvas() {
           </Panel>
 
           {/* Interaction mode and Snap to grid controls */}
-          <Panel position="bottom-left" className="flex gap-1 p-2">
+          <Panel position="bottom-left" className="flex flex-wrap gap-1 p-2 mb-12">
             {/* Interaction mode toggle */}
             <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
               <Tooltip delayDuration={100}>
