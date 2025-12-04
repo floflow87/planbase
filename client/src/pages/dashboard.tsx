@@ -26,6 +26,7 @@ import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Loader } from "@/components/Loader";
+import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
 
 // Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
 const getStageColor = (stage: string) => {
@@ -1566,7 +1567,7 @@ export default function Dashboard() {
       
       {/* Task Reminder Dialog */}
       <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md relative overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -1576,6 +1577,13 @@ export default function Dashboard() {
               Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
             </DialogDescription>
           </DialogHeader>
+          {/* Astronaut Avatar */}
+          <img 
+            src={astronautAvatar} 
+            alt="Astronaute Planbase" 
+            className="absolute bottom-2 right-2 w-20 h-20 object-contain opacity-90 pointer-events-none"
+            data-testid="img-astronaut-reminder"
+          />
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
             {(() => {
               const urgentTasks = [...overdueTasks, ...todaysTasks].slice(0, 5);
