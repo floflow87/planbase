@@ -160,6 +160,15 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
 function TimeTrackingTab({ projectId, project }: { projectId: string; project?: ProjectWithRelations }) {
   const { toast } = useToast();
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+  
+  // Free time entry form state
+  const [showAddTimeForm, setShowAddTimeForm] = useState(false);
+  const [newTimeDate, setNewTimeDate] = useState<Date | undefined>(new Date());
+  const [newTimeHours, setNewTimeHours] = useState<string>("");
+  const [newTimeMinutes, setNewTimeMinutes] = useState<string>("0");
+  const [newTimeDescription, setNewTimeDescription] = useState<string>("");
+  const [isNewTimeDatePickerOpen, setIsNewTimeDatePickerOpen] = useState(false);
+  const [isAddingTime, setIsAddingTime] = useState(false);
 
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: [`/api/projects/${projectId}/time-entries`],
@@ -325,6 +334,163 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         </CardContent>
       </Card>
 
+      {/* Add Time Entry Form */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Ajouter du temps</CardTitle>
+          <Button
+            variant={showAddTimeForm ? "ghost" : "default"}
+            size="sm"
+            onClick={() => setShowAddTimeForm(!showAddTimeForm)}
+            data-testid="button-toggle-add-time"
+          >
+            {showAddTimeForm ? "Annuler" : <><Plus className="h-4 w-4 mr-2" />Ajouter du temps</>}
+          </Button>
+        </CardHeader>
+        {showAddTimeForm && (
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm">Heures</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newTimeHours}
+                    onChange={(e) => setNewTimeHours(e.target.value)}
+                    placeholder="0"
+                    data-testid="input-time-hours"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm">Minutes</Label>
+                  <Select
+                    value={newTimeMinutes}
+                    onValueChange={setNewTimeMinutes}
+                  >
+                    <SelectTrigger data-testid="select-time-minutes">
+                      <SelectValue placeholder="0" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0 min</SelectItem>
+                      <SelectItem value="15">15 min</SelectItem>
+                      <SelectItem value="30">30 min</SelectItem>
+                      <SelectItem value="45">45 min</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm">Date</Label>
+                  <Popover open={isNewTimeDatePickerOpen} onOpenChange={setIsNewTimeDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !newTimeDate && "text-muted-foreground"
+                        )}
+                        data-testid="button-time-date"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {newTimeDate ? format(newTimeDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newTimeDate}
+                        onSelect={(date) => {
+                          setNewTimeDate(date);
+                          setIsNewTimeDatePickerOpen(false);
+                        }}
+                        initialFocus
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm">Description (optionnelle)</Label>
+                <Input
+                  value={newTimeDescription}
+                  onChange={(e) => setNewTimeDescription(e.target.value)}
+                  placeholder="Note sur la session de travail"
+                  data-testid="input-time-description"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={async () => {
+                    const hours = parseInt(newTimeHours) || 0;
+                    const minutes = parseInt(newTimeMinutes) || 0;
+                    const totalSeconds = (hours * 3600) + (minutes * 60);
+                    
+                    if (totalSeconds <= 0) {
+                      toast({
+                        title: "Erreur",
+                        description: "Veuillez entrer une durée valide",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    if (!newTimeDate) {
+                      toast({
+                        title: "Erreur",
+                        description: "Veuillez sélectionner une date",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    setIsAddingTime(true);
+                    try {
+                      const startTime = new Date(newTimeDate);
+                      startTime.setHours(9, 0, 0, 0);
+                      
+                      await apiRequest("/api/time-entries", "POST", {
+                        projectId,
+                        startTime: startTime.toISOString(),
+                        endTime: new Date(startTime.getTime() + totalSeconds * 1000).toISOString(),
+                        duration: totalSeconds,
+                        description: newTimeDescription || null,
+                      });
+                      
+                      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+                      
+                      setNewTimeHours("");
+                      setNewTimeMinutes("0");
+                      setNewTimeDescription("");
+                      setShowAddTimeForm(false);
+                      
+                      toast({
+                        title: "Temps ajouté",
+                        description: `${hours}h${minutes > 0 ? ` ${minutes}min` : ""} ajoutés au projet`,
+                        variant: "success",
+                      });
+                    } catch (error: any) {
+                      toast({
+                        title: "Erreur",
+                        description: error.message || "Impossible d'ajouter le temps",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsAddingTime(false);
+                    }
+                  }}
+                  disabled={isAddingTime}
+                  data-testid="button-save-time"
+                >
+                  {isAddingTime ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Time Entries List */}
       <Card>
         <CardHeader>
@@ -451,6 +617,12 @@ export default function ProjectDetail() {
   const [paymentDescription, setPaymentDescription] = useState<string>("");
   const [isPaymentDatePickerOpen, setIsPaymentDatePickerOpen] = useState(false);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+  // Payment editing state
+  const [editingPayment, setEditingPayment] = useState<ProjectPayment | null>(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState<string>("");
+  const [editPaymentDate, setEditPaymentDate] = useState<Date | undefined>(undefined);
+  const [editPaymentDescription, setEditPaymentDescription] = useState<string>("");
+  const [isEditPaymentDatePickerOpen, setIsEditPaymentDatePickerOpen] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -1819,15 +1991,31 @@ export default function ProjectDetail() {
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletePaymentId(payment.id)}
-                            data-testid={`button-delete-payment-${payment.id}`}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingPayment(payment);
+                                setEditPaymentAmount(payment.amount);
+                                setEditPaymentDate(new Date(payment.paymentDate));
+                                setEditPaymentDescription(payment.description || "");
+                              }}
+                              data-testid={`button-edit-payment-${payment.id}`}
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletePaymentId(payment.id)}
+                              data-testid={`button-delete-payment-${payment.id}`}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1835,6 +2023,113 @@ export default function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Edit Payment Dialog */}
+            <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Modifier le paiement</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="edit-payment-amount" className="text-sm">Montant (€)</Label>
+                    <Input
+                      id="edit-payment-amount"
+                      type="number"
+                      step="0.01"
+                      value={editPaymentAmount}
+                      onChange={(e) => setEditPaymentAmount(e.target.value)}
+                      data-testid="input-edit-payment-amount"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Date du paiement</Label>
+                    <Popover open={isEditPaymentDatePickerOpen} onOpenChange={setIsEditPaymentDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal bg-white dark:bg-background",
+                            !editPaymentDate && "text-muted-foreground"
+                          )}
+                          data-testid="button-edit-payment-date"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {editPaymentDate ? format(editPaymentDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={editPaymentDate}
+                          onSelect={(date) => {
+                            setEditPaymentDate(date);
+                            setIsEditPaymentDatePickerOpen(false);
+                          }}
+                          initialFocus
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-payment-description" className="text-sm">Description (optionnelle)</Label>
+                    <Input
+                      id="edit-payment-description"
+                      placeholder="Note ou référence du paiement"
+                      value={editPaymentDescription}
+                      onChange={(e) => setEditPaymentDescription(e.target.value)}
+                      data-testid="input-edit-payment-description"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditingPayment(null)}
+                    data-testid="button-cancel-edit-payment"
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!editPaymentAmount || !editPaymentDate || !editingPayment) {
+                        toast({
+                          title: "Erreur",
+                          description: "Veuillez remplir le montant et la date",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      try {
+                        await apiRequest(`/api/payments/${editingPayment.id}`, "PATCH", {
+                          amount: editPaymentAmount,
+                          paymentDate: formatDateForStorage(editPaymentDate),
+                          description: editPaymentDescription || null,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        setEditingPayment(null);
+                        toast({
+                          title: "Paiement modifié",
+                          description: "Le paiement a été mis à jour avec succès",
+                          variant: "success",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message || "Impossible de modifier le paiement",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    data-testid="button-save-edit-payment"
+                  >
+                    Enregistrer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Delete Payment Confirmation Dialog */}
             <AlertDialog open={!!deletePaymentId} onOpenChange={(open) => !open && setDeletePaymentId(null)}>

@@ -578,7 +578,7 @@ export default function Documents() {
       </div>
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <div className={`max-w-7xl p-6 space-y-6 ${isTreeCollapsed ? 'ml-0' : 'mx-auto'}`}>
           {/* Breadcrumb & Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[12px]">
@@ -634,6 +634,22 @@ export default function Documents() {
               </Button>
             </div>
           </div>
+
+          {/* Storage Indicator - moved above documents */}
+          {files.length > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">Stockage:</span>
+                  <span className="text-muted-foreground text-[12px]">{files.length} document{files.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-muted-foreground">{files.length} élément{files.length > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-muted-foreground">Trié par date de modification</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Files Grid */}
           {isLoading ? (
@@ -901,22 +917,6 @@ export default function Documents() {
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Storage Indicator */}
-          {files.length > 0 && (
-            <Card className="mt-8">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Stockage:</span>
-                  <span className="text-muted-foreground text-[12px]">{files.length} document{files.length > 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-muted-foreground">{files.length} élément{files.length > 1 ? 's' : ''}</span>
-                  <span className="text-xs text-muted-foreground">Trié par date de modification</span>
-                </div>
-              </CardContent>
-            </Card>
           )}
         </div>
       </div>

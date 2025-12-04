@@ -1506,16 +1506,32 @@ function KanbanStageColumn({
     id: stage.value,
   });
 
+  // Calculate total budget for this column
+  const totalBudget = projects.reduce((sum, p) => {
+    return sum + (parseFloat(p.budget || "0") || 0);
+  }, 0);
+
   return (
     <div
       ref={setNodeRef}
       className={`flex flex-col rounded-lg border ${stage.color} ${isOver ? 'ring-2 ring-primary' : ''}`}
     >
-      <div className="px-3 py-2 border-b flex items-center justify-between">
-        <h3 className="font-medium text-sm">{stage.label}</h3>
-        <Badge variant="secondary" className="text-xs">
-          {projects.length}
-        </Badge>
+      <div className="px-3 py-2 border-b">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-sm">{stage.label}</h3>
+          <Badge variant="secondary" className="text-xs">
+            {projects.length}
+          </Badge>
+        </div>
+        {totalBudget > 0 && (
+          <div className="text-xs text-muted-foreground mt-1 font-medium">
+            {totalBudget.toLocaleString("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+              minimumFractionDigits: 0,
+            })}
+          </div>
+        )}
       </div>
       <div className="flex-1 p-2 space-y-2 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto">
         <SortableContext
@@ -1953,7 +1969,10 @@ export default function Projects() {
     const saved = localStorage.getItem('projectStageFilters');
     return saved ? JSON.parse(saved) : [];
   });
-  const [projectViewMode, setProjectViewMode] = useState<"grid" | "list" | "kanban">("list");
+  const [projectViewMode, setProjectViewMode] = useState<"grid" | "list" | "kanban">(() => {
+    const saved = localStorage.getItem('projectViewMode');
+    return (saved === "grid" || saved === "list" || saved === "kanban") ? saved : "list";
+  });
   
   // Sorting state with localStorage persistence
   const [projectSortColumn, setProjectSortColumn] = useState<string>(() => {
@@ -1990,6 +2009,11 @@ export default function Projects() {
   useEffect(() => {
     localStorage.setItem('projectSortDirection', projectSortDirection);
   }, [projectSortDirection]);
+
+  // Save project view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('projectViewMode', projectViewMode);
+  }, [projectViewMode]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
