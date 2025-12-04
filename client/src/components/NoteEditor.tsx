@@ -62,6 +62,7 @@ import { useQuery } from '@tanstack/react-query';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { supabase } from '@/lib/supabase';
 import type { Editor } from '@tiptap/react';
+import { useToast } from '@/hooks/use-toast';
 
 export interface NoteEditorRef {
   insertText: (text: string) => void;
@@ -132,6 +133,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     title = "",
   } = props;
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   
   // Dialogue states
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -156,10 +158,6 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     highlight: string | null;
     textAlign: string | null;
     link: string | null;
-    bulletList: boolean;
-    orderedList: boolean;
-    taskList: boolean;
-    blockquote: boolean;
   }
   const [copiedFormat, setCopiedFormat] = useState<CopiedFormat | null>(null);
   
@@ -493,88 +491,109 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const copyFormat = useCallback(() => {
     if (!editor) return;
     
-    const attrs = editor.getAttributes('textStyle');
-    const linkAttrs = editor.getAttributes('link');
-    const highlightAttrs = editor.getAttributes('highlight');
+    // Get all marks from the current position
+    const { from, to } = editor.state.selection;
+    const marks = editor.state.doc.resolve(from).marks();
+    
+    // Parse marks to get formatting
+    let color: string | null = null;
+    let highlight: string | null = null;
+    let link: string | null = null;
+    
+    marks.forEach(mark => {
+      if (mark.type.name === 'textStyle' && mark.attrs.color) {
+        color = mark.attrs.color;
+      }
+      if (mark.type.name === 'highlight' && mark.attrs.color) {
+        highlight = mark.attrs.color;
+      }
+      if (mark.type.name === 'link' && mark.attrs.href) {
+        link = mark.attrs.href;
+      }
+    });
     
     // Get text alignment from paragraph or heading
     let textAlign: string | null = null;
-    const { from } = editor.state.selection;
     const resolvedPos = editor.state.doc.resolve(from);
     const node = resolvedPos.parent;
     if (node.attrs?.textAlign) {
       textAlign = node.attrs.textAlign;
     }
     
-    setCopiedFormat({
+    const format: CopiedFormat = {
       bold: editor.isActive('bold'),
       italic: editor.isActive('italic'),
       underline: editor.isActive('underline'),
       strike: editor.isActive('strike'),
       code: editor.isActive('code'),
-      color: attrs.color || null,
-      highlight: highlightAttrs.color || null,
+      color: color,
+      highlight: highlight,
       textAlign: textAlign,
-      link: linkAttrs.href || null,
-      bulletList: editor.isActive('bulletList'),
-      orderedList: editor.isActive('orderedList'),
-      taskList: editor.isActive('taskList'),
-      blockquote: editor.isActive('blockquote'),
+      link: link,
+    };
+    
+    setCopiedFormat(format);
+    toast({
+      title: "Style copié",
+      description: "Sélectionnez du texte et cliquez à nouveau pour appliquer le style",
     });
-  }, [editor]);
+  }, [editor, toast]);
   
   const applyFormat = useCallback(() => {
     if (!editor || !copiedFormat) return;
     
-    let chain = editor.chain().focus();
+    // First, clear all existing marks
+    editor.chain().focus().unsetAllMarks().run();
     
-    // Apply text marks
-    if (copiedFormat.bold) chain = chain.setBold();
-    else chain = chain.unsetBold();
+    // Then apply marks one by one
+    if (copiedFormat.bold) {
+      editor.chain().focus().setBold().run();
+    }
     
-    if (copiedFormat.italic) chain = chain.setItalic();
-    else chain = chain.unsetItalic();
+    if (copiedFormat.italic) {
+      editor.chain().focus().setItalic().run();
+    }
     
-    if (copiedFormat.underline) chain = chain.setUnderline();
-    else chain = chain.unsetUnderline();
+    if (copiedFormat.underline) {
+      editor.chain().focus().setUnderline().run();
+    }
     
-    if (copiedFormat.strike) chain = chain.setStrike();
-    else chain = chain.unsetStrike();
+    if (copiedFormat.strike) {
+      editor.chain().focus().setStrike().run();
+    }
     
-    if (copiedFormat.code) chain = chain.setCode();
-    else chain = chain.unsetCode();
+    if (copiedFormat.code) {
+      editor.chain().focus().setCode().run();
+    }
     
-    // Apply color
+    // Apply color - must set TextStyle mark first
     if (copiedFormat.color) {
-      chain = chain.setColor(copiedFormat.color);
-    } else {
-      chain = chain.unsetColor();
+      editor.chain().focus().setColor(copiedFormat.color).run();
     }
     
     // Apply highlight
     if (copiedFormat.highlight) {
-      chain = chain.setHighlight({ color: copiedFormat.highlight });
-    } else {
-      chain = chain.unsetHighlight();
+      editor.chain().focus().setHighlight({ color: copiedFormat.highlight }).run();
     }
     
     // Apply text alignment
     if (copiedFormat.textAlign) {
-      chain = chain.setTextAlign(copiedFormat.textAlign);
+      editor.chain().focus().setTextAlign(copiedFormat.textAlign).run();
     }
     
     // Apply link
     if (copiedFormat.link) {
-      chain = chain.setLink({ href: copiedFormat.link });
-    } else {
-      chain = chain.unsetLink();
+      editor.chain().focus().setLink({ href: copiedFormat.link }).run();
     }
-    
-    chain.run();
     
     // Clear copied format after applying
     setCopiedFormat(null);
-  }, [editor, copiedFormat]);
+    
+    toast({
+      title: "Style appliqué",
+      description: "Le formatage a été appliqué au texte sélectionné",
+    });
+  }, [editor, copiedFormat, toast]);
   
   const handleFormatPainter = useCallback(() => {
     if (!editor) return;
