@@ -264,23 +264,27 @@
 
   ul[data-type="taskList"] li {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
   }
 
   ul[data-type="taskList"] li > label {
     flex-shrink: 0;
-    margin-top: 0.125rem;
     display: flex;
     align-items: center;
-    height: 1.5rem;
+    justify-content: center;
   }
 
   ul[data-type="taskList"] li > div {
     flex: 1;
-    min-height: 1.5rem;
     display: flex;
     align-items: center;
+  }
+
+  /* Reset paragraph margins inside task items */
+  ul[data-type="taskList"] li > div p {
+    margin: 0;
+    padding: 0;
   }
 
   /* Ensure nested task lists also have no bullets */
@@ -294,6 +298,7 @@
     height: 1rem;
     cursor: pointer;
     accent-color: hsl(var(--primary));
+    margin: 0;
   }
 
   /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
