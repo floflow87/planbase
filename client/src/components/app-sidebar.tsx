@@ -39,7 +39,7 @@ export function AppSidebar() {
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Product", url: "/product", icon: Package },
-    { title: "Mindmaps", url: "/mindmaps", icon: Network },
+    { title: "Whiteboards", url: "/mindmaps", icon: Network },
     { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
   ];

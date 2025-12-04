@@ -132,11 +132,7 @@ export default function Mindmaps() {
 
   return (
     <div className="p-6 h-full overflow-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Mindmaps</h2>
-          <p className="text-muted-foreground">Organisez visuellement vos idées, projets et flux</p>
-        </div>
+      <div className="flex justify-end items-center mb-6">
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>
             <Button data-testid="button-new-mindmap">
@@ -169,27 +165,6 @@ export default function Mindmaps() {
                   onChange={(e) => setNewMindmap({ ...newMindmap, description: e.target.value })}
                   placeholder="Description de la mindmap..."
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="kind">Type de vue</Label>
-                <Select
-                  value={newMindmap.kind}
-                  onValueChange={(value: MindmapKind) => setNewMindmap({ ...newMindmap, kind: value })}
-                >
-                  <SelectTrigger data-testid="select-mindmap-kind">
-                    <SelectValue placeholder="Sélectionner un type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(MINDMAP_KIND_LABELS).map(([key, { label, icon: Icon }]) => (
-                      <SelectItem key={key} value={key}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
-                          {label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client">Client (optionnel)</Label>

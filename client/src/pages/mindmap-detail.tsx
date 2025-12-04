@@ -5,7 +5,6 @@ import { useParams, useLocation } from "wouter";
 import ReactFlow, {
   Node,
   Edge,
-  Controls,
   Background,
   MiniMap,
   useNodesState,
@@ -447,6 +446,9 @@ function getIconByName(name: string): typeof Lightbulb | null {
   }
   return null;
 }
+
+// Flattened list of all icons (no categories) for simplified picker
+const ALL_ICONS = Object.values(ICON_PACKS).flatMap(pack => pack.icons);
 
 // Text colors for rich text
 const TEXT_COLORS = [
@@ -976,7 +978,6 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
 
 function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNodeData; selected?: boolean }) {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  const [selectedIconCategory, setSelectedIconCategory] = useState<string>("ux");
   
   const config = NODE_KIND_CONFIG[data.kind] || NODE_KIND_CONFIG.generic;
   const nodeStyle = data.nodeStyle || {};
@@ -1136,47 +1137,34 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
                 <Icon className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-2" align="start">
-              <div className="space-y-3">
-                <div className="text-sm font-medium">Choisir une icône</div>
-                <div className="flex flex-wrap gap-1">
-                  {Object.entries(ICON_PACKS).map(([key, pack]) => (
-                    <Button
-                      key={key}
-                      variant={selectedIconCategory === key ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-7"
-                      onClick={() => setSelectedIconCategory(key)}
-                    >
-                      {pack.label}
-                    </Button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1 max-h-[200px] overflow-y-auto">
+            <PopoverContent className="w-72 p-2 bg-white" align="start">
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-gray-600">Choisir une icône</div>
+                <div className="grid grid-cols-8 gap-1 max-h-[240px] overflow-y-auto">
                   {/* Reset to default icon */}
                   <button
-                    className={`w-8 h-8 rounded border flex items-center justify-center hover:bg-muted ${!nodeStyle.customIcon ? "ring-2 ring-primary" : ""}`}
+                    className={`w-7 h-7 rounded border flex items-center justify-center hover:bg-gray-100 ${!nodeStyle.customIcon ? "ring-2 ring-primary bg-primary/10" : ""}`}
                     onClick={() => {
                       data.onUpdateStyle?.({ customIcon: undefined });
                       setIconPickerOpen(false);
                     }}
                     title="Icône par défaut"
                   >
-                    <X className="w-4 h-4 text-muted-foreground" />
+                    <X className="w-3.5 h-3.5 text-gray-500" />
                   </button>
-                  {ICON_PACKS[selectedIconCategory]?.icons.map((iconItem) => {
+                  {ALL_ICONS.map((iconItem) => {
                     const IconComponent = iconItem.icon;
                     return (
                       <button
                         key={iconItem.name}
-                        className={`w-8 h-8 rounded border flex items-center justify-center hover:bg-muted ${nodeStyle.customIcon === iconItem.name ? "ring-2 ring-primary" : ""}`}
+                        className={`w-7 h-7 rounded border flex items-center justify-center hover:bg-gray-100 ${nodeStyle.customIcon === iconItem.name ? "ring-2 ring-primary bg-primary/10" : ""}`}
                         onClick={() => {
                           data.onUpdateStyle?.({ customIcon: iconItem.name });
                           setIconPickerOpen(false);
                         }}
                         title={iconItem.name}
                       >
-                        <IconComponent className="w-4 h-4" />
+                        <IconComponent className="w-3.5 h-3.5" />
                       </button>
                     );
                   })}
@@ -1377,106 +1365,7 @@ function MindmapCanvas() {
     return DEFAULT_LAYOUT_CONFIGS[kind] || DEFAULT_LAYOUT_CONFIGS.generic;
   }, [data?.mindmap?.layoutConfig, data?.mindmap?.kind]);
 
-  const handleNodeStyleUpdate = useCallback((nodeId: string, styleUpdate: Partial<NodeStyle>) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          const currentStyle = node.data.nodeStyle || {};
-          const newStyle = { ...currentStyle, ...styleUpdate };
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              nodeStyle: newStyle,
-            },
-          };
-        }
-        return node;
-      })
-    );
-    updateNodeMutation.mutate({
-      nodeId,
-      updates: {
-        style: styleUpdate,
-      },
-    });
-  }, []);
-
-  const handleTextNodeEdit = useCallback((nodeId: string, newText: string) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newText,
-            },
-          };
-        }
-        return node;
-      })
-    );
-    updateNodeMutation.mutate({
-      nodeId,
-      updates: {
-        title: newText,
-      },
-    });
-  }, []);
-
-  useEffect(() => {
-    if (data) {
-      const flowNodes: Node[] = data.nodes.map((node) => ({
-        id: node.id,
-        type: node.type === "text" ? "text" : "custom",
-        position: { x: parseFloat(node.x), y: parseFloat(node.y) },
-        data: {
-          label: node.title,
-          description: node.description,
-          imageUrl: node.imageUrl,
-          kind: node.type as MindmapNodeKind,
-          linkedEntityType: node.linkedEntityType,
-          linkedEntityId: node.linkedEntityId,
-          layoutConfig,
-          nodeStyle: node.style as NodeStyle || {},
-          onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
-          onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
-        },
-      }));
-
-      const flowEdges: Edge[] = data.edges.map((edge) => {
-        const edgeStyle = edge.style as EdgeStyle || {};
-        // Default style is solid (no strokeDasharray), only dashed if explicitly set
-        const isDashed = edgeStyle.strokeDasharray === "5,5";
-        return {
-          id: edge.id,
-          source: edge.sourceNodeId,
-          target: edge.targetNodeId,
-          label: edge.label || undefined,
-          type: "default",
-          animated: edge.isDraft,
-          markerEnd: edgeStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
-                     edgeStyle.markerEnd === "none" ? undefined :
-                     (edge.isDraft ? undefined : { type: MarkerType.ArrowClosed }),
-          markerStart: edgeStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } : undefined,
-          style: {
-            stroke: edgeStyle.stroke || (edge.isDraft ? "#94a3b8" : "#22c55e"),
-            strokeWidth: edgeStyle.strokeWidth || (edge.isDraft ? 1 : 2),
-            strokeDasharray: isDashed ? "5,5" : undefined,
-          },
-          data: {
-            isDraft: edge.isDraft,
-            linkedEntityLinkId: edge.linkedEntityLinkId,
-            edgeStyle: edgeStyle,
-          },
-        };
-      });
-
-      setNodes(flowNodes);
-      setEdges(flowEdges);
-    }
-  }, [data, setNodes, setEdges, layoutConfig, handleNodeStyleUpdate, handleTextNodeEdit]);
+  // Note: The useEffect that transforms data to flowNodes/flowEdges is moved after handleNodeStyleUpdate and handleTextNodeEdit definitions
 
   // Restore viewport from localStorage when nodes are loaded
   useEffect(() => {
@@ -1568,6 +1457,122 @@ function MindmapCanvas() {
       });
     },
   });
+
+  // Style and text node update handlers - must be defined after updateNodeMutation
+  const handleNodeStyleUpdate = useCallback((nodeId: string, styleUpdate: Partial<NodeStyle>) => {
+    // Use functional update with nodes to safely access current state and compute merged style
+    setNodes((currentNodes) => {
+      // Find the target node to get its current style
+      const targetNode = currentNodes.find(n => n.id === nodeId);
+      if (!targetNode) {
+        // Node not found, skip update
+        return currentNodes;
+      }
+      
+      // Compute the fully merged style
+      const currentStyle = targetNode.data.nodeStyle || {};
+      const mergedStyle: NodeStyle = { ...currentStyle, ...styleUpdate };
+      
+      // Send the complete merged style to the backend (inside functional update to have correct value)
+      updateNodeMutation.mutate({
+        nodeId,
+        updates: {
+          style: mergedStyle,
+        },
+      });
+      
+      // Return updated nodes array with the merged style
+      return currentNodes.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              nodeStyle: mergedStyle,
+            },
+          };
+        }
+        return node;
+      });
+    });
+  }, [updateNodeMutation]);
+
+  const handleTextNodeEdit = useCallback((nodeId: string, newText: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newText,
+            },
+          };
+        }
+        return node;
+      })
+    );
+    updateNodeMutation.mutate({
+      nodeId,
+      updates: {
+        title: newText,
+      },
+    });
+  }, [updateNodeMutation]);
+
+  // Transform data into ReactFlow nodes and edges
+  useEffect(() => {
+    if (data) {
+      const flowNodes: Node[] = data.nodes.map((node) => ({
+        id: node.id,
+        type: node.type === "text" ? "text" : "custom",
+        position: { x: parseFloat(node.x), y: parseFloat(node.y) },
+        data: {
+          label: node.title,
+          description: node.description,
+          imageUrl: node.imageUrl,
+          kind: node.type as MindmapNodeKind,
+          linkedEntityType: node.linkedEntityType,
+          linkedEntityId: node.linkedEntityId,
+          layoutConfig,
+          nodeStyle: node.style as NodeStyle || {},
+          onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
+          onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
+        },
+      }));
+
+      const flowEdges: Edge[] = data.edges.map((edge) => {
+        const edgeStyle = edge.style as EdgeStyle || {};
+        // Default style is solid (no strokeDasharray), only dashed if explicitly set
+        const isDashed = edgeStyle.strokeDasharray === "5,5";
+        return {
+          id: edge.id,
+          source: edge.sourceNodeId,
+          target: edge.targetNodeId,
+          label: edge.label || undefined,
+          type: "default",
+          animated: edge.isDraft,
+          markerEnd: edgeStyle.markerEnd === "arrow" ? { type: MarkerType.ArrowClosed } : 
+                     edgeStyle.markerEnd === "none" ? undefined :
+                     (edge.isDraft ? undefined : { type: MarkerType.ArrowClosed }),
+          markerStart: edgeStyle.markerStart === "arrow" ? { type: MarkerType.ArrowClosed } : undefined,
+          style: {
+            stroke: edgeStyle.stroke || (edge.isDraft ? "#94a3b8" : "#22c55e"),
+            strokeWidth: edgeStyle.strokeWidth || (edge.isDraft ? 1 : 2),
+            strokeDasharray: isDashed ? "5,5" : undefined,
+          },
+          data: {
+            isDraft: edge.isDraft,
+            linkedEntityLinkId: edge.linkedEntityLinkId,
+            edgeStyle: edgeStyle,
+          },
+        };
+      });
+
+      setNodes(flowNodes);
+      setEdges(flowEdges);
+    }
+  }, [data, setNodes, setEdges, layoutConfig, handleNodeStyleUpdate, handleTextNodeEdit]);
 
   const deleteNodeMutation = useMutation({
     mutationFn: async (nodeId: string) => {
@@ -2784,7 +2789,6 @@ function MindmapCanvas() {
             </svg>
           )}
           <Background variant={BackgroundVariant.Dots} gap={snapEnabled ? gridSize : 20} size={1} />
-          <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(n) => {
               const kind = n.data?.kind as MindmapNodeKind;
@@ -3073,14 +3077,14 @@ function MindmapCanvas() {
         {isAddingNode && newNodeKind !== "text" && (
           <div className="absolute top-4 right-20 z-50">
             <Card className="w-80">
-              <CardContent className="p-4 space-y-4">
+              <CardContent className="p-3 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {(() => {
                       const NodeIcon = NODE_KIND_CONFIG[newNodeKind].icon;
-                      return <NodeIcon className={`w-5 h-5 ${NODE_KIND_CONFIG[newNodeKind].color}`} />;
+                      return <NodeIcon className={`w-4 h-4 ${NODE_KIND_CONFIG[newNodeKind].color}`} />;
                     })()}
-                    <h3 className="font-medium">
+                    <h3 className="text-sm font-medium">
                       Nouveau {NODE_KIND_CONFIG[newNodeKind].label}
                     </h3>
                   </div>
@@ -3097,9 +3101,9 @@ function MindmapCanvas() {
                 </div>
 
                 {canLinkEntity(newNodeKind) && (
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Link2 className="w-4 h-4" />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-2">
+                      <Link2 className="w-3 h-3" />
                       Lier à un {NODE_KIND_CONFIG[newNodeKind].label.toLowerCase()} existant
                     </Label>
                     {newLinkedEntityId ? (
@@ -3159,8 +3163,8 @@ function MindmapCanvas() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="node-label">Nom *</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="node-label" className="text-xs">Nom *</Label>
                   <Input
                     id="node-label"
                     value={newNodeLabel}
@@ -3170,8 +3174,8 @@ function MindmapCanvas() {
                     autoFocus={!canLinkEntity(newNodeKind)}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="node-description">Description</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="node-description" className="text-xs">Description</Label>
                   <Textarea
                     id="node-description"
                     value={newNodeDescription}
@@ -3196,9 +3200,9 @@ function MindmapCanvas() {
         {selectedNode && selectedNode.type !== "text" && (
           <div className="absolute top-4 left-4 z-50 w-80">
             <Card>
-              <CardContent className="p-4 space-y-4">
+              <CardContent className="p-3 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Modifier le noeud</h4>
+                  <h4 className="text-sm font-medium">Modifier le noeud</h4>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -3208,8 +3212,8 @@ function MindmapCanvas() {
                   </Button>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-title">Titre</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-title" className="text-xs">Titre</Label>
                   <Input
                     id="edit-title"
                     value={editTitle}
@@ -3218,8 +3222,8 @@ function MindmapCanvas() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-type">Type</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-type" className="text-xs">Type</Label>
                   <Select value={editType} onValueChange={(v) => setEditType(v as MindmapNodeKind)}>
                     <SelectTrigger data-testid="select-edit-type">
                       <SelectValue />
@@ -3237,8 +3241,8 @@ function MindmapCanvas() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-description">Description</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-description" className="text-xs">Description</Label>
                   <Textarea
                     id="edit-description"
                     value={editDescription}
@@ -3248,8 +3252,8 @@ function MindmapCanvas() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Image</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Image</Label>
                   <input
                     type="file"
                     accept="image/*"
@@ -3340,9 +3344,9 @@ function MindmapCanvas() {
         {selectedEdge && (
           <div className="absolute top-4 left-4 z-50 w-80">
             <Card>
-              <CardContent className="p-4 space-y-4">
+              <CardContent className="p-3 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Connecteur</h4>
+                  <h4 className="text-sm font-medium">Connecteur</h4>
                   <Button
                     variant="ghost"
                     size="icon"
