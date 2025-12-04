@@ -731,11 +731,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
       />
       
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-white dark:bg-zinc-900 border rounded-lg shadow-lg max-w-[400px]">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Couleur de fond">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
                 <div 
                   className="w-4 h-4 rounded border"
                   style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
@@ -760,7 +760,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Text color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Couleur du texte">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur du texte">
                 <Type className="w-4 h-4" style={{ color: nodeStyle.textColor || "currentColor" }} />
               </Button>
             </PopoverTrigger>
@@ -786,7 +786,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Bordure">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
                 <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
               </Button>
             </PopoverTrigger>
@@ -822,7 +822,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Taille de police">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
                 <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
               </Button>
             </PopoverTrigger>
@@ -1043,11 +1043,11 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
       />
 
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-white dark:bg-zinc-900 border rounded-lg shadow-lg max-w-[450px]">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[450px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Couleur de fond">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Couleur de fond">
                 <div 
                   className="w-4 h-4 rounded border"
                   style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
@@ -1074,7 +1074,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Bordure">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Bordure">
                 <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
               </Button>
             </PopoverTrigger>
@@ -1110,7 +1110,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Taille de police">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Taille de police">
                 <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
               </Button>
             </PopoverTrigger>
@@ -1133,7 +1133,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           <Button
             variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800"
+            className="h-7 w-7"
             onClick={() => data.onUpdateStyle?.({ fontWeight: nodeStyle.fontWeight === "bold" ? "normal" : "bold" })}
             title="Gras"
           >
@@ -1145,7 +1145,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Icon picker */}
           <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800" title="Changer l'icône">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Changer l'icône">
                 <Icon className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
@@ -1189,7 +1189,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           <Button
             variant={nodeStyle.hasShadow ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-zinc-800"
+            className="h-7 w-7"
             onClick={() => data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow })}
             title="Ombre"
           >
@@ -1474,25 +1474,8 @@ function MindmapCanvas() {
       const res = await apiRequest(`/api/mindmaps/${id}/nodes`, "POST", nodeData);
       return await res.json();
     },
-    onSuccess: (newNode: MindmapNodeType) => {
-      // Add the new node locally instead of refetching everything
-      const rfNode: Node = {
-        id: newNode.id,
-        type: newNode.type === "text" ? "text" : "custom",
-        position: { x: parseFloat(newNode.positionX || "0"), y: parseFloat(newNode.positionY || "0") },
-        data: {
-          label: newNode.title,
-          description: newNode.description,
-          type: newNode.type,
-          imageUrl: newNode.imageUrl,
-          nodeStyle: newNode.style || {},
-          linkedEntityType: newNode.linkedEntityType,
-          linkedEntityId: newNode.linkedEntityId,
-          onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(newNode.id, styleUpdate),
-          onEndEdit: (newText: string) => handleTextNodeEdit(newNode.id, newText),
-        },
-      };
-      setNodes((nds) => [...nds, rfNode]);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
       setIsAddingNode(false);
       setNewNodeLabel("");
       setNewNodeDescription("");
@@ -1519,7 +1502,9 @@ function MindmapCanvas() {
     }) => {
       return await apiRequest(`/api/mindmap-nodes/${nodeId}`, "PATCH", updates);
     },
-    // No onSuccess - we already updated the UI optimistically
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps", id] });
+    },
     onError: (error: Error) => {
       toast({
         title: "Erreur",
@@ -2042,7 +2027,15 @@ function MindmapCanvas() {
     // Use the first selected node's Y as reference
     const referenceY = selectedNodes[0].position.y;
 
-    // Update UI immediately
+    selectedNodes.forEach((node) => {
+      if (node.position.y !== referenceY) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { y: referenceY.toString() },
+        });
+      }
+    });
+
     setNodes((nds) =>
       nds.map((node) => {
         if (selectedNodes.some((n) => n.id === node.id)) {
@@ -2052,17 +2045,8 @@ function MindmapCanvas() {
       })
     );
 
-    // Batch update to server
-    const updates = selectedNodes
-      .filter(node => node.position.y !== referenceY)
-      .map(node => ({ id: node.id, positionY: referenceY }));
-    
-    if (updates.length > 0) {
-      apiRequest(`/api/mindmaps/${id}/nodes/batch`, "PATCH", { updates }).catch(console.error);
-    }
-
     toast({ title: "Nodes alignés horizontalement" });
-  }, [nodes, selectedNode, id, setNodes, toast]);
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
 
   // Align selected nodes vertically (same X)
   const alignNodesVertical = useCallback(() => {
@@ -2077,7 +2061,15 @@ function MindmapCanvas() {
     // Use the first selected node's X as reference
     const referenceX = selectedNodes[0].position.x;
 
-    // Update UI immediately
+    selectedNodes.forEach((node) => {
+      if (node.position.x !== referenceX) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { x: referenceX.toString() },
+        });
+      }
+    });
+
     setNodes((nds) =>
       nds.map((node) => {
         if (selectedNodes.some((n) => n.id === node.id)) {
@@ -2087,17 +2079,8 @@ function MindmapCanvas() {
       })
     );
 
-    // Batch update to server
-    const updates = selectedNodes
-      .filter(node => node.position.x !== referenceX)
-      .map(node => ({ id: node.id, positionX: referenceX }));
-    
-    if (updates.length > 0) {
-      apiRequest(`/api/mindmaps/${id}/nodes/batch`, "PATCH", { updates }).catch(console.error);
-    }
-
     toast({ title: "Nodes alignés verticalement" });
-  }, [nodes, selectedNode, id, setNodes, toast]);
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
 
   // Distribute nodes horizontally with equal spacing
   const distributeNodesHorizontal = useCallback(() => {
@@ -2115,7 +2098,16 @@ function MindmapCanvas() {
     const lastX = sortedNodes[sortedNodes.length - 1].position.x;
     const spacing = (lastX - firstX) / (sortedNodes.length - 1);
 
-    // Update UI immediately
+    sortedNodes.forEach((node, index) => {
+      const newX = firstX + spacing * index;
+      if (node.position.x !== newX) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { x: newX.toString() },
+        });
+      }
+    });
+
     setNodes((nds) =>
       nds.map((node) => {
         const sortedIndex = sortedNodes.findIndex((n) => n.id === node.id);
@@ -2127,16 +2119,8 @@ function MindmapCanvas() {
       })
     );
 
-    // Batch update to server
-    const updates = sortedNodes.map((node, index) => ({
-      id: node.id,
-      positionX: firstX + spacing * index,
-    }));
-    
-    apiRequest(`/api/mindmaps/${id}/nodes/batch`, "PATCH", { updates }).catch(console.error);
-
     toast({ title: "Nodes distribués horizontalement" });
-  }, [nodes, selectedNode, id, setNodes, toast]);
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
 
   // Distribute nodes vertically with equal spacing
   const distributeNodesVertical = useCallback(() => {
@@ -2154,7 +2138,16 @@ function MindmapCanvas() {
     const lastY = sortedNodes[sortedNodes.length - 1].position.y;
     const spacing = (lastY - firstY) / (sortedNodes.length - 1);
 
-    // Update UI immediately
+    sortedNodes.forEach((node, index) => {
+      const newY = firstY + spacing * index;
+      if (node.position.y !== newY) {
+        updateNodeMutation.mutate({
+          nodeId: node.id,
+          updates: { y: newY.toString() },
+        });
+      }
+    });
+
     setNodes((nds) =>
       nds.map((node) => {
         const sortedIndex = sortedNodes.findIndex((n) => n.id === node.id);
@@ -2166,16 +2159,8 @@ function MindmapCanvas() {
       })
     );
 
-    // Batch update to server
-    const updates = sortedNodes.map((node, index) => ({
-      id: node.id,
-      positionY: firstY + spacing * index,
-    }));
-    
-    apiRequest(`/api/mindmaps/${id}/nodes/batch`, "PATCH", { updates }).catch(console.error);
-
     toast({ title: "Nodes distribués verticalement" });
-  }, [nodes, selectedNode, id, setNodes, toast]);
+  }, [nodes, selectedNode, updateNodeMutation, setNodes, toast]);
 
   // Auto-layout types
   type LayoutType = "tree" | "flowchart" | "grid" | "circle" | "hierarchy";
@@ -2360,7 +2345,14 @@ function MindmapCanvas() {
       }
     }
 
-    // Apply new positions locally immediately (optimistic update)
+    // Apply new positions
+    Object.entries(newPositions).forEach(([nodeId, pos]) => {
+      updateNodeMutation.mutate({
+        nodeId,
+        updates: { x: pos.x.toString(), y: pos.y.toString() },
+      });
+    });
+
     setNodes((nds) =>
       nds.map((node) => {
         const newPos = newPositions[node.id];
@@ -2371,20 +2363,8 @@ function MindmapCanvas() {
       })
     );
 
-    // Fit view after reorganization immediately
-    setTimeout(() => fitView({ padding: 0.2 }), 50);
-
-    // Batch update to server (non-blocking)
-    const updates = Object.entries(newPositions).map(([nodeId, pos]) => ({
-      id: nodeId,
-      positionX: pos.x,
-      positionY: pos.y,
-    }));
-    
-    apiRequest(`/api/mindmaps/${id}/nodes/batch`, "PATCH", { updates }).catch((error) => {
-      console.error("Batch update failed:", error);
-      toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" });
-    });
+    // Fit view after reorganization
+    setTimeout(() => fitView({ padding: 0.2 }), 100);
 
     const layoutNames: Record<LayoutType, string> = {
       tree: "Arbre",
@@ -3475,6 +3455,25 @@ function MindmapCanvas() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     data-testid="input-edit-title"
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-type" className="text-xs">Type</Label>
+                  <Select value={editType} onValueChange={(v) => setEditType(v as MindmapNodeKind)}>
+                    <SelectTrigger data-testid="select-edit-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(NODE_KIND_CONFIG).map(([kind, { label, icon: Icon, color }]) => (
+                        <SelectItem key={kind} value={kind}>
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${color}`} />
+                            {label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1.5">
