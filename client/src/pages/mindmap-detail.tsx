@@ -1358,86 +1358,6 @@ function MindmapCanvas() {
     setRedoStack([]);
   }, [serializeState, nodes.length]);
 
-  // Rehydrate nodes by adding back the callback handlers
-  // Selection state is preserved from the parsed snapshot
-  const rehydrateNodes = useCallback((parsedNodes: Node[]): Node[] => {
-    return parsedNodes.map(node => ({
-      ...node,
-      // Preserve selection state from snapshot - don't override
-      data: {
-        ...node.data,
-        onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
-        onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
-      }
-    }));
-  }, [handleNodeStyleUpdate, handleTextNodeEdit]);
-
-  // Undo function - uses functional updaters to avoid stale closures
-  const undo = useCallback(() => {
-    setUndoStack(prevUndo => {
-      if (prevUndo.length === 0) return prevUndo;
-      
-      isUndoRedoAction.current = true;
-      const previousState = prevUndo[prevUndo.length - 1];
-      
-      // Save current state to redo stack before restoring (serialize for immutability)
-      const currentSnapshot = serializeState();
-      setRedoStack(prevRedo => [...prevRedo, currentSnapshot]);
-      
-      // Restore previous state - parse JSON and rehydrate handlers
-      try {
-        const parsedNodes: Node[] = JSON.parse(previousState.nodesJson);
-        const parsedEdges: Edge[] = JSON.parse(previousState.edgesJson);
-        const restoredNodes = rehydrateNodes(parsedNodes);
-        setNodes(restoredNodes);
-        setEdges(parsedEdges);
-        toast({ title: "Action annulée" });
-      } catch (e) {
-        console.error("Failed to parse undo state:", e);
-      }
-      
-      setTimeout(() => {
-        isUndoRedoAction.current = false;
-      }, 100);
-      
-      // Return updated stack without the last element
-      return prevUndo.slice(0, -1);
-    });
-  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
-
-  // Redo function - uses functional updaters to avoid stale closures
-  const redo = useCallback(() => {
-    setRedoStack(prevRedo => {
-      if (prevRedo.length === 0) return prevRedo;
-      
-      isUndoRedoAction.current = true;
-      const nextState = prevRedo[prevRedo.length - 1];
-      
-      // Save current state to undo stack before restoring (serialize for immutability)
-      const currentSnapshot = serializeState();
-      setUndoStack(prevUndo => [...prevUndo, currentSnapshot]);
-      
-      // Restore next state - parse JSON and rehydrate handlers
-      try {
-        const parsedNodes: Node[] = JSON.parse(nextState.nodesJson);
-        const parsedEdges: Edge[] = JSON.parse(nextState.edgesJson);
-        const restoredNodes = rehydrateNodes(parsedNodes);
-        setNodes(restoredNodes);
-        setEdges(parsedEdges);
-        toast({ title: "Action rétablie" });
-      } catch (e) {
-        console.error("Failed to parse redo state:", e);
-      }
-      
-      setTimeout(() => {
-        isUndoRedoAction.current = false;
-      }, 100);
-      
-      // Return updated stack without the last element
-      return prevRedo.slice(0, -1);
-    });
-  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
-
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -1655,6 +1575,85 @@ function MindmapCanvas() {
       },
     });
   }, [updateNodeMutation]);
+
+  // Rehydrate nodes by adding back the callback handlers
+  // Selection state is preserved from the parsed snapshot
+  const rehydrateNodes = useCallback((parsedNodes: Node[]): Node[] => {
+    return parsedNodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
+        onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
+      }
+    }));
+  }, [handleNodeStyleUpdate, handleTextNodeEdit]);
+
+  // Undo function - uses functional updaters to avoid stale closures
+  const undo = useCallback(() => {
+    setUndoStack(prevUndo => {
+      if (prevUndo.length === 0) return prevUndo;
+      
+      isUndoRedoAction.current = true;
+      const previousState = prevUndo[prevUndo.length - 1];
+      
+      // Save current state to redo stack before restoring (serialize for immutability)
+      const currentSnapshot = serializeState();
+      setRedoStack(prevRedo => [...prevRedo, currentSnapshot]);
+      
+      // Restore previous state - parse JSON and rehydrate handlers
+      try {
+        const parsedNodes: Node[] = JSON.parse(previousState.nodesJson);
+        const parsedEdges: Edge[] = JSON.parse(previousState.edgesJson);
+        const restoredNodes = rehydrateNodes(parsedNodes);
+        setNodes(restoredNodes);
+        setEdges(parsedEdges);
+        toast({ title: "Action annulée" });
+      } catch (e) {
+        console.error("Failed to parse undo state:", e);
+      }
+      
+      setTimeout(() => {
+        isUndoRedoAction.current = false;
+      }, 100);
+      
+      // Return updated stack without the last element
+      return prevUndo.slice(0, -1);
+    });
+  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
+
+  // Redo function - uses functional updaters to avoid stale closures
+  const redo = useCallback(() => {
+    setRedoStack(prevRedo => {
+      if (prevRedo.length === 0) return prevRedo;
+      
+      isUndoRedoAction.current = true;
+      const nextState = prevRedo[prevRedo.length - 1];
+      
+      // Save current state to undo stack before restoring (serialize for immutability)
+      const currentSnapshot = serializeState();
+      setUndoStack(prevUndo => [...prevUndo, currentSnapshot]);
+      
+      // Restore next state - parse JSON and rehydrate handlers
+      try {
+        const parsedNodes: Node[] = JSON.parse(nextState.nodesJson);
+        const parsedEdges: Edge[] = JSON.parse(nextState.edgesJson);
+        const restoredNodes = rehydrateNodes(parsedNodes);
+        setNodes(restoredNodes);
+        setEdges(parsedEdges);
+        toast({ title: "Action rétablie" });
+      } catch (e) {
+        console.error("Failed to parse redo state:", e);
+      }
+      
+      setTimeout(() => {
+        isUndoRedoAction.current = false;
+      }, 100);
+      
+      // Return updated stack without the last element
+      return prevRedo.slice(0, -1);
+    });
+  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
 
   // Transform data into ReactFlow nodes and edges - preserve selection state
   useEffect(() => {
