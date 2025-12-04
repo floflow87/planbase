@@ -534,6 +534,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     
     setCopiedFormat(format);
     toast({
+      variant: "success",
       title: "Style copié",
       description: "Sélectionnez du texte et cliquez à nouveau pour appliquer le style",
     });
@@ -590,6 +591,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     setCopiedFormat(null);
     
     toast({
+      variant: "success",
       title: "Style appliqué",
       description: "Le formatage a été appliqué au texte sélectionné",
     });
@@ -882,99 +884,103 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             <Separator orientation="vertical" className="h-6 mx-1" />
 
             <Popover>
-              <PopoverTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-white dark:hover:bg-muted"
                       data-testid="button-text-color"
                     >
                       <Palette className="w-4 h-4" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Couleur du texte</TooltipContent>
-                </Tooltip>
-              </PopoverTrigger>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Couleur du texte</TooltipContent>
+              </Tooltip>
               <PopoverContent 
-                className="w-auto p-2 bg-white dark:bg-card"
-                onPointerDownOutside={(e) => e.preventDefault()}
+                className="w-auto p-3 bg-card"
+                align="start"
               >
-                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {TEXT_COLORS.map((color, index) => (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Couleur du texte</p>
+                  <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                    {TEXT_COLORS.map((color, index) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
+                        style={{ backgroundColor: color.value }}
+                        onClick={() => {
+                          editor.chain().focus().setColor(color.value).run();
+                        }}
+                        title={color.name}
+                        data-testid={`button-text-color-${index}`}
+                      />
+                    ))}
                     <button
-                      key={color.value}
-                      className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
-                      style={{ backgroundColor: color.value }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        editor.chain().focus().setColor(color.value).run();
+                      type="button"
+                      className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
+                      onClick={() => {
+                        editor.chain().focus().unsetColor().run();
                       }}
-                      title={color.name}
-                      data-testid={`button-text-color-${index}`}
-                    />
-                  ))}
-                  <button
-                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background flex items-center justify-center text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      editor.chain().focus().unsetColor().run();
-                    }}
-                    title="Réinitialiser"
-                    data-testid="button-text-color-reset"
-                  >
-                    X
-                  </button>
+                      title="Réinitialiser"
+                      data-testid="button-text-color-reset"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
 
             <Popover>
-              <PopoverTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
                     <Button
                       variant={editor.isActive('highlight') ? 'secondary' : 'ghost'}
                       size="sm"
-                      className="hover:bg-white dark:hover:bg-muted"
                       data-testid="button-highlight"
                     >
                       <Highlighter className="w-4 h-4" />
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Surligner</TooltipContent>
-                </Tooltip>
-              </PopoverTrigger>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Surligner</TooltipContent>
+              </Tooltip>
               <PopoverContent 
-                className="w-auto p-2 bg-white dark:bg-card"
-                onPointerDownOutside={(e) => e.preventDefault()}
+                className="w-auto p-3 bg-card"
+                align="start"
               >
-                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {HIGHLIGHT_COLORS.map((color, index) => (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Couleur de surlignage</p>
+                  <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                    {HIGHLIGHT_COLORS.map((color, index) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
+                        style={{ backgroundColor: color.value }}
+                        onClick={() => {
+                          editor.chain().focus().toggleHighlight({ color: color.value }).run();
+                        }}
+                        title={color.name}
+                        data-testid={`button-highlight-color-${index}`}
+                      />
+                    ))}
                     <button
-                      key={color.value}
-                      className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
-                      style={{ backgroundColor: color.value }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        editor.chain().focus().toggleHighlight({ color: color.value }).run();
+                      type="button"
+                      className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
+                      onClick={() => {
+                        editor.chain().focus().unsetHighlight().run();
                       }}
-                      title={color.name}
-                      data-testid={`button-highlight-color-${index}`}
-                    />
-                  ))}
-                  <button
-                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background flex items-center justify-center text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      editor.chain().focus().unsetHighlight().run();
-                    }}
-                    title="Réinitialiser"
-                    data-testid="button-highlight-reset"
-                  >
-                    X
-                  </button>
+                      title="Réinitialiser"
+                      data-testid="button-highlight-reset"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
