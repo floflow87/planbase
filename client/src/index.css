@@ -301,6 +301,16 @@
     margin: 0;
   }
 
+  /* Checked task items - grey out the text */
+  ul[data-type="taskList"] li[data-checked="true"] {
+    color: hsl(var(--muted-foreground));
+  }
+  
+  ul[data-type="taskList"] li[data-checked="true"] > div {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+
   /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
    * buttons/badges can remove the automatic brightness adjustment on interactions
    * and program their own. */

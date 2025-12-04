@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +73,7 @@ export default function NoteDetail() {
   const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   // Editor ref for voice recording
   const editorRef = useRef<NoteEditorRef>(null);
@@ -139,6 +140,7 @@ export default function NoteDetail() {
       setContent(note.content || { type: 'doc', content: [] });
       setStatus(note.status as any);
       setVisibility(note.visibility as any);
+      setIsFavorite(note.isFavorite || false);
       // Track the initial persisted state
       setLastPersistedState({
         title: note.title || "",
@@ -585,6 +587,31 @@ export default function NoteDetail() {
     unlinkProjectMutation.mutate();
   }, [unlinkProjectMutation]);
 
+  // Toggle favorite handler
+  const handleToggleFavorite = useCallback(() => {
+    const previousFavoriteState = isFavorite;
+    const newFavoriteState = !isFavorite;
+    setIsFavorite(newFavoriteState);
+    updateMutation.mutate({ isFavorite: newFavoriteState }, {
+      onSuccess: () => {
+        toast({
+          title: newFavoriteState ? "Ajouté aux favoris" : "Retiré des favoris",
+          description: newFavoriteState 
+            ? "La note a été ajoutée à vos favoris" 
+            : "La note a été retirée de vos favoris",
+        });
+      },
+      onError: () => {
+        setIsFavorite(previousFavoriteState);
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de mettre à jour les favoris",
+        });
+      }
+    });
+  }, [isFavorite, updateMutation, toast]);
+
   if (isLoading) {
     return (
       <div className="h-full overflow-auto">
@@ -729,29 +756,49 @@ export default function NoteDetail() {
                 </Label>
               </div>
               
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const newEditMode = !isEditMode;
-                  setIsEditMode(newEditMode);
-                  
-                  // If switching to edit mode and note is active (published), revert to draft
-                  if (newEditMode && status === "active") {
-                    setStatus("draft");
-                    updateMutation.mutate({ status: "draft" });
-                    toast({
-                      title: "Retour en brouillon",
-                      description: "La note est repassée en brouillon pour édition",
-                      variant: "default",
-                    });
-                  }
-                }}
-                data-testid="button-toggle-edit"
-                className="text-[12px]"
-              >
-                {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                {isEditMode ? "Aperçu" : "Modifier"}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newEditMode = !isEditMode;
+                      setIsEditMode(newEditMode);
+                      
+                      // If switching to edit mode and note is active (published), revert to draft
+                      if (newEditMode && status === "active") {
+                        setStatus("draft");
+                        updateMutation.mutate({ status: "draft" });
+                        toast({
+                          title: "Retour en brouillon",
+                          description: "La note est repassée en brouillon pour édition",
+                          variant: "default",
+                        });
+                      }
+                    }}
+                    data-testid="button-toggle-edit"
+                    className="hover:bg-white dark:hover:bg-muted"
+                  >
+                    {isEditMode ? <LockOpen className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isEditMode ? "Verrouiller (lecture seule)" : "Déverrouiller (édition)"}</TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleToggleFavorite}
+                    data-testid="button-toggle-favorite"
+                    className={`hover:bg-white dark:hover:bg-muted ${isFavorite ? "text-yellow-500 border-yellow-300" : ""}`}
+                  >
+                    <Star className={`w-4 h-4 ${isFavorite ? "fill-yellow-500" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}</TooltipContent>
+              </Tooltip>
               
               {status === "draft" && (
                 <>
@@ -761,7 +808,7 @@ export default function NoteDetail() {
                         variant="outline" 
                         onClick={handleSaveDraft} 
                         size="icon"
-                        className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                        className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
                         data-testid="button-save-draft"
                       >
                         <Save className="w-4 h-4" />
@@ -774,6 +821,7 @@ export default function NoteDetail() {
                       <Button 
                         onClick={handlePublish} 
                         size="icon"
+                        className="hover:bg-white dark:hover:bg-muted"
                         data-testid="button-publish"
                       >
                         <Globe className="w-4 h-4" />
@@ -790,6 +838,7 @@ export default function NoteDetail() {
                     variant="destructive" 
                     onClick={handleDeleteClick} 
                     size="icon"
+                    className="hover:bg-red-600 dark:hover:bg-red-600"
                     data-testid="button-delete"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -104,7 +104,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     content,
     onChange,
     editable = true,
-    placeholder = "Commencez à taper ou tapez '/' pour les commandes...",
+    placeholder = "Commencer à écrire… Appuyez sur la touche / pour utiliser les raccourcis.",
     onTitleChange,
     title = "",
   } = props;
@@ -710,6 +710,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="hover:bg-white dark:hover:bg-muted"
                       data-testid="button-text-color"
                     >
                       <Palette className="w-4 h-4" />
@@ -718,25 +719,34 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <TooltipContent>Couleur du texte</TooltipContent>
                 </Tooltip>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
+              <PopoverContent 
+                className="w-auto p-2 bg-white dark:bg-card"
+                onPointerDownOutside={(e) => e.preventDefault()}
+              >
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
                   {TEXT_COLORS.map((color, index) => (
                     <button
                       key={color.value}
                       className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
                       style={{ backgroundColor: color.value }}
-                      onClick={() => editor.chain().focus().setColor(color.value).run()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editor.chain().focus().setColor(color.value).run();
+                      }}
                       title={color.name}
                       data-testid={`button-text-color-${index}`}
                     />
                   ))}
                   <button
-                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
-                    onClick={() => editor.chain().focus().unsetColor().run()}
+                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background flex items-center justify-center text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editor.chain().focus().unsetColor().run();
+                    }}
                     title="Réinitialiser"
                     data-testid="button-text-color-reset"
                   >
-                    ✕
+                    X
                   </button>
                 </div>
               </PopoverContent>
@@ -749,6 +759,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     <Button
                       variant={editor.isActive('highlight') ? 'secondary' : 'ghost'}
                       size="sm"
+                      className="hover:bg-white dark:hover:bg-muted"
                       data-testid="button-highlight"
                     >
                       <Highlighter className="w-4 h-4" />
@@ -757,25 +768,34 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <TooltipContent>Surligner</TooltipContent>
                 </Tooltip>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-2">
+              <PopoverContent 
+                className="w-auto p-2 bg-white dark:bg-card"
+                onPointerDownOutside={(e) => e.preventDefault()}
+              >
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
                   {HIGHLIGHT_COLORS.map((color, index) => (
                     <button
                       key={color.value}
                       className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2"
                       style={{ backgroundColor: color.value }}
-                      onClick={() => editor.chain().focus().toggleHighlight({ color: color.value }).run()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editor.chain().focus().toggleHighlight({ color: color.value }).run();
+                      }}
                       title={color.name}
                       data-testid={`button-highlight-color-${index}`}
                     />
                   ))}
                   <button
-                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background"
-                    onClick={() => editor.chain().focus().unsetHighlight().run()}
+                    className="w-6 h-6 rounded border border-border hover-elevate active-elevate-2 bg-background flex items-center justify-center text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editor.chain().focus().unsetHighlight().run();
+                    }}
                     title="Réinitialiser"
                     data-testid="button-highlight-reset"
                   >
-                    ✕
+                    X
                   </button>
                 </div>
               </PopoverContent>
@@ -893,6 +913,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="hover:bg-white dark:hover:bg-muted"
                       data-testid="button-emoji"
                     >
                       <Smile className="w-4 h-4" />
@@ -901,7 +922,10 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <TooltipContent>Ajouter un emoji</TooltipContent>
                 </Tooltip>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
+              <PopoverContent 
+                className="w-auto p-0 bg-white dark:bg-card"
+                onPointerDownOutside={(e) => e.preventDefault()}
+              >
                 <EmojiPicker onEmojiClick={handleEmojiClick} />
               </PopoverContent>
             </Popover>
