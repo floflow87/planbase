@@ -224,6 +224,8 @@ import {
   Shapes,
   CircleDashed,
   SquareDashed,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -663,16 +665,26 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
     const startY = e.clientY;
     const startWidth = dimensions.width;
     const startHeight = dimensions.height;
+    
+    // Store current cursor and set resize cursor on body
+    const originalCursor = document.body.style.cursor;
+    document.body.style.cursor = 'se-resize';
+    
+    let finalWidth = startWidth;
+    let finalHeight = startHeight;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(150, startWidth + (e.clientX - startX));
-      const newHeight = Math.max(60, startHeight + (e.clientY - startY));
-      setDimensions({ width: newWidth, height: newHeight });
+      finalWidth = Math.max(150, startWidth + (e.clientX - startX));
+      finalHeight = Math.max(60, startHeight + (e.clientY - startY));
+      setDimensions({ width: finalWidth, height: finalHeight });
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      data.onUpdateStyle?.({ width: dimensions.width, height: dimensions.height });
+      // Restore original cursor
+      document.body.style.cursor = originalCursor;
+      // Use the final dimensions from the closure
+      data.onUpdateStyle?.({ width: finalWidth, height: finalHeight });
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
@@ -1302,6 +1314,130 @@ function MindmapCanvas() {
   }
   const [clipboard, setClipboard] = useState<{ nodes: ClipboardNode[]; edges: ClipboardEdge[] } | null>(null);
 
+  // Undo/redo history state - uses JSON serialization for deep cloning
+  interface HistoryState {
+    nodesJson: string;
+    edgesJson: string;
+  }
+  const [undoStack, setUndoStack] = useState<HistoryState[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryState[]>([]);
+  const isUndoRedoAction = useRef(false);
+  const isInitializing = useRef(true);
+
+  // Deep clone nodes and edges using JSON serialization
+  const serializeState = useCallback((): HistoryState => {
+    // Strip non-serializable functions and transient selection state from nodes before serializing
+    const serializableNodes = nodes.map(node => ({
+      ...node,
+      selected: undefined, // Don't persist selection state - it's transient UI state
+      data: {
+        ...node.data,
+        onUpdateStyle: undefined,
+        onEndEdit: undefined,
+      }
+    }));
+    return {
+      nodesJson: JSON.stringify(serializableNodes),
+      edgesJson: JSON.stringify(edges),
+    };
+  }, [nodes, edges]);
+
+  // Save current state to history (called before mutations)
+  const saveToHistory = useCallback(() => {
+    // Skip if undo/redo action, initializing, or loading
+    if (isUndoRedoAction.current || isInitializing.current) return;
+    if (nodes.length === 0) return; // Don't save empty state
+    
+    const snapshot = serializeState();
+    setUndoStack(prev => {
+      const newStack = [...prev, snapshot];
+      // Keep only last 50 states to prevent memory issues
+      return newStack.slice(-50);
+    });
+    // Clear redo stack when new action is performed
+    setRedoStack([]);
+  }, [serializeState, nodes.length]);
+
+  // Rehydrate nodes by adding back the callback handlers
+  // Selection state is preserved from the parsed snapshot
+  const rehydrateNodes = useCallback((parsedNodes: Node[]): Node[] => {
+    return parsedNodes.map(node => ({
+      ...node,
+      // Preserve selection state from snapshot - don't override
+      data: {
+        ...node.data,
+        onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
+        onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
+      }
+    }));
+  }, [handleNodeStyleUpdate, handleTextNodeEdit]);
+
+  // Undo function - uses functional updaters to avoid stale closures
+  const undo = useCallback(() => {
+    setUndoStack(prevUndo => {
+      if (prevUndo.length === 0) return prevUndo;
+      
+      isUndoRedoAction.current = true;
+      const previousState = prevUndo[prevUndo.length - 1];
+      
+      // Save current state to redo stack before restoring (serialize for immutability)
+      const currentSnapshot = serializeState();
+      setRedoStack(prevRedo => [...prevRedo, currentSnapshot]);
+      
+      // Restore previous state - parse JSON and rehydrate handlers
+      try {
+        const parsedNodes: Node[] = JSON.parse(previousState.nodesJson);
+        const parsedEdges: Edge[] = JSON.parse(previousState.edgesJson);
+        const restoredNodes = rehydrateNodes(parsedNodes);
+        setNodes(restoredNodes);
+        setEdges(parsedEdges);
+        toast({ title: "Action annulée" });
+      } catch (e) {
+        console.error("Failed to parse undo state:", e);
+      }
+      
+      setTimeout(() => {
+        isUndoRedoAction.current = false;
+      }, 100);
+      
+      // Return updated stack without the last element
+      return prevUndo.slice(0, -1);
+    });
+  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
+
+  // Redo function - uses functional updaters to avoid stale closures
+  const redo = useCallback(() => {
+    setRedoStack(prevRedo => {
+      if (prevRedo.length === 0) return prevRedo;
+      
+      isUndoRedoAction.current = true;
+      const nextState = prevRedo[prevRedo.length - 1];
+      
+      // Save current state to undo stack before restoring (serialize for immutability)
+      const currentSnapshot = serializeState();
+      setUndoStack(prevUndo => [...prevUndo, currentSnapshot]);
+      
+      // Restore next state - parse JSON and rehydrate handlers
+      try {
+        const parsedNodes: Node[] = JSON.parse(nextState.nodesJson);
+        const parsedEdges: Edge[] = JSON.parse(nextState.edgesJson);
+        const restoredNodes = rehydrateNodes(parsedNodes);
+        setNodes(restoredNodes);
+        setEdges(parsedEdges);
+        toast({ title: "Action rétablie" });
+      } catch (e) {
+        console.error("Failed to parse redo state:", e);
+      }
+      
+      setTimeout(() => {
+        isUndoRedoAction.current = false;
+      }, 100);
+      
+      // Return updated stack without the last element
+      return prevRedo.slice(0, -1);
+    });
+  }, [serializeState, setNodes, setEdges, toast, rehydrateNodes]);
+
   const { data, isLoading, error } = useQuery<{
     mindmap: Mindmap;
     nodes: MindmapNodeType[];
@@ -1520,26 +1656,51 @@ function MindmapCanvas() {
     });
   }, [updateNodeMutation]);
 
-  // Transform data into ReactFlow nodes and edges
+  // Transform data into ReactFlow nodes and edges - preserve selection state
   useEffect(() => {
     if (data) {
-      const flowNodes: Node[] = data.nodes.map((node) => ({
-        id: node.id,
-        type: node.type === "text" ? "text" : "custom",
-        position: { x: parseFloat(node.x), y: parseFloat(node.y) },
-        data: {
-          label: node.title,
-          description: node.description,
-          imageUrl: node.imageUrl,
-          kind: node.type as MindmapNodeKind,
-          linkedEntityType: node.linkedEntityType,
-          linkedEntityId: node.linkedEntityId,
-          layoutConfig,
-          nodeStyle: node.style as NodeStyle || {},
-          onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
-          onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
-        },
-      }));
+      // Use functional update to preserve existing selection state
+      setNodes((currentNodes) => {
+        // Create a map of current node selection states
+        const selectionMap = new Map<string, boolean>();
+        currentNodes.forEach(n => {
+          if (n.selected) {
+            selectionMap.set(n.id, true);
+          }
+        });
+        
+        // Create a map of current node positions (to preserve drag state)
+        const positionMap = new Map<string, { x: number; y: number }>();
+        currentNodes.forEach(n => {
+          positionMap.set(n.id, n.position);
+        });
+        
+        return data.nodes.map((node) => {
+          const wasSelected = selectionMap.get(node.id) || false;
+          // Use current position if available (node might have been dragged but not saved yet)
+          const currentPos = positionMap.get(node.id);
+          const serverPos = { x: parseFloat(node.x), y: parseFloat(node.y) };
+          
+          return {
+            id: node.id,
+            type: node.type === "text" ? "text" : "custom",
+            position: currentPos || serverPos,
+            selected: wasSelected,
+            data: {
+              label: node.title,
+              description: node.description,
+              imageUrl: node.imageUrl,
+              kind: node.type as MindmapNodeKind,
+              linkedEntityType: node.linkedEntityType,
+              linkedEntityId: node.linkedEntityId,
+              layoutConfig,
+              nodeStyle: node.style as NodeStyle || {},
+              onUpdateStyle: (styleUpdate: Partial<NodeStyle>) => handleNodeStyleUpdate(node.id, styleUpdate),
+              onEndEdit: (newText: string) => handleTextNodeEdit(node.id, newText),
+            },
+          };
+        });
+      });
 
       const flowEdges: Edge[] = data.edges.map((edge) => {
         const edgeStyle = edge.style as EdgeStyle || {};
@@ -1569,8 +1730,14 @@ function MindmapCanvas() {
         };
       });
 
-      setNodes(flowNodes);
       setEdges(flowEdges);
+      
+      // Mark initialization complete after first data load
+      if (isInitializing.current && data.nodes.length >= 0) {
+        setTimeout(() => {
+          isInitializing.current = false;
+        }, 500); // Delay to allow initial render to complete
+      }
     }
   }, [data, setNodes, setEdges, layoutConfig, handleNodeStyleUpdate, handleTextNodeEdit]);
 
@@ -1750,6 +1917,7 @@ function MindmapCanvas() {
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
+        saveToHistory(); // Save state before creating edge
         createEdgeMutation.mutate({
           sourceNodeId: connection.source,
           targetNodeId: connection.target,
@@ -1757,7 +1925,7 @@ function MindmapCanvas() {
         setEdges((eds) => addEdge(connection, eds));
       }
     },
-    [createEdgeMutation, setEdges]
+    [createEdgeMutation, setEdges, saveToHistory]
   );
 
   // Alignment detection during drag
@@ -2213,8 +2381,13 @@ function MindmapCanvas() {
   const deleteSelectedNodes = useCallback(() => {
     const selectedNodes = nodes.filter(n => n.selected);
     if (selectedNodes.length === 0 && selectedNode) {
+      saveToHistory(); // Save state before deleting node
       deleteNodeMutation.mutate(selectedNode.id);
       return;
+    }
+    
+    if (selectedNodes.length > 0) {
+      saveToHistory(); // Save state before deleting nodes
     }
     
     selectedNodes.forEach((node) => {
@@ -2224,7 +2397,7 @@ function MindmapCanvas() {
     if (selectedNodes.length > 0) {
       toast({ title: `${selectedNodes.length} node(s) supprimé(s)` });
     }
-  }, [nodes, selectedNode, deleteNodeMutation, toast]);
+  }, [nodes, selectedNode, deleteNodeMutation, toast, saveToHistory]);
 
   // Copy selected nodes to clipboard (serialize data, not React Flow instances)
   const copySelectedNodes = useCallback(() => {
@@ -2268,6 +2441,7 @@ function MindmapCanvas() {
       return;
     }
 
+    saveToHistory(); // Save state before pasting nodes
     const PASTE_OFFSET = 50;
     const idMapping: Record<string, string> = {};
 
@@ -2302,14 +2476,22 @@ function MindmapCanvas() {
       console.error("Paste error:", error);
       toast({ title: "Erreur lors du collage", variant: "destructive" });
     }
-  }, [clipboard, id, toast]);
+  }, [clipboard, id, toast, saveToHistory]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if we're in an input or textarea
+      // Check if we're in an input, textarea, or any contenteditable element (including TipTap editors)
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+      const isInEditableContext = 
+        target.tagName === "INPUT" || 
+        target.tagName === "TEXTAREA" || 
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]') !== null ||
+        target.closest('.tiptap') !== null ||
+        target.closest('.ProseMirror') !== null;
+      
+      if (isInEditableContext) {
         return;
       }
 
@@ -2330,11 +2512,23 @@ function MindmapCanvas() {
         e.preventDefault();
         pasteNodes();
       }
+
+      // Ctrl/Cmd + Z - undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+
+      // Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z - redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteSelectedNodes, copySelectedNodes, pasteNodes]);
+  }, [deleteSelectedNodes, copySelectedNodes, pasteNodes, undo, redo]);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     if (node.type === "text") {
@@ -2358,6 +2552,7 @@ function MindmapCanvas() {
   const handleAddNode = () => {
     if (!newNodeLabel.trim() && newNodeKind !== "text") return;
     
+    saveToHistory(); // Save state before adding node
     const viewportCenter = { x: 400, y: 300 };
     createNodeMutation.mutate({
       title: newNodeLabel || "Texte...",
@@ -2371,6 +2566,7 @@ function MindmapCanvas() {
   };
 
   const handleAddTextNode = () => {
+    saveToHistory(); // Save state before adding text node
     const viewportCenter = { x: 400, y: 300 };
     createNodeMutation.mutate({
       title: "Texte...",
@@ -2396,6 +2592,7 @@ function MindmapCanvas() {
 
   const handleDeleteSelectedNode = () => {
     if (!selectedNode) return;
+    saveToHistory(); // Save state before deleting node
     deleteNodeMutation.mutate(selectedNode.id);
   };
 
@@ -2865,6 +3062,45 @@ function MindmapCanvas() {
                 </TooltipTrigger>
                 <TooltipContent side="top" className="font-medium">
                   Mode sélection (sélectionner plusieurs éléments)
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Undo/Redo controls */}
+            <div className="flex items-center gap-1 bg-card border rounded-lg p-1 shadow-sm">
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={undo}
+                    disabled={undoStack.length === 0}
+                    data-testid="button-undo"
+                    className="h-8 w-8"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Annuler (Ctrl+Z)
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={redo}
+                    disabled={redoStack.length === 0}
+                    data-testid="button-redo"
+                    className="h-8 w-8"
+                  >
+                    <Redo2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="font-medium">
+                  Rétablir (Ctrl+Y)
                 </TooltipContent>
               </Tooltip>
             </div>
