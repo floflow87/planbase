@@ -90,6 +90,7 @@ const translateSubjectType = (subjectType: string) => {
     task: "tâche",
     note: "note",
     contact: "contact",
+    mindmap: "whiteboard",
   };
   return translations[subjectType] || subjectType;
 };
@@ -134,6 +135,7 @@ const getActivityUrl = (subjectType: string, subjectId: string): string | null =
     task: `/tasks`,
     deal: `/crm`,
     contact: `/crm`,
+    mindmap: `/mindmaps/${subjectId}`,
   };
   return routes[subjectType] || null;
 };

@@ -1686,6 +1686,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create a manual time entry (completed entry with specific duration)
+  app.post("/api/time-entries/manual", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { insertTimeEntrySchema } = await import("@shared/schema");
+      
+      const { startTime, endTime, duration, projectId, description } = req.body;
+      
+      // Validate required fields
+      if (!startTime || !duration || duration <= 0) {
+        return res.status(400).json({ error: "startTime and duration (> 0) are required" });
+      }
+      
+      // If projectId is provided, verify it belongs to the user's account
+      if (projectId) {
+        const project = await storage.getProject(projectId);
+        if (!project) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        if (project.accountId !== req.accountId) {
+          return res.status(403).json({ error: "Access denied to this project" });
+        }
+      }
+      
+      const parsedStartTime = new Date(startTime);
+      const parsedEndTime = endTime ? new Date(endTime) : new Date(parsedStartTime.getTime() + duration * 1000);
+      
+      const data = insertTimeEntrySchema.parse({
+        accountId: req.accountId!,
+        userId: req.userId!,
+        projectId: projectId || null,
+        description: description || null,
+        startTime: parsedStartTime,
+        endTime: parsedEndTime,
+        duration: duration,
+      });
+
+      const entry = await storage.createTimeEntry(data);
+      
+      // Create activity if project is assigned
+      if (projectId) {
+        try {
+          const project = await storage.getProject(projectId);
+          if (project) {
+            const durationMinutes = Math.floor(duration / 60);
+            const hours = Math.floor(durationMinutes / 60);
+            const minutes = durationMinutes % 60;
+            const durationText = hours > 0 ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` : `${minutes}min`;
+            
+            await storage.createActivity({
+              accountId: req.accountId!,
+              subjectType: "project",
+              subjectId: projectId,
+              kind: "task",
+              description: `Temps enregistré : ${durationText} sur ${project.name}`,
+            });
+          }
+        } catch (activityError) {
+          console.error("Failed to create activity for manual time entry:", activityError);
+        }
+      }
+      
+      res.json(entry);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Update a time entry (stop timer, update duration, assign project)
   app.patch("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {

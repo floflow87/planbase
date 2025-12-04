@@ -449,7 +449,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                       const startTime = new Date(newTimeDate);
                       startTime.setHours(9, 0, 0, 0);
                       
-                      await apiRequest("/api/time-entries", "POST", {
+                      await apiRequest("/api/time-entries/manual", "POST", {
                         projectId,
                         startTime: startTime.toISOString(),
                         endTime: new Date(startTime.getTime() + totalSeconds * 1000).toISOString(),

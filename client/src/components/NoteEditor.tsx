@@ -47,6 +47,7 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  Paintbrush,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -143,6 +144,24 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   const [entityDialogOpen, setEntityDialogOpen] = useState(false);
   const [entityType, setEntityType] = useState<'project' | 'task' | 'client' | null>(null);
   const [entitySearch, setEntitySearch] = useState('');
+  
+  // Format painter state
+  interface CopiedFormat {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    strike: boolean;
+    code: boolean;
+    color: string | null;
+    highlight: string | null;
+    textAlign: string | null;
+    link: string | null;
+    bulletList: boolean;
+    orderedList: boolean;
+    taskList: boolean;
+    blockquote: boolean;
+  }
+  const [copiedFormat, setCopiedFormat] = useState<CopiedFormat | null>(null);
   
   const editor = useEditor({
     extensions: [
@@ -470,6 +489,105 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     setEntitySearch('');
   }, [editor, entityType]);
 
+  // Format painter functions
+  const copyFormat = useCallback(() => {
+    if (!editor) return;
+    
+    const attrs = editor.getAttributes('textStyle');
+    const linkAttrs = editor.getAttributes('link');
+    const highlightAttrs = editor.getAttributes('highlight');
+    
+    // Get text alignment from paragraph or heading
+    let textAlign: string | null = null;
+    const { from } = editor.state.selection;
+    const resolvedPos = editor.state.doc.resolve(from);
+    const node = resolvedPos.parent;
+    if (node.attrs?.textAlign) {
+      textAlign = node.attrs.textAlign;
+    }
+    
+    setCopiedFormat({
+      bold: editor.isActive('bold'),
+      italic: editor.isActive('italic'),
+      underline: editor.isActive('underline'),
+      strike: editor.isActive('strike'),
+      code: editor.isActive('code'),
+      color: attrs.color || null,
+      highlight: highlightAttrs.color || null,
+      textAlign: textAlign,
+      link: linkAttrs.href || null,
+      bulletList: editor.isActive('bulletList'),
+      orderedList: editor.isActive('orderedList'),
+      taskList: editor.isActive('taskList'),
+      blockquote: editor.isActive('blockquote'),
+    });
+  }, [editor]);
+  
+  const applyFormat = useCallback(() => {
+    if (!editor || !copiedFormat) return;
+    
+    let chain = editor.chain().focus();
+    
+    // Apply text marks
+    if (copiedFormat.bold) chain = chain.setBold();
+    else chain = chain.unsetBold();
+    
+    if (copiedFormat.italic) chain = chain.setItalic();
+    else chain = chain.unsetItalic();
+    
+    if (copiedFormat.underline) chain = chain.setUnderline();
+    else chain = chain.unsetUnderline();
+    
+    if (copiedFormat.strike) chain = chain.setStrike();
+    else chain = chain.unsetStrike();
+    
+    if (copiedFormat.code) chain = chain.setCode();
+    else chain = chain.unsetCode();
+    
+    // Apply color
+    if (copiedFormat.color) {
+      chain = chain.setColor(copiedFormat.color);
+    } else {
+      chain = chain.unsetColor();
+    }
+    
+    // Apply highlight
+    if (copiedFormat.highlight) {
+      chain = chain.setHighlight({ color: copiedFormat.highlight });
+    } else {
+      chain = chain.unsetHighlight();
+    }
+    
+    // Apply text alignment
+    if (copiedFormat.textAlign) {
+      chain = chain.setTextAlign(copiedFormat.textAlign);
+    }
+    
+    // Apply link
+    if (copiedFormat.link) {
+      chain = chain.setLink({ href: copiedFormat.link });
+    } else {
+      chain = chain.unsetLink();
+    }
+    
+    chain.run();
+    
+    // Clear copied format after applying
+    setCopiedFormat(null);
+  }, [editor, copiedFormat]);
+  
+  const handleFormatPainter = useCallback(() => {
+    if (!editor) return;
+    
+    if (copiedFormat) {
+      // If format is already copied, apply it
+      applyFormat();
+    } else {
+      // Otherwise, copy the current format
+      copyFormat();
+    }
+  }, [editor, copiedFormat, copyFormat, applyFormat]);
+
   if (!editor) {
     return null;
   }
@@ -491,6 +609,25 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             </div>
           )}
           <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-background shadow-sm overflow-x-auto">
+            {/* Format Painter - first icon */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={copiedFormat ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={handleFormatPainter}
+                  data-testid="button-format-painter"
+                >
+                  <Paintbrush className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {copiedFormat ? 'Cliquez pour appliquer le style' : 'Copier le style'}
+              </TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
