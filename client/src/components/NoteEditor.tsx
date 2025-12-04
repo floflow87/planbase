@@ -189,20 +189,23 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
     },
   });
 
-  // Fetch entities for linking
-  const { data: projects = [] } = useQuery<any[]>({
+  // Fetch entities for linking - fetch when dialog is open
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
     queryKey: ['/api/projects'],
-    enabled: entityType === 'project',
+    enabled: entityDialogOpen && entityType === 'project',
+    staleTime: 30000,
   });
 
-  const { data: tasks = [] } = useQuery<any[]>({
+  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<any[]>({
     queryKey: ['/api/tasks'],
-    enabled: entityType === 'task',
+    enabled: entityDialogOpen && entityType === 'task',
+    staleTime: 30000,
   });
 
-  const { data: clients = [] } = useQuery<any[]>({
+  const { data: clients = [], isLoading: isLoadingClients } = useQuery<any[]>({
     queryKey: ['/api/clients'],
-    enabled: entityType === 'client',
+    enabled: entityDialogOpen && entityType === 'client',
+    staleTime: 30000,
   });
 
   useEffect(() => {
@@ -1021,7 +1024,30 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               />
             </div>
             <div className="max-h-[300px] overflow-y-auto space-y-1">
-              {entityType === 'project' && projects
+              {/* Loading states */}
+              {entityType === 'project' && isLoadingProjects && (
+                <div className="text-center py-4 text-muted-foreground">Chargement des projets...</div>
+              )}
+              {entityType === 'task' && isLoadingTasks && (
+                <div className="text-center py-4 text-muted-foreground">Chargement des tâches...</div>
+              )}
+              {entityType === 'client' && isLoadingClients && (
+                <div className="text-center py-4 text-muted-foreground">Chargement des clients...</div>
+              )}
+              
+              {/* Empty states */}
+              {entityType === 'project' && !isLoadingProjects && projects.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">Aucun projet disponible</div>
+              )}
+              {entityType === 'task' && !isLoadingTasks && tasks.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">Aucune tâche disponible</div>
+              )}
+              {entityType === 'client' && !isLoadingClients && clients.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">Aucun client disponible</div>
+              )}
+              
+              {/* Data lists */}
+              {entityType === 'project' && !isLoadingProjects && projects
                 .filter((p: any) => 
                   !entitySearch || 
                   p.name.toLowerCase().includes(entitySearch.toLowerCase())
@@ -1039,7 +1065,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     )}
                   </button>
                 ))}
-              {entityType === 'task' && tasks
+              {entityType === 'task' && !isLoadingTasks && tasks
                 .filter((t: any) => 
                   !entitySearch || 
                   t.title.toLowerCase().includes(entitySearch.toLowerCase())
@@ -1057,7 +1083,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     )}
                   </button>
                 ))}
-              {entityType === 'client' && clients
+              {entityType === 'client' && !isLoadingClients && clients
                 .filter((c: any) => 
                   !entitySearch || 
                   c.name.toLowerCase().includes(entitySearch.toLowerCase())

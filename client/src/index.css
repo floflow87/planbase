@@ -270,11 +270,17 @@
 
   ul[data-type="taskList"] li > label {
     flex-shrink: 0;
-    margin-top: 0.25rem;
+    margin-top: 0.125rem;
+    display: flex;
+    align-items: center;
+    height: 1.5rem;
   }
 
   ul[data-type="taskList"] li > div {
     flex: 1;
+    min-height: 1.5rem;
+    display: flex;
+    align-items: center;
   }
 
   /* Ensure nested task lists also have no bullets */
