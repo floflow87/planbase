@@ -47,7 +47,7 @@ import {
   ExternalLink,
   Film,
   Route,
-  Map,
+  Map as MapIcon,
   Network,
   Brain,
   Square,
@@ -533,7 +533,7 @@ const KIND_ICONS: Record<MindmapKind, typeof Brain> = {
   storyboard: Film,
   user_flow: Route,
   architecture: Network,
-  sitemap: Map,
+  sitemap: MapIcon,
   ideas: Lightbulb,
 };
 
