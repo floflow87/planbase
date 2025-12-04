@@ -50,18 +50,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <Link href="/">
-          <div className={`flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 ${isCollapsed ? 'justify-center' : 'gap-2'}`} data-testid="link-logo">
-            <img src={planbaseLogo} alt="PlanBase" className={`${isCollapsed ? 'w-6 h-6' : 'w-8 h-8'} rounded-md flex-shrink-0 transition-all`} />
-            {!isCollapsed && (
+      {!isCollapsed && (
+        <SidebarHeader className="p-4 border-b border-sidebar-border">
+          <Link href="/">
+            <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
+              <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
               <span className="font-heading font-semibold text-base text-sidebar-foreground" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>PlanBase</span>
-            )}
-          </div>
-        </Link>
-      </SidebarHeader>
+            </div>
+          </Link>
+        </SidebarHeader>
+      )}
 
-      <SidebarContent>
+      <SidebarContent className={isCollapsed ? 'pt-4' : ''}>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -76,15 +76,15 @@ export function AppSidebar() {
                             asChild={!restricted}
                             isActive={location === item.url} 
                             disabled={restricted}
-                            className={restricted ? "opacity-50 cursor-not-allowed" : ""}
+                            className={`${restricted ? "opacity-50 cursor-not-allowed" : ""} justify-center`}
                             data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                           >
                             {restricted ? (
-                              <div>
+                              <div className="flex justify-center">
                                 <item.icon className="w-4 h-4" />
                               </div>
                             ) : (
-                              <Link href={item.url}>
+                              <Link href={item.url} className="flex justify-center w-full">
                                 <item.icon className="w-4 h-4" />
                               </Link>
                             )}

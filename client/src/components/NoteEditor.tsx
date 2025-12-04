@@ -1306,74 +1306,78 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         ref={editorContainerRef}
         className="relative bg-white dark:bg-background"
       >
-        <EditorContent editor={editor} />
-        
-        {/* Notion-like outline bar on the right - sticky */}
-        {headings.length > 0 && (
-          <div 
-            className="sticky right-2 top-4 float-right mr-2 flex flex-col gap-0.5 z-10"
-            style={{ marginTop: '-100%', paddingTop: '16px' }}
-            onMouseEnter={() => setShowOutlineToc(true)}
-            onMouseLeave={() => setShowOutlineToc(false)}
-          >
-            {headings.map((heading) => {
-              const isActive = activeHeadingId === heading.id;
-              const width = heading.level === 1 ? 'w-3' : heading.level === 2 ? 'w-2.5' : 'w-2';
-              
-              return (
-                <button
-                  key={heading.id}
-                  onClick={() => scrollToHeading(heading.id)}
-                  className={`${width} h-1.5 rounded-sm transition-all cursor-pointer ${
-                    isActive 
-                      ? 'bg-primary' 
-                      : 'bg-muted-foreground/20 hover:bg-muted-foreground/40'
-                  }`}
-                  title={heading.text}
-                  data-testid={`outline-bar-${heading.id}`}
-                />
-              );
-            })}
-            
-            {/* TOC Panel on hover - scrollable */}
-            {showOutlineToc && (
-              <div 
-                className="absolute right-6 top-0 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-20"
-                onMouseEnter={() => setShowOutlineToc(true)}
-                onMouseLeave={() => setShowOutlineToc(false)}
-              >
-                <div 
-                  className="space-y-1 max-h-72 overflow-y-auto overscroll-contain"
-                  style={{ scrollbarWidth: 'thin' }}
-                >
-                  {headings.map((heading) => {
-                    const isActive = activeHeadingId === heading.id;
-                    const paddingLeft = (heading.level - 1) * 12;
-                    
-                    return (
-                      <button
-                        key={heading.id}
-                        onClick={() => {
-                          scrollToHeading(heading.id);
-                          setShowOutlineToc(false);
-                        }}
-                        className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
-                          isActive 
-                            ? 'bg-primary/10 text-primary font-medium' 
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        }`}
-                        style={{ paddingLeft: `${paddingLeft + 8}px` }}
-                        data-testid={`toc-item-${heading.id}`}
-                      >
-                        {heading.text}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        <div className="flex">
+          <div className="flex-1 min-w-0">
+            <EditorContent editor={editor} />
           </div>
-        )}
+          
+          {/* Notion-like outline bar on the right - fixed position */}
+          {headings.length > 0 && (
+            <div 
+              className="sticky top-4 self-start ml-2 mr-4 flex flex-col gap-0.5 z-10"
+              style={{ marginTop: '60px' }}
+              onMouseEnter={() => setShowOutlineToc(true)}
+              onMouseLeave={() => setShowOutlineToc(false)}
+            >
+              {headings.map((heading) => {
+                const isActive = activeHeadingId === heading.id;
+                const width = heading.level === 1 ? 'w-3' : heading.level === 2 ? 'w-2.5' : 'w-2';
+                
+                return (
+                  <button
+                    key={heading.id}
+                    onClick={() => scrollToHeading(heading.id)}
+                    className={`${width} h-1.5 rounded-sm transition-all cursor-pointer ${
+                      isActive 
+                        ? 'bg-primary' 
+                        : 'bg-muted-foreground/20 hover:bg-muted-foreground/40'
+                    }`}
+                    title={heading.text}
+                    data-testid={`outline-bar-${heading.id}`}
+                  />
+                );
+              })}
+              
+              {/* TOC Panel on hover - scrollable */}
+              {showOutlineToc && (
+                <div 
+                  className="absolute right-6 top-0 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-20"
+                  onMouseEnter={() => setShowOutlineToc(true)}
+                  onMouseLeave={() => setShowOutlineToc(false)}
+                >
+                  <div 
+                    className="space-y-1 max-h-72 overflow-y-auto overscroll-contain"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {headings.map((heading) => {
+                      const isActive = activeHeadingId === heading.id;
+                      const paddingLeft = (heading.level - 1) * 12;
+                      
+                      return (
+                        <button
+                          key={heading.id}
+                          onClick={() => {
+                            scrollToHeading(heading.id);
+                            setShowOutlineToc(false);
+                          }}
+                          className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
+                            isActive 
+                              ? 'bg-primary/10 text-primary font-medium' 
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }`}
+                          style={{ paddingLeft: `${paddingLeft + 8}px` }}
+                          data-testid={`toc-item-${heading.id}`}
+                        >
+                          {heading.text}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Link Dialog */}
