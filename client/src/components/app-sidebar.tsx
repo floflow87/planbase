@@ -1,4 +1,4 @@
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Briefcase, Scale, Settings, Network } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Scale, Settings, Network } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -6,7 +6,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -27,33 +26,26 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   // Sections restreintes pour le plan "starter"
-  const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/marketing", "/finance", "/commercial", "/legal"];
+  const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/marketing", "/finance", "/legal"];
   const isStarterPlan = false; // TODO: Implement plan checking logic
   
   const isRestricted = (url: string) => {
     return isStarterPlan && starterRestrictedUrls.includes(url);
   };
 
-  const mainNav = [
+  const navItems = [
     { title: "Tableau de bord", url: "/", icon: Home },
-  ];
-
-  const projectsNav = [
+    { title: "CRM", url: "/crm", icon: Users },
     { title: "Projets", url: "/projects", icon: FolderKanban },
-    { title: "Tâches", url: "/tasks", icon: CheckSquare },
-    { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Product", url: "/product", icon: Package },
+    { title: "Roadmap", url: "/roadmap", icon: Rocket },
+    { title: "Tâches", url: "/tasks", icon: CheckSquare },
     { title: "Whiteboards", url: "/mindmaps", icon: Network },
     { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
-  ];
-
-  const businessNav = [
-    { title: "CRM", url: "/crm", icon: Users },
     { title: "Marketing", url: "/marketing", icon: TrendingUp },
     { title: "Finance", url: "/finance", icon: DollarSign },
-    { title: "Commercial", url: "/commercial", icon: Briefcase },
-    { title: "Legal", url: "/legal", icon: Scale },
+    { title: "Légal", url: "/legal", icon: Scale },
   ];
 
   return (
@@ -61,7 +53,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <Link href="/">
           <div className={`flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 ${isCollapsed ? 'justify-center' : 'gap-2'}`} data-testid="link-logo">
-            <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0" />
+            <img src={planbaseLogo} alt="PlanBase" className={`${isCollapsed ? 'w-6 h-6' : 'w-8 h-8'} rounded-md flex-shrink-0 transition-all`} />
             {!isCollapsed && (
               <span className="font-heading font-semibold text-base text-sidebar-foreground" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>PlanBase</span>
             )}
@@ -73,42 +65,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNav.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {isCollapsed ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                          <Link href={item.url}>
-                            <item.icon className="w-4 h-4" />
-                          </Link>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                      <Link href={item.url}>
-                        <item.icon className="w-4 h-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          {!isCollapsed && (
-            <SidebarGroupLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2">
-              Projects
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {projectsNav.map((item) => {
+              {navItems.map((item) => {
                 const restricted = isRestricted(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -142,69 +99,6 @@ export function AppSidebar() {
                         disabled={restricted}
                         className={restricted ? "opacity-50 cursor-not-allowed" : ""}
                         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        {restricted ? (
-                          <div>
-                            <item.icon className="w-4 h-4" />
-                            <span>{item.title}</span>
-                          </div>
-                        ) : (
-                          <Link href={item.url}>
-                            <item.icon className="w-4 h-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        )}
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          {!isCollapsed && (
-            <SidebarGroupLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2">
-              Business
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {businessNav.map((item) => {
-                const restricted = isRestricted(item.url);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    {isCollapsed ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton 
-                            asChild={!restricted}
-                            isActive={location === item.url} 
-                            disabled={restricted}
-                            className={restricted ? "opacity-50 cursor-not-allowed" : ""}
-                            data-testid={`link-${item.title.toLowerCase()}`}
-                          >
-                            {restricted ? (
-                              <div>
-                                <item.icon className="w-4 h-4" />
-                              </div>
-                            ) : (
-                              <Link href={item.url}>
-                                <item.icon className="w-4 h-4" />
-                              </Link>
-                            )}
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">{item.title}</TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <SidebarMenuButton 
-                        asChild={!restricted}
-                        isActive={location === item.url} 
-                        disabled={restricted}
-                        className={restricted ? "opacity-50 cursor-not-allowed" : ""}
-                        data-testid={`link-${item.title.toLowerCase()}`}
                       >
                         {restricted ? (
                           <div>

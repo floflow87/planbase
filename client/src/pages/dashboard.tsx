@@ -1073,7 +1073,10 @@ export default function Dashboard() {
         </Sheet>
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold text-foreground" data-testid="text-greeting">
+            Bonjour{currentUser?.firstName ? `, ${currentUser.firstName}` : ''}
+          </h2>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 

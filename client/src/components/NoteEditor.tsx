@@ -1308,10 +1308,11 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       >
         <EditorContent editor={editor} />
         
-        {/* Notion-like outline bar on the right */}
+        {/* Notion-like outline bar on the right - sticky */}
         {headings.length > 0 && (
           <div 
-            className="absolute right-2 top-4 flex flex-col gap-0.5 z-10"
+            className="sticky right-2 top-4 float-right mr-2 flex flex-col gap-0.5 z-10"
+            style={{ marginTop: '-100%', paddingTop: '16px' }}
             onMouseEnter={() => setShowOutlineToc(true)}
             onMouseLeave={() => setShowOutlineToc(false)}
           >
@@ -1334,14 +1335,17 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               );
             })}
             
-            {/* TOC Panel on hover */}
+            {/* TOC Panel on hover - scrollable */}
             {showOutlineToc && (
               <div 
-                className="absolute right-6 top-0 w-64 max-h-80 overflow-y-auto bg-card border border-border rounded-lg shadow-lg p-3 z-20"
+                className="absolute right-6 top-0 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-20"
                 onMouseEnter={() => setShowOutlineToc(true)}
                 onMouseLeave={() => setShowOutlineToc(false)}
               >
-                <div className="space-y-1">
+                <div 
+                  className="space-y-1 max-h-72 overflow-y-auto overscroll-contain"
+                  style={{ scrollbarWidth: 'thin' }}
+                >
                   {headings.map((heading) => {
                     const isActive = activeHeadingId === heading.id;
                     const paddingLeft = (heading.level - 1) * 12;
