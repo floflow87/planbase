@@ -22,6 +22,7 @@ import {
   FolderKanban,
   CheckCircle,
   Users,
+  ListTree,
 } from 'lucide-react';
 
 export interface SlashCommand {
@@ -199,6 +200,91 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent('slash-command-client'));
+    },
+  },
+  {
+    id: 'table',
+    label: 'Table des matières',
+    description: 'Générer une table des matières automatique',
+    icon: ListTree,
+    command: ({ editor, range }) => {
+      // Delete the slash command first
+      editor.chain().focus().deleteRange(range).run();
+      
+      // Extract all headings from the document
+      const headings: { level: number; text: string }[] = [];
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'heading' && node.attrs.level) {
+          headings.push({
+            level: node.attrs.level,
+            text: node.textContent,
+          });
+        }
+      });
+      
+      if (headings.length === 0) {
+        // Insert a placeholder if no headings found
+        editor.chain().focus().insertContent({
+          type: 'paragraph',
+          content: [{ type: 'text', marks: [{ type: 'italic' }], text: 'Aucun titre trouvé dans le document' }]
+        }).run();
+        return;
+      }
+      
+      // Find the minimum heading level to use as base
+      const minLevel = Math.min(...headings.map(h => h.level));
+      
+      // Track counters for each level
+      const counters: number[] = [0, 0, 0, 0, 0]; // For h1-h4
+      
+      // Build TipTap content structure
+      const tocContent: any[] = [];
+      
+      // Add header
+      tocContent.push({
+        type: 'heading',
+        attrs: { level: 4 },
+        content: [{ type: 'text', text: '📋 Table des matières' }]
+      });
+      
+      // Build ordered list with proper hierarchy
+      headings.forEach((heading) => {
+        // Update counters
+        counters[heading.level - 1]++;
+        // Reset lower level counters
+        for (let i = heading.level; i < counters.length; i++) {
+          counters[i] = 0;
+        }
+        
+        // Build number prefix (e.g., "1.", "1.1.", "1.1.1.")
+        const numberParts = [];
+        for (let i = 0; i < heading.level; i++) {
+          if (counters[i] > 0) {
+            numberParts.push(counters[i]);
+          }
+        }
+        const numberPrefix = numberParts.join('.') + '.';
+        
+        // Calculate indentation based on level
+        const relativeLevel = heading.level - minLevel;
+        const indentSpaces = '    '.repeat(relativeLevel); // 4 spaces per level
+        
+        tocContent.push({
+          type: 'paragraph',
+          content: [
+            { type: 'text', marks: [{ type: 'bold' }], text: indentSpaces + numberPrefix + ' ' },
+            { type: 'text', text: heading.text }
+          ]
+        });
+      });
+      
+      // Add separator
+      tocContent.push({
+        type: 'horizontalRule'
+      });
+      
+      // Insert the table of contents
+      editor.chain().focus().insertContent(tocContent).run();
     },
   },
 ];

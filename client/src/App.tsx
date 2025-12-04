@@ -34,7 +34,7 @@ import Profile from "@/pages/profile";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
-import { Bell, LogOut, Mail, Calendar } from "lucide-react";
+import { LogOut, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -206,22 +206,18 @@ function AppLayout() {
                 {getPageTitle(location)}
               </h1>
             </div>
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               <TimeTracker />
-              <Button variant="ghost" size="sm" data-testid="button-mail">
-                <Mail className="w-5 h-5 text-primary" />
+              <Button variant="ghost" size="icon" data-testid="button-mail">
+                <Mail className="w-4 h-4 text-primary" />
               </Button>
               <Button 
                 variant="ghost" 
-                size="sm" 
+                size="icon" 
                 onClick={() => setLocation("/calendar")}
                 data-testid="button-calendar"
               >
-                <Calendar className="w-5 h-5 text-primary" />
-              </Button>
-              <Button variant="ghost" size="sm" className="relative" data-testid="button-notifications">
-                <Bell className="w-5 h-5 text-primary" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                <Calendar className="w-4 h-4 text-primary" />
               </Button>
               <UserMenu />
             </div>

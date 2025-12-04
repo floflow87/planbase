@@ -1979,6 +1979,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const note = await storage.updateNote(req.params.id, req.body);
+      
+      // Log activity for significant note updates (title or content changes)
+      if (req.body.title !== undefined || req.body.content !== undefined) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType: "note",
+          subjectId: note.id,
+          kind: "updated",
+          payload: { description: `Note updated: ${note.title}` },
+          createdBy: req.userId || null,
+        });
+      }
+      
       res.json(note);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

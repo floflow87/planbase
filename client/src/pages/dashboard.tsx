@@ -1,9 +1,9 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ const translateActivityKind = (kind: string) => {
     meeting: "réunion",
     note: "note",
     time_tracked: "temps enregistré",
+    task: "tâche",
   };
   return translations[kind] || kind;
 };
@@ -111,8 +112,12 @@ const translateActivityDescription = (description: string) => {
     "Contact updated:": "Contact mis à jour :",
     "Contact deleted:": "Contact supprimé :",
     "Note created:": "Note créée :",
+    "Note updated:": "Note mise à jour :",
+    "Note deleted:": "Note supprimée :",
     "Document created:": "Document créé :",
     "Nouvelle note créée:": "Nouvelle note créée :",
+    "Whiteboard created:": "Whiteboard créé :",
+    "Whiteboard updated:": "Whiteboard mis à jour :",
   };
   
   // Try to translate known patterns
@@ -150,6 +155,7 @@ export default function Dashboard() {
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
   const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
+  const [showTaskReminder, setShowTaskReminder] = useState(false);
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -373,6 +379,32 @@ export default function Dashboard() {
       });
     }
   }, [accountId, currentUser, clientForm, projectForm]);
+
+  // Show task reminder popup when page loads if there are tasks due today or overdue
+  useEffect(() => {
+    // Only show once per session using sessionStorage
+    const hasShownReminder = sessionStorage.getItem("taskReminderShown");
+    if (hasShownReminder) return;
+    
+    // Wait for tasks to load
+    if (tasksLoading || tasks.length === 0) return;
+    
+    // Check for tasks due today or overdue (excluding done tasks)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const urgentTasks = tasks.filter(t => {
+      if (!t.dueDate || t.status === "done") return false;
+      const dueDate = new Date(t.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate <= today;
+    });
+    
+    if (urgentTasks.length > 0) {
+      setShowTaskReminder(true);
+      sessionStorage.setItem("taskReminderShown", "true");
+    }
+  }, [tasks, tasksLoading]);
 
   // Helper function to normalize any date value to local YYYY-MM-DD string
   const normalizeToLocalDate = (dateValue: any): string => {
@@ -1132,7 +1164,7 @@ export default function Dashboard() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Revenue Chart - Col Span 2 */}
-          <Card className="lg:col-span-2 overflow-hidden">
+          <Card className="lg:col-span-2 overflow-hidden flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
@@ -1150,9 +1182,9 @@ export default function Dashboard() {
                 </SelectContent>
               </Select>
             </CardHeader>
-            <CardContent className="min-w-0 text-[12px]">
+            <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-0">
               <div className="w-full overflow-hidden">
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
@@ -1528,6 +1560,63 @@ export default function Dashboard() {
         onSave={handleTaskSave}
         onDelete={handleTaskDelete}
       />
+      
+      {/* Task Reminder Dialog */}
+      <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Tâches à traiter aujourd'hui
+            </DialogTitle>
+            <DialogDescription>
+              Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[300px] overflow-y-auto">
+            {(() => {
+              const urgentTasks = [...overdueTasks, ...todaysTasks].slice(0, 5);
+              return urgentTasks.map((task) => {
+                const project = projects?.find(p => p.id === task.projectId);
+                const isOverdue = task.dueDate && normalizeToLocalDate(task.dueDate) < todayStr;
+                return (
+                  <div
+                    key={task.id}
+                    className={`p-3 rounded-md border ${isOverdue ? 'border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800' : 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'}`}
+                  >
+                    <p className="text-sm font-medium">{task.title}</p>
+                    {project && (
+                      <p className="text-xs text-muted-foreground mt-1">{project.name}</p>
+                    )}
+                    <Badge 
+                      variant="outline" 
+                      className={`mt-2 text-xs ${isOverdue ? 'border-red-500 text-red-600' : 'border-amber-500 text-amber-600'}`}
+                    >
+                      {isOverdue ? 'En retard' : "Aujourd'hui"}
+                    </Badge>
+                  </div>
+                );
+              });
+            })()}
+            {[...overdueTasks, ...todaysTasks].length > 5 && (
+              <p className="text-xs text-muted-foreground text-center">
+                Et {[...overdueTasks, ...todaysTasks].length - 5} autre(s) tâche(s)...
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowTaskReminder(false)}>
+              Fermer
+            </Button>
+            <Button onClick={() => {
+              setShowTaskReminder(false);
+              setLocation("/tasks");
+            }}>
+              Voir mes tâches
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
