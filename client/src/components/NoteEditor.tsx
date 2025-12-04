@@ -77,26 +77,48 @@ interface NoteEditorProps {
   title?: string;
 }
 
-// Color palette for text and highlights
+// Color palette for text - 18 colors
 const TEXT_COLORS = [
   { name: 'Noir', value: '#000000' },
+  { name: 'Gris foncé', value: '#374151' },
   { name: 'Gris', value: '#6B7280' },
+  { name: 'Gris clair', value: '#9CA3AF' },
+  { name: 'Rouge foncé', value: '#B91C1C' },
   { name: 'Rouge', value: '#EF4444' },
+  { name: 'Orange foncé', value: '#C2410C' },
   { name: 'Orange', value: '#F97316' },
+  { name: 'Jaune foncé', value: '#A16207' },
   { name: 'Jaune', value: '#EAB308' },
+  { name: 'Vert foncé', value: '#047857' },
   { name: 'Vert', value: '#10B981' },
+  { name: 'Cyan', value: '#06B6D4' },
   { name: 'Bleu', value: '#3B82F6' },
+  { name: 'Bleu foncé', value: '#1D4ED8' },
   { name: 'Violet', value: '#8B5CF6' },
   { name: 'Rose', value: '#EC4899' },
+  { name: 'Magenta', value: '#D946EF' },
 ];
 
+// Color palette for highlights - 18 colors
 const HIGHLIGHT_COLORS = [
+  { name: 'Jaune clair', value: '#FEF9C3' },
   { name: 'Jaune', value: '#FEF08A' },
-  { name: 'Vert', value: '#BBF7D0' },
-  { name: 'Bleu', value: '#BFDBFE' },
-  { name: 'Rose', value: '#FBCFE8' },
+  { name: 'Jaune foncé', value: '#FDE047' },
+  { name: 'Orange clair', value: '#FFEDD5' },
   { name: 'Orange', value: '#FED7AA' },
+  { name: 'Orange foncé', value: '#FDBA74' },
+  { name: 'Vert clair', value: '#DCFCE7' },
+  { name: 'Vert', value: '#BBF7D0' },
+  { name: 'Vert foncé', value: '#86EFAC' },
+  { name: 'Cyan clair', value: '#CFFAFE' },
+  { name: 'Cyan', value: '#A5F3FC' },
+  { name: 'Bleu clair', value: '#DBEAFE' },
+  { name: 'Bleu', value: '#BFDBFE' },
+  { name: 'Bleu foncé', value: '#93C5FD' },
+  { name: 'Violet clair', value: '#EDE9FE' },
   { name: 'Violet', value: '#DDD6FE' },
+  { name: 'Rose clair', value: '#FCE7F3' },
+  { name: 'Rose', value: '#FBCFE8' },
 ];
 
 const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {

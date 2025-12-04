@@ -256,6 +256,26 @@
     pointer-events: none;
   }
 
+  /* TipTap Editor Placeholder - shows when editor is empty */
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    height: 0;
+    font-size: 0.875rem;
+  }
+
+  /* Also support the is-empty class on the editor wrapper */
+  .ProseMirror.is-empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    float: left;
+    height: 0;
+    font-size: 0.875rem;
+  }
+
   /* TipTap Task List - Remove bullet points, only show checkbox */
   ul[data-type="taskList"] {
     list-style: none;
@@ -264,7 +284,7 @@
 
   ul[data-type="taskList"] li {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
   }
 
@@ -273,12 +293,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 0.25rem;
   }
 
   ul[data-type="taskList"] li > div {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
   }
 
   /* Reset paragraph margins inside task items */

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Eye, EyeOff, Globe, Check, ChevronsUpDown, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, Check, ChevronsUpDown, X, Star, ChevronDown, Users, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -387,6 +393,56 @@ export default function NoteNew() {
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
+                  
+                  {/* Visibility Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className={`cursor-pointer hover-elevate ${
+                          visibility === "private" 
+                            ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"
+                            : visibility === "account"
+                            ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800"
+                            : "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800"
+                        }`}
+                        data-testid="badge-visibility"
+                      >
+                        {visibility === "private" ? (
+                          <><Lock className="w-3 h-3 mr-1" />Privée</>
+                        ) : visibility === "account" ? (
+                          <><Users className="w-3 h-3 mr-1" />Équipe</>
+                        ) : (
+                          <><Eye className="w-3 h-3 mr-1" />Client</>
+                        )}
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Badge>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() => setVisibility("private")}
+                        data-testid="menu-item-visibility-private"
+                      >
+                        <Lock className="w-4 h-4 mr-2" />
+                        Privée
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setVisibility("account")}
+                        data-testid="menu-item-visibility-account"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Partagée (équipe)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setVisibility("client_ro")}
+                        data-testid="menu-item-visibility-client"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Partagée (client)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
                   {isSaving ? (
                     <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
                   ) : lastSaved ? (
@@ -397,9 +453,9 @@ export default function NoteNew() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {/* Auto Save Toggle */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mr-2">
                 <Switch
                   id="autosave"
                   checked={autoSaveEnabled}
@@ -411,25 +467,37 @@ export default function NoteNew() {
                 </Label>
               </div>
               
-              <Button
-                variant="outline"
-                onClick={() => setIsEditMode(!isEditMode)}
-                data-testid="button-toggle-edit"
-              >
-                {isEditMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                {isEditMode ? "Aperçu" : "Modifier"}
-              </Button>
+              {/* Edit Mode Toggle - Lock Icon */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className="hover:bg-white dark:hover:bg-muted"
+                    data-testid="button-toggle-edit"
+                  >
+                    {isEditMode ? <LockOpen className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isEditMode ? "Verrouiller (mode lecture)" : "Déverrouiller (mode édition)"}</TooltipContent>
+              </Tooltip>
               
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value as any)}
-                className="border border-border rounded-md px-3 h-9 text-sm bg-background"
-                data-testid="select-visibility"
-              >
-                <option value="private">Privée</option>
-                <option value="account">Partagée (équipe)</option>
-                <option value="client_ro">Partagée (client)</option>
-              </select>
+              {/* Favorite Button - Star Icon */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    disabled
+                    className="hover:bg-white dark:hover:bg-muted opacity-50"
+                    data-testid="button-toggle-favorite"
+                  >
+                    <Star className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Enregistrer d'abord pour ajouter aux favoris</TooltipContent>
+              </Tooltip>
               
               {status === "draft" && (
                 <>
@@ -439,7 +507,7 @@ export default function NoteNew() {
                         variant="outline" 
                         onClick={handleSaveDraft} 
                         size="icon"
-                        className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                        className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
                         data-testid="button-save-draft"
                       >
                         <Save className="w-4 h-4" />
@@ -534,7 +602,6 @@ export default function NoteNew() {
             title={title}
             onTitleChange={setTitle}
             editable={isEditMode}
-            placeholder="Commencez à écrire votre note..."
           />
         </div>
       </div>
