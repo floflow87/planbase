@@ -211,13 +211,14 @@ export const SLASH_COMMANDS: SlashCommand[] = [
       // Delete the slash command first
       editor.chain().focus().deleteRange(range).run();
       
-      // Extract all headings from the document
-      const headings: { level: number; text: string }[] = [];
-      editor.state.doc.descendants((node) => {
+      // Extract all headings from the document with their positions
+      const headings: { level: number; text: string; pos: number }[] = [];
+      editor.state.doc.descendants((node, pos) => {
         if (node.type.name === 'heading' && node.attrs.level) {
           headings.push({
             level: node.attrs.level,
             text: node.textContent,
+            pos: pos,
           });
         }
       });
@@ -237,17 +238,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
       // Track counters for each level
       const counters: number[] = [0, 0, 0, 0, 0]; // For h1-h4
       
-      // Build TipTap content structure
+      // Build TipTap content structure - no header, just items
       const tocContent: any[] = [];
       
-      // Add header
-      tocContent.push({
-        type: 'heading',
-        attrs: { level: 4 },
-        content: [{ type: 'text', text: '📋 Table des matières' }]
-      });
-      
-      // Build ordered list with proper hierarchy
+      // Build ordered list with proper hierarchy and clickable links
+      let headingIdx = 0;
       headings.forEach((heading) => {
         // Update counters
         counters[heading.level - 1]++;
@@ -272,10 +267,22 @@ export const SLASH_COMMANDS: SlashCommand[] = [
         tocContent.push({
           type: 'paragraph',
           content: [
-            { type: 'text', marks: [{ type: 'bold' }], text: indentSpaces + numberPrefix + ' ' },
-            { type: 'text', text: heading.text }
+            { type: 'text', text: indentSpaces + numberPrefix + ' ' },
+            { 
+              type: 'text', 
+              marks: [{ 
+                type: 'link', 
+                attrs: { 
+                  href: `toc:${headingIdx}`,
+                  target: null,
+                  class: 'toc-link cursor-pointer'
+                } 
+              }], 
+              text: heading.text 
+            }
           ]
         });
+        headingIdx++;
       });
       
       // Add separator

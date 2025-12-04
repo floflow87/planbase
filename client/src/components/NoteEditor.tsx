@@ -161,6 +161,18 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   }
   const [copiedFormat, setCopiedFormat] = useState<CopiedFormat | null>(null);
   
+  // Outline bar state (Notion-like)
+  interface HeadingInfo {
+    id: string;
+    level: number;
+    text: string;
+    pos: number;
+  }
+  const [headings, setHeadings] = useState<HeadingInfo[]>([]);
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+  const [showOutlineToc, setShowOutlineToc] = useState(false);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -222,6 +234,14 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             navigate(href);
             return true;
           }
+          // Check if this is a TOC link (toc:index)
+          if (href.startsWith('toc:')) {
+            event.preventDefault();
+            const headingIndex = parseInt(href.replace('toc:', ''), 10);
+            // Dispatch event for TOC navigation
+            window.dispatchEvent(new CustomEvent('toc-navigate', { detail: { index: headingIndex } }));
+            return true;
+          }
         }
         return false;
       },
@@ -265,6 +285,99 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       editor.setEditable(editable);
     }
   }, [editor, editable]);
+
+  // Extract headings from document for outline bar
+  useEffect(() => {
+    if (!editor) return;
+    
+    const extractHeadings = () => {
+      const newHeadings: HeadingInfo[] = [];
+      let headingIndex = 0;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading' && node.attrs.level) {
+          const text = node.textContent;
+          const baseId = text.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          // Add index to ensure unique IDs even for duplicate headings
+          newHeadings.push({
+            id: `heading-${headingIndex}-${baseId}`,
+            level: node.attrs.level,
+            text: text,
+            pos: pos,
+          });
+          headingIndex++;
+        }
+      });
+      setHeadings(newHeadings);
+    };
+    
+    extractHeadings();
+    
+    // Listen for document changes
+    editor.on('update', extractHeadings);
+    
+    return () => {
+      editor.off('update', extractHeadings);
+    };
+  }, [editor]);
+
+  // Track active heading based on scroll position using IntersectionObserver
+  useEffect(() => {
+    if (!editorContainerRef.current || headings.length === 0) return;
+    
+    const editorElement = editorContainerRef.current.querySelector('.ProseMirror');
+    if (!editorElement) return;
+    
+    const headingElements = editorElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    if (headingElements.length === 0) return;
+    
+    // Set initial active heading
+    setActiveHeadingId(headings[0]?.id || null);
+    
+    // Use IntersectionObserver for better scroll tracking
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Find which heading this is
+            const headingIndex = Array.from(headingElements).indexOf(entry.target as Element);
+            if (headingIndex !== -1 && headingIndex < headings.length) {
+              setActiveHeadingId(headings[headingIndex].id);
+            }
+          }
+        });
+      },
+      {
+        rootMargin: '-20% 0px -70% 0px', // Trigger when heading is in upper portion of viewport
+        threshold: 0,
+      }
+    );
+    
+    headingElements.forEach((el) => observer.observe(el));
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [headings]);
+
+  // Scroll to heading when clicking outline or TOC link
+  const scrollToHeading = useCallback((headingId: string) => {
+    const container = editorContainerRef.current;
+    if (!container) return;
+    
+    const editorElement = container.querySelector('.ProseMirror');
+    if (!editorElement) return;
+    
+    const headingElements = editorElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    const headingIndex = headings.findIndex(h => h.id === headingId);
+    
+    if (headingIndex !== -1 && headingElements[headingIndex]) {
+      headingElements[headingIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveHeadingId(headingId);
+    }
+  }, [headings]);
 
   // Handle slash command events
   useEffect(() => {
@@ -329,12 +442,29 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       setEntityDialogOpen(true);
     };
 
+    // Handle TOC navigation from inline links
+    const handleTocNavigate = (event: CustomEvent<{ index: number }>) => {
+      const container = editorContainerRef.current;
+      if (!container) return;
+      
+      const editorElement = container.querySelector('.ProseMirror');
+      if (!editorElement) return;
+      
+      const headingElements = editorElement.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      const targetIndex = event.detail.index;
+      
+      if (headingElements[targetIndex]) {
+        headingElements[targetIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
     window.addEventListener('slash-command-image', handleSlashImage);
     window.addEventListener('slash-command-url', handleSlashUrl);
     window.addEventListener('slash-command-voice', handleSlashVoice);
     window.addEventListener('slash-command-project', handleSlashProject);
     window.addEventListener('slash-command-task', handleSlashTask);
     window.addEventListener('slash-command-client', handleSlashClient);
+    window.addEventListener('toc-navigate', handleTocNavigate as EventListener);
 
     return () => {
       window.removeEventListener('slash-command-image', handleSlashImage);
@@ -343,6 +473,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       window.removeEventListener('slash-command-project', handleSlashProject);
       window.removeEventListener('slash-command-task', handleSlashTask);
       window.removeEventListener('slash-command-client', handleSlashClient);
+      window.removeEventListener('toc-navigate', handleTocNavigate as EventListener);
     };
   }, [editor]);
 
@@ -1171,8 +1302,74 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         data-testid="input-file-upload"
       />
       
-      <div className="bg-white dark:bg-background">
+      <div 
+        ref={editorContainerRef}
+        className="relative bg-white dark:bg-background"
+      >
         <EditorContent editor={editor} />
+        
+        {/* Notion-like outline bar on the right */}
+        {headings.length > 0 && (
+          <div 
+            className="absolute right-2 top-4 flex flex-col gap-0.5 z-10"
+            onMouseEnter={() => setShowOutlineToc(true)}
+            onMouseLeave={() => setShowOutlineToc(false)}
+          >
+            {headings.map((heading) => {
+              const isActive = activeHeadingId === heading.id;
+              const width = heading.level === 1 ? 'w-3' : heading.level === 2 ? 'w-2.5' : 'w-2';
+              
+              return (
+                <button
+                  key={heading.id}
+                  onClick={() => scrollToHeading(heading.id)}
+                  className={`${width} h-1.5 rounded-sm transition-all cursor-pointer ${
+                    isActive 
+                      ? 'bg-primary' 
+                      : 'bg-muted-foreground/20 hover:bg-muted-foreground/40'
+                  }`}
+                  title={heading.text}
+                  data-testid={`outline-bar-${heading.id}`}
+                />
+              );
+            })}
+            
+            {/* TOC Panel on hover */}
+            {showOutlineToc && (
+              <div 
+                className="absolute right-6 top-0 w-64 max-h-80 overflow-y-auto bg-card border border-border rounded-lg shadow-lg p-3 z-20"
+                onMouseEnter={() => setShowOutlineToc(true)}
+                onMouseLeave={() => setShowOutlineToc(false)}
+              >
+                <div className="space-y-1">
+                  {headings.map((heading) => {
+                    const isActive = activeHeadingId === heading.id;
+                    const paddingLeft = (heading.level - 1) * 12;
+                    
+                    return (
+                      <button
+                        key={heading.id}
+                        onClick={() => {
+                          scrollToHeading(heading.id);
+                          setShowOutlineToc(false);
+                        }}
+                        className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
+                          isActive 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                        style={{ paddingLeft: `${paddingLeft + 8}px` }}
+                        data-testid={`toc-item-${heading.id}`}
+                      >
+                        {heading.text}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Link Dialog */}

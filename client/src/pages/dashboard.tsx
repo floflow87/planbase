@@ -1165,7 +1165,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Revenue Chart - Col Span 2 */}
           <Card className="lg:col-span-2 overflow-hidden flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-0">
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
@@ -1182,9 +1182,9 @@ export default function Dashboard() {
                 </SelectContent>
               </Select>
             </CardHeader>
-            <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-0">
+            <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-2">
               <div className="w-full overflow-hidden">
-                <ResponsiveContainer width="100%" height={180}>
+                <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))" }} />
