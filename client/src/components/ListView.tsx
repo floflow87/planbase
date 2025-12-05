@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Check, CheckCircle2, AlertCircle, UserCheck, FolderInput, Star, ArrowUpDown, ArrowUp, ArrowDown, Settings2, MoreVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -567,7 +567,182 @@ export function ListView({
         </div>
       )}
       
-      <Card>
+      {/* Mobile Card View - visible only on mobile */}
+      <div className="md:hidden space-y-3">
+        {tasks.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Aucune tâche
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {getPaginatedTasks().map((task) => {
+              const assignedUser = users.find((u) => u.id === task.assignedToId);
+              const taskColumn = columns.find(c => c.id === task.columnId);
+              const taskProject = projects.find(p => p.id === task.projectId);
+              
+              return (
+                <Card 
+                  key={task.id} 
+                  className="hover-elevate"
+                  data-testid={`card-task-${task.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.has(task.id)}
+                          onChange={() => toggleTaskSelection(task.id)}
+                          className="cursor-pointer mt-1 flex-shrink-0"
+                          data-testid={`checkbox-task-mobile-${task.id}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 
+                            className="font-medium text-sm truncate cursor-pointer hover:text-primary"
+                            onClick={() => onEditTask(task)}
+                          >
+                            {task.title}
+                          </h3>
+                          {taskProject && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {taskProject.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 flex-shrink-0"
+                            data-testid={`button-actions-task-mobile-${task.id}`}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white dark:bg-background">
+                          <DropdownMenuItem 
+                            onClick={() => onEditTask(task)}
+                            data-testid={`button-edit-task-mobile-${task.id}`}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          {task.status !== "done" && (
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                const doneColumn = columns.find(c => 
+                                  c.name.toLowerCase().includes("done") || 
+                                  c.name.toLowerCase().includes("terminé") ||
+                                  c.name.toLowerCase().includes("complété")
+                                );
+                                onUpdateTask(task.id, { 
+                                  status: "done",
+                                  ...(doneColumn && { columnId: doneColumn.id })
+                                } as any);
+                              }}
+                              data-testid={`button-complete-task-mobile-${task.id}`}
+                            >
+                              <Check className="h-4 w-4 mr-2" />
+                              Marquer comme terminée
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => onDeleteTask(task)}
+                            data-testid={`button-delete-task-mobile-${task.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      {taskColumn && (
+                        <Badge 
+                          style={{ backgroundColor: taskColumn.color || 'transparent' }}
+                          className="text-foreground text-[10px]"
+                        >
+                          {taskColumn.name}
+                        </Badge>
+                      )}
+                      <Badge className={`text-[10px] ${getPriorityColor(task.priority)}`}>
+                        {getPriorityLabel(task.priority)}
+                      </Badge>
+                      {task.dueDate && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDate(new Date(task.dueDate), "d MMM", { locale: fr })}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                      <div className="flex items-center gap-2">
+                        {assignedUser ? (
+                          <>
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={assignedUser.avatarUrl || ""} />
+                              <AvatarFallback className="text-[10px]">
+                                {assignedUser.firstName?.[0]}{assignedUser.lastName?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-muted-foreground">
+                              {assignedUser.firstName}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Non assigné</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star
+                            key={star}
+                            className={`h-3 w-3 ${(task.effort ?? 0) >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            
+            {/* Quick add on mobile */}
+            <Card>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <Input
+                    placeholder="Nouvelle tâche..."
+                    value={quickAddTaskTitle}
+                    onChange={(e) => setQuickAddTaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && quickAddTaskTitle.trim()) {
+                        onCreateTask();
+                      } else if (e.key === "Escape") {
+                        setQuickAddTaskTitle("");
+                      }
+                    }}
+                    disabled={isQuickAddingTask}
+                    className="border-0 focus-visible:ring-0 text-sm h-8"
+                    data-testid="input-quick-add-task-mobile"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+      
+      {/* Desktop Table View - hidden on mobile */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <DndContext

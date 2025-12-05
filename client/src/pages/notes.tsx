@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2 } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -675,13 +675,189 @@ export default function Notes() {
             ))}
           </div>
         ) : (
+          <>
+          {/* Mobile Card View - visible only on mobile */}
+          <div className="md:hidden space-y-3">
+            {filteredNotes.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {notes.length === 0 
+                    ? "Aucune note disponible. Cliquez sur \"Nouvelle note\" pour commencer."
+                    : "Aucune note ne correspond à votre recherche."}
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {paginatedNotes.map((note) => {
+                  const linkedProject = getLinkedProject(note.id);
+                  
+                  return (
+                    <Card 
+                      key={note.id}
+                      className="hover-elevate"
+                      data-testid={`card-note-${note.id}`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <Checkbox
+                              checked={selectedNotes.has(note.id)}
+                              onCheckedChange={() => toggleNoteSelection(note.id)}
+                              className="mt-1 flex-shrink-0"
+                              data-testid={`checkbox-note-mobile-${note.id}`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateNoteMutation.mutate({
+                                      noteId: note.id,
+                                      data: { isFavorite: !note.isFavorite }
+                                    });
+                                  }}
+                                  className="flex-shrink-0"
+                                  data-testid={`button-favorite-mobile-${note.id}`}
+                                >
+                                  <Star 
+                                    className={`h-4 w-4 ${
+                                      note.isFavorite 
+                                        ? 'fill-yellow-400 text-yellow-400' 
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                </button>
+                                <h3 
+                                  className="font-medium text-sm truncate cursor-pointer hover:text-primary"
+                                  onClick={() => navigate(`/notes/${note.id}`)}
+                                >
+                                  {note.title || "Sans titre"}
+                                </h3>
+                              </div>
+                              {note.summary && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                                  <span className="truncate">{note.summary}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                data-testid={`button-actions-note-mobile-${note.id}`}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-white dark:bg-background">
+                              <DropdownMenuItem 
+                                onClick={() => navigate(`/notes/${note.id}`)}
+                                data-testid={`button-open-note-mobile-${note.id}`}
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                Ouvrir
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDuplicateNote(note.id)}
+                                data-testid={`button-duplicate-note-mobile-${note.id}`}
+                              >
+                                <Copy className="w-4 h-4 mr-2" />
+                                Dupliquer
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteNote(note.id)}
+                                className="text-destructive"
+                                data-testid={`button-delete-note-mobile-${note.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${
+                              note.status === "draft"
+                                ? "bg-gray-50 text-gray-700 border-gray-200"
+                                : note.status === "active"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-orange-50 text-orange-700 border-orange-200"
+                            }`}
+                          >
+                            {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Publiée" : "Archivée"}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${
+                              note.visibility === "private"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : note.visibility === "account"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : "bg-cyan-50 text-cyan-700 border-cyan-200"
+                            }`}
+                          >
+                            {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
+                          </Badge>
+                          {linkedProject && (
+                            <Badge variant="outline" className="text-[10px] bg-white dark:bg-card text-violet-700 border-violet-200">
+                              {linkedProject.name}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t text-xs text-muted-foreground">
+                          <span>{format(new Date(note.createdAt), "d MMM yyyy", { locale: fr })}</span>
+                          <span>{formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                
+                {/* Quick add on mobile */}
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <Input
+                        placeholder="Créer une nouvelle note..."
+                        value={quickAddNoteTitle}
+                        onChange={(e) => setQuickAddNoteTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && quickAddNoteTitle.trim()) {
+                            setIsQuickAddingNote(true);
+                            createNoteMutation.mutate(quickAddNoteTitle.trim());
+                          } else if (e.key === "Escape") {
+                            setQuickAddNoteTitle("");
+                          }
+                        }}
+                        disabled={isQuickAddingNote}
+                        className="border-0 focus-visible:ring-0 text-sm h-8"
+                        data-testid="input-quick-add-note-mobile"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+          
+          {/* Desktop Table View - hidden on mobile */}
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={(event) => setActiveColumnId(event.active.id as string)}
             onDragEnd={handleColumnDragEnd}
           >
-          <div className="border border-border rounded-md overflow-hidden bg-white dark:bg-card">
+          <div className="hidden md:block border border-border rounded-md overflow-hidden bg-white dark:bg-card">
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <SortableContext
@@ -1095,6 +1271,7 @@ export default function Notes() {
             )}
           </div>
           </DndContext>
+          </>
         )}
 
         {/* Pagination Controls */}
