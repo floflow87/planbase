@@ -22,8 +22,14 @@ import planbaseLogo from "@assets/planbase-logo.png";
 export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
+
+  const handleNavigation = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   // Sections restreintes pour le plan "starter"
   const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/marketing", "/finance", "/legal"];
@@ -52,7 +58,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       {!isCollapsed && (
         <SidebarHeader className="p-4 border-b border-sidebar-border">
-          <Link href="/">
+          <Link href="/" onClick={handleNavigation}>
             <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
               <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
               <span className="font-heading font-semibold text-base text-sidebar-foreground" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>PlanBase</span>
@@ -84,7 +90,7 @@ export function AppSidebar() {
                                 <item.icon className="w-4 h-4" />
                               </div>
                             ) : (
-                              <Link href={item.url} className="flex justify-center w-full">
+                              <Link href={item.url} className="flex justify-center w-full" onClick={handleNavigation}>
                                 <item.icon className="w-4 h-4" />
                               </Link>
                             )}
@@ -106,7 +112,7 @@ export function AppSidebar() {
                             <span>{item.title}</span>
                           </div>
                         ) : (
-                          <Link href={item.url}>
+                          <Link href={item.url} onClick={handleNavigation}>
                             <item.icon className="w-4 h-4" />
                             <span>{item.title}</span>
                           </Link>
@@ -122,7 +128,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className={`border-t border-sidebar-border ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        <Link href="/profile">
+        <Link href="/profile" onClick={handleNavigation}>
           {isCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
