@@ -586,7 +586,7 @@ export default function Notes() {
   });
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
       <div className="p-6 space-y-6">
         {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -744,7 +744,7 @@ export function ListView({
       {/* Desktop Table View - hidden on mobile */}
       <Card className="hidden md:block">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-hidden">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCorners}

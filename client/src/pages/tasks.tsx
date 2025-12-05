@@ -1466,7 +1466,7 @@ export default function Tasks() {
   };
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
       <div className="p-6 space-y-6">
         {/* Header with project selector and buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1777,7 +1777,7 @@ export default function Tasks() {
                   onDragOver={handleDragOver}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="flex gap-4 overflow-x-auto pb-4">
+                  <div className="flex gap-4 flex-wrap pb-4">
                     <SortableContext
                       items={sortedColumns.map((c) => c.id)}
                       strategy={horizontalListSortingStrategy}
