@@ -760,7 +760,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               />
             </div>
           )}
-          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px flex-wrap bg-background shadow-sm overflow-x-auto">
+          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px bg-background shadow-sm overflow-x-auto whitespace-nowrap">
             {/* Format Painter - first icon */}
             <Tooltip>
               <TooltipTrigger asChild>

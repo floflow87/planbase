@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,9 +33,8 @@ import type { Note, InsertNote, Project, NoteLink } from "@shared/schema";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 
 export default function NoteDetail() {
@@ -659,179 +658,73 @@ export default function NoteDetail() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-foreground truncate mb-2">
+                <h1 className="text-xl font-bold text-foreground truncate mb-2">
                   {title || "Sans titre"}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Badge 
-                        variant="outline" 
-                        className={`cursor-pointer hover-elevate ${
-                          status === "draft" 
-                            ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                            : status === "archived"
-                            ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                            : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                        }`}
-                        data-testid="badge-status"
-                      >
-                        {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
-                        <ChevronDown className="w-3 h-3 ml-1" />
-                      </Badge>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setStatus("draft");
-                          updateMutation.mutate({ status: "draft" });
-                        }}
-                        data-testid="menu-item-draft"
-                      >
-                        <Badge 
-                          variant="outline" 
-                          className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                        >
-                          ●
-                        </Badge>
-                        Brouillon
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setStatus("active");
-                          updateMutation.mutate({ status: "active" });
-                        }}
-                        data-testid="menu-item-active"
-                      >
-                        <Badge 
-                          variant="outline" 
-                          className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                        >
-                          ●
-                        </Badge>
-                        Active
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setStatus("archived");
-                          updateMutation.mutate({ status: "archived" });
-                        }}
-                        data-testid="menu-item-archived"
-                      >
-                        <Badge 
-                          variant="outline" 
-                          className="mr-2 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                        >
-                          ●
-                        </Badge>
-                        Archivée
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Badge 
+                    variant="outline" 
+                    className={`${
+                      status === "draft" 
+                        ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                        : status === "archived"
+                        ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                        : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                    }`}
+                    data-testid="badge-status"
+                  >
+                    {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
+                  </Badge>
                   {isSaving ? (
-                    <span className="text-xs text-muted-foreground">Sauvegarde en cours...</span>
+                    <span className="text-xs text-muted-foreground hidden md:inline">Sauvegarde...</span>
                   ) : lastSaved ? (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground hidden md:inline">
                       Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground hidden md:inline">
                       Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-            {/* Auto Save Toggle */}
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="autosave"
-                  checked={autoSaveEnabled}
-                  onCheckedChange={setAutoSaveEnabled}
-                  data-testid="switch-autosave"
-                />
-                <Label htmlFor="autosave" className="cursor-pointer text-[12px]">
-                  Auto save {autoSaveEnabled ? "ON" : "OFF"}
-                </Label>
-              </div>
-              
+            <div className="flex items-center gap-2">
+              {/* Auto Save Toggle - icon only on mobile */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const newEditMode = !isEditMode;
-                      setIsEditMode(newEditMode);
-                      
-                      // If switching to edit mode and note is active (published), revert to draft
-                      if (newEditMode && status === "active") {
-                        setStatus("draft");
-                        updateMutation.mutate({ status: "draft" });
-                        toast({
-                          title: "Retour en brouillon",
-                          description: "La note est repassée en brouillon pour édition",
-                          variant: "default",
-                        });
-                      }
-                    }}
-                    data-testid="button-toggle-edit"
-                    className="hover:bg-white dark:hover:bg-muted"
-                  >
-                    {isEditMode ? <LockOpen className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Switch
+                      id="autosave"
+                      checked={autoSaveEnabled}
+                      onCheckedChange={setAutoSaveEnabled}
+                      data-testid="switch-autosave"
+                    />
+                    <Label htmlFor="autosave" className="cursor-pointer text-[11px] hidden md:inline">
+                      {autoSaveEnabled ? "ON" : "OFF"}
+                    </Label>
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent>{isEditMode ? "Verrouiller (lecture seule)" : "Déverrouiller (édition)"}</TooltipContent>
+                <TooltipContent>Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
               </Tooltip>
               
+              {/* Save button - always visible */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSaveDraft} 
                     size="icon"
-                    onClick={handleToggleFavorite}
-                    data-testid="button-toggle-favorite"
-                    className={`hover:bg-white dark:hover:bg-muted ${isFavorite ? "text-yellow-500 border-yellow-300" : ""}`}
+                    className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
+                    data-testid="button-save-draft"
                   >
-                    <Star className={`w-4 h-4 ${isFavorite ? "fill-yellow-500" : ""}`} />
+                    <Save className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}</TooltipContent>
+                <TooltipContent>Enregistrer</TooltipContent>
               </Tooltip>
               
-              {status === "draft" && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        onClick={handleSaveDraft} 
-                        size="icon"
-                        className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
-                        data-testid="button-save-draft"
-                      >
-                        <Save className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Enregistrer</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        onClick={handlePublish} 
-                        size="icon"
-                        className="hover:bg-white dark:hover:bg-muted"
-                        data-testid="button-publish"
-                      >
-                        <Globe className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Publier</TooltipContent>
-                  </Tooltip>
-                </>
-              )}
-              
+              {/* Delete button - always visible */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
@@ -846,68 +739,173 @@ export default function NoteDetail() {
                 </TooltipTrigger>
                 <TooltipContent>Supprimer</TooltipContent>
               </Tooltip>
+              
+              {/* Actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    data-testid="button-actions-menu"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Lock/Unlock */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const newEditMode = !isEditMode;
+                      setIsEditMode(newEditMode);
+                      
+                      if (newEditMode && status === "active") {
+                        setStatus("draft");
+                        updateMutation.mutate({ status: "draft" });
+                        toast({
+                          title: "Retour en brouillon",
+                          description: "La note est repassée en brouillon pour édition",
+                          variant: "default",
+                        });
+                      }
+                    }}
+                    data-testid="menu-item-toggle-edit"
+                  >
+                    {isEditMode ? <LockOpen className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
+                    {isEditMode ? "Verrouiller" : "Déverrouiller"}
+                  </DropdownMenuItem>
+                  
+                  {/* Favorite */}
+                  <DropdownMenuItem
+                    onClick={handleToggleFavorite}
+                    data-testid="menu-item-toggle-favorite"
+                  >
+                    <Star className={`w-4 h-4 mr-2 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
+                    {isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  </DropdownMenuItem>
+                  
+                  {/* Publish */}
+                  <DropdownMenuItem
+                    onClick={handlePublish}
+                    data-testid="menu-item-publish"
+                  >
+                    <Globe className="w-4 h-4 mr-2" />
+                    {status === "active" ? "Dépublier" : "Publier"}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Status submenu */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("draft");
+                      updateMutation.mutate({ status: "draft" });
+                    }}
+                    data-testid="menu-item-status-draft"
+                  >
+                    <Badge 
+                      variant="outline" 
+                      className="mr-2 bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 text-[10px]"
+                    >
+                      ●
+                    </Badge>
+                    Brouillon
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("active");
+                      updateMutation.mutate({ status: "active" });
+                    }}
+                    data-testid="menu-item-status-active"
+                  >
+                    <Badge 
+                      variant="outline" 
+                      className="mr-2 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 text-[10px]"
+                    >
+                      ●
+                    </Badge>
+                    Active
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("archived");
+                      updateMutation.mutate({ status: "archived" });
+                    }}
+                    data-testid="menu-item-status-archived"
+                  >
+                    <Badge 
+                      variant="outline" 
+                      className="mr-2 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800 text-[10px]"
+                    >
+                      ●
+                    </Badge>
+                    Archivée
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Attach to project */}
+                  <DropdownMenuItem
+                    onClick={() => setProjectSelectorOpen(true)}
+                    data-testid="menu-item-attach-project"
+                  >
+                    <FolderKanban className="w-4 h-4 mr-2" />
+                    {currentProject ? `Projet: ${currentProject.name}` : "Rattacher à un projet"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </div>
-
-          {/* Project Selector */}
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Projet:</Label>
-            <Popover open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={projectSelectorOpen}
-                  className="justify-between min-w-[200px] text-[12px] bg-white dark:bg-card"
-                  data-testid="button-select-project"
-                >
-                  {currentProject ? currentProject.name : "Sélectionner un projet"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
-                <Command>
-                  <CommandInput placeholder="Rechercher un projet..." />
-                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
-                    {projects.map((project) => (
-                      <CommandItem
-                        key={project.id}
-                        onSelect={() => handleSelectProject(project.id)}
-                        data-testid={`option-project-${project.id}`}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            currentProject?.id === project.id ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{project.name}</div>
-                          {project.description && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {project.description}
-                            </div>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {currentProject && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleUnlinkProject}
-                data-testid="button-unlink-project"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </div>
       </div>
+      
+      {/* Project Selector Dialog */}
+      <Dialog open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
+        <DialogContent className="sm:max-w-[400px]" data-testid="dialog-select-project">
+          <DialogHeader>
+            <DialogTitle>Rattacher à un projet</DialogTitle>
+          </DialogHeader>
+          <Command className="rounded-lg border shadow-md">
+            <CommandInput placeholder="Rechercher un projet..." />
+            <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+            <CommandGroup className="max-h-[300px] overflow-y-auto">
+              {currentProject && (
+                <CommandItem
+                  onSelect={() => {
+                    handleUnlinkProject();
+                    setProjectSelectorOpen(false);
+                  }}
+                  data-testid="option-unlink-project"
+                  className="text-destructive"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Délier du projet
+                </CommandItem>
+              )}
+              {projects.map((project) => (
+                <CommandItem
+                  key={project.id}
+                  onSelect={() => handleSelectProject(project.id)}
+                  data-testid={`option-project-${project.id}`}
+                >
+                  <Check
+                    className={`mr-2 h-4 w-4 ${
+                      currentProject?.id === project.id ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{project.name}</div>
+                    {project.description && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        {project.description}
+                      </div>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </DialogContent>
+      </Dialog>
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto">
