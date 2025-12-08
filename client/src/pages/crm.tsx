@@ -113,7 +113,16 @@ function DraggableColumnHeader({
 export default function CRM() {
   const { toast } = useToast();
   
-  const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [viewMode, setViewMode] = useState<"table" | "card">(() => {
+    const saved = localStorage.getItem("crm_view_mode");
+    return (saved === "table" || saved === "card") ? saved : "table";
+  });
+  
+  // Persist view mode
+  useEffect(() => {
+    localStorage.setItem("crm_view_mode", viewMode);
+  }, [viewMode]);
+  
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

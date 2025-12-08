@@ -701,7 +701,15 @@ export default function Tasks() {
     return saved ? JSON.parse(saved) : ["all"];
   });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">("list");
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">(() => {
+    const saved = localStorage.getItem("tasks_view_mode");
+    return (saved === "kanban" || saved === "list" || saved === "calendar") ? saved : "list";
+  });
+  
+  // Persist view mode
+  useEffect(() => {
+    localStorage.setItem("tasks_view_mode", viewMode);
+  }, [viewMode]);
   const [statusFilter, setStatusFilter] = useState<string[]>(() => {
     const saved = localStorage.getItem("tasks_status_filter");
     return saved ? JSON.parse(saved) : ["all"];
