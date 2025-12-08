@@ -3222,41 +3222,204 @@ export default function Projects() {
                 }
               };
 
+              // Mobile Card View - always visible on mobile, hidden on desktop
+              const mobileCardView = (
+                <div className="md:hidden space-y-3">
+                  {paginatedProjects.map((project) => {
+                    const client = clients.find((c) => c.id === project.clientId);
+                    const projectTasks = tasks.filter(t => t.projectId === project.id);
+                    const completedColumn = taskColumns
+                      .filter(c => c.isLocked && c.projectId === project.id)
+                      .sort((a, b) => b.order - a.order)[0];
+                    const incompleteTasks = projectTasks.filter(t => 
+                      !completedColumn || t.columnId !== completedColumn.id
+                    ).length;
+                    const completedTasks = projectTasks.length - incompleteTasks;
+                    const progress = projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0;
+
+                    return (
+                      <Card 
+                        key={project.id}
+                        className="hover-elevate"
+                        data-testid={`card-project-mobile-${project.id}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <Avatar className="h-10 w-10 flex-shrink-0">
+                                <AvatarFallback className="bg-primary text-primary-foreground">
+                                  {client?.name.substring(0, 2).toUpperCase() || "??"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <Link href={`/projects/${project.id}`}>
+                                  <h3 
+                                    className="font-medium text-sm truncate cursor-pointer hover:text-primary"
+                                    data-testid={`link-project-mobile-${project.id}`}
+                                  >
+                                    {project.name}
+                                  </h3>
+                                </Link>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {client?.name || "Client non défini"}
+                                </p>
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 flex-shrink-0"
+                                  data-testid={`button-actions-project-mobile-${project.id}`}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/projects/${project.id}`}>
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    Ouvrir
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setEditingProject(project);
+                                    setProjectFormData({
+                                      name: project.name,
+                                      description: project.description || "",
+                                      clientId: project.clientId || "",
+                                      stage: project.stage || "prospection",
+                                      category: project.category || "",
+                                      startDate: project.startDate ? new Date(project.startDate) : undefined,
+                                      endDate: project.endDate ? new Date(project.endDate) : undefined,
+                                      budget: project.budget || "",
+                                    });
+                                    setIsEditProjectDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
+                                >
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Terminer
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    setEditingProject(project);
+                                    setIsDeleteProjectDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Supprimer
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            <Badge variant="outline" className={`text-[10px] ${getStageColor(project.stage)}`}>
+                              {getStageLabel(project.stage)}
+                            </Badge>
+                            {project.category && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {project.category}
+                              </Badge>
+                            )}
+                            {project.billingStatus && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {getBillingStatusLabel(project.billingStatus)}
+                              </Badge>
+                            )}
+                            {incompleteTasks > 0 && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {incompleteTasks} tâche{incompleteTasks > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {projectTasks.length > 0 && (
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                                <span>Progression</span>
+                                <span>{progress}%</span>
+                              </div>
+                              <Progress value={progress} className="h-1.5" />
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-3 mt-3 border-t">
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" />
+                              {project.startDate
+                                ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                                : "Pas de date"}
+                            </div>
+                            {project.budget && (
+                              <div className="font-medium text-foreground">
+                                {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                  style: "currency",
+                                  currency: "EUR",
+                                  minimumFractionDigits: 0,
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+
               if (projectViewMode === "kanban") {
                 return (
-                  <ProjectKanbanView
-                    projects={filteredProjects}
-                    clients={clients}
-                    tasks={tasks}
-                    taskColumns={taskColumns}
-                    onEditProject={(project) => {
-                      setEditingProject(project);
-                      setProjectFormData({
-                        name: project.name,
-                        description: project.description || "",
-                        clientId: project.clientId || "",
-                        stage: project.stage || "prospection",
-                        category: project.category || "",
-                        startDate: project.startDate ? new Date(project.startDate) : undefined,
-                        endDate: project.endDate ? new Date(project.endDate) : undefined,
-                        budget: project.budget || "",
-                      });
-                      setIsEditProjectDialogOpen(true);
-                    }}
-                    onDeleteProject={(project) => {
-                      setEditingProject(project);
-                      setIsDeleteProjectDialogOpen(true);
-                    }}
-                    onCompleteProject={(project) => {
-                      updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } });
-                    }}
-                    updateProjectMutation={updateProjectMutation}
-                  />
+                  <>
+                    {mobileCardView}
+                    <div className="hidden md:block">
+                      <ProjectKanbanView
+                        projects={filteredProjects}
+                        clients={clients}
+                        tasks={tasks}
+                        taskColumns={taskColumns}
+                        onEditProject={(project) => {
+                          setEditingProject(project);
+                          setProjectFormData({
+                            name: project.name,
+                            description: project.description || "",
+                            clientId: project.clientId || "",
+                            stage: project.stage || "prospection",
+                            category: project.category || "",
+                            startDate: project.startDate ? new Date(project.startDate) : undefined,
+                            endDate: project.endDate ? new Date(project.endDate) : undefined,
+                            budget: project.budget || "",
+                          });
+                          setIsEditProjectDialogOpen(true);
+                        }}
+                        onDeleteProject={(project) => {
+                          setEditingProject(project);
+                          setIsDeleteProjectDialogOpen(true);
+                        }}
+                        onCompleteProject={(project) => {
+                          updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } });
+                        }}
+                        updateProjectMutation={updateProjectMutation}
+                      />
+                    </div>
+                  </>
                 );
               }
               
               return projectViewMode === "grid" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <>
+                  {mobileCardView}
+                  <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredProjects.map((project) => {
                     const client = clients.find((c) => c.id === project.clientId);
                     
@@ -3403,203 +3566,12 @@ export default function Projects() {
                       </Card>
                     );
                   })}
-                </div>
+                  </div>
+                </>
               ) : (
                 <>
-                  {/* Mobile Card View for List - visible only on mobile */}
-                  <div className="md:hidden space-y-3">
-                    {paginatedProjects.map((project) => {
-                      const client = clients.find((c) => c.id === project.clientId);
-                      const projectTasks = tasks.filter(t => t.projectId === project.id);
-                      const completedColumn = taskColumns
-                        .filter(c => c.isLocked && c.projectId === project.id)
-                        .sort((a, b) => b.order - a.order)[0];
-                      const incompleteTasks = projectTasks.filter(t => 
-                        !completedColumn || t.columnId !== completedColumn.id
-                      ).length;
-                      const completedTasks = projectTasks.length - incompleteTasks;
-                      const progress = projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0;
-
-                      return (
-                        <Card 
-                          key={project.id}
-                          className="hover-elevate"
-                          data-testid={`card-project-mobile-${project.id}`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Avatar className="h-10 w-10 flex-shrink-0">
-                                  <AvatarFallback className="bg-primary text-primary-foreground">
-                                    {client?.name.substring(0, 2).toUpperCase() || "??"}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <Link href={`/projects/${project.id}`}>
-                                    <h3 
-                                      className="font-medium text-sm truncate cursor-pointer hover:text-primary"
-                                      data-testid={`link-project-mobile-${project.id}`}
-                                    >
-                                      {project.name}
-                                    </h3>
-                                  </Link>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {client?.name || "Client non défini"}
-                                  </p>
-                                </div>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 flex-shrink-0"
-                                    data-testid={`button-actions-project-mobile-${project.id}`}
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-white dark:bg-background">
-                                  <DropdownMenuItem 
-                                    onClick={() => setLocation(`/projects/${project.id}`)}
-                                    data-testid={`button-open-project-mobile-${project.id}`}
-                                  >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Ouvrir
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => {
-                                      setEditingProject(project);
-                                      setProjectFormData({
-                                        name: project.name,
-                                        description: project.description || "",
-                                        clientId: project.clientId || "",
-                                        stage: project.stage || "prospection",
-                                        category: project.category || "",
-                                        startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                        endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                        budget: project.budget || "",
-                                      });
-                                      setIsEditProjectDialogOpen(true);
-                                    }}
-                                    data-testid={`button-edit-project-mobile-${project.id}`}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Modifier
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
-                                    data-testid={`button-complete-project-mobile-${project.id}`}
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Terminer
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => {
-                                      setEditingProject(project);
-                                      setIsDeleteProjectDialogOpen(true);
-                                    }}
-                                    className="text-destructive"
-                                    data-testid={`button-delete-project-mobile-${project.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Supprimer
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2 mt-3">
-                              <Badge className={`${getStageColor(project.stage)} text-[10px]`}>
-                                {getStageLabel(project.stage)}
-                              </Badge>
-                              {project.category && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {project.category}
-                                </Badge>
-                              )}
-                              <Badge 
-                                className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
-                              >
-                                {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
-                              </Badge>
-                              {incompleteTasks > 0 && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {incompleteTasks} tâche{incompleteTasks > 1 ? 's' : ''}
-                                </Badge>
-                              )}
-                            </div>
-
-                            {projectTasks.length > 0 && (
-                              <div className="mt-3">
-                                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                                  <span>Progression</span>
-                                  <span>{progress}%</span>
-                                </div>
-                                <Progress value={progress} className="h-1.5" />
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="h-3 w-3" />
-                                {project.startDate
-                                  ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                                  : "Pas de date"}
-                              </div>
-                              {project.budget && (
-                                <span className="font-medium text-foreground">
-                                  {parseFloat(project.budget).toLocaleString("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                    minimumFractionDigits: 0,
-                                  })}
-                                </span>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-
-                    {/* Quick add on mobile */}
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-2">
-                          <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <Input
-                            placeholder="Nouveau projet..."
-                            value={quickAddProjectName}
-                            onChange={(e) => setQuickAddProjectName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && quickAddProjectName.trim()) {
-                                setIsQuickAddingProject(true);
-                                createProjectMutation.mutate({
-                                  name: quickAddProjectName.trim(),
-                                  description: "",
-                                  stage: "prospection",
-                                  accountId: accountId!,
-                                  clientId: null,
-                                  category: null,
-                                  startDate: null,
-                                  endDate: null,
-                                  budget: null,
-                                });
-                                setQuickAddProjectName("");
-                                setIsQuickAddingProject(false);
-                              } else if (e.key === "Escape") {
-                                setQuickAddProjectName("");
-                              }
-                            }}
-                            disabled={isQuickAddingProject}
-                            className="border-0 focus-visible:ring-0 text-sm h-8"
-                            data-testid="input-quick-add-project-mobile"
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  {/* Mobile Card View - reusing mobileCardView */}
+                  {mobileCardView}
 
                   {/* Desktop Table View - hidden on mobile */}
                   <DndContext
