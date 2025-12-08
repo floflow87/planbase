@@ -645,7 +645,7 @@ export default function NoteDetail() {
     <div className="h-full flex flex-col">
       {/* Fixed Header */}
       <div className="flex-none border-b border-border bg-background">
-        <div className="p-6 space-y-4">
+        <div className="p-3 md:p-6 space-y-2 md:space-y-4">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -659,7 +659,7 @@ export default function NoteDetail() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-foreground truncate mb-2">
+                <h1 className="text-xl font-bold text-foreground truncate mb-2 hidden md:block">
                   {title || "Sans titre"}
                 </h1>
                 <div className="flex items-center gap-2">
@@ -910,7 +910,7 @@ export default function NoteDetail() {
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto">
-        <div className="p-6">
+        <div className="p-2 md:p-6">
           {/* Editor */}
           <NoteEditor
             ref={editorRef}
