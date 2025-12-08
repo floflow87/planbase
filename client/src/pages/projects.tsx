@@ -3334,7 +3334,7 @@ export default function Projects() {
                             )}
                             {project.billingStatus && (
                               <Badge variant="outline" className="text-[10px]">
-                                {getBillingStatusLabel(project.billingStatus)}
+                                {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
                               </Badge>
                             )}
                             {incompleteTasks > 0 && (
