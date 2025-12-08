@@ -2945,8 +2945,8 @@ export default function Projects() {
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="p-6 space-y-4">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
+      <div className="p-4 md:p-6 space-y-4">
         {/* Projects View Header */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 flex-1">
@@ -3020,7 +3020,8 @@ export default function Projects() {
                     </div>
                   </PopoverContent>
                 </Popover>
-                <div className="flex border rounded-md">
+                {/* View toggle buttons - hidden on mobile */}
+                <div className="hidden md:flex border rounded-md">
                   <Button
                     variant={projectViewMode === "grid" ? "secondary" : "ghost"}
                     size="icon"
@@ -3052,6 +3053,7 @@ export default function Projects() {
                     size="icon"
                     onClick={() => setIsColumnSettingsOpen(true)}
                     data-testid="button-column-settings"
+                    className="hidden md:flex"
                   >
                     <Settings2 className="w-4 h-4" />
                   </Button>
