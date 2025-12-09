@@ -1317,6 +1317,7 @@ export function ListView({
           <div className="py-4 space-y-4">
             {[
               { id: "title", label: "Titre", disabled: true },
+              { id: "project", label: "Projet" },
               { id: "assignedTo", label: "Assigné à" },
               { id: "status", label: "Statut" },
               { id: "priority", label: "Priorité" },

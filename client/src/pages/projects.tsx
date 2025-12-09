@@ -1777,7 +1777,7 @@ function ProjectKanbanView({
       onDragStart={handleKanbanDragStart}
       onDragEnd={handleKanbanDragEnd}
     >
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-2">
         {stages.map((stage) => {
           const stageProjects = projects.filter(p => p.stage === stage.value);
           
@@ -1798,7 +1798,7 @@ function ProjectKanbanView({
       </div>
       <DragOverlay>
         {activeKanbanProject ? (
-          <Card className="shadow-xl rotate-3 w-[280px] opacity-95 bg-white dark:bg-background">
+          <Card className="shadow-xl rotate-3 w-[200px] opacity-95 bg-white dark:bg-background">
             <CardContent className="p-3">
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 shrink-0">
