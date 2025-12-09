@@ -1203,7 +1203,7 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="w-full justify-start mb-4 overflow-x-auto flex-nowrap">
+          <TabsList className="w-full justify-start mb-4 overflow-x-auto overflow-y-hidden flex-nowrap">
             <TabsTrigger value="tasks" className="gap-2 text-xs">
               <Users className="h-4 w-4" />
               Tâches

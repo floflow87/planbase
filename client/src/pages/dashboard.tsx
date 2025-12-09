@@ -216,7 +216,7 @@ export default function Dashboard() {
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      const response = await apiRequest("POST", "/api/clients", data);
+      const response = await apiRequest("/api/clients", "POST", data);
       return response.json();
     },
     onSuccess: (newClient) => {
@@ -235,7 +235,7 @@ export default function Dashboard() {
   // Create project mutation
   const createProjectMutation = useMutation({
     mutationFn: async (data: InsertProject) => {
-      return await apiRequest("POST", "/api/projects", data);
+      return await apiRequest("/api/projects", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });

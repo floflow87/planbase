@@ -349,7 +349,7 @@ export default function ClientDetail() {
 
   const createCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      return await apiRequest("POST", `/api/clients/${id}/comments`, { content });
+      return await apiRequest(`/api/clients/${id}/comments`, "POST", { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
@@ -364,7 +364,7 @@ export default function ClientDetail() {
 
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      await apiRequest("DELETE", `/api/clients/${id}/comments/${commentId}`);
+      await apiRequest(`/api/clients/${id}/comments/${commentId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
@@ -394,7 +394,7 @@ export default function ClientDetail() {
           : null,
       };
       
-      return await apiRequest("POST", "/api/tasks", taskData);
+      return await apiRequest("/api/tasks", "POST", taskData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -417,7 +417,7 @@ export default function ClientDetail() {
   const createCustomTabMutation = useMutation({
     mutationFn: async (data: { name: string; icon?: string }) => {
       const maxOrder = customTabs.length > 0 ? Math.max(...customTabs.map(t => t.order)) : -1;
-      return await apiRequest("POST", "/api/client-custom-tabs", {
+      return await apiRequest("/api/client-custom-tabs", "POST", {
         name: data.name,
         icon: data.icon || null,
         order: maxOrder + 1,
