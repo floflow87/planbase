@@ -4727,16 +4727,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create comment on a ticket
-  app.post("/api/tickets/:ticketId/comments", requireAuth, async (req, res) => {
+  app.post("/api/tickets/:ticketId/:ticketType/comments", requireAuth, async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
       const ticketId = req.params.ticketId;
+      const ticketType = req.params.ticketType;
       
       const data = insertTicketCommentSchema.parse({
-        ...req.body,
+        content: req.body.content,
         accountId,
         ticketId,
+        ticketType,
         authorId: userId,
       });
       

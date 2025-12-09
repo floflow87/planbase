@@ -96,36 +96,44 @@ export function TicketDetailPanel({
   // Fetch comments for the ticket - only fetch when ticket is selected
   const ticketId = ticket?.id;
   const ticketType = ticket?.type;
+  
+  // Use segmented array key and skip registration when no ticket selected
+  const commentsQueryKey = ["/api/tickets", ticketId ?? "", ticketType ?? "", "comments"] as const;
+  
   const { data: comments = [] } = useQuery<TicketComment[]>({
-    queryKey: [`/api/tickets/${ticketId}/${ticketType}/comments`],
+    queryKey: commentsQueryKey,
+    queryFn: async () => {
+      if (!ticketId || !ticketType) return [];
+      const res = await fetch(`/api/tickets/${ticketId}/${ticketType}/comments`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error("Failed to fetch comments");
+      return res.json();
+    },
     enabled: !!ticketId && !!ticketType,
+    staleTime: 0,
   });
   
-  // Add comment mutation
+  // Add comment mutation - pass ticketId and ticketType explicitly
   const addCommentMutation = useMutation({
-    mutationFn: async (content: string) => {
-      return apiRequest(`/api/tickets/${ticketId}/comments`, "POST", {
+    mutationFn: async ({ content, tId, tType }: { content: string; tId: string; tType: string }) => {
+      return apiRequest(`/api/tickets/${tId}/${tType}/comments`, "POST", {
         content,
-        ticketType: ticketType,
       });
     },
-    onSuccess: () => {
-      if (ticketId && ticketType) {
-        queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}/${ticketType}/comments`] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
       setNewComment("");
     },
   });
   
   // Update comment mutation
   const updateCommentMutation = useMutation({
-    mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
+    mutationFn: async ({ commentId, content, tId, tType }: { commentId: string; content: string; tId: string; tType: string }) => {
       return apiRequest(`/api/ticket-comments/${commentId}`, "PATCH", { content });
     },
-    onSuccess: () => {
-      if (ticketId && ticketType) {
-        queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}/${ticketType}/comments`] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
       setEditingCommentId(null);
       setEditedCommentContent("");
     },
@@ -133,13 +141,11 @@ export function TicketDetailPanel({
   
   // Delete comment mutation
   const deleteCommentMutation = useMutation({
-    mutationFn: async (commentId: string) => {
+    mutationFn: async ({ commentId, tId, tType }: { commentId: string; tId: string; tType: string }) => {
       return apiRequest(`/api/ticket-comments/${commentId}`, "DELETE");
     },
-    onSuccess: () => {
-      if (ticketId && ticketType) {
-        queryClient.invalidateQueries({ queryKey: [`/api/tickets/${ticketId}/${ticketType}/comments`] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
     },
   });
   
@@ -158,8 +164,8 @@ export function TicketDetailPanel({
   const getCommentAuthor = (authorId: string) => users.find(u => u.id === authorId);
   
   const handleAddComment = () => {
-    if (newComment.trim()) {
-      addCommentMutation.mutate(newComment.trim());
+    if (newComment.trim() && ticketId && ticketType) {
+      addCommentMutation.mutate({ content: newComment.trim(), tId: ticketId, tType: ticketType });
     }
   };
   
@@ -172,8 +178,8 @@ export function TicketDetailPanel({
   };
   
   const handleSaveEditedComment = () => {
-    if (editingCommentId && editedCommentContent.trim()) {
-      updateCommentMutation.mutate({ commentId: editingCommentId, content: editedCommentContent.trim() });
+    if (editingCommentId && editedCommentContent.trim() && ticketId && ticketType) {
+      updateCommentMutation.mutate({ commentId: editingCommentId, content: editedCommentContent.trim(), tId: ticketId, tType: ticketType });
     }
   };
   
@@ -553,7 +559,7 @@ export function TicketDetailPanel({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                          onClick={() => ticketId && ticketType && deleteCommentMutation.mutate({ commentId: comment.id, tId: ticketId, tType: ticketType })}
                           data-testid={`button-delete-comment-${comment.id}`}
                         >
                           <Trash2 className="h-3 w-3" />
