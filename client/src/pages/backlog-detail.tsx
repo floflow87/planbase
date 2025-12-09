@@ -783,18 +783,27 @@ export default function BacklogDetail() {
                 />
               </div>
 
-              {/* Ticket Detail Panel */}
+              {/* Ticket Detail Panel with click-outside-to-close */}
               {selectedTicket && (
-                <TicketDetailPanel
-                  ticket={selectedTicket}
-                  epics={backlog.epics}
-                  sprints={backlog.sprints}
-                  users={users}
-                  onClose={() => setSelectedTicket(null)}
-                  onUpdate={handleUpdateTicket}
-                  onDelete={handleDeleteTicket}
-                  onConvertType={handleConvertType}
-                />
+                <>
+                  <div 
+                    className="fixed inset-0 bg-black/10 z-40"
+                    onClick={() => setSelectedTicket(null)}
+                    data-testid="ticket-panel-backdrop"
+                  />
+                  <div className="relative z-50">
+                    <TicketDetailPanel
+                      ticket={selectedTicket}
+                      epics={backlog.epics}
+                      sprints={backlog.sprints}
+                      users={users}
+                      onClose={() => setSelectedTicket(null)}
+                      onUpdate={handleUpdateTicket}
+                      onDelete={handleDeleteTicket}
+                      onConvertType={handleConvertType}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </DndContext>

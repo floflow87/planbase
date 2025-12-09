@@ -95,6 +95,7 @@ const translateSubjectType = (subjectType: string) => {
     note: "note",
     contact: "contact",
     mindmap: "whiteboard",
+    backlog: "backlog",
   };
   return translations[subjectType] || subjectType;
 };
@@ -121,6 +122,10 @@ const translateActivityDescription = (description: string) => {
     "Nouvelle note créée:": "Nouvelle note créée :",
     "Whiteboard created:": "Whiteboard créé :",
     "Whiteboard updated:": "Whiteboard mis à jour :",
+    "Backlog créé:": "Backlog créé :",
+    "Epic créé:": "Epic créé :",
+    "User Story créée:": "User Story créée :",
+    "Tâche créée:": "Tâche créée :",
   };
   
   // Try to translate known patterns
@@ -144,6 +149,7 @@ const getActivityUrl = (subjectType: string, subjectId: string): string | null =
     deal: `/crm`,
     contact: `/crm`,
     mindmap: `/mindmaps/${subjectId}`,
+    backlog: `/product/backlog/${subjectId}`,
   };
   return routes[subjectType] || null;
 };

@@ -96,8 +96,23 @@ function getStateLabel(state: string | null | undefined) {
       return "En cours";
     case "review":
       return "Review";
+    case "a_faire":
     default:
       return "À faire";
+  }
+}
+
+function getStateDot(state: string | null | undefined) {
+  switch (state) {
+    case "termine":
+      return "bg-green-500";
+    case "en_cours":
+      return "bg-blue-500";
+    case "review":
+      return "bg-purple-500";
+    case "a_faire":
+    default:
+      return "bg-gray-400";
   }
 }
 
@@ -162,7 +177,7 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, 
       </span>
       
       {ticket.estimatePoints !== undefined && ticket.estimatePoints !== null && ticket.estimatePoints > 0 && (
-        <Badge variant="outline" className="text-xs px-1.5" data-testid={`ticket-points-${ticket.id}`}>
+        <Badge variant="outline" className="text-xs px-1.5 cursor-pointer" data-testid={`ticket-points-${ticket.id}`}>
           {ticket.estimatePoints}
         </Badge>
       )}
@@ -178,16 +193,24 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, 
           }}
         >
           <SelectTrigger 
-            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border-0", getStateStyle(ticket.state))}
+            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border-0 cursor-pointer", getStateStyle(ticket.state))}
             onClick={(e) => e.stopPropagation()}
             data-testid={`select-inline-state-${ticket.id}`}
           >
-            <SelectValue>{getStateLabel(ticket.state)}</SelectValue>
+            <SelectValue>
+              <span className="flex items-center gap-1.5">
+                <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
+                {getStateLabel(ticket.state)}
+              </span>
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-white">
             {backlogItemStateOptions.map(opt => (
-              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs">
-                {opt.label}
+              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
+                <span className="flex items-center gap-1.5">
+                  <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
+                  {opt.label}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -195,9 +218,10 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, 
       ) : (
         <Badge 
           variant="secondary" 
-          className={cn("text-xs px-1.5 py-0", getStateStyle(ticket.state))}
+          className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
           data-testid={`ticket-state-${ticket.id}`}
         >
+          <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
           {getStateLabel(ticket.state)}
         </Badge>
       )}

@@ -3955,6 +3955,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const [backlog] = await db.insert(backlogs).values(data).returning();
       
+      // Create activity for backlog creation
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: backlog.id,
+        kind: "created",
+        payload: { description: `Backlog créé: ${backlog.name}` },
+        createdBy: userId,
+      });
+      
       // If Kanban mode, create default columns
       if (data.mode === "kanban") {
         const defaultColumns = [
@@ -4101,6 +4111,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const [epic] = await db.insert(epics).values(data).returning();
+      
+      // Create activity for epic creation
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: epic.backlogId,
+        kind: "updated",
+        payload: { description: `Epic créé: ${epic.title}` },
+        createdBy: userId,
+      });
+      
       res.status(201).json(epic);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4180,7 +4201,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
       
-      const [userStory] = await db.insert(userStories).values(data).returning();
+      const [userStory] = await db.insert(userStories).values({
+        ...data,
+        reporterId: req.body.reporterId || userId,
+      }).returning();
+      
+      // Create activity for user story creation
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: userStory.backlogId,
+        kind: "updated",
+        payload: { description: `User Story créée: ${userStory.title}` },
+        createdBy: userId,
+      });
+      
       res.status(201).json(userStory);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4254,7 +4289,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
       
-      const [task] = await db.insert(backlogTasks).values(data).returning();
+      const [task] = await db.insert(backlogTasks).values({
+        ...data,
+        reporterId: req.body.reporterId || userId,
+      }).returning();
+      
+      // Create activity for task creation
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: backlogId,
+        kind: "updated",
+        payload: { description: `Tâche créée: ${task.title}` },
+        createdBy: userId,
+      });
+      
       res.status(201).json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4284,7 +4333,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
       
-      const [task] = await db.insert(backlogTasks).values(data).returning();
+      const [task] = await db.insert(backlogTasks).values({
+        ...data,
+        reporterId: req.body.reporterId || userId,
+      }).returning();
+      
+      // Create activity for task creation
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: userStory.backlogId,
+        kind: "updated",
+        payload: { description: `Tâche créée: ${task.title}` },
+        createdBy: userId,
+      });
+      
       res.status(201).json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

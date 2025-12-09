@@ -86,7 +86,7 @@ export default function Product() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog supprimé" });
+      toast({ title: "Backlog supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowDeleteDialog(false);
       setSelectedBacklog(null);
     },
