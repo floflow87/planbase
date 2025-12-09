@@ -122,17 +122,17 @@ export async function runStartupMigrations() {
       ALTER COLUMN created_by DROP NOT NULL;
     `);
     
-    // Update activities constraints to support note, task, document
+    // Update activities constraints to support note, task, document, backlog types
     await db.execute(sql`
       DO $$ 
       BEGIN
         -- Drop old constraint if it exists
         ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_subject_type_check;
         
-        -- Add new constraint with extended values including mindmap
+        -- Add new constraint with extended values including mindmap and backlog types
         ALTER TABLE activities 
         ADD CONSTRAINT activities_subject_type_check 
-        CHECK (subject_type IN ('client','deal','project','note','task','document','mindmap'));
+        CHECK (subject_type IN ('client','deal','project','note','task','document','mindmap','backlog','epic','user_story','backlog_task'));
       EXCEPTION
         WHEN duplicate_object THEN
           NULL;
