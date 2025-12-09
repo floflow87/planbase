@@ -779,7 +779,7 @@ export default function Dashboard() {
   const activityFeed = activities.slice(0, 5);
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto overflow-x-hidden">
       <div className="p-6 space-y-6">
         {/* Create Client Sheet */}
         <Sheet open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>
@@ -1570,7 +1570,7 @@ export default function Dashboard() {
       
       {/* Task Reminder Dialog */}
       <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md relative overflow-hidden mx-auto">
+        <DialogContent className="fixed inset-0 m-0 max-w-none w-full h-full rounded-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md sm:w-[90vw] sm:h-auto sm:rounded-lg sm:m-0 overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
