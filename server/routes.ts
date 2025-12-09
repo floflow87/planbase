@@ -4418,8 +4418,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.userId!;
       const backlogId = req.params.backlogId;
       
+      // Convert date strings to Date objects if provided
+      const requestBody = { ...req.body };
+      if (requestBody.startDate) {
+        requestBody.startDate = new Date(requestBody.startDate);
+      }
+      if (requestBody.endDate) {
+        requestBody.endDate = new Date(requestBody.endDate);
+      }
+      
       const data = insertSprintSchema.parse({
-        ...req.body,
+        ...requestBody,
         accountId,
         backlogId,
         createdBy: userId,
@@ -4437,7 +4446,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
-      const data = updateSprintSchema.parse(req.body);
+      
+      // Convert date strings to Date objects if provided
+      const requestBody = { ...req.body };
+      if (requestBody.startDate) {
+        requestBody.startDate = new Date(requestBody.startDate);
+      }
+      if (requestBody.endDate) {
+        requestBody.endDate = new Date(requestBody.endDate);
+      }
+      
+      const data = updateSprintSchema.parse(requestBody);
       
       const [updated] = await db.update(sprints)
         .set({ ...data, updatedAt: new Date() })
