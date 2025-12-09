@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { 
@@ -98,6 +98,19 @@ export default function BacklogDetail() {
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // Update browser tab title with backlog name
+  useEffect(() => {
+    if (backlog) {
+      const truncatedName = backlog.name.length > 15 
+        ? backlog.name.substring(0, 15) + '...'
+        : backlog.name;
+      document.title = `${truncatedName} | PlanBase`;
+    }
+    return () => {
+      document.title = 'PlanBase';
+    };
+  }, [backlog?.name]);
 
   const createEpicMutation = useMutation({
     mutationFn: async (data: { title: string; description?: string; priority?: string; color?: string }) => {

@@ -51,6 +51,8 @@ import {
   updateSprintSchema,
   insertBacklogColumnSchema,
   updateBacklogColumnSchema,
+  insertTicketCommentSchema,
+  updateTicketCommentSchema,
   backlogs,
   epics,
   userStories,
@@ -59,6 +61,7 @@ import {
   sprints,
   backlogColumns,
   tasks,
+  ticketComments,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -4693,6 +4696,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imported: createdTasks.length,
         tasks: createdTasks,
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TICKET COMMENTS
+  // ============================================
+
+  // Get comments for a ticket
+  app.get("/api/tickets/:ticketId/:ticketType/comments", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ticketId = req.params.ticketId;
+      const ticketType = req.params.ticketType;
+      
+      const result = await db.select().from(ticketComments)
+        .where(and(
+          eq(ticketComments.ticketId, ticketId), 
+          eq(ticketComments.accountId, accountId),
+          eq(ticketComments.ticketType, ticketType)
+        ))
+        .orderBy(asc(ticketComments.createdAt));
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create comment on a ticket
+  app.post("/api/tickets/:ticketId/comments", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const ticketId = req.params.ticketId;
+      
+      const data = insertTicketCommentSchema.parse({
+        ...req.body,
+        accountId,
+        ticketId,
+        authorId: userId,
+      });
+      
+      const [comment] = await db.insert(ticketComments).values(data).returning();
+      res.status(201).json(comment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update comment
+  app.patch("/api/ticket-comments/:commentId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const commentId = req.params.commentId;
+      const data = updateTicketCommentSchema.parse(req.body);
+      
+      const [updated] = await db.update(ticketComments)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete comment
+  app.delete("/api/ticket-comments/:commentId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const commentId = req.params.commentId;
+      
+      const [deleted] = await db.delete(ticketComments)
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

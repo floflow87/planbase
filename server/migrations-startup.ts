@@ -678,6 +678,29 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Backlog tasks sprint_id and priority columns added");
     
+    // Create ticket_comments table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ticket_comments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        ticket_id uuid NOT NULL,
+        ticket_type text NOT NULL CHECK (ticket_type IN ('epic', 'user_story', 'task')),
+        content text NOT NULL,
+        author_id uuid NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_comments_account_idx ON ticket_comments(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_comments_ticket_idx ON ticket_comments(ticket_id, ticket_type);
+    `);
+    console.log("✅ Ticket comments table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
