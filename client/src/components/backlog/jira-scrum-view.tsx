@@ -276,7 +276,7 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onT
       {assignee ? (
         <Avatar className="h-6 w-6">
           <AvatarFallback className="text-xs bg-primary/10">
-            {assignee.displayName?.charAt(0) || assignee.email?.charAt(0) || "?"}
+            {assignee.firstName?.charAt(0) || assignee.email?.charAt(0) || "?"}
           </AvatarFallback>
         </Avatar>
       ) : (
@@ -397,10 +397,10 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onT
                   >
                     <Avatar className="h-4 w-4 mr-2">
                       <AvatarFallback className="text-[8px]">
-                        {user.displayName?.charAt(0) || user.email?.charAt(0) || "?"}
+                        {user.firstName?.charAt(0) || user.email?.charAt(0) || "?"}
                       </AvatarFallback>
                     </Avatar>
-                    {user.displayName || user.email}
+                    {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>

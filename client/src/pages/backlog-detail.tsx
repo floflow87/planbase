@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
-  Play, Square, CheckCircle, Pencil, Trash2, GripVertical
+  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,6 +77,9 @@ export default function BacklogDetail() {
   const [showUserStoryDialog, setShowUserStoryDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [showSprintDialog, setShowSprintDialog] = useState(false);
+  const [showEditBacklogDialog, setShowEditBacklogDialog] = useState(false);
+  const [editBacklogName, setEditBacklogName] = useState("");
+  const [editBacklogDescription, setEditBacklogDescription] = useState("");
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [editingUserStory, setEditingUserStory] = useState<UserStory | null>(null);
@@ -96,7 +99,8 @@ export default function BacklogDetail() {
   const [redirectTarget, setRedirectTarget] = useState<string>("backlog");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("default");
+  const [sortBy, setSortBy] = useState<string>("state");
+  const [ticketSearch, setTicketSearch] = useState<string>("");
 
   const { data: backlog, isLoading } = useQuery<BacklogData>({
     queryKey: ["/api/backlogs", id],
@@ -280,6 +284,19 @@ export default function BacklogDetail() {
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
+  const updateBacklogMutation = useMutation({
+    mutationFn: async (data: { name: string; description?: string }) => {
+      return apiRequest(`/api/backlogs/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+      toast({ title: "Backlog mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      setShowEditBacklogDialog(false);
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
   const toggleChecklistItemMutation = useMutation({
     mutationFn: async ({ itemId, done }: { itemId: string; done: boolean }) => {
       return apiRequest(`/api/checklist-items/${itemId}`, "PATCH", { done });
@@ -395,13 +412,13 @@ export default function BacklogDetail() {
     return Math.round((done / tasks.length) * 100);
   };
 
-  // Kanban helpers
-  const getTasksForColumn = (columnId: string) => {
-    return backlog?.backlogTasks.filter(t => t.columnId === columnId) || [];
+  // Kanban helpers - uses userStories with columnId for Kanban mode
+  const getStoriesForColumn = (columnId: string) => {
+    return backlog?.userStories.filter(us => us.columnId === columnId) || [];
   };
 
-  const getUnassignedTasks = () => {
-    return backlog?.backlogTasks.filter(t => !t.columnId) || [];
+  const getUnassignedStories = () => {
+    return backlog?.userStories.filter(us => !us.columnId) || [];
   };
 
   // Jira-style helpers
@@ -421,6 +438,15 @@ export default function BacklogDetail() {
   // Apply filters and sorting to tickets
   const applyFiltersAndSort = (tickets: FlatTicket[]) => {
     let result = [...tickets];
+    
+    // Apply search filter
+    if (ticketSearch.trim()) {
+      const search = ticketSearch.toLowerCase().trim();
+      result = result.filter(t => 
+        t.title?.toLowerCase().includes(search) ||
+        t.description?.toLowerCase().includes(search)
+      );
+    }
     
     // Apply state filter
     if (stateFilter !== "all") {
@@ -864,10 +890,23 @@ export default function BacklogDetail() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/product")} data-testid="button-back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           <h1 className="text-xl font-bold truncate" data-testid="text-backlog-title">{backlog.name}</h1>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7 shrink-0"
+            onClick={() => {
+              setEditBacklogName(backlog.name);
+              setEditBacklogDescription(backlog.description || "");
+              setShowEditBacklogDialog(true);
+            }}
+            data-testid="button-edit-backlog"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
           {backlog.description && (
-            <p className="text-sm text-muted-foreground truncate">{backlog.description}</p>
+            <p className="text-sm text-muted-foreground truncate hidden md:block">{backlog.description}</p>
           )}
         </div>
         <Badge variant="secondary" className="capitalize">
@@ -876,44 +915,95 @@ export default function BacklogDetail() {
       </div>
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="flex flex-wrap gap-2 mb-6">
-          <Button size="sm" variant="outline" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
-            <Plus className="h-4 w-4 mr-1" />
-            Epic
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
-            <Plus className="h-4 w-4 mr-1" />
-            User Story
-          </Button>
-          {backlog.mode === "scrum" && (
-            <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          {/* Left: Creation buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
               <Plus className="h-4 w-4 mr-1" />
-              Sprint
+              Epic
             </Button>
-          )}
-          {backlog.mode === "kanban" && (
-            <Button size="sm" variant="outline" onClick={() => setShowColumnDialog(true)} data-testid="button-add-column">
+            <Button size="sm" variant="outline" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
               <Plus className="h-4 w-4 mr-1" />
-              Colonne
+              User Story
             </Button>
-          )}
+            {backlog.mode === "scrum" && (
+              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
+                <Plus className="h-4 w-4 mr-1" />
+                Sprint
+              </Button>
+            )}
+            {backlog.mode === "kanban" && (
+              <Button size="sm" variant="outline" onClick={() => setShowColumnDialog(true)} data-testid="button-add-column">
+                <Plus className="h-4 w-4 mr-1" />
+                Colonne
+              </Button>
+            )}
+          </div>
+          
+          {/* Right: Search, Filters and Sort */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Rechercher un ticket..."
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                className="pl-8 h-8 w-[180px] text-sm"
+                data-testid="input-ticket-search"
+              />
+            </div>
+            
+            {/* Priority filter */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Priorité</Label>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-[130px] h-8 text-sm" data-testid="select-priority-filter">
+                  <SelectValue placeholder="Toutes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  {backlogPriorityOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Sort by */}
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Trier par</Label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[150px] h-8 text-sm" data-testid="select-sort-by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="state">État</SelectItem>
+                  <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
+                  <SelectItem value="priority_asc">Priorité croissante</SelectItem>
+                  <SelectItem value="title">Titre (A-Z)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
         {/* Kanban Board View */}
         {backlog.mode === "kanban" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
             <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
-              {backlog.columns.sort((a, b) => a.position - b.position).map(column => (
+              {backlog.columns.sort((a, b) => a.order - b.order).map(column => (
                 <KanbanColumn
                   key={column.id}
                   column={column}
-                  tasks={getTasksForColumn(column.id)}
-                  onAddTask={() => {
+                  stories={getStoriesForColumn(column.id)}
+                  onAddStory={() => {
                     setSelectedColumnId(column.id);
-                    setShowKanbanTaskDialog(true);
+                    setShowUserStoryDialog(true);
                   }}
                   onDeleteColumn={() => deleteColumnMutation.mutate(column.id)}
-                  onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+                  onDeleteStory={(storyId) => deleteUserStoryMutation.mutate(storyId)}
                   getPriorityColor={getPriorityColor}
                 />
               ))}
@@ -940,64 +1030,20 @@ export default function BacklogDetail() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="flex gap-0 h-full">
               <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
-                {/* Filters and sorting toolbar */}
-                <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* State filter */}
-                    <Select value={stateFilter} onValueChange={setStateFilter}>
-                      <SelectTrigger className="w-[140px] h-8 text-sm" data-testid="select-state-filter">
-                        <SelectValue placeholder="État" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les états</SelectItem>
-                        {backlogItemStateOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {/* Priority filter */}
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                      <SelectTrigger className="w-[140px] h-8 text-sm" data-testid="select-priority-filter">
-                        <SelectValue placeholder="Priorité" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Toutes priorités</SelectItem>
-                        {backlogPriorityOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {/* Sort by */}
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="select-sort-by">
-                        <SelectValue placeholder="Trier par" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Par défaut</SelectItem>
-                        <SelectItem value="priority_asc">Priorité croissante</SelectItem>
-                        <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
-                        <SelectItem value="state">État</SelectItem>
-                        <SelectItem value="title">Titre (A-Z)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="hide-finished-sprints" 
-                      checked={hideFinishedSprints}
-                      onCheckedChange={(checked) => setHideFinishedSprints(checked === true)}
-                      data-testid="checkbox-hide-finished-sprints"
-                    />
-                    <label 
-                      htmlFor="hide-finished-sprints" 
-                      className="text-sm text-muted-foreground cursor-pointer"
-                    >
-                      Masquer terminés
-                    </label>
-                  </div>
+                {/* Hide finished sprints checkbox */}
+                <div className="flex items-center gap-2 mb-3">
+                  <Checkbox 
+                    id="hide-finished-sprints" 
+                    checked={hideFinishedSprints}
+                    onCheckedChange={(checked) => setHideFinishedSprints(checked === true)}
+                    data-testid="checkbox-hide-finished-sprints"
+                  />
+                  <label 
+                    htmlFor="hide-finished-sprints" 
+                    className="text-sm text-muted-foreground cursor-pointer"
+                  >
+                    Masquer les sprints terminés
+                  </label>
                 </div>
 
                 {/* Sprint Sections */}
@@ -1134,6 +1180,54 @@ export default function BacklogDetail() {
         onCreate={(data) => createKanbanTaskMutation.mutate(data)}
         isPending={createKanbanTaskMutation.isPending}
       />
+
+      {/* Edit Backlog Dialog */}
+      <Dialog open={showEditBacklogDialog} onOpenChange={setShowEditBacklogDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifier le backlog</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du backlog.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nom *</Label>
+              <Input 
+                value={editBacklogName} 
+                onChange={(e) => setEditBacklogName(e.target.value)} 
+                placeholder="Nom du backlog"
+                data-testid="input-edit-backlog-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea 
+                value={editBacklogDescription} 
+                onChange={(e) => setEditBacklogDescription(e.target.value)} 
+                placeholder="Description (optionnel)"
+                rows={3}
+                data-testid="input-edit-backlog-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditBacklogDialog(false)} data-testid="button-cancel-edit-backlog">
+              Annuler
+            </Button>
+            <Button 
+              onClick={() => updateBacklogMutation.mutate({ 
+                name: editBacklogName, 
+                description: editBacklogDescription || undefined 
+              })}
+              disabled={updateBacklogMutation.isPending || !editBacklogName.trim()}
+              data-testid="button-submit-edit-backlog"
+            >
+              {updateBacklogMutation.isPending ? "..." : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sprint Close Modal */}
       <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>
@@ -1705,8 +1799,8 @@ function SprintSheet({
     const data = { 
       name, 
       goal: goal || undefined, 
-      startDate: startDate || undefined, 
-      endDate: endDate || undefined 
+      startDate: startDate ? new Date(startDate) : null, 
+      endDate: endDate ? new Date(endDate) : null 
     };
     
     if (sprint) {
@@ -1891,17 +1985,17 @@ function KanbanTaskDialogComponent({
 
 function KanbanColumn({
   column,
-  tasks,
-  onAddTask,
+  stories,
+  onAddStory,
   onDeleteColumn,
-  onDeleteTask,
+  onDeleteStory,
   getPriorityColor
 }: {
   column: BacklogColumn;
-  tasks: BacklogTask[];
-  onAddTask: () => void;
+  stories: UserStory[];
+  onAddStory: () => void;
   onDeleteColumn: () => void;
-  onDeleteTask: (taskId: string) => void;
+  onDeleteStory: (storyId: string) => void;
   getPriorityColor: (priority: string) => string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column-${column.id}` });
@@ -1920,7 +2014,7 @@ function KanbanColumn({
           />
           <h3 className="font-medium text-sm" data-testid={`text-column-name-${column.id}`}>{column.name}</h3>
           <Badge variant="secondary" className="text-xs">
-            {tasks.length}
+            {stories.length}
           </Badge>
         </div>
         <DropdownMenu>
@@ -1930,9 +2024,9 @@ function KanbanColumn({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onAddTask} data-testid={`menu-add-task-column-${column.id}`}>
+            <DropdownMenuItem onClick={onAddStory} data-testid={`menu-add-story-column-${column.id}`}>
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter une tâche
+              Ajouter une story
             </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={onDeleteColumn} data-testid={`menu-delete-column-${column.id}`}>
               <Trash2 className="h-4 w-4 mr-2" />
@@ -1942,14 +2036,14 @@ function KanbanColumn({
         </DropdownMenu>
       </div>
 
-      <SortableContext id={column.id} items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 min-h-[100px]" data-testid={`column-tasks-${column.id}`}>
-          {tasks.map(task => (
-            <KanbanTaskCard 
-              key={task.id} 
-              task={task}
+      <SortableContext id={column.id} items={stories.map(s => s.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-2 min-h-[100px]" data-testid={`column-stories-${column.id}`}>
+          {stories.map(story => (
+            <KanbanStoryCard 
+              key={story.id} 
+              story={story}
               columnId={column.id}
-              onDelete={() => onDeleteTask(task.id)}
+              onDelete={() => onDeleteStory(story.id)}
               getPriorityColor={getPriorityColor}
             />
           ))}
@@ -1960,8 +2054,8 @@ function KanbanColumn({
         size="sm" 
         variant="ghost" 
         className="w-full mt-2"
-        onClick={onAddTask}
-        data-testid={`button-add-task-column-${column.id}`}
+        onClick={onAddStory}
+        data-testid={`button-add-story-column-${column.id}`}
       >
         <Plus className="h-3 w-3 mr-1" />
         Ajouter
@@ -1970,20 +2064,20 @@ function KanbanColumn({
   );
 }
 
-function KanbanTaskCard({ 
-  task, 
+function KanbanStoryCard({ 
+  story, 
   columnId,
   onDelete,
   getPriorityColor
 }: { 
-  task: BacklogTask;
+  story: UserStory;
   columnId: string;
   onDelete: () => void;
   getPriorityColor: (priority: string) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
-    id: task.id,
-    data: { columnId, task }
+    id: story.id,
+    data: { columnId, story }
   });
 
   const style = {
@@ -1997,15 +2091,15 @@ function KanbanTaskCard({
       ref={setNodeRef} 
       style={style} 
       className="p-3 cursor-grab active:cursor-grabbing" 
-      data-testid={`card-kanban-task-${task.id}`}
+      data-testid={`card-kanban-story-${story.id}`}
       {...attributes}
       {...listeners}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate" data-testid={`text-kanban-task-title-${task.id}`}>{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground truncate mt-1">{task.description}</p>
+          <p className="font-medium text-sm truncate" data-testid={`text-kanban-story-title-${story.id}`}>{story.title}</p>
+          {story.description && (
+            <p className="text-xs text-muted-foreground truncate mt-1">{story.description}</p>
           )}
         </div>
         <Button 
@@ -2013,25 +2107,25 @@ function KanbanTaskCard({
           size="icon" 
           className="h-6 w-6 flex-shrink-0"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          data-testid={`button-delete-kanban-task-${task.id}`}
+          data-testid={`button-delete-kanban-story-${story.id}`}
         >
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
       <div className="flex items-center gap-2 mt-2">
-        {task.priority && (
+        {story.priority && (
           <Badge 
             variant="secondary" 
             className="text-xs"
-            style={{ backgroundColor: getPriorityColor(task.priority) }}
-            data-testid={`badge-kanban-task-priority-${task.id}`}
+            style={{ backgroundColor: getPriorityColor(story.priority) }}
+            data-testid={`badge-kanban-story-priority-${story.id}`}
           >
-            {task.priority}
+            {story.priority}
           </Badge>
         )}
-        {task.complexity && (
-          <Badge variant="outline" className="text-xs" data-testid={`badge-kanban-task-complexity-${task.id}`}>
-            {task.complexity}
+        {story.estimatePoints && (
+          <Badge variant="outline" className="text-xs" data-testid={`badge-kanban-story-points-${story.id}`}>
+            {story.estimatePoints} pts
           </Badge>
         )}
       </div>

@@ -612,7 +612,7 @@ export function TicketDetailPanel({
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium">
-                          {author?.firstName || author?.email || "Inconnu"}
+                          {author?.firstName && author?.lastName ? `${author.firstName} ${author.lastName}` : author?.email || "Inconnu"}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}
