@@ -657,6 +657,27 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Retro cards table created");
     
+    // Add sprint_id column to epics for Jira-style sprint assignment
+    await db.execute(sql`
+      ALTER TABLE epics ADD COLUMN IF NOT EXISTS sprint_id uuid;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS epics_sprint_idx ON epics(sprint_id);
+    `);
+    console.log("✅ Epics sprint_id column added");
+    
+    // Add sprint_id and priority columns to backlog_tasks
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks ADD COLUMN IF NOT EXISTS sprint_id uuid;
+    `);
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks ADD COLUMN IF NOT EXISTS priority text DEFAULT 'medium';
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_tasks_sprint_idx ON backlog_tasks(sprint_id);
+    `);
+    console.log("✅ Backlog tasks sprint_id and priority columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

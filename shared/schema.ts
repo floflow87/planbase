@@ -825,6 +825,7 @@ export const epics = pgTable("epics", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
   title: text("title").notNull(),
   description: text("description"),
   priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
@@ -839,6 +840,7 @@ export const epics = pgTable("epics", {
 }, (table) => ({
   accountIdx: index().on(table.accountId),
   backlogIdx: index().on(table.backlogId),
+  sprintIdx: index().on(table.sprintId),
 }));
 
 // User Stories table
@@ -877,9 +879,11 @@ export const backlogTasks = pgTable("backlog_tasks", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   userStoryId: uuid("user_story_id").references(() => userStories.id, { onDelete: "cascade" }), // Optional: can be standalone
+  sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
   title: text("title").notNull(),
   description: text("description"),
   state: text("state").default("a_faire"),
+  priority: text("priority").default("medium"),
   estimatePoints: integer("estimate_points"),
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
@@ -892,6 +896,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   accountIdx: index().on(table.accountId),
   backlogIdx: index().on(table.backlogId),
   userStoryIdx: index().on(table.userStoryId),
+  sprintIdx: index().on(table.sprintId),
 }));
 
 // Checklist Items (Acceptance Criteria for User Stories)
