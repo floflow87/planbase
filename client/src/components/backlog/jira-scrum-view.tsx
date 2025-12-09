@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { 
   ChevronDown, ChevronRight, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
-  Check, Layers, BookOpen, ListTodo, AlertCircle
+  Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ export interface FlatTicket {
   userStoryId?: string | null;
   estimatePoints?: number | null;
   assigneeId?: string | null;
+  reporterId?: string | null;
   color?: string | null;
   order: number;
   createdAt?: string | null;
@@ -226,6 +227,7 @@ interface SprintSectionProps {
   onCreateTicket: (sprintId: string, type: TicketType, title: string) => void;
   onStartSprint?: (sprintId: string) => void;
   onCompleteSprint?: (sprintId: string) => void;
+  onEditSprint?: (sprint: Sprint) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   selectedTicketId?: string | null;
 }
@@ -240,6 +242,7 @@ export function SprintSection({
   onCreateTicket,
   onStartSprint,
   onCompleteSprint,
+  onEditSprint,
   onUpdateState,
   selectedTicketId
 }: SprintSectionProps) {
@@ -343,6 +346,12 @@ export function SprintSection({
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un ticket
               </DropdownMenuItem>
+              {onEditSprint && (
+                <DropdownMenuItem onClick={() => onEditSprint(sprint)} className="text-gray-900" data-testid={`button-edit-sprint-${sprint.id}`}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Modifier le sprint
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -656,6 +665,7 @@ export function transformToFlatTickets(
       epicId: story.epicId || null,
       estimatePoints: story.estimatePoints,
       assigneeId: story.assigneeId || null,
+      reporterId: story.reporterId || null,
       order: story.order,
       createdAt: story.createdAt?.toString() || null,
       updatedAt: story.updatedAt?.toString() || null,
@@ -674,6 +684,7 @@ export function transformToFlatTickets(
       userStoryId: task.userStoryId || null,
       estimatePoints: task.estimatePoints,
       assigneeId: task.assigneeId || null,
+      reporterId: task.reporterId || null,
       order: task.order,
       createdAt: task.createdAt?.toString() || null,
       updatedAt: task.updatedAt?.toString() || null,

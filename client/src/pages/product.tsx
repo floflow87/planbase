@@ -46,12 +46,13 @@ export default function Product() {
 
   const createBacklogMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const backlog = await apiRequest("/api/backlogs", "POST", {
+      const response = await apiRequest("/api/backlogs", "POST", {
         name: data.name,
         description: data.description || null,
         mode: data.mode,
         projectId: data.projectId || null,
       });
+      const backlog = await response.json();
       
       if (data.importTasks && data.projectId) {
         await apiRequest(`/api/backlogs/${backlog.id}/import-from-project`, "POST");

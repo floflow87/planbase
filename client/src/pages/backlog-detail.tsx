@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,6 +74,7 @@ export default function BacklogDetail() {
   const [showUserStoryDialog, setShowUserStoryDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [showSprintDialog, setShowSprintDialog] = useState(false);
+  const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [editingUserStory, setEditingUserStory] = useState<UserStory | null>(null);
   const [parentUserStoryId, setParentUserStoryId] = useState<string | null>(null);
@@ -230,6 +232,19 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toast({ title: "Sprint créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowSprintDialog(false);
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  const updateSprintMutation = useMutation({
+    mutationFn: async ({ sprintId, data }: { sprintId: string; data: Partial<Sprint> }) => {
+      return apiRequest(`/api/sprints/${sprintId}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      toast({ title: "Sprint mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      setShowSprintDialog(false);
+      setEditingSprint(null);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -738,6 +753,7 @@ export default function BacklogDetail() {
                       onCreateTicket={handleCreateSprintTicket}
                       onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
                       onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
+                      onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
                       onUpdateState={handleInlineStateUpdate}
                       selectedTicketId={selectedTicket?.id}
                     />
@@ -813,11 +829,13 @@ export default function BacklogDetail() {
         isPending={createTaskMutation.isPending}
       />
 
-      <SprintDialog 
+      <SprintSheet 
         open={showSprintDialog}
-        onClose={() => setShowSprintDialog(false)}
+        onClose={() => { setShowSprintDialog(false); setEditingSprint(null); }}
+        sprint={editingSprint}
         onCreate={(data) => createSprintMutation.mutate(data)}
-        isPending={createSprintMutation.isPending}
+        onUpdate={(data) => editingSprint && updateSprintMutation.mutate({ sprintId: editingSprint.id, data })}
+        isPending={createSprintMutation.isPending || updateSprintMutation.isPending}
       />
 
       <ColumnDialog 
@@ -1301,15 +1319,19 @@ function TaskDialog({
   );
 }
 
-function SprintDialog({ 
+function SprintSheet({ 
   open, 
   onClose, 
+  sprint,
   onCreate, 
+  onUpdate,
   isPending 
 }: { 
   open: boolean; 
-  onClose: () => void; 
+  onClose: () => void;
+  sprint: Sprint | null;
   onCreate: (data: { name: string; goal?: string; startDate?: string; endDate?: string }) => void;
+  onUpdate: (data: Partial<Sprint>) => void;
   isPending: boolean;
 }) {
   const [name, setName] = useState("");
@@ -1317,36 +1339,52 @@ function SprintDialog({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  useEffect(() => {
+    if (sprint) {
+      setName(sprint.name);
+      setGoal(sprint.goal || "");
+      setStartDate(sprint.startDate ? new Date(sprint.startDate).toISOString().slice(0, 16) : "");
+      setEndDate(sprint.endDate ? new Date(sprint.endDate).toISOString().slice(0, 16) : "");
+    } else {
+      setName("");
+      setGoal("");
+      setStartDate("");
+      setEndDate("");
+    }
+  }, [sprint, open]);
+
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onCreate({ 
+    const data = { 
       name, 
       goal: goal || undefined, 
       startDate: startDate || undefined, 
       endDate: endDate || undefined 
-    });
-    setName("");
-    setGoal("");
-    setStartDate("");
-    setEndDate("");
+    };
+    
+    if (sprint) {
+      onUpdate(data);
+    } else {
+      onCreate(data);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nouveau Sprint</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{sprint ? "Modifier le Sprint" : "Nouveau Sprint"}</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-4 py-6">
           <div className="space-y-2">
             <Label>Nom *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sprint 1" data-testid="input-sprint-name" />
           </div>
           <div className="space-y-2">
             <Label>Objectif</Label>
-            <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={2} placeholder="Objectif du sprint..." data-testid="input-sprint-goal" />
+            <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={3} placeholder="Objectif du sprint..." data-testid="input-sprint-goal" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label>Date de début</Label>
               <Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="input-sprint-start" />
@@ -1357,14 +1395,14 @@ function SprintDialog({
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <SheetFooter className="flex gap-2">
           <Button variant="outline" onClick={onClose} data-testid="button-cancel-sprint">Annuler</Button>
           <Button onClick={handleSubmit} disabled={isPending || !name.trim()} data-testid="button-submit-sprint">
-            {isPending ? "..." : "Créer"}
+            {isPending ? "..." : sprint ? "Enregistrer" : "Créer"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

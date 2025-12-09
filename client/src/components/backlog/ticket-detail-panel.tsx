@@ -65,6 +65,21 @@ function ticketTypeLabel(type: TicketType): string {
   }
 }
 
+function getStateStyle(state: string | null | undefined) {
+  switch (state) {
+    case "termine":
+      return { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" };
+    case "en_cours":
+      return { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" };
+    case "review":
+      return { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" };
+    case "bloque":
+      return { bg: "bg-red-100", text: "text-red-700", dot: "bg-red-500" };
+    default:
+      return { bg: "bg-gray-100", text: "text-gray-600", dot: "bg-gray-400" };
+  }
+}
+
 interface TicketDetailPanelProps {
   ticket: FlatTicket | null;
   epics?: Epic[];
@@ -185,6 +200,7 @@ export function TicketDetailPanel({
   
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const reporter = users?.find(u => u.id === ticket.reporterId);
   const parentEpic = ticket.epicId ? epics.find(e => e.id === ticket.epicId) : null;
   const currentSprint = ticket.sprintId ? sprints.find(s => s.id === ticket.sprintId) : null;
   
@@ -329,13 +345,32 @@ export function TicketDetailPanel({
               value={ticket.state || "a_faire"}
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { state: value })}
             >
-              <SelectTrigger className="w-[140px] h-8" data-testid="select-state">
-                <SelectValue />
+              <SelectTrigger className="w-[140px] h-8 cursor-pointer" data-testid="select-state">
+                <SelectValue>
+                  {(() => {
+                    const style = getStateStyle(ticket.state);
+                    const label = backlogItemStateOptions.find(o => o.value === ticket.state)?.label || "À faire";
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span className={cn("w-2 h-2 rounded-full", style.dot)} />
+                        <span className={style.text}>{label}</span>
+                      </div>
+                    );
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-white">
-                {backlogItemStateOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
-                ))}
+                {backlogItemStateOptions.map(opt => {
+                  const style = getStateStyle(opt.value);
+                  return (
+                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("w-2 h-2 rounded-full", style.dot)} />
+                        <span className={style.text}>{opt.label}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -395,6 +430,44 @@ export function TicketDetailPanel({
               </SelectContent>
             </Select>
           </div>
+          
+          {ticket.type !== "epic" && (
+            <div className="flex items-center justify-between">
+              <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Rapporteur
+              </Label>
+              <Select
+                value={ticket.reporterId || "none"}
+                onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
+                  reporterId: value === "none" ? null : value 
+                })}
+              >
+                <SelectTrigger className="w-[140px] h-8" data-testid="select-reporter">
+                  <SelectValue placeholder="Non défini">
+                    {reporter ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarFallback className="text-xs">
+                            {reporter.displayName?.charAt(0) || reporter.email?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{reporter.displayName || reporter.email}</span>
+                      </div>
+                    ) : "Non défini"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-white">
+                  <SelectItem value="none" className="text-gray-900">Non défini</SelectItem>
+                  {users.map(user => (
+                    <SelectItem key={user.id} value={user.id} className="text-gray-900">
+                      {user.displayName || user.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
           {ticket.type !== "epic" && (
             <div className="flex items-center justify-between">
