@@ -918,7 +918,7 @@ export default function Dashboard() {
                   <SelectTrigger id="project-client" data-testid="select-project-client">
                     <SelectValue placeholder="Sélectionner un client" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-950">
+                  <SelectContent className="bg-popover">
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                         {client.company || client.name}
@@ -937,7 +937,7 @@ export default function Dashboard() {
                     <SelectTrigger id="project-stage" data-testid="select-project-stage">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-950">
+                    <SelectContent className="bg-popover">
                       <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
                       <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
                       <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>

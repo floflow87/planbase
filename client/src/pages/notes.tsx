@@ -608,7 +608,7 @@ export default function Notes() {
               </Button>
             </Link>
             <select
-              className="border border-border rounded-md px-2 h-9 text-sm bg-white dark:bg-card"
+              className="border border-border rounded-md px-2 h-9 text-sm bg-card"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               data-testid="select-status-filter-mobile"
@@ -633,7 +633,7 @@ export default function Notes() {
               />
             </div>
             <select
-              className="border border-border rounded-md px-3 h-9 text-sm bg-white dark:bg-card"
+              className="border border-border rounded-md px-3 h-9 text-sm bg-card"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               data-testid="select-status-filter"
@@ -784,7 +784,7 @@ export default function Notes() {
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white dark:bg-background">
+                            <DropdownMenuContent align="end" className="bg-popover">
                               <DropdownMenuItem 
                                 onClick={() => navigate(`/notes/${note.id}`)}
                                 data-testid={`button-open-note-mobile-${note.id}`}
@@ -838,7 +838,7 @@ export default function Notes() {
                             {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
                           </Badge>
                           {linkedProject && (
-                            <Badge variant="outline" className="text-[10px] bg-white dark:bg-card text-violet-700 border-violet-200">
+                            <Badge variant="outline" className="text-[10px] bg-card text-violet-700 border-violet-200">
                               {linkedProject.name}
                             </Badge>
                           )}
@@ -888,7 +888,7 @@ export default function Notes() {
             onDragStart={(event) => setActiveColumnId(event.active.id as string)}
             onDragEnd={handleColumnDragEnd}
           >
-          <div className="hidden md:block border border-border rounded-md overflow-hidden bg-white dark:bg-card">
+          <div className="hidden md:block border border-border rounded-md overflow-hidden bg-card">
             {/* Table Header */}
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <SortableContext
@@ -1000,7 +1000,7 @@ export default function Notes() {
                             {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Publiée" : "Archivée"}
                           </Badge>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-white dark:bg-background">
+                        <DropdownMenuContent className="bg-popover">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1056,7 +1056,7 @@ export default function Notes() {
                             {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
                           </Badge>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-white dark:bg-background">
+                        <DropdownMenuContent className="bg-popover">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1114,7 +1114,7 @@ export default function Notes() {
                           {linkedProject ? (
                             <Badge
                               variant="outline"
-                              className="text-[10px] bg-white dark:bg-card text-violet-700 border-violet-200 cursor-pointer hover-elevate"
+                              className="text-[10px] bg-card text-violet-700 border-violet-200 cursor-pointer hover-elevate"
                               data-testid={`badge-project-${note.id}`}
                             >
                               {linkedProject.name}
@@ -1122,14 +1122,14 @@ export default function Notes() {
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[10px] bg-white dark:bg-card text-gray-600 border-gray-200 cursor-pointer hover-elevate"
+                              className="text-[10px] bg-card text-gray-600 border-gray-200 cursor-pointer hover-elevate"
                               data-testid={`badge-project-${note.id}`}
                             >
                               Aucun
                             </Badge>
                           )}
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-white dark:bg-background max-h-[300px] overflow-y-auto">
+                        <DropdownMenuContent className="bg-popover max-h-[300px] overflow-y-auto">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1173,7 +1173,7 @@ export default function Notes() {
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white dark:bg-background">
+                        <DropdownMenuContent align="end" className="bg-popover">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();

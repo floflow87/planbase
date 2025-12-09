@@ -1493,7 +1493,7 @@ export default function Tasks() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
+                <PopoverContent className="w-[300px] p-0 bg-popover">
                   <Command>
                     <CommandInput placeholder="Rechercher un projet..." />
                     <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
@@ -1537,14 +1537,14 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="w-44 h-9 justify-between bg-white text-sm font-normal"
+                    className="w-44 h-9 justify-between bg-popover text-sm font-normal"
                     data-testid="select-status-filter"
                   >
                     <span className="truncate">{getStatusFilterLabel()}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[220px] p-0 bg-white dark:bg-background">
+                <PopoverContent className="w-[220px] p-0 bg-popover">
                   <Command>
                     <CommandInput placeholder="Rechercher un statut..." />
                     <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
@@ -1880,7 +1880,7 @@ export default function Tasks() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 bg-white">
+                  <PopoverContent className="w-full p-0 bg-popover">
                     <Command>
                       <CommandInput placeholder="Rechercher un projet..." />
                       <CommandList>
@@ -1953,10 +1953,10 @@ export default function Tasks() {
                     value={newTaskPriority}
                     onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
                   >
-                    <SelectTrigger id="task-priority" className="bg-white" data-testid="select-new-task-priority">
+                    <SelectTrigger id="task-priority" className="bg-popover" data-testid="select-new-task-priority">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white">
+                    <SelectContent className="bg-popover">
                       <SelectItem value="low">Basse</SelectItem>
                       <SelectItem value="medium">Moyenne</SelectItem>
                       <SelectItem value="high">Haute</SelectItem>
@@ -1969,10 +1969,10 @@ export default function Tasks() {
                     value={newTaskAssignedTo || "unassigned"}
                     onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
                   >
-                    <SelectTrigger id="task-assigned" className="bg-white" data-testid="select-new-task-assigned">
+                    <SelectTrigger id="task-assigned" className="bg-popover" data-testid="select-new-task-assigned">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white">
+                    <SelectContent className="bg-popover">
                       <SelectItem value="unassigned">Non assigné</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
@@ -2035,7 +2035,7 @@ export default function Tasks() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 bg-white">
+                  <PopoverContent className="w-full p-0 bg-popover">
                     <Command>
                       <CommandInput placeholder="Rechercher une colonne..." />
                       <CommandList>
@@ -2098,7 +2098,7 @@ export default function Tasks() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white">
+                  <PopoverContent className="w-auto p-0 bg-popover">
                     <Calendar
                       mode="single"
                       selected={newTaskDueDate}
@@ -2147,7 +2147,7 @@ export default function Tasks() {
 
         {/* Create Column Dialog */}
         <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
-          <DialogContent data-testid="dialog-create-column" className="bg-white">
+          <DialogContent data-testid="dialog-create-column" className="bg-popover">
             <DialogHeader>
               <DialogTitle>Nouvelle colonne</DialogTitle>
             </DialogHeader>
@@ -2183,7 +2183,7 @@ export default function Tasks() {
 
         {/* Rename Column Dialog */}
         <Dialog open={isRenameColumnDialogOpen} onOpenChange={setIsRenameColumnDialogOpen}>
-          <DialogContent data-testid="dialog-rename-column" className="bg-white">
+          <DialogContent data-testid="dialog-rename-column" className="bg-popover">
             <DialogHeader>
               <DialogTitle>Renommer la colonne</DialogTitle>
             </DialogHeader>
@@ -2219,7 +2219,7 @@ export default function Tasks() {
 
         {/* Change Color Dialog */}
         <Dialog open={isColorColumnDialogOpen} onOpenChange={setIsColorColumnDialogOpen}>
-          <DialogContent data-testid="dialog-color-column" className="bg-white">
+          <DialogContent data-testid="dialog-color-column" className="bg-popover">
             <DialogHeader>
               <DialogTitle>Changer la couleur</DialogTitle>
             </DialogHeader>
@@ -2252,7 +2252,7 @@ export default function Tasks() {
 
         {/* Delete Column Dialog */}
         <AlertDialog open={isDeleteColumnDialogOpen} onOpenChange={setIsDeleteColumnDialogOpen}>
-          <AlertDialogContent data-testid="dialog-delete-column" className="bg-white">
+          <AlertDialogContent data-testid="dialog-delete-column" className="bg-popover">
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>
@@ -2275,7 +2275,7 @@ export default function Tasks() {
 
         {/* Delete Task Dialog */}
         <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
-          <AlertDialogContent data-testid="dialog-delete-task" className="bg-white">
+          <AlertDialogContent data-testid="dialog-delete-task" className="bg-popover">
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>

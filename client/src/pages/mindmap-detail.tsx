@@ -587,7 +587,7 @@ const NODE_KIND_CONFIG: Record<
     label: "Texte",
     icon: Type,
     color: "text-neutral-600",
-    bgColor: "bg-white border-transparent dark:bg-neutral-900",
+    bgColor: "bg-card border-transparent",
   },
 };
 
@@ -731,18 +731,18 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
       />
       
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-white dark:bg-card border rounded-lg shadow-lg max-w-[400px]">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[400px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Couleur de fond">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Couleur de fond">
                 <div 
                   className="w-4 h-4 rounded border"
                   style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
                 />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {NODE_COLORS.map((color) => (
                   <button
@@ -763,11 +763,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Text color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Couleur du texte">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Couleur du texte">
                 <Type className="w-4 h-4" style={{ color: nodeStyle.textColor || "currentColor" }} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {TEXT_COLORS.map((color) => (
                   <button
@@ -792,11 +792,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Bordure">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Bordure">
                 <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 space-y-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 space-y-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {BORDER_COLORS.map((color) => (
                   <button
@@ -834,11 +834,11 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Taille de police">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Taille de police">
                 <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="flex items-center gap-1">
                 {[12, 14, 16, 18, 20, 24, 28, 32].map((size) => (
                   <button
@@ -860,7 +860,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={editor?.isActive('bold') ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               editor?.chain().focus().toggleBold().run();
@@ -874,7 +874,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={editor?.isActive('italic') ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               editor?.chain().focus().toggleItalic().run();
@@ -890,7 +890,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={editor?.isActive('bulletList') ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               editor?.chain().focus().toggleBulletList().run();
@@ -904,7 +904,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={editor?.isActive('orderedList') ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               editor?.chain().focus().toggleOrderedList().run();
@@ -918,7 +918,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={editor?.isActive('taskList') ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               editor?.chain().focus().toggleTaskList().run();
@@ -936,16 +936,16 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
               <Button 
                 variant={editor?.isActive('highlight') ? "default" : "ghost"} 
                 size="icon" 
-                className="h-7 w-7 hover:bg-white dark:hover:bg-muted" 
+                className="h-7 w-7 hover:bg-muted" 
                 title="Surlignage"
               >
                 <Highlighter className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-4 gap-1">
                 <button
-                  className="w-6 h-6 rounded border bg-white flex items-center justify-center hover:ring-2 hover:ring-primary"
+                  className="w-6 h-6 rounded border bg-popover flex items-center justify-center hover:ring-2 hover:ring-primary"
                   onClick={(e) => {
                     e.stopPropagation();
                     editor?.chain().focus().unsetHighlight().run();
@@ -974,7 +974,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={nodeStyle.hasShadow ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow });
@@ -989,7 +989,7 @@ function RichTextNode({ id, data, selected }: { id: string; data: CustomNodeData
           <Button
             variant={isEditing ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               setIsEditing(!isEditing);
@@ -1085,18 +1085,18 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
       />
 
       {selected && (
-        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-white dark:bg-card border rounded-lg shadow-lg max-w-[450px]">
+        <NodeToolbar isVisible position={Position.Top} className="flex flex-wrap items-center gap-1 p-1 bg-card border rounded-lg shadow-lg max-w-[450px]">
           {/* Background color */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Couleur de fond">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Couleur de fond">
                 <div 
                   className="w-4 h-4 rounded border"
                   style={{ backgroundColor: nodeStyle.backgroundColor || "#ffffff" }}
                 />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {NODE_COLORS.map((color) => (
                   <button
@@ -1119,11 +1119,11 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Border */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Bordure">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Bordure">
                 <Square className="w-4 h-4" style={{ color: nodeStyle.borderColor || "#000000" }} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 space-y-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 space-y-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="grid grid-cols-5 gap-1">
                 {BORDER_COLORS.map((color) => (
                   <button
@@ -1161,11 +1161,11 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Font size */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Taille de police">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Taille de police">
                 <span className="text-xs font-bold">{nodeStyle.fontSize || 14}</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2 bg-white dark:bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-auto p-2 bg-card" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="flex items-center gap-1">
                 {[12, 14, 16, 18, 20, 24].map((size) => (
                   <button
@@ -1187,7 +1187,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           <Button
             variant={nodeStyle.fontWeight === "bold" ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               data.onUpdateStyle?.({ fontWeight: nodeStyle.fontWeight === "bold" ? "normal" : "bold" });
@@ -1202,11 +1202,11 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           {/* Icon picker */}
           <Popover open={iconPickerOpen} onOpenChange={setIconPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white dark:hover:bg-muted" title="Changer l'icône">
+              <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" title="Changer l'icône">
                 <Icon className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-2 bg-white dark:bg-card" align="start" onPointerDownOutside={(e) => e.preventDefault()}>
+            <PopoverContent className="w-72 p-2 bg-card" align="start" onPointerDownOutside={(e) => e.preventDefault()}>
               <div className="space-y-2">
                 <div className="text-xs font-medium text-muted-foreground">Choisir une icône</div>
                 <div className="grid grid-cols-8 gap-1 max-h-[240px] overflow-y-auto">
@@ -1248,7 +1248,7 @@ function CustomMindmapNode({ id, data, selected }: { id: string; data: CustomNod
           <Button
             variant={nodeStyle.hasShadow ? "default" : "ghost"}
             size="icon"
-            className="h-7 w-7 hover:bg-white dark:hover:bg-muted"
+            className="h-7 w-7 hover:bg-muted"
             onClick={(e) => {
               e.stopPropagation();
               data.onUpdateStyle?.({ hasShadow: !nodeStyle.hasShadow });

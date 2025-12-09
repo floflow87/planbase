@@ -765,10 +765,10 @@ export default function ClientDetail() {
                         </Badge>
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0 bg-white" align="start">
+                    <PopoverContent className="w-48 p-0 bg-popover" align="start">
                       <Command>
                         <CommandList>
-                          <CommandGroup className="bg-[#ffffff]">
+                          <CommandGroup className="bg-popover">
                             {[
                               { value: "prospecting", label: "Prospection" },
                               { value: "qualified", label: "Qualifié" },
@@ -931,10 +931,10 @@ export default function ClientDetail() {
                       <p className="text-sm text-muted-foreground mb-1">Civilité</p>
                       {isEditingClientInfo ? (
                         <Select value={clientInfoForm.civility} onValueChange={(value) => setClientInfoForm({ ...clientInfoForm, civility: value })}>
-                          <SelectTrigger className="bg-white" data-testid="select-civility">
+                          <SelectTrigger className="bg-popover" data-testid="select-civility">
                             <SelectValue placeholder="Sélectionner" />
                           </SelectTrigger>
-                          <SelectContent className="bg-white">
+                          <SelectContent className="bg-popover">
                             <SelectItem value="M">M</SelectItem>
                             <SelectItem value="Mme">Mme</SelectItem>
                             <SelectItem value="Mlle">Mlle</SelectItem>
@@ -980,10 +980,10 @@ export default function ClientDetail() {
                       <p className="text-sm text-muted-foreground mb-1">Type de client</p>
                       {isEditingClientInfo ? (
                         <Select value={clientInfoForm.type} onValueChange={(value: "company" | "person") => setClientInfoForm({ ...clientInfoForm, type: value })}>
-                          <SelectTrigger className="bg-white" data-testid="select-type">
+                          <SelectTrigger className="bg-popover" data-testid="select-type">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-white">
+                          <SelectContent className="bg-popover">
                             <SelectItem value="company">Entreprise</SelectItem>
                             <SelectItem value="person">Personne</SelectItem>
                           </SelectContent>

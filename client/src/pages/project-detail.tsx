@@ -1880,7 +1880,7 @@ export default function ProjectDetail() {
                             <Button
                               variant="outline"
                               className={cn(
-                                "w-full justify-start text-left font-normal bg-white dark:bg-background",
+                                "w-full justify-start text-left font-normal bg-popover",
                                 !paymentDate && "text-muted-foreground"
                               )}
                               data-testid="button-payment-date"
@@ -2051,7 +2051,7 @@ export default function ProjectDetail() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal bg-white dark:bg-background",
+                            "w-full justify-start text-left font-normal bg-popover",
                             !editPaymentDate && "text-muted-foreground"
                           )}
                           data-testid="button-edit-payment-date"
@@ -2217,7 +2217,7 @@ export default function ProjectDetail() {
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id} className="bg-white dark:bg-gray-950 cursor-pointer">
+                    <SelectItem key={client.id} value={client.id} className="bg-popover cursor-pointer">
                       {client.company || client.name}
                     </SelectItem>
                   ))}
@@ -2271,7 +2271,7 @@ export default function ProjectDetail() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white">
+                  <PopoverContent className="w-auto p-0 bg-popover">
                     <Calendar
                       mode="single"
                       selected={projectFormData.startDate}
@@ -2298,7 +2298,7 @@ export default function ProjectDetail() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white">
+                  <PopoverContent className="w-auto p-0 bg-popover">
                     <Calendar
                       mode="single"
                       selected={projectFormData.endDate}
