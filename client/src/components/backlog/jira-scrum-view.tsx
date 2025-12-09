@@ -18,9 +18,19 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import type { Epic, UserStory, BacklogTask, Sprint, AppUser } from "@shared/schema";
+import { backlogItemStateOptions } from "@shared/schema";
 
 export type TicketType = "epic" | "user_story" | "task";
 
@@ -38,6 +48,8 @@ export interface FlatTicket {
   assigneeId?: string | null;
   color?: string | null;
   order: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 function ticketTypeIcon(type: TicketType) {
@@ -101,23 +113,41 @@ interface TicketRowProps {
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   isSelected?: boolean;
+  isDraggable?: boolean;
 }
 
-export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected }: TicketRowProps) {
+export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, isDraggable = true }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `ticket-${ticket.type}-${ticket.id}`,
+    data: { ticket, type: ticket.type },
+    disabled: !isDraggable,
+  });
+  
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : undefined,
+  } : undefined;
+  
   return (
     <div 
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "group flex items-center gap-3 px-3 py-2.5 border-b border-border/50 cursor-pointer transition-colors",
         "hover-elevate",
-        isSelected && "bg-primary/5 border-l-2 border-l-primary"
+        isSelected && "bg-primary/5 border-l-2 border-l-primary",
+        isDragging && "shadow-lg bg-card"
       )}
       onClick={() => onSelect(ticket)}
       data-testid={`ticket-row-${ticket.type}-${ticket.id}`}
     >
-      <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-grab" />
+      <div {...listeners} {...attributes}>
+        <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-grab" />
+      </div>
       
       <div 
         className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
@@ -130,7 +160,7 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected }
         {ticket.title}
       </span>
       
-      {ticket.estimatePoints && (
+      {ticket.estimatePoints !== undefined && ticket.estimatePoints !== null && ticket.estimatePoints > 0 && (
         <Badge variant="outline" className="text-xs px-1.5" data-testid={`ticket-points-${ticket.id}`}>
           {ticket.estimatePoints}
         </Badge>
@@ -138,13 +168,38 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected }
       
       {ticket.priority && getPriorityIcon(ticket.priority)}
       
-      <Badge 
-        variant="secondary" 
-        className={cn("text-xs px-1.5 py-0", getStateStyle(ticket.state))}
-        data-testid={`ticket-state-${ticket.id}`}
-      >
-        {getStateLabel(ticket.state)}
-      </Badge>
+      {/* Inline Status Dropdown */}
+      {onUpdateState ? (
+        <Select
+          value={ticket.state || "a_faire"}
+          onValueChange={(value) => {
+            onUpdateState(ticket.id, ticket.type, value);
+          }}
+        >
+          <SelectTrigger 
+            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border-0", getStateStyle(ticket.state))}
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`select-inline-state-${ticket.id}`}
+          >
+            <SelectValue>{getStateLabel(ticket.state)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-white dark:bg-white">
+            {backlogItemStateOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Badge 
+          variant="secondary" 
+          className={cn("text-xs px-1.5 py-0", getStateStyle(ticket.state))}
+          data-testid={`ticket-state-${ticket.id}`}
+        >
+          {getStateLabel(ticket.state)}
+        </Badge>
+      )}
       
       {assignee ? (
         <Avatar className="h-6 w-6">
@@ -171,6 +226,7 @@ interface SprintSectionProps {
   onCreateTicket: (sprintId: string, type: TicketType, title: string) => void;
   onStartSprint?: (sprintId: string) => void;
   onCompleteSprint?: (sprintId: string) => void;
+  onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   selectedTicketId?: string | null;
 }
 
@@ -184,6 +240,7 @@ export function SprintSection({
   onCreateTicket,
   onStartSprint,
   onCompleteSprint,
+  onUpdateState,
   selectedTicketId
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
@@ -208,10 +265,22 @@ export function SprintSection({
   const statusLabel = sprint.status === "en_cours" ? "En cours" :
                       sprint.status === "termine" ? "Terminé" : "En préparation";
   
+  const { isOver, setNodeRef } = useDroppable({
+    id: `sprint-${sprint.id}`,
+    data: { type: "sprint", sprintId: sprint.id },
+  });
+  
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div className="border rounded-lg overflow-hidden bg-card" data-testid={`sprint-section-${sprint.id}`}>
-        <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-b">
+      <div 
+        ref={setNodeRef}
+        className={cn(
+          "border rounded-lg overflow-hidden bg-card transition-colors",
+          isOver && "ring-2 ring-primary bg-primary/5"
+        )} 
+        data-testid={`sprint-section-${sprint.id}`}
+      >
+        <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-toggle-sprint-${sprint.id}`}>
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -241,9 +310,9 @@ export function SprintSection({
           
           {sprint.status === "preparation" && onStartSprint && (
             <Button 
-              variant="outline" 
               size="sm" 
               onClick={() => onStartSprint(sprint.id)}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
               data-testid={`button-start-sprint-${sprint.id}`}
             >
               <Play className="h-3.5 w-3.5 mr-1" />
@@ -286,6 +355,7 @@ export function SprintSection({
                 ticket={ticket}
                 users={users}
                 onSelect={onSelectTicket}
+                onUpdateState={onUpdateState}
                 isSelected={selectedTicketId === ticket.id}
               />
             ))}
@@ -383,6 +453,7 @@ interface BacklogPoolProps {
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
   onCreateTicket: (type: TicketType, title: string) => void;
+  onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   selectedTicketId?: string | null;
 }
 
@@ -393,6 +464,7 @@ export function BacklogPool({
   onToggle, 
   onSelectTicket, 
   onCreateTicket,
+  onUpdateState,
   selectedTicketId
 }: BacklogPoolProps) {
   const [isCreating, setIsCreating] = useState(false);
@@ -400,6 +472,11 @@ export function BacklogPool({
   const [newTicketType, setNewTicketType] = useState<TicketType>("user_story");
   
   const totalPoints = tickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
+  
+  const { isOver, setNodeRef } = useDroppable({
+    id: "backlog-pool",
+    data: { type: "backlog", sprintId: null },
+  });
   
   const handleCreate = () => {
     if (newTicketTitle.trim()) {
@@ -411,8 +488,15 @@ export function BacklogPool({
   
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div className="border rounded-lg overflow-hidden bg-card" data-testid="backlog-pool-section">
-        <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-b">
+      <div 
+        ref={setNodeRef}
+        className={cn(
+          "border rounded-lg overflow-hidden bg-card transition-colors",
+          isOver && "ring-2 ring-primary bg-primary/5"
+        )} 
+        data-testid="backlog-pool-section"
+      >
+        <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="button-toggle-backlog-pool">
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -446,6 +530,7 @@ export function BacklogPool({
                 ticket={ticket}
                 users={users}
                 onSelect={onSelectTicket}
+                onUpdateState={onUpdateState}
                 isSelected={selectedTicketId === ticket.id}
               />
             ))}
@@ -554,6 +639,8 @@ export function transformToFlatTickets(
       sprintId: (epic as any).sprintId || null,
       color: epic.color,
       order: epic.order,
+      createdAt: epic.createdAt?.toString() || null,
+      updatedAt: epic.updatedAt?.toString() || null,
     });
   });
   
@@ -570,6 +657,8 @@ export function transformToFlatTickets(
       estimatePoints: story.estimatePoints,
       assigneeId: story.assigneeId || null,
       order: story.order,
+      createdAt: story.createdAt?.toString() || null,
+      updatedAt: story.updatedAt?.toString() || null,
     });
   });
   
@@ -586,6 +675,8 @@ export function transformToFlatTickets(
       estimatePoints: task.estimatePoints,
       assigneeId: task.assigneeId || null,
       order: task.order,
+      createdAt: task.createdAt?.toString() || null,
+      updatedAt: task.updatedAt?.toString() || null,
     });
   });
   

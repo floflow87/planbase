@@ -985,6 +985,21 @@ export const retroColumnOptions = [
 
 export type RetroColumn = typeof retroColumnOptions[number]["value"];
 
+// Ticket Comments table
+export const ticketComments = pgTable("ticket_comments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  ticketId: uuid("ticket_id").notNull(), // Generic reference to epic, user_story, or backlog_task
+  ticketType: text("ticket_type").notNull(), // 'epic', 'user_story', 'task'
+  content: text("content").notNull(),
+  authorId: uuid("author_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  ticketIdx: index().on(table.ticketId, table.ticketType),
+}));
+
 // ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
@@ -1117,6 +1132,9 @@ export const updateRetroSchema = insertRetroSchema.omit({ accountId: true, sprin
 export const insertRetroCardSchema = createInsertSchema(retroCards).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateRetroCardSchema = insertRetroCardSchema.omit({ accountId: true, retroId: true }).partial();
 
+export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTicketCommentSchema = insertTicketCommentSchema.omit({ accountId: true, ticketId: true, ticketType: true, authorId: true }).partial();
+
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
@@ -1224,6 +1242,7 @@ export type Sprint = typeof sprints.$inferSelect;
 export type BacklogColumn = typeof backlogColumns.$inferSelect;
 export type Retro = typeof retros.$inferSelect;
 export type RetroCard = typeof retroCards.$inferSelect;
+export type TicketComment = typeof ticketComments.$inferSelect;
 
 // Mindmap Kind Options
 export const mindmapKindOptions = [

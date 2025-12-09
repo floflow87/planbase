@@ -434,9 +434,89 @@ export default function BacklogDetail() {
       await apiRequest(endpoint, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setSelectedTicket(null);
+      
       toast({ title: "Ticket supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  // Handle inline state update
+  const handleInlineStateUpdate = async (ticketId: string, type: TicketType, state: string) => {
+    await handleUpdateTicket(ticketId, type, { state });
+  };
+  
+  // Handle type conversion
+  const handleConvertType = async (ticketId: string, fromType: TicketType, toType: TicketType) => {
+    try {
+      // Get the ticket data first
+      const ticket = backlog?.epics?.find(e => e.id === ticketId) || 
+                     backlog?.userStories?.find(s => s.id === ticketId) ||
+                     backlog?.backlogTasks?.find(t => t.id === ticketId);
+      
+      if (!ticket) {
+        throw new Error("Ticket not found");
+      }
+      
+      // Create new ticket of target type
+      let createEndpoint = "";
+      const baseData = {
+        title: ticket.title,
+        description: ticket.description,
+        state: (ticket as any).state || "a_faire",
+        priority: (ticket as any).priority || "medium",
+        sprintId: (ticket as any).sprintId || null,
+      };
+      
+      if (toType === "epic") {
+        createEndpoint = `/api/backlogs/${id}/epics`;
+      } else if (toType === "user_story") {
+        createEndpoint = `/api/backlogs/${id}/user-stories`;
+      } else {
+        createEndpoint = `/api/backlogs/${id}/tasks`;
+      }
+      
+      await apiRequest(createEndpoint, "POST", baseData);
+      
+      // Delete old ticket
+      let deleteEndpoint = "";
+      if (fromType === "epic") deleteEndpoint = `/api/epics/${ticketId}`;
+      else if (fromType === "user_story") deleteEndpoint = `/api/user-stories/${ticketId}`;
+      else deleteEndpoint = `/api/backlog-tasks/${ticketId}`;
+      
+      await apiRequest(deleteEndpoint, "DELETE");
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      setSelectedTicket(null);
+      
+      toast({ 
+        title: "Type converti", 
+        description: `Converti en ${toType === "epic" ? "Epic" : toType === "user_story" ? "User Story" : "Task"}`,
+        className: "bg-green-500 text-white border-green-600", 
+        duration: 3000 
+      });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  // Handle drag end for moving tickets between sprints
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || !active.data.current) return;
+    
+    const { ticket, type } = active.data.current as { ticket: FlatTicket; type: TicketType };
+    const overData = over.data.current as { type: string; sprintId: string | null };
+    
+    if (!overData) return;
+    
+    const newSprintId = overData.type === "backlog" ? null : overData.sprintId;
+    const currentSprintId = ticket.sprintId;
+    
+    // Only update if sprint changed
+    if (newSprintId !== currentSprintId) {
+      await handleUpdateTicket(ticket.id, type, { sprintId: newSprintId });
     }
   };
 
@@ -621,58 +701,74 @@ export default function BacklogDetail() {
 
         {/* Jira-style Scrum Backlog View */}
         {backlog.mode === "scrum" && (
-          <div className="flex gap-0 h-full">
-            <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
-              {/* Sprint Sections */}
-              {backlog.sprints
-                .sort((a, b) => {
-                  if (a.status === "en_cours" && b.status !== "en_cours") return -1;
-                  if (b.status === "en_cours" && a.status !== "en_cours") return 1;
-                  if (a.status === "preparation" && b.status === "termine") return -1;
-                  if (b.status === "preparation" && a.status === "termine") return 1;
-                  return 0;
-                })
-                .map(sprint => (
-                  <SprintSection
-                    key={sprint.id}
-                    sprint={sprint}
-                    tickets={getTicketsForSprint(sprint.id)}
-                    users={users}
-                    isExpanded={isSprintExpanded(sprint.id)}
-                    onToggle={() => toggleSprint(sprint.id)}
-                    onSelectTicket={handleSelectTicket}
-                    onCreateTicket={handleCreateSprintTicket}
-                    onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
-                    onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
-                    selectedTicketId={selectedTicket?.id}
-                  />
-                ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div className="flex gap-0 h-full">
+              <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
+                {/* Sprint Sections */}
+                {backlog.sprints
+                  .sort((a, b) => {
+                    if (a.status === "en_cours" && b.status !== "en_cours") return -1;
+                    if (b.status === "en_cours" && a.status !== "en_cours") return 1;
+                    if (a.status === "preparation" && b.status === "termine") return -1;
+                    if (b.status === "preparation" && a.status === "termine") return 1;
+                    return 0;
+                  })
+                  .map(sprint => (
+                    <SprintSection
+                      key={sprint.id}
+                      sprint={sprint}
+                      tickets={getTicketsForSprint(sprint.id)}
+                      users={users}
+                      isExpanded={isSprintExpanded(sprint.id)}
+                      onToggle={() => toggleSprint(sprint.id)}
+                      onSelectTicket={handleSelectTicket}
+                      onCreateTicket={handleCreateSprintTicket}
+                      onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
+                      onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
+                      onUpdateState={handleInlineStateUpdate}
+                      selectedTicketId={selectedTicket?.id}
+                    />
+                  ))}
 
-              {/* Backlog Pool */}
-              <BacklogPool
-                tickets={getBacklogTickets()}
-                users={users}
-                isExpanded={backlogPoolExpanded}
-                onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
-                onSelectTicket={handleSelectTicket}
-                onCreateTicket={handleCreateBacklogTicket}
-                selectedTicketId={selectedTicket?.id}
-              />
+                {/* Add Sprint Button */}
+                <Button
+                  variant="outline"
+                  className="w-full border-dashed border-2 border-violet-300 hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/30 text-violet-600 dark:text-violet-400"
+                  onClick={() => setShowSprintDialog(true)}
+                  data-testid="button-add-sprint-inline"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Sprint
+                </Button>
+
+                {/* Backlog Pool */}
+                <BacklogPool
+                  tickets={getBacklogTickets()}
+                  users={users}
+                  isExpanded={backlogPoolExpanded}
+                  onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
+                  onSelectTicket={handleSelectTicket}
+                  onCreateTicket={handleCreateBacklogTicket}
+                  onUpdateState={handleInlineStateUpdate}
+                  selectedTicketId={selectedTicket?.id}
+                />
+              </div>
+
+              {/* Ticket Detail Panel */}
+              {selectedTicket && (
+                <TicketDetailPanel
+                  ticket={selectedTicket}
+                  epics={backlog.epics}
+                  sprints={backlog.sprints}
+                  users={users}
+                  onClose={() => setSelectedTicket(null)}
+                  onUpdate={handleUpdateTicket}
+                  onDelete={handleDeleteTicket}
+                  onConvertType={handleConvertType}
+                />
+              )}
             </div>
-
-            {/* Ticket Detail Panel */}
-            {selectedTicket && (
-              <TicketDetailPanel
-                ticket={selectedTicket}
-                epics={backlog.epics}
-                sprints={backlog.sprints}
-                users={users}
-                onClose={() => setSelectedTicket(null)}
-                onUpdate={handleUpdateTicket}
-                onDelete={handleDeleteTicket}
-              />
-            )}
-          </div>
+          </DndContext>
         )}
       </div>
 

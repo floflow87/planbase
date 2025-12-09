@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,6 +17,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -63,6 +71,7 @@ interface TicketDetailPanelProps {
   onClose: () => void;
   onUpdate: (ticketId: string, type: TicketType, data: Record<string, any>) => void;
   onDelete: (ticketId: string, type: TicketType) => void;
+  onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
 }
 
 export function TicketDetailPanel({ 
@@ -72,7 +81,8 @@ export function TicketDetailPanel({
   users = [],
   onClose, 
   onUpdate,
-  onDelete
+  onDelete,
+  onConvertType
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
@@ -109,17 +119,54 @@ export function TicketDetailPanel({
   return (
     <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
-        <div className="flex items-center gap-2">
-          <div 
-            className="flex items-center justify-center h-6 w-6 rounded"
-            style={{ backgroundColor: typeColor }}
-          >
-            <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
-          </div>
-          <span className="text-sm font-medium text-muted-foreground">
-            {ticketTypeLabel(ticket.type)}
-          </span>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 hover:opacity-80 cursor-pointer" data-testid="button-change-type">
+              <div 
+                className="flex items-center justify-center h-6 w-6 rounded"
+                style={{ backgroundColor: typeColor }}
+              >
+                <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">
+                {ticketTypeLabel(ticket.type)}
+              </span>
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="bg-white dark:bg-white">
+            <DropdownMenuItem 
+              onClick={() => ticket.type !== "epic" && onConvertType?.(ticket.id, ticket.type, "epic")}
+              className={cn("text-gray-900", ticket.type === "epic" && "opacity-50")}
+              disabled={ticket.type === "epic"}
+            >
+              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
+                <Layers className="h-3 w-3 text-white" />
+              </div>
+              Epic
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => ticket.type !== "user_story" && onConvertType?.(ticket.id, ticket.type, "user_story")}
+              className={cn("text-gray-900", ticket.type === "user_story" && "opacity-50")}
+              disabled={ticket.type === "user_story"}
+            >
+              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
+                <BookOpen className="h-3 w-3 text-white" />
+              </div>
+              User Story
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => ticket.type !== "task" && onConvertType?.(ticket.id, ticket.type, "task")}
+              className={cn("text-gray-900", ticket.type === "task" && "opacity-50")}
+              disabled={ticket.type === "task"}
+            >
+              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
+                <ListTodo className="h-3 w-3 text-white" />
+              </div>
+              Task
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         
         <div className="flex items-center gap-1">
           <Button 
@@ -170,6 +217,19 @@ export function TicketDetailPanel({
               {ticket.title}
             </h2>
           )}
+        </div>
+        
+        {/* Description - moved under title */}
+        <div className="space-y-2">
+          <Label className="text-sm text-muted-foreground">Description</Label>
+          <Textarea
+            value={editedDescription}
+            onChange={(e) => setEditedDescription(e.target.value)}
+            onBlur={handleSaveDescription}
+            placeholder="Ajoutez une description..."
+            className="min-h-[100px] resize-none"
+            data-testid="textarea-description"
+          />
         </div>
         
         <Separator />
@@ -260,14 +320,14 @@ export function TicketDetailPanel({
               <Select
                 value={String(ticket.estimatePoints || 0)}
                 onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
-                  estimatePoints: parseInt(value) || null 
+                  estimatePoints: parseFloat(value) || null 
                 })}
               >
                 <SelectTrigger className="w-[140px] h-8" data-testid="select-points">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-white">
-                  {[0, 1, 2, 3, 5, 8, 13, 21].map(pts => (
+                  {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(pts => (
                     <SelectItem key={pts} value={String(pts)} className="text-gray-900">
                       {pts === 0 ? "Non estimé" : `${pts} pts`}
                     </SelectItem>
@@ -342,16 +402,24 @@ export function TicketDetailPanel({
         
         <Separator />
         
+        {/* Activity Log */}
         <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Description</Label>
-          <Textarea
-            value={editedDescription}
-            onChange={(e) => setEditedDescription(e.target.value)}
-            onBlur={handleSaveDescription}
-            placeholder="Ajoutez une description..."
-            className="min-h-[120px] resize-none"
-            data-testid="textarea-description"
-          />
+          <Label className="text-sm text-muted-foreground flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Activité
+          </Label>
+          <div className="text-sm text-muted-foreground space-y-1">
+            {ticket.createdAt && (
+              <p data-testid="text-created-at">
+                Création {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: fr })}
+              </p>
+            )}
+            {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && (
+              <p data-testid="text-updated-at">
+                Mis à jour {formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true, locale: fr })}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
