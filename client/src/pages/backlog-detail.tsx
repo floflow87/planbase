@@ -53,7 +53,8 @@ import {
   BacklogPool, 
   transformToFlatTickets,
   type FlatTicket,
-  type TicketType
+  type TicketType,
+  type TicketAction
 } from "@/components/backlog/jira-scrum-view";
 import { TicketDetailPanel } from "@/components/backlog/ticket-detail-panel";
 
@@ -473,6 +474,98 @@ export default function BacklogDetail() {
   const handleInlineStateUpdate = async (ticketId: string, type: TicketType, state: string) => {
     await handleUpdateTicket(ticketId, type, { state });
   };
+
+  // Handle ticket actions from dropdown menu
+  const handleTicketAction = async (action: TicketAction) => {
+    try {
+      switch (action.type) {
+        case "move_top":
+          // Move ticket to top of its current sprint/backlog
+          await handleUpdateTicket(action.ticketId, action.ticketType, { order: 0 });
+          toast({ title: "Ticket déplacé en haut", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          break;
+          
+        case "move_bottom":
+          // Move ticket to bottom - set a high order number
+          await handleUpdateTicket(action.ticketId, action.ticketType, { order: 999999 });
+          toast({ title: "Ticket déplacé en bas", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          break;
+          
+        case "move_sprint":
+          // Move ticket to a different sprint (or null for backlog)
+          await handleUpdateTicket(action.ticketId, action.ticketType, { sprintId: action.sprintId || null });
+          toast({ 
+            title: action.sprintId ? "Ticket déplacé vers le sprint" : "Ticket déplacé vers le backlog", 
+            className: "bg-green-500 text-white border-green-600", 
+            duration: 3000 
+          });
+          break;
+          
+        case "copy":
+          // Copy ticket with same properties
+          const ticket = backlog?.epics?.find(e => e.id === action.ticketId) || 
+                        backlog?.userStories?.find(s => s.id === action.ticketId) ||
+                        backlog?.backlogTasks?.find(t => t.id === action.ticketId);
+          
+          if (ticket) {
+            let endpoint = "";
+            const baseData = {
+              title: `${ticket.title} (copie)`,
+              description: ticket.description,
+              state: (ticket as any).state || "a_faire",
+              priority: (ticket as any).priority || "medium",
+              sprintId: (ticket as any).sprintId || null,
+              estimatePoints: (ticket as any).estimatePoints || null,
+            };
+            
+            if (action.ticketType === "epic") {
+              endpoint = `/api/backlogs/${id}/epics`;
+            } else if (action.ticketType === "user_story") {
+              endpoint = `/api/backlogs/${id}/user-stories`;
+            } else {
+              endpoint = `/api/backlogs/${id}/tasks`;
+            }
+            
+            await apiRequest(endpoint, "POST", baseData);
+            queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+            toast({ title: "Ticket copié", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          }
+          break;
+          
+        case "delete":
+          await handleDeleteTicket(action.ticketId, action.ticketType);
+          break;
+          
+        case "assign":
+          await handleUpdateTicket(action.ticketId, action.ticketType, { assigneeId: action.assigneeId || null });
+          toast({ 
+            title: action.assigneeId ? "Ticket assigné" : "Assignation retirée", 
+            className: "bg-green-500 text-white border-green-600", 
+            duration: 3000 
+          });
+          break;
+          
+        case "mark_status":
+          if (action.state) {
+            await handleUpdateTicket(action.ticketId, action.ticketType, { state: action.state });
+            const stateLabel = backlogItemStateOptions.find(s => s.value === action.state)?.label || action.state;
+            toast({ title: `Statut: ${stateLabel}`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          }
+          break;
+          
+        case "set_estimate":
+          await handleUpdateTicket(action.ticketId, action.ticketType, { estimatePoints: action.estimatePoints || null });
+          toast({ 
+            title: action.estimatePoints ? `${action.estimatePoints} points estimés` : "Estimation retirée", 
+            className: "bg-green-500 text-white border-green-600", 
+            duration: 3000 
+          });
+          break;
+      }
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
   
   // Handle type conversion
   const handleConvertType = async (ticketId: string, fromType: TicketType, toType: TicketType) => {
@@ -747,6 +840,7 @@ export default function BacklogDetail() {
                       sprint={sprint}
                       tickets={getTicketsForSprint(sprint.id)}
                       users={users}
+                      sprints={backlog.sprints}
                       isExpanded={isSprintExpanded(sprint.id)}
                       onToggle={() => toggleSprint(sprint.id)}
                       onSelectTicket={handleSelectTicket}
@@ -755,6 +849,7 @@ export default function BacklogDetail() {
                       onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
                       onUpdateState={handleInlineStateUpdate}
+                      onTicketAction={handleTicketAction}
                       selectedTicketId={selectedTicket?.id}
                     />
                   ))}
@@ -774,11 +869,13 @@ export default function BacklogDetail() {
                 <BacklogPool
                   tickets={getBacklogTickets()}
                   users={users}
+                  sprints={backlog.sprints}
                   isExpanded={backlogPoolExpanded}
                   onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
                   onSelectTicket={handleSelectTicket}
                   onCreateTicket={handleCreateBacklogTicket}
                   onUpdateState={handleInlineStateUpdate}
+                  onTicketAction={handleTicketAction}
                   selectedTicketId={selectedTicket?.id}
                 />
               </div>
