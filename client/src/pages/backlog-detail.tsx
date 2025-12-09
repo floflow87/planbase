@@ -37,6 +37,7 @@ import {
   verticalListSortingStrategy,
   useSortable 
 } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { 
   Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, 
@@ -69,6 +70,9 @@ export default function BacklogDetail() {
   const [parentUserStoryId, setParentUserStoryId] = useState<string | null>(null);
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
   const [expandedStories, setExpandedStories] = useState<Set<string>>(new Set());
+  const [showColumnDialog, setShowColumnDialog] = useState(false);
+  const [showKanbanTaskDialog, setShowKanbanTaskDialog] = useState(false);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
 
   const { data: backlog, isLoading } = useQuery<BacklogData>({
     queryKey: ["/api/backlogs", id],
@@ -233,6 +237,53 @@ export default function BacklogDetail() {
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
+  // Kanban column mutations
+  const createColumnMutation = useMutation({
+    mutationFn: async (data: { name: string; color: string }) => {
+      return apiRequest(`/api/backlogs/${id}/columns`, "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      setShowColumnDialog(false);
+      toast({ title: "Colonne créée" });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  const deleteColumnMutation = useMutation({
+    mutationFn: async (columnId: string) => {
+      return apiRequest(`/api/backlog-columns/${columnId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      toast({ title: "Colonne supprimée" });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  const createKanbanTaskMutation = useMutation({
+    mutationFn: async (data: { title: string; description?: string; priority?: string; columnId: string }) => {
+      return apiRequest(`/api/backlogs/${id}/tasks`, "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      setShowKanbanTaskDialog(false);
+      setSelectedColumnId(null);
+      toast({ title: "Tâche créée" });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  const moveTaskToColumnMutation = useMutation({
+    mutationFn: async ({ taskId, columnId }: { taskId: string; columnId: string }) => {
+      return apiRequest(`/api/backlog-tasks/${taskId}`, "PATCH", { columnId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
   const toggleEpic = (epicId: string) => {
     setExpandedEpics(prev => {
       const next = new Set(prev);
@@ -284,10 +335,52 @@ export default function BacklogDetail() {
     return story?.tasks || [];
   };
 
-  const calculateProgress = (story: UserStory & { tasks: BacklogTask[] }) => {
-    if (story.tasks.length === 0) return story.state === "termine" ? 100 : 0;
-    const done = story.tasks.filter(t => t.state === "termine").length;
-    return Math.round((done / story.tasks.length) * 100);
+  const calculateProgress = (story: UserStory & { tasks?: BacklogTask[] }) => {
+    const tasks = story.tasks || [];
+    if (tasks.length === 0) return story.state === "termine" ? 100 : 0;
+    const done = tasks.filter(t => t.state === "termine").length;
+    return Math.round((done / tasks.length) * 100);
+  };
+
+  // Kanban helpers
+  const getTasksForColumn = (columnId: string) => {
+    return backlog?.backlogTasks.filter(t => t.columnId === columnId) || [];
+  };
+
+  const getUnassignedTasks = () => {
+    return backlog?.backlogTasks.filter(t => !t.columnId) || [];
+  };
+
+  const handleKanbanDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    
+    const taskId = active.id as string;
+    const overId = over.id as string;
+    const activeData = active.data.current as { sortable?: { containerId?: string }, columnId?: string } | undefined;
+    const overData = over.data.current as { sortable?: { containerId?: string }, columnId?: string } | undefined;
+    
+    // Get the source column from sortable containerId or fallback to custom columnId
+    const sourceColumnId = activeData?.sortable?.containerId || activeData?.columnId;
+    
+    // Determine target column
+    let targetColumnId: string | null = null;
+    
+    // Check if we're dropping on a column droppable zone (ID starts with 'column-')
+    if (overId.startsWith("column-")) {
+      targetColumnId = overId.replace("column-", "");
+    } else if (overData?.sortable?.containerId) {
+      // Dropping on another task - get the target column from sortable containerId
+      targetColumnId = overData.sortable.containerId;
+    } else if (overData?.columnId) {
+      // Fallback to custom columnId data
+      targetColumnId = overData.columnId;
+    }
+    
+    // Move task if dropping on a different column
+    if (targetColumnId && targetColumnId !== sourceColumnId && backlog?.columns.some(c => c.id === targetColumnId)) {
+      moveTaskToColumnMutation.mutate({ taskId, columnId: targetColumnId });
+    }
   };
 
   if (isLoading) {
@@ -343,6 +436,12 @@ export default function BacklogDetail() {
             <Button size="sm" variant="outline" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
               <Plus className="h-4 w-4 mr-1" />
               Sprint
+            </Button>
+          )}
+          {backlog.mode === "kanban" && (
+            <Button size="sm" variant="outline" onClick={() => setShowColumnDialog(true)} data-testid="button-add-column">
+              <Plus className="h-4 w-4 mr-1" />
+              Colonne
             </Button>
           )}
         </div>
@@ -411,6 +510,44 @@ export default function BacklogDetail() {
           </div>
         )}
 
+        {/* Kanban Board View */}
+        {backlog.mode === "kanban" && (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
+            <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
+              {backlog.columns.sort((a, b) => a.position - b.position).map(column => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  tasks={getTasksForColumn(column.id)}
+                  onAddTask={() => {
+                    setSelectedColumnId(column.id);
+                    setShowKanbanTaskDialog(true);
+                  }}
+                  onDeleteColumn={() => deleteColumnMutation.mutate(column.id)}
+                  onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+                  getPriorityColor={getPriorityColor}
+                />
+              ))}
+
+              {backlog.columns.length === 0 && (
+                <Card className="w-full">
+                  <CardContent className="py-8 text-center">
+                    <p className="text-muted-foreground mb-4">
+                      Aucune colonne. Créez des colonnes pour organiser vos tâches.
+                    </p>
+                    <Button onClick={() => setShowColumnDialog(true)} data-testid="button-create-first-column">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer une colonne
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </DndContext>
+        )}
+
+        {/* Scrum Backlog View */}
+        {backlog.mode === "scrum" && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Layers className="h-5 w-5" />
@@ -556,6 +693,7 @@ export default function BacklogDetail() {
             </Card>
           )}
         </div>
+        )}
       </div>
 
       <EpicDialog 
@@ -591,6 +729,21 @@ export default function BacklogDetail() {
         onClose={() => setShowSprintDialog(false)}
         onCreate={(data) => createSprintMutation.mutate(data)}
         isPending={createSprintMutation.isPending}
+      />
+
+      <ColumnDialog 
+        open={showColumnDialog}
+        onClose={() => setShowColumnDialog(false)}
+        onCreate={(data) => createColumnMutation.mutate(data)}
+        isPending={createColumnMutation.isPending}
+      />
+
+      <KanbanTaskDialogComponent
+        open={showKanbanTaskDialog}
+        onClose={() => { setShowKanbanTaskDialog(false); setSelectedColumnId(null); }}
+        columnId={selectedColumnId}
+        onCreate={(data) => createKanbanTaskMutation.mutate(data)}
+        isPending={createKanbanTaskMutation.isPending}
       />
     </div>
   );
@@ -1123,5 +1276,291 @@ function SprintDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ColumnDialog({ 
+  open, 
+  onClose, 
+  onCreate, 
+  isPending 
+}: { 
+  open: boolean; 
+  onClose: () => void; 
+  onCreate: (data: { name: string; color: string }) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("#E5E7EB");
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    onCreate({ name, color });
+    setName("");
+    setColor("#E5E7EB");
+  };
+
+  const colorOptions = [
+    { value: "#E5E7EB", label: "Gris" },
+    { value: "#93C5FD", label: "Bleu" },
+    { value: "#86EFAC", label: "Vert" },
+    { value: "#FDE047", label: "Jaune" },
+    { value: "#FCA5A5", label: "Rouge" },
+    { value: "#C4B5FD", label: "Violet" },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle data-testid="text-column-dialog-title">Nouvelle Colonne</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Nom *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="À faire" data-testid="input-column-name" />
+          </div>
+          <div className="space-y-2">
+            <Label>Couleur</Label>
+            <Select value={color} onValueChange={setColor}>
+              <SelectTrigger data-testid="select-column-color">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {colorOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: opt.value }} />
+                      {opt.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-column">Annuler</Button>
+          <Button onClick={handleSubmit} disabled={isPending || !name.trim()} data-testid="button-submit-column">
+            {isPending ? "..." : "Créer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function KanbanTaskDialogComponent({ 
+  open, 
+  onClose, 
+  columnId,
+  onCreate, 
+  isPending 
+}: { 
+  open: boolean; 
+  onClose: () => void;
+  columnId: string | null;
+  onCreate: (data: { title: string; description?: string; priority?: string; columnId: string }) => void;
+  isPending: boolean;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("medium");
+
+  const handleSubmit = () => {
+    if (!title.trim() || !columnId) return;
+    onCreate({ title, description: description || undefined, priority, columnId });
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle data-testid="text-kanban-task-dialog-title">Nouvelle Tâche</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Titre *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de la tâche" data-testid="input-kanban-task-title" />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} data-testid="input-kanban-task-description" />
+          </div>
+          <div className="space-y-2">
+            <Label>Priorité</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger data-testid="select-kanban-task-priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {backlogPriorityOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} data-testid="button-cancel-kanban-task">Annuler</Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()} data-testid="button-submit-kanban-task">
+            {isPending ? "..." : "Créer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function KanbanColumn({
+  column,
+  tasks,
+  onAddTask,
+  onDeleteColumn,
+  onDeleteTask,
+  getPriorityColor
+}: {
+  column: BacklogColumn;
+  tasks: BacklogTask[];
+  onAddTask: () => void;
+  onDeleteColumn: () => void;
+  onDeleteTask: (taskId: string) => void;
+  getPriorityColor: (priority: string) => string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `column-${column.id}` });
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`flex-shrink-0 w-72 rounded-lg p-3 transition-colors ${isOver ? "bg-primary/10" : "bg-muted/50"}`}
+      data-testid={`column-${column.id}`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div 
+            className="h-3 w-3 rounded-full" 
+            style={{ backgroundColor: column.color || "#E5E7EB" }}
+          />
+          <h3 className="font-medium text-sm" data-testid={`text-column-name-${column.id}`}>{column.name}</h3>
+          <Badge variant="secondary" className="text-xs">
+            {tasks.length}
+          </Badge>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-menu-column-${column.id}`}>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onAddTask} data-testid={`menu-add-task-column-${column.id}`}>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter une tâche
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={onDeleteColumn} data-testid={`menu-delete-column-${column.id}`}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <SortableContext id={column.id} items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-2 min-h-[100px]" data-testid={`column-tasks-${column.id}`}>
+          {tasks.map(task => (
+            <KanbanTaskCard 
+              key={task.id} 
+              task={task}
+              columnId={column.id}
+              onDelete={() => onDeleteTask(task.id)}
+              getPriorityColor={getPriorityColor}
+            />
+          ))}
+        </div>
+      </SortableContext>
+
+      <Button 
+        size="sm" 
+        variant="ghost" 
+        className="w-full mt-2"
+        onClick={onAddTask}
+        data-testid={`button-add-task-column-${column.id}`}
+      >
+        <Plus className="h-3 w-3 mr-1" />
+        Ajouter
+      </Button>
+    </div>
+  );
+}
+
+function KanbanTaskCard({ 
+  task, 
+  columnId,
+  onDelete,
+  getPriorityColor
+}: { 
+  task: BacklogTask;
+  columnId: string;
+  onDelete: () => void;
+  getPriorityColor: (priority: string) => string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+    id: task.id,
+    data: { columnId, task }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card 
+      ref={setNodeRef} 
+      style={style} 
+      className="p-3 cursor-grab active:cursor-grabbing" 
+      data-testid={`card-kanban-task-${task.id}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate" data-testid={`text-kanban-task-title-${task.id}`}>{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground truncate mt-1">{task.description}</p>
+          )}
+        </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 flex-shrink-0"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          data-testid={`button-delete-kanban-task-${task.id}`}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        {task.priority && (
+          <Badge 
+            variant="secondary" 
+            className="text-xs"
+            style={{ backgroundColor: getPriorityColor(task.priority) }}
+            data-testid={`badge-kanban-task-priority-${task.id}`}
+          >
+            {task.priority}
+          </Badge>
+        )}
+        {task.complexity && (
+          <Badge variant="outline" className="text-xs" data-testid={`badge-kanban-task-complexity-${task.id}`}>
+            {task.complexity}
+          </Badge>
+        )}
+      </div>
+    </Card>
   );
 }
