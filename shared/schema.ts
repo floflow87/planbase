@@ -752,6 +752,235 @@ export const entityLinks = pgTable("entity_links", {
 }));
 
 // ============================================
+// BACKLOG MODULE (Jira-like)
+// ============================================
+
+// Backlog modes
+export const backlogModeOptions = [
+  { value: "kanban", label: "Kanban", description: "Workflow + colonnes personnalisables" },
+  { value: "scrum", label: "Scrum", description: "Backlog + Sprints + Rétrospectives" },
+] as const;
+
+export type BacklogMode = typeof backlogModeOptions[number]["value"];
+
+// Backlog item states
+export const backlogItemStateOptions = [
+  { value: "a_faire", label: "À faire", color: "#E5E7EB" },
+  { value: "en_cours", label: "En cours", color: "#93C5FD" },
+  { value: "review", label: "Review", color: "#C4B5FD" },
+  { value: "termine", label: "Terminé", color: "#86EFAC" },
+] as const;
+
+export type BacklogItemState = typeof backlogItemStateOptions[number]["value"];
+
+// Complexity (T-shirt size)
+export const complexityOptions = [
+  { value: "XS", label: "XS", points: 1 },
+  { value: "S", label: "S", points: 2 },
+  { value: "M", label: "M", points: 3 },
+  { value: "L", label: "L", points: 5 },
+  { value: "XL", label: "XL", points: 8 },
+  { value: "XXL", label: "XXL", points: 13 },
+] as const;
+
+export type Complexity = typeof complexityOptions[number]["value"];
+
+// Priority options
+export const backlogPriorityOptions = [
+  { value: "low", label: "Basse", color: "#E5E7EB" },
+  { value: "medium", label: "Moyenne", color: "#FDE047" },
+  { value: "high", label: "Haute", color: "#FDBA74" },
+  { value: "critical", label: "Critique", color: "#FCA5A5" },
+] as const;
+
+export type BacklogPriority = typeof backlogPriorityOptions[number]["value"];
+
+// Sprint status
+export const sprintStatusOptions = [
+  { value: "preparation", label: "En préparation", color: "#E5E7EB" },
+  { value: "en_cours", label: "En cours", color: "#93C5FD" },
+  { value: "termine", label: "Terminé", color: "#86EFAC" },
+] as const;
+
+export type SprintStatus = typeof sprintStatusOptions[number]["value"];
+
+// Backlogs table
+export const backlogs = pgTable("backlogs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }), // Optional link to project
+  name: text("name").notNull(),
+  description: text("description"),
+  mode: text("mode").notNull().default("scrum"), // 'kanban' or 'scrum'
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  projectIdx: index().on(table.accountId, table.projectId),
+}));
+
+// Epics table
+export const epics = pgTable("epics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
+  state: text("state").default("a_faire"), // 'a_faire', 'en_cours', 'review', 'termine'
+  color: text("color").default("#C4B5FD"), // Visual color for the epic
+  order: integer("order").notNull().default(0),
+  dueDate: date("due_date"),
+  ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+}));
+
+// User Stories table
+export const userStories = pgTable("user_stories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  epicId: uuid("epic_id").references(() => epics.id, { onDelete: "set null" }), // Optional epic
+  sprintId: uuid("sprint_id"), // FK to sprints, added after sprints table
+  columnId: uuid("column_id"), // FK to backlog_columns for Kanban mode
+  title: text("title").notNull(),
+  description: text("description"),
+  complexity: text("complexity"), // XS, S, M, L, XL, XXL
+  priority: text("priority").default("medium"),
+  estimatePoints: integer("estimate_points"),
+  state: text("state").default("a_faire"),
+  order: integer("order").notNull().default(0),
+  dueDate: date("due_date"),
+  ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }),
+  assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
+  reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+  epicIdx: index().on(table.epicId),
+  sprintIdx: index().on(table.sprintId),
+  columnIdx: index().on(table.columnId),
+}));
+
+// Backlog Tasks (sub-items of User Stories)
+export const backlogTasks = pgTable("backlog_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  userStoryId: uuid("user_story_id").references(() => userStories.id, { onDelete: "cascade" }), // Optional: can be standalone
+  title: text("title").notNull(),
+  description: text("description"),
+  state: text("state").default("a_faire"),
+  estimatePoints: integer("estimate_points"),
+  order: integer("order").notNull().default(0),
+  dueDate: date("due_date"),
+  assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
+  reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+  userStoryIdx: index().on(table.userStoryId),
+}));
+
+// Checklist Items (Acceptance Criteria for User Stories)
+export const checklistItems = pgTable("checklist_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  userStoryId: uuid("user_story_id").notNull().references(() => userStories.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  done: boolean("done").notNull().default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userStoryIdx: index().on(table.userStoryId),
+}));
+
+// Sprints table (Scrum mode)
+export const sprints = pgTable("sprints", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  goal: text("goal"), // Sprint goal
+  startDate: timestamp("start_date", { withTimezone: true }),
+  endDate: timestamp("end_date", { withTimezone: true }),
+  status: text("status").notNull().default("preparation"), // 'preparation', 'en_cours', 'termine'
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+}));
+
+// Backlog Columns (Kanban mode)
+export const backlogColumns = pgTable("backlog_columns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#E5E7EB"),
+  order: integer("order").notNull().default(0),
+  isLocked: boolean("is_locked").notNull().default(false), // For default columns
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+}));
+
+// Retrospectives table
+export const retros = pgTable("retros", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  sprintId: uuid("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  sprintIdx: index().on(table.sprintId),
+}));
+
+// Retro Cards table
+export const retroCards = pgTable("retro_cards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  retroId: uuid("retro_id").notNull().references(() => retros.id, { onDelete: "cascade" }),
+  column: text("column").notNull(), // 'went_well', 'went_bad', 'to_improve'
+  content: text("content").notNull(),
+  authorId: uuid("author_id").references(() => appUsers.id, { onDelete: "set null" }),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  retroIdx: index().on(table.retroId),
+}));
+
+// Retro column options
+export const retroColumnOptions = [
+  { value: "went_well", label: "Ce qui s'est bien passé", color: "#86EFAC", icon: "ThumbsUp" },
+  { value: "went_bad", label: "Ce qui s'est mal passé", color: "#FCA5A5", icon: "ThumbsDown" },
+  { value: "to_improve", label: "À améliorer", color: "#FDE047", icon: "Lightbulb" },
+] as const;
+
+export type RetroColumn = typeof retroColumnOptions[number]["value"];
+
+// ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
 
@@ -855,6 +1084,34 @@ export const updateMindmapEdgeSchema = insertMindmapEdgeSchema.omit({ accountId:
 
 export const insertEntityLinkSchema = createInsertSchema(entityLinks).omit({ id: true, createdAt: true });
 
+// Backlog schemas
+export const insertBacklogSchema = createInsertSchema(backlogs).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateBacklogSchema = insertBacklogSchema.omit({ accountId: true, createdBy: true }).partial();
+
+export const insertEpicSchema = createInsertSchema(epics).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateEpicSchema = insertEpicSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+
+export const insertUserStorySchema = createInsertSchema(userStories).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateUserStorySchema = insertUserStorySchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+
+export const insertBacklogTaskSchema = createInsertSchema(backlogTasks).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateBacklogTaskSchema = insertBacklogTaskSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+
+export const insertChecklistItemSchema = createInsertSchema(checklistItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateChecklistItemSchema = insertChecklistItemSchema.omit({ accountId: true, userStoryId: true }).partial();
+
+export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateSprintSchema = insertSprintSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+
+export const insertBacklogColumnSchema = createInsertSchema(backlogColumns).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateBacklogColumnSchema = insertBacklogColumnSchema.omit({ accountId: true, backlogId: true }).partial();
+
+export const insertRetroSchema = createInsertSchema(retros).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateRetroSchema = insertRetroSchema.omit({ accountId: true, sprintId: true, createdBy: true }).partial();
+
+export const insertRetroCardSchema = createInsertSchema(retroCards).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateRetroCardSchema = insertRetroCardSchema.omit({ accountId: true, retroId: true }).partial();
+
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
@@ -896,6 +1153,24 @@ export type InsertEntityLink = z.infer<typeof insertEntityLinkSchema>;
 export type UpdateMindmap = z.infer<typeof updateMindmapSchema>;
 export type UpdateMindmapNode = z.infer<typeof updateMindmapNodeSchema>;
 export type UpdateMindmapEdge = z.infer<typeof updateMindmapEdgeSchema>;
+export type InsertBacklog = z.infer<typeof insertBacklogSchema>;
+export type UpdateBacklog = z.infer<typeof updateBacklogSchema>;
+export type InsertEpic = z.infer<typeof insertEpicSchema>;
+export type UpdateEpic = z.infer<typeof updateEpicSchema>;
+export type InsertUserStory = z.infer<typeof insertUserStorySchema>;
+export type UpdateUserStory = z.infer<typeof updateUserStorySchema>;
+export type InsertBacklogTask = z.infer<typeof insertBacklogTaskSchema>;
+export type UpdateBacklogTask = z.infer<typeof updateBacklogTaskSchema>;
+export type InsertChecklistItem = z.infer<typeof insertChecklistItemSchema>;
+export type UpdateChecklistItem = z.infer<typeof updateChecklistItemSchema>;
+export type InsertSprint = z.infer<typeof insertSprintSchema>;
+export type UpdateSprint = z.infer<typeof updateSprintSchema>;
+export type InsertBacklogColumn = z.infer<typeof insertBacklogColumnSchema>;
+export type UpdateBacklogColumn = z.infer<typeof updateBacklogColumnSchema>;
+export type InsertRetro = z.infer<typeof insertRetroSchema>;
+export type UpdateRetro = z.infer<typeof updateRetroSchema>;
+export type InsertRetroCard = z.infer<typeof insertRetroCardSchema>;
+export type UpdateRetroCard = z.infer<typeof updateRetroCardSchema>;
 
 // Select types
 export type Account = typeof accounts.$inferSelect;
@@ -935,6 +1210,15 @@ export type Mindmap = typeof mindmaps.$inferSelect;
 export type MindmapNode = typeof mindmapNodes.$inferSelect;
 export type MindmapEdge = typeof mindmapEdges.$inferSelect;
 export type EntityLink = typeof entityLinks.$inferSelect;
+export type Backlog = typeof backlogs.$inferSelect;
+export type Epic = typeof epics.$inferSelect;
+export type UserStory = typeof userStories.$inferSelect;
+export type BacklogTask = typeof backlogTasks.$inferSelect;
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type Sprint = typeof sprints.$inferSelect;
+export type BacklogColumn = typeof backlogColumns.$inferSelect;
+export type Retro = typeof retros.$inferSelect;
+export type RetroCard = typeof retroCards.$inferSelect;
 
 // Mindmap Kind Options
 export const mindmapKindOptions = [

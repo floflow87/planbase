@@ -37,6 +37,28 @@ import {
   insertEntityLinkSchema,
   type ClientCustomField,
   accounts,
+  insertBacklogSchema,
+  updateBacklogSchema,
+  insertEpicSchema,
+  updateEpicSchema,
+  insertUserStorySchema,
+  updateUserStorySchema,
+  insertBacklogTaskSchema,
+  updateBacklogTaskSchema,
+  insertChecklistItemSchema,
+  updateChecklistItemSchema,
+  insertSprintSchema,
+  updateSprintSchema,
+  insertBacklogColumnSchema,
+  updateBacklogColumnSchema,
+  backlogs,
+  epics,
+  userStories,
+  backlogTasks,
+  checklistItems,
+  sprints,
+  backlogColumns,
+  tasks,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -44,7 +66,7 @@ import { getDemoCredentials } from "./middleware/demo-helper";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -3900,6 +3922,731 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "5. Ajoutez-le dans le secret SUPABASE_DB_PASSWORD sur Replit"
       ]
     });
+  });
+
+  // ============================================
+  // BACKLOGS MODULE
+  // ============================================
+
+  // List all backlogs for the account
+  app.get("/api/backlogs", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const result = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new backlog
+  app.post("/api/backlogs", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const data = insertBacklogSchema.parse({
+        ...req.body,
+        accountId,
+        createdBy: userId,
+      });
+      
+      const [backlog] = await db.insert(backlogs).values(data).returning();
+      
+      // If Kanban mode, create default columns
+      if (data.mode === "kanban") {
+        const defaultColumns = [
+          { name: "À faire", color: "#E5E7EB", order: 0, isLocked: true },
+          { name: "En cours", color: "#93C5FD", order: 1, isLocked: false },
+          { name: "Review", color: "#FDE047", order: 2, isLocked: false },
+          { name: "Terminé", color: "#86EFAC", order: 3, isLocked: true },
+        ];
+        
+        for (const col of defaultColumns) {
+          await db.insert(backlogColumns).values({
+            accountId,
+            backlogId: backlog.id,
+            name: col.name,
+            color: col.color,
+            order: col.order,
+            isLocked: col.isLocked,
+          });
+        }
+      }
+      
+      res.status(201).json(backlog);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get single backlog with all related data
+  app.get("/api/backlogs/:backlogId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const [backlog] = await db.select().from(backlogs).where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      
+      // Fetch all related data
+      const [epicsList, userStoriesList, backlogTasksList, sprintsList, columnsList] = await Promise.all([
+        db.select().from(epics).where(eq(epics.backlogId, backlogId)).orderBy(asc(epics.order)),
+        db.select().from(userStories).where(eq(userStories.backlogId, backlogId)).orderBy(asc(userStories.order)),
+        db.select().from(backlogTasks).where(eq(backlogTasks.backlogId, backlogId)).orderBy(asc(backlogTasks.order)),
+        db.select().from(sprints).where(eq(sprints.backlogId, backlogId)).orderBy(asc(sprints.startDate)),
+        db.select().from(backlogColumns).where(eq(backlogColumns.backlogId, backlogId)).orderBy(asc(backlogColumns.order)),
+      ]);
+      
+      // Fetch checklist items for all user stories
+      const userStoryIds = userStoriesList.map(us => us.id);
+      let checklistItemsList: any[] = [];
+      if (userStoryIds.length > 0) {
+        // Fetch checklists for each user story
+        for (const usId of userStoryIds) {
+          const items = await db.select().from(checklistItems).where(eq(checklistItems.userStoryId, usId)).orderBy(asc(checklistItems.order));
+          checklistItemsList.push(...items);
+        }
+      }
+      
+      res.json({
+        ...backlog,
+        epics: epicsList,
+        userStories: userStoriesList,
+        backlogTasks: backlogTasksList,
+        sprints: sprintsList,
+        columns: columnsList,
+        checklistItems: checklistItemsList,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update backlog
+  app.patch("/api/backlogs/:backlogId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      const data = updateBacklogSchema.parse(req.body);
+      
+      const [updated] = await db.update(backlogs)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete backlog
+  app.delete("/api/backlogs/:backlogId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const [deleted] = await db.delete(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // EPICS
+  // ============================================
+
+  // List epics for a backlog
+  app.get("/api/backlogs/:backlogId/epics", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const result = await db.select().from(epics)
+        .where(and(eq(epics.backlogId, backlogId), eq(epics.accountId, accountId)))
+        .orderBy(asc(epics.order));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create epic
+  app.post("/api/backlogs/:backlogId/epics", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      const data = insertEpicSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+        createdBy: userId,
+      });
+      
+      const [epic] = await db.insert(epics).values(data).returning();
+      res.status(201).json(epic);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update epic
+  app.patch("/api/epics/:epicId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const epicId = req.params.epicId;
+      const data = updateEpicSchema.parse(req.body);
+      
+      const [updated] = await db.update(epics)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Epic not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete epic
+  app.delete("/api/epics/:epicId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const epicId = req.params.epicId;
+      
+      const [deleted] = await db.delete(epics)
+        .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Epic not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // USER STORIES
+  // ============================================
+
+  // List user stories for a backlog
+  app.get("/api/backlogs/:backlogId/user-stories", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const result = await db.select().from(userStories)
+        .where(and(eq(userStories.backlogId, backlogId), eq(userStories.accountId, accountId)))
+        .orderBy(asc(userStories.order));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create user story
+  app.post("/api/backlogs/:backlogId/user-stories", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      const data = insertUserStorySchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+        createdBy: userId,
+      });
+      
+      const [userStory] = await db.insert(userStories).values(data).returning();
+      res.status(201).json(userStory);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update user story
+  app.patch("/api/user-stories/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      const data = updateUserStorySchema.parse(req.body);
+      
+      const [updated] = await db.update(userStories)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(userStories.id, id), eq(userStories.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "User story not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete user story
+  app.delete("/api/user-stories/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(userStories)
+        .where(and(eq(userStories.id, id), eq(userStories.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "User story not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // BACKLOG TASKS
+  // ============================================
+
+  // Create task under user story
+  app.post("/api/user-stories/:userStoryId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const userStoryId = req.params.userStoryId;
+      
+      // Get the user story to find the backlogId
+      const [userStory] = await db.select().from(userStories)
+        .where(and(eq(userStories.id, userStoryId), eq(userStories.accountId, accountId)));
+      
+      if (!userStory) {
+        return res.status(404).json({ error: "User story not found" });
+      }
+      
+      const data = insertBacklogTaskSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId: userStory.backlogId,
+        userStoryId,
+        createdBy: userId,
+      });
+      
+      const [task] = await db.insert(backlogTasks).values(data).returning();
+      res.status(201).json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update backlog task
+  app.patch("/api/backlog-tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      const data = updateBacklogTaskSchema.parse(req.body);
+      
+      const [updated] = await db.update(backlogTasks)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(backlogTasks.id, id), eq(backlogTasks.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete backlog task
+  app.delete("/api/backlog-tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(backlogTasks)
+        .where(and(eq(backlogTasks.id, id), eq(backlogTasks.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CHECKLIST ITEMS
+  // ============================================
+
+  // Get checklist items for a user story
+  app.get("/api/user-stories/:userStoryId/checklist", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userStoryId = req.params.userStoryId;
+      
+      // Verify user story belongs to account
+      const [userStory] = await db.select().from(userStories)
+        .where(and(eq(userStories.id, userStoryId), eq(userStories.accountId, accountId)));
+      
+      if (!userStory) {
+        return res.status(404).json({ error: "User story not found" });
+      }
+      
+      const result = await db.select().from(checklistItems)
+        .where(eq(checklistItems.userStoryId, userStoryId))
+        .orderBy(asc(checklistItems.order));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Add checklist item
+  app.post("/api/user-stories/:userStoryId/checklist", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userStoryId = req.params.userStoryId;
+      
+      // Verify user story belongs to account
+      const [userStory] = await db.select().from(userStories)
+        .where(and(eq(userStories.id, userStoryId), eq(userStories.accountId, accountId)));
+      
+      if (!userStory) {
+        return res.status(404).json({ error: "User story not found" });
+      }
+      
+      const data = insertChecklistItemSchema.parse({
+        ...req.body,
+        accountId,
+        userStoryId,
+      });
+      
+      const [item] = await db.insert(checklistItems).values(data).returning();
+      res.status(201).json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update checklist item
+  app.patch("/api/checklist-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      const data = updateChecklistItemSchema.parse(req.body);
+      
+      const [updated] = await db.update(checklistItems)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(checklistItems.id, id), eq(checklistItems.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Checklist item not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete checklist item
+  app.delete("/api/checklist-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(checklistItems)
+        .where(and(eq(checklistItems.id, id), eq(checklistItems.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Checklist item not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // SPRINTS (Scrum mode)
+  // ============================================
+
+  // List sprints for a backlog
+  app.get("/api/backlogs/:backlogId/sprints", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const result = await db.select().from(sprints)
+        .where(and(eq(sprints.backlogId, backlogId), eq(sprints.accountId, accountId)))
+        .orderBy(asc(sprints.startDate));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create sprint
+  app.post("/api/backlogs/:backlogId/sprints", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      const data = insertSprintSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+        createdBy: userId,
+      });
+      
+      const [sprint] = await db.insert(sprints).values(data).returning();
+      res.status(201).json(sprint);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update sprint
+  app.patch("/api/sprints/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      const data = updateSprintSchema.parse(req.body);
+      
+      const [updated] = await db.update(sprints)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Start sprint
+  app.patch("/api/sprints/:id/start", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [updated] = await db.update(sprints)
+        .set({ status: "en_cours", updatedAt: new Date() })
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Close sprint
+  app.patch("/api/sprints/:id/close", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [updated] = await db.update(sprints)
+        .set({ status: "termine", updatedAt: new Date() })
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete sprint
+  app.delete("/api/sprints/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(sprints)
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // BACKLOG COLUMNS (Kanban mode)
+  // ============================================
+
+  // List columns for a backlog
+  app.get("/api/backlogs/:backlogId/columns", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const result = await db.select().from(backlogColumns)
+        .where(and(eq(backlogColumns.backlogId, backlogId), eq(backlogColumns.accountId, accountId)))
+        .orderBy(asc(backlogColumns.order));
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create column
+  app.post("/api/backlogs/:backlogId/columns", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const data = insertBacklogColumnSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+      });
+      
+      const [column] = await db.insert(backlogColumns).values(data).returning();
+      res.status(201).json(column);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update column
+  app.patch("/api/backlog-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      const data = updateBacklogColumnSchema.parse(req.body);
+      
+      const [updated] = await db.update(backlogColumns)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(backlogColumns.id, id), eq(backlogColumns.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Column not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete column
+  app.delete("/api/backlog-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      // Check if column is locked
+      const [column] = await db.select().from(backlogColumns)
+        .where(and(eq(backlogColumns.id, id), eq(backlogColumns.accountId, accountId)));
+      
+      if (!column) {
+        return res.status(404).json({ error: "Column not found" });
+      }
+      
+      if (column.isLocked) {
+        return res.status(400).json({ error: "Cannot delete a locked column" });
+      }
+      
+      await db.delete(backlogColumns).where(eq(backlogColumns.id, id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // IMPORT FROM PROJECT TASKS
+  // ============================================
+
+  // Import tasks from a linked project
+  app.post("/api/backlogs/:backlogId/import-from-project", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      // Get the backlog to find the projectId
+      const [backlog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      
+      if (!backlog.projectId) {
+        return res.status(400).json({ error: "Backlog has no linked project" });
+      }
+      
+      // Get all tasks from the project
+      const projectTasks = await db.select().from(tasks)
+        .where(and(eq(tasks.projectId, backlog.projectId), eq(tasks.accountId, accountId)));
+      
+      // Create backlog_tasks for each project task
+      const createdTasks = [];
+      for (const task of projectTasks) {
+        const [backlogTask] = await db.insert(backlogTasks).values({
+          accountId,
+          backlogId,
+          title: task.title,
+          description: task.description,
+          state: task.status === "done" ? "termine" : (task.status === "in_progress" ? "en_cours" : "a_faire"),
+          dueDate: task.dueDate,
+          assigneeId: task.assignedToId,
+          createdBy: userId,
+        }).returning();
+        createdTasks.push(backlogTask);
+      }
+      
+      res.json({
+        success: true,
+        imported: createdTasks.length,
+        tasks: createdTasks,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
   });
 
   // ============================================

@@ -405,6 +405,258 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Entity links table created");
     
+    // ============================================
+    // BACKLOG MODULE TABLES
+    // ============================================
+    
+    // Create backlogs table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS backlogs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid REFERENCES projects(id) ON DELETE SET NULL,
+        name text NOT NULL,
+        description text,
+        mode text NOT NULL DEFAULT 'scrum' CHECK (mode IN ('kanban', 'scrum')),
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlogs_account_idx ON backlogs(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlogs_project_idx ON backlogs(account_id, project_id);
+    `);
+    console.log("✅ Backlogs table created");
+    
+    // Create epics table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS epics (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        description text,
+        priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        color text DEFAULT '#C4B5FD',
+        "order" integer NOT NULL DEFAULT 0,
+        due_date date,
+        owner_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS epics_account_idx ON epics(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS epics_backlog_idx ON epics(backlog_id);
+    `);
+    console.log("✅ Epics table created");
+    
+    // Create user_stories table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_stories (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        epic_id uuid REFERENCES epics(id) ON DELETE SET NULL,
+        sprint_id uuid,
+        column_id uuid,
+        title text NOT NULL,
+        description text,
+        complexity text CHECK (complexity IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')),
+        priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+        estimate_points integer,
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        "order" integer NOT NULL DEFAULT 0,
+        due_date date,
+        owner_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        assignee_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        reporter_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_stories_account_idx ON user_stories(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_stories_backlog_idx ON user_stories(backlog_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_stories_epic_idx ON user_stories(epic_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_stories_sprint_idx ON user_stories(sprint_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS user_stories_column_idx ON user_stories(column_id);
+    `);
+    console.log("✅ User stories table created");
+    
+    // Create backlog_tasks table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS backlog_tasks (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        user_story_id uuid REFERENCES user_stories(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        description text,
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        estimate_points integer,
+        "order" integer NOT NULL DEFAULT 0,
+        due_date date,
+        assignee_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        reporter_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_tasks_account_idx ON backlog_tasks(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_tasks_backlog_idx ON backlog_tasks(backlog_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_tasks_user_story_idx ON backlog_tasks(user_story_id);
+    `);
+    console.log("✅ Backlog tasks table created");
+    
+    // Create checklist_items table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS checklist_items (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        user_story_id uuid NOT NULL REFERENCES user_stories(id) ON DELETE CASCADE,
+        label text NOT NULL,
+        done boolean NOT NULL DEFAULT false,
+        "order" integer NOT NULL DEFAULT 0,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS checklist_items_user_story_idx ON checklist_items(user_story_id);
+    `);
+    console.log("✅ Checklist items table created");
+    
+    // Create sprints table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS sprints (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        goal text,
+        start_date timestamp with time zone,
+        end_date timestamp with time zone,
+        status text NOT NULL DEFAULT 'preparation' CHECK (status IN ('preparation', 'en_cours', 'termine')),
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS sprints_account_idx ON sprints(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS sprints_backlog_idx ON sprints(backlog_id);
+    `);
+    console.log("✅ Sprints table created");
+    
+    // Create backlog_columns table (for Kanban mode)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS backlog_columns (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        color text NOT NULL DEFAULT '#E5E7EB',
+        "order" integer NOT NULL DEFAULT 0,
+        is_locked boolean NOT NULL DEFAULT false,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_columns_account_idx ON backlog_columns(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_columns_backlog_idx ON backlog_columns(backlog_id);
+    `);
+    console.log("✅ Backlog columns table created");
+    
+    // Create retros table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS retros (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        sprint_id uuid NOT NULL REFERENCES sprints(id) ON DELETE CASCADE,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS retros_account_idx ON retros(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS retros_sprint_idx ON retros(sprint_id);
+    `);
+    console.log("✅ Retros table created");
+    
+    // Create retro_cards table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS retro_cards (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        retro_id uuid NOT NULL REFERENCES retros(id) ON DELETE CASCADE,
+        "column" text NOT NULL CHECK ("column" IN ('went_well', 'went_bad', 'to_improve')),
+        content text NOT NULL,
+        author_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        "order" integer NOT NULL DEFAULT 0,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS retro_cards_account_idx ON retro_cards(account_id);
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS retro_cards_retro_idx ON retro_cards(retro_id);
+    `);
+    console.log("✅ Retro cards table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
