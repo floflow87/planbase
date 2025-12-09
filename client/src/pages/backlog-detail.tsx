@@ -814,9 +814,9 @@ function UserStoryRow({
                   title={story.priority}
                 />
               )}
-              {story.tasks.length > 0 && (
+              {(story.tasks?.length ?? 0) > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  {story.tasks.filter(t => t.state === "termine").length}/{story.tasks.length} tâches
+                  {story.tasks?.filter(t => t.state === "termine").length ?? 0}/{story.tasks?.length ?? 0} tâches
                 </span>
               )}
             </div>
@@ -843,7 +843,7 @@ function UserStoryRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {story.tasks.length > 0 && (
+        {(story.tasks?.length ?? 0) > 0 && (
           <div className="mt-2">
             <Progress value={progress} className="h-1" />
           </div>
@@ -853,10 +853,10 @@ function UserStoryRow({
             {story.description && (
               <p className="text-sm text-muted-foreground">{story.description}</p>
             )}
-            {story.checklistItems.length > 0 && (
+            {(story.checklistItems?.length ?? 0) > 0 && (
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Critères d'acceptation</p>
-                {story.checklistItems.map(item => (
+                {story.checklistItems?.map(item => (
                   <div key={item.id} className="flex items-center gap-2" data-testid={`row-checklist-${item.id}`}>
                     <Checkbox 
                       checked={item.done}
@@ -870,10 +870,10 @@ function UserStoryRow({
                 ))}
               </div>
             )}
-            {story.tasks.length > 0 && (
+            {(story.tasks?.length ?? 0) > 0 && (
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Tâches</p>
-                {story.tasks.map(task => (
+                {story.tasks?.map(task => (
                   <div key={task.id} className="flex items-center gap-2 p-2 rounded bg-muted/50" data-testid={`row-task-${task.id}`}>
                     <Select
                       value={task.state || "a_faire"}
