@@ -119,10 +119,7 @@ export function TicketDetailPanel({
     queryKey: commentsQueryKey,
     queryFn: async () => {
       if (!ticketId || !ticketType) return [];
-      const res = await fetch(`/api/tickets/${ticketId}/${ticketType}/comments`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error("Failed to fetch comments");
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/comments`, "GET");
       return res.json();
     },
     enabled: !!ticketId && !!ticketType,
