@@ -412,10 +412,10 @@ export function TicketDetailPanel({
                     <div className="flex items-center gap-2">
                       <Avatar className="h-5 w-5">
                         <AvatarFallback className="text-xs">
-                          {assignee.displayName?.charAt(0) || assignee.email?.charAt(0)}
+                          {assignee.firstName?.charAt(0) || assignee.email?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="truncate">{assignee.displayName || assignee.email}</span>
+                      <span className="truncate">{assignee.firstName && assignee.lastName ? `${assignee.firstName} ${assignee.lastName}` : assignee.email}</span>
                     </div>
                   ) : "Non assigné"}
                 </SelectValue>
@@ -424,7 +424,7 @@ export function TicketDetailPanel({
                 <SelectItem value="none" className="text-gray-900">Non assigné</SelectItem>
                 {users.map(user => (
                   <SelectItem key={user.id} value={user.id} className="text-gray-900">
-                    {user.displayName || user.email}
+                    {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -449,10 +449,10 @@ export function TicketDetailPanel({
                       <div className="flex items-center gap-2">
                         <Avatar className="h-5 w-5">
                           <AvatarFallback className="text-xs">
-                            {reporter.displayName?.charAt(0) || reporter.email?.charAt(0)}
+                            {reporter.firstName?.charAt(0) || reporter.email?.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="truncate">{reporter.displayName || reporter.email}</span>
+                        <span className="truncate">{reporter.firstName && reporter.lastName ? `${reporter.firstName} ${reporter.lastName}` : reporter.email}</span>
                       </div>
                     ) : "Non défini"}
                   </SelectValue>
@@ -461,7 +461,7 @@ export function TicketDetailPanel({
                   <SelectItem value="none" className="text-gray-900">Non défini</SelectItem>
                   {users.map(user => (
                     <SelectItem key={user.id} value={user.id} className="text-gray-900">
-                      {user.displayName || user.email}
+                      {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
