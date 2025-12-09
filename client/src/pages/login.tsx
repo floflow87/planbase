@@ -95,7 +95,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo & App Name - visible only on mobile */}
           <div className="md:hidden flex flex-col items-center -mt-[27px] mb-8">
@@ -106,17 +106,17 @@ export default function Login() {
           </div>
           
           <div className="text-left">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Connexion</h1>
-            <p className="text-sm md:text-base text-gray-600">Accédez à votre compte</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Connexion</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Accédez à votre compte</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
                 Nom d'utilisateur
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -126,17 +126,17 @@ export default function Login() {
                   required
                   disabled={loading}
                   data-testid="input-email"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">
                 Mot de passe
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
@@ -146,7 +146,7 @@ export default function Login() {
                   required
                   disabled={loading}
                   data-testid="input-password"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
@@ -154,7 +154,7 @@ export default function Login() {
             <div className="flex items-center justify-end">
               <button
                 type="button"
-                className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+                className="text-sm text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium"
               >
                 Mot de passe oublié ?
               </button>
@@ -178,10 +178,10 @@ export default function Login() {
           </form>
 
           <div className="text-center pt-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Je n'ai pas encore de compte :{" "}
               <Link href="/signup">
-                <button className="text-violet-600 hover:text-violet-700 font-medium" data-testid="link-signup">
+                <button className="text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium" data-testid="link-signup">
                   S'inscrire
                 </button>
               </Link>

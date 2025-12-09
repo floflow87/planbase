@@ -156,7 +156,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Signup Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo & App Name - visible only on mobile */}
           <div className="md:hidden flex flex-col items-center -mt-[27px] mb-8">
@@ -168,23 +168,23 @@ export default function Signup() {
           
           <div className="text-left">
             <Link href="/login">
-              <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6" data-testid="link-back-to-login">
+              <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6" data-testid="link-back-to-login">
                 <ArrowLeft className="w-4 h-4" />
                 Retour à la connexion
               </button>
             </Link>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Créer un compte</h1>
-            <p className="text-sm md:text-base text-gray-600">Commencez votre essai gratuit</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Créer un compte</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Commencez votre essai gratuit</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Account Name */}
             <div className="space-y-2">
-              <Label htmlFor="accountName" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="accountName" className="text-sm font-medium text-foreground">
                 Nom du compte <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="accountName"
                   name="accountName"
@@ -195,7 +195,7 @@ export default function Signup() {
                   required
                   disabled={loading}
                   data-testid="input-account-name"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
@@ -203,7 +203,7 @@ export default function Signup() {
             {/* First Name & Last Name */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
                   Prénom
                 </Label>
                 <Input
@@ -215,11 +215,11 @@ export default function Signup() {
                   onChange={handleChange}
                   disabled={loading}
                   data-testid="input-first-name"
-                  className="h-12 border-gray-300"
+                  className="h-12"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
                   Nom
                 </Label>
                 <Input
@@ -231,18 +231,18 @@ export default function Signup() {
                   onChange={handleChange}
                   disabled={loading}
                   data-testid="input-last-name"
-                  className="h-12 border-gray-300"
+                  className="h-12"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
                 Email <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="email"
                   name="email"
@@ -253,18 +253,18 @@ export default function Signup() {
                   required
                   disabled={loading}
                   data-testid="input-email"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">
                 Mot de passe <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
                   name="password"
@@ -275,18 +275,18 @@ export default function Signup() {
                   required
                   disabled={loading}
                   data-testid="input-password"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
 
             {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
                 Confirmer le mot de passe <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -297,7 +297,7 @@ export default function Signup() {
                   required
                   disabled={loading}
                   data-testid="input-confirm-password"
-                  className="pl-10 h-12 border-gray-300"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
@@ -320,10 +320,10 @@ export default function Signup() {
           </form>
 
           <div className="text-center pt-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Vous avez déjà un compte ?{" "}
               <Link href="/login">
-                <button className="text-violet-600 hover:text-violet-700 font-medium" data-testid="link-login">
+                <button className="text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium" data-testid="link-login">
                   Se connecter
                 </button>
               </Link>
