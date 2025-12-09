@@ -596,11 +596,11 @@ export default function DocumentDetail() {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 bg-white dark:bg-background">
+              <PopoverContent className="w-[300px] p-0 bg-popover">
                 <Command>
                   <CommandInput placeholder="Rechercher un projet..." />
                   <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                  <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
                     {projects.map((project) => (
                       <CommandItem
                         key={project.id}

@@ -1497,7 +1497,7 @@ export default function Tasks() {
                   <Command>
                     <CommandInput placeholder="Rechercher un projet..." />
                     <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
                       <CommandItem
                         onSelect={() => toggleProjectSelection("all")}
                         data-testid="option-project-all"
@@ -1548,7 +1548,7 @@ export default function Tasks() {
                   <Command>
                     <CommandInput placeholder="Rechercher un statut..." />
                     <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
-                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-[#ffffff]">
+                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
                       <CommandItem
                         onSelect={() => toggleStatusSelection("all")}
                         data-testid="option-status-all"
@@ -1856,7 +1856,7 @@ export default function Tasks() {
 
         {/* Create Task Sheet */}
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-[#ffffff]" data-testid="sheet-create-task">
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-popover" data-testid="sheet-create-task">
             <SheetHeader>
               <SheetTitle>Nouvelle tâche</SheetTitle>
             </SheetHeader>
@@ -2040,7 +2040,7 @@ export default function Tasks() {
                       <CommandInput placeholder="Rechercher une colonne..." />
                       <CommandList>
                         <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
-                        <CommandGroup className="bg-[#ffffff]">
+                        <CommandGroup className="bg-popover">
                           {(() => {
                             const columnsToDisplay = newTaskProjectId === "none" 
                               ? globalTaskColumns 
