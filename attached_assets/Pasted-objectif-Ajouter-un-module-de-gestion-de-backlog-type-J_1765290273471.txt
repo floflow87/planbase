@@ -1,0 +1,587 @@
+objectif :
+👉 Ajouter un module de gestion de backlog type Jira, intégré à PlanBase, avec support Kanban ou Scrum (sprints + rétros).
+
+1. Concepts fonctionnels
+
+Il existe 3 niveaux de tickets :
+
+Epic
+
+User Story (US)
+
+Task (sous-ticket d’une User Story)
+
+Règles :
+
+Une US peut appartenir à une Epic (champ optionnel).
+
+Une US peut avoir autant de Tasks que nécessaire.
+
+Une US est un ticket principal, une Task est un sous-ticket.
+
+Pour chaque User Story, on doit pouvoir gérer :
+
+Titre
+
+Description
+
+Complexité (ex : T-shirt size ou entier)
+
+Priorité
+
+Estimate points (points de story)
+
+Collaborateur responsable (owner)
+
+Collaborateur assigné
+
+Rapporteur
+
+État : A_FAIRE, EN_COURS, REVIEW, TERMINE
+
+Date de création
+
+Date d’échéance
+
+Sprint (optionnel)
+
+Checklist pour les critères d’acceptation (items cochables)
+
+Pour chaque Task :
+
+Titre
+
+Description
+
+État (même liste que ci-dessus)
+
+Assignee / reporter optionnels
+
+Estimate points optionnel
+
+Dates (création, échéance) optionnelles
+
+2. Choix du mode : Kanban vs Scrum
+
+À l’arrivée sur le module Backlog, l’utilisateur voit un écran “Choisir le mode de gestion” :
+
+Carte Kanban
+
+Texte : “Workflow + colonnes personnalisables”
+
+Permet de définir un board avec des colonnes custom (To Do / In Progress / Review / Done, etc.).
+
+Carte Scrum
+
+Texte : “Backlog + Sprints + Rétrospectives”
+
+Après avoir choisi un mode, l’utilisateur doit :
+
+soit sélectionner un projet existant PlanBase,
+
+soit créer un nouveau projet.
+
+3. Projets & backlog
+3.1. Entité Project
+
+Ajouter une entité Project (ou étendre celle existante) avec au minimum :
+
+id
+
+name
+
+description (optionnel)
+
+mode: KANBAN | SCRUM
+
+ownerId (user qui a créé le projet)
+
+3.2. Backlog (Scrum)
+
+En mode Scrum :
+
+Tous les nouveaux tickets (US) sont créés par défaut dans le Backlog (hors sprint).
+
+Le backlog affiche :
+
+Par Epic, repliable :
+
+Liste des User Stories
+
+Liste des Tasks en dessous de chaque US (repliable).
+
+Fonctions UI :
+
+Création / édition / suppression d’Epic, US, Task.
+
+Drag & drop :
+
+pour réordonner les US dans le backlog,
+
+pour affecter une US à un sprint (voir plus bas).
+
+Inline editing simple pour titre/priorité/estimate.
+
+4. Sprints (mode Scrum)
+4.1. Entité Sprint
+
+Créer une table Sprint :
+
+id
+
+projectId
+
+name
+
+startDateTime
+
+endDateTime
+
+status: PREPARATION | EN_COURS | TERMINE
+
+createdAt
+
+Règles métier :
+
+Un seul sprint EN_COURS par projet.
+
+Par défaut, les US ont sprintId = null → elles sont dans le backlog.
+
+4.2. Fonctionnalités
+
+Depuis le backlog :
+
+Sélectionner plusieurs US et les ajouter à un sprint.
+
+Bouton “Créer un sprint” :
+
+Nom
+
+Date + heure de début
+
+Date + heure de fin
+
+status initial = PREPARATION
+
+Bouton “Démarrer le sprint” :
+
+Change status → EN_COURS.
+
+Si un sprint est EN_COURS, les autres ne peuvent pas être démarrés (désactiver l’action).
+
+Affichage des indicateurs par sprint :
+
+Nombre de tickets embarqués
+
+Nombre de tickets :
+
+à faire
+
+en cours
+
+terminés
+
+(option bonus) somme des story points par état
+
+4.3. Fin de sprint
+
+Bouton “Clore le sprint” :
+
+Passe le statut du sprint à TERMINE.
+
+Les US TERMINE restent rattachées au sprint.
+
+Les US non terminées :
+
+proposer de :
+
+les remettre dans le backlog (sprintId = null),
+
+OU les basculer vers un nouveau sprint si créé dans la foulée (option bonus).
+
+5. Kanban (mode Kanban)
+
+En mode Kanban, pas de sprint.
+
+Créer une entité BoardColumn :
+
+id
+
+projectId
+
+name (ex : “À faire”, “En cours”, “Review”, “Terminé”)
+
+order
+
+Les US (et éventuellement Tasks, si on affiche ce niveau) ont un champ columnId au lieu de state, ou bien state reste, mais on le synchronise avec la colonne.
+
+UI :
+
+Board Kanban classique :
+
+colonnes configurables (création, renommage, suppression, ordre par drag & drop)
+
+cards = US
+
+déplacement par drag & drop entre colonnes → mise à jour de l’état.
+
+6. Conversion d’un projet existant
+
+Lorsque l’utilisateur choisit “Projet existant” :
+
+Endpoint backend qui liste les anciennes tâches du projet (suppose un ancien modèle de tâches).
+
+UI de conversion :
+
+table avec les tâches existantes,
+
+possibilité de choisir pour chaque tâche :
+
+la convertir en User Story,
+
+la convertir en Task rattachée à une nouvelle User Story ou à une existante.
+
+bouton rapide : “Tout convertir en User Stories dans le backlog (sans Epic, sans sprint)”.
+
+Implémentation :
+
+Créer un endpoint ex : POST /api/projects/:projectId/convert-legacy-tasks.
+
+Le frontend enverra une structure de mapping (id ancienne tâche → type cible + liens).
+
+7. Rétrospective de sprint
+
+Pour chaque sprint, on veut une rétrospective avec 3 colonnes :
+
+“Ce qui s’est bien passé”
+
+“Ce qui s’est mal passé”
+
+“À améliorer”
+
+7.1. Modèle
+
+Table Retro :
+
+id
+
+sprintId
+
+createdAt
+
+Table RetroCard :
+
+id
+
+retroId
+
+column: WENT_WELL | WENT_BAD | TO_IMPROVE
+
+content (texte)
+
+authorId (optionnel)
+
+createdAt
+
+À la clôture d’un sprint, créer automatiquement une Retro associée.
+
+7.2. UI
+
+Onglet “Rétro” visible sur la page du sprint.
+
+Trois colonnes, type mini-Kanban :
+
+Bouton “+ Ajouter une carte” dans chaque colonne.
+
+Une carte contient juste un texte (multiligne).
+
+Bonus : bouton pour exporter la rétro en Markdown/JSON.
+
+8. Modèle de données (suggestion SQL)
+
+Tu peux créer les tables suivantes avec PostgreSQL (nommage indicatif, à adapter à Prisma/Knex) :
+
+projects
+
+epics
+
+user_stories
+
+tasks
+
+checklist_items
+
+sprints
+
+retros
+
+retro_cards
+
+board_columns (pour Kanban)
+
+Exemple minimal de champs (à adapter en schéma réel) :
+
+projects :
+
+id (PK)
+
+name
+
+description
+
+mode (KANBAN | SCRUM)
+
+owner_id
+
+created_at
+
+epics :
+
+id
+
+project_id
+
+title
+
+description
+
+priority
+
+state
+
+due_date
+
+created_at
+
+owner_id
+
+user_stories :
+
+id
+
+project_id
+
+epic_id (nullable)
+
+title
+
+description
+
+complexity
+
+priority
+
+estimate_points
+
+state
+
+created_at
+
+due_date
+
+sprint_id (nullable)
+
+owner_id
+
+assignee_id
+
+reporter_id
+
+tasks :
+
+id
+
+project_id
+
+user_story_id
+
+title
+
+description
+
+state
+
+estimate_points
+
+created_at
+
+due_date
+
+assignee_id
+
+reporter_id
+
+checklist_items :
+
+id
+
+user_story_id
+
+label
+
+done (bool)
+
+sprints :
+
+id
+
+project_id
+
+name
+
+start_datetime
+
+end_datetime
+
+status
+
+created_at
+
+retros :
+
+id
+
+sprint_id
+
+created_at
+
+retro_cards :
+
+id
+
+retro_id
+
+column
+
+content
+
+author_id
+
+created_at
+
+board_columns (mode Kanban) :
+
+id
+
+project_id
+
+name
+
+order_index
+
+9. API à implémenter (REST)
+
+Exemples d’endpoints (tu peux adapter les noms exacts) :
+
+GET /api/projects
+
+POST /api/projects
+
+GET /api/projects/:projectId/backlog
+→ retourne Epics + US + Tasks + Sprints, structurés.
+
+POST /api/projects/:projectId/epics
+
+POST /api/projects/:projectId/user-stories
+
+POST /api/projects/:projectId/tasks
+
+PATCH /api/user-stories/:id
+
+PATCH /api/tasks/:id
+
+POST /api/projects/:projectId/sprints
+
+PATCH /api/sprints/:id/start
+
+PATCH /api/sprints/:id/close
+
+POST /api/sprints/:id/add-user-stories
+
+POST /api/projects/:projectId/convert-legacy-tasks
+
+GET /api/sprints/:id/retro
+
+POST /api/sprints/:id/retro/cards
+
+PATCH /api/retro-cards/:id
+
+DELETE /api/retro-cards/:id
+
+GET /api/projects/:projectId/kanban
+
+POST /api/projects/:projectId/board-columns
+
+PATCH /api/board-columns/:id
+
+PATCH /api/user-stories/:id/move-column
+
+10. Frontend : vues à créer
+
+En Vue 3 + TypeScript :
+
+Vue “Choix du mode Backlog”
+
+2 cartes : Kanban / Scrum.
+
+Sélecteur de projet existant + bouton “Créer un projet”.
+
+Vue “Backlog Scrum”
+
+Panneau gauche : liste des sprints du projet + bouton “Créer un sprint”.
+
+Panneau principal :
+
+section “Backlog” (US hors sprint),
+
+section “Sprint en préparation” / “Sprint en cours”.
+
+Affichage hiérarchique Epic → US → Tasks.
+
+Drag & drop pour affecter au sprint.
+
+Vue “Board Kanban”
+
+Colonnes dynamiques configurables.
+
+Cartes = US, drag & drop entre colonnes.
+
+Vue “Détail Sprint”
+
+En-tête : nom du sprint, dates, statut, boutons “Démarrer” / “Clore”.
+
+Indicateurs (nb tickets / état).
+
+Liste des US du sprint (avec état, assignee, points, etc.).
+
+Onglet “Rétro”.
+
+Vue “Rétro du sprint”
+
+3 colonnes avec cartes.
+
+Création / édition / suppression des cartes.
+
+Prévois des composants réutilisables :
+
+EpicCard, UserStoryCard, TaskRow
+
+SprintSummary
+
+RetroColumn, RetroCard
+
+11. Qualité & tests
+
+Écrire quelques tests backend (unitaire ou d’API) pour :
+
+la règle “un seul sprint EN_COURS par projet” ;
+
+la clôture de sprint et la création automatique de la rétro.
+
+Documenter rapidement dans un README_backlog.md :
+
+modèle de données,
+
+endpoints,
+
+workflow d’usage.
