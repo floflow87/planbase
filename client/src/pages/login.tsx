@@ -98,16 +98,16 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo & App Name - visible only on mobile */}
-          <div className="md:hidden flex flex-col items-center -mt-4 mb-6">
+          <div className="md:hidden flex flex-col items-center -mt-8 mb-8">
             <img src={planbaseLogo} alt="PlanBase" className="w-14 h-14 rounded-xl shadow-lg mb-3" />
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent">
+            <h2 className="text-2xl font-bold italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent">
               PlanBase
             </h2>
           </div>
           
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Connexion</h1>
-            <p className="text-gray-600">Accédez à votre compte</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Connexion</h1>
+            <p className="text-sm md:text-base text-gray-600">Accédez à votre compte</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
