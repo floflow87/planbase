@@ -299,9 +299,6 @@ export default function Dashboard() {
     try {
       await apiRequest(`/api/tasks/${updates.id}`, "PATCH", updates);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      if (firstProject?.id) {
-        queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });
-      }
       setIsTaskModalOpen(false);
       toast({ title: "Tâche mise à jour", variant: "success" });
     } catch (error) {
@@ -313,9 +310,6 @@ export default function Dashboard() {
     try {
       await apiRequest(`/api/tasks/${task.id}`, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      if (firstProject?.id) {
-        queryClient.invalidateQueries({ queryKey: ["/api/projects", firstProject.id, "tasks"] });
-      }
       setIsTaskModalOpen(false);
       toast({ title: "Tâche supprimée", variant: "success" });
     } catch (error) {
@@ -1570,7 +1564,7 @@ export default function Dashboard() {
       
       {/* Task Reminder Dialog */}
       <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-        <DialogContent className="fixed inset-0 m-0 max-w-none w-full h-full rounded-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md sm:w-[90vw] sm:h-auto sm:rounded-lg sm:m-0 overflow-hidden flex flex-col">
+        <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />

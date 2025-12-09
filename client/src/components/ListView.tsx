@@ -513,8 +513,8 @@ export function ListView({
 
   return (
     <div className="space-y-4">
-      {/* Column settings button */}
-      <div className="flex justify-end">
+      {/* Column settings button - hidden on mobile */}
+      <div className="hidden md:flex justify-end">
         <Button
           variant="outline"
           size="icon"
