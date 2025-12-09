@@ -1067,7 +1067,7 @@ export default function ProjectDetail() {
   const progressPercentage = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-y-auto overflow-x-hidden">
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-start gap-2 sm:gap-3 w-full sm:w-auto">
@@ -1203,7 +1203,7 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="w-full justify-start mb-4">
+          <TabsList className="w-full justify-start mb-4 overflow-x-auto flex-nowrap">
             <TabsTrigger value="tasks" className="gap-2 text-xs">
               <Users className="h-4 w-4" />
               Tâches
