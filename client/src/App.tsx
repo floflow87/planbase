@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
@@ -34,11 +35,17 @@ import Profile from "@/pages/profile";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
-import { LogOut, Mail, Calendar, Plus, X } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
 
 function Router() {
@@ -128,12 +135,16 @@ function Router() {
 
 function UserMenu() {
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
 
   const handleLogout = async () => {
     await signOut();
     setLocation("/login");
+  };
+
+  const handleProfile = () => {
+    setLocation("/profile");
   };
 
   if (!user) return null;
@@ -141,22 +152,42 @@ function UserMenu() {
   const userInitials = user.email?.substring(0, 2).toUpperCase() || "U";
 
   return (
-    <div className="flex items-center gap-2">
-      <Avatar className="h-8 w-8">
-        <AvatarFallback className="bg-violet-100 text-violet-700 text-xs">
-          {userInitials}
-        </AvatarFallback>
-      </Avatar>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleLogout}
-        data-testid="button-logout"
-        title="Se déconnecter"
-      >
-        <LogOut className="w-4 h-4 text-primary" />
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+          <Avatar className="h-8 w-8 cursor-pointer">
+            <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 text-xs">
+              {userInitials}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={handleProfile} data-testid="dropdown-profile">
+          <User className="w-4 h-4 mr-2" />
+          Mon profil
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={toggleTheme} data-testid="dropdown-theme-toggle">
+          {theme === "dark" ? (
+            <>
+              <Sun className="w-4 h-4 mr-2" />
+              Mode clair
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4 mr-2" />
+              Mode sombre
+            </>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive" data-testid="dropdown-logout">
+          <LogOut className="w-4 h-4 mr-2" />
+          Déconnexion
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -376,12 +407,14 @@ function AppLayout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <AppLayout />
-          <Toaster />
-        </TooltipProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <AppLayout />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
