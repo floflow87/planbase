@@ -814,47 +814,49 @@ export default function ClientDetail() {
 
         {/* Tabs */}
         <Tabs defaultValue="informations" className="w-full">
-          <div className="flex items-center gap-2 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <TabsList className="w-full sm:w-auto inline-flex h-auto">
-              <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
-              <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
-              <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
-              <TabsTrigger value="projets" data-testid="tab-projets" className="text-xs sm:text-sm">Projets</TabsTrigger>
-              <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
-              <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
-              {customTabs.map((tab) => (
-                <TabsTrigger 
-                  key={tab.id} 
-                  value={`custom-${tab.id}`} 
-                  data-testid={`tab-custom-${tab.id}`} 
-                  className="text-xs sm:text-sm group relative pr-7"
-                >
-                  {tab.name}
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTabToDelete({ id: tab.id, name: tab.name });
-                      setDeleteTabDialogOpen(true);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+          <div className="flex items-center gap-2 -mx-4 sm:mx-0 px-4 sm:px-0">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden min-w-0">
+              <TabsList className="inline-flex h-auto w-max">
+                <TabsTrigger value="informations" data-testid="tab-informations" className="text-xs sm:text-sm">Infos</TabsTrigger>
+                <TabsTrigger value="notes" data-testid="tab-notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+                <TabsTrigger value="taches" data-testid="tab-taches" className="text-xs sm:text-sm">Tâches</TabsTrigger>
+                <TabsTrigger value="projets" data-testid="tab-projets" className="text-xs sm:text-sm">Projets</TabsTrigger>
+                <TabsTrigger value="activites" data-testid="tab-activites" className="text-xs sm:text-sm">Activités</TabsTrigger>
+                <TabsTrigger value="documents" data-testid="tab-documents" className="text-xs sm:text-sm">Docs</TabsTrigger>
+                {customTabs.map((tab) => (
+                  <TabsTrigger 
+                    key={tab.id} 
+                    value={`custom-${tab.id}`} 
+                    data-testid={`tab-custom-${tab.id}`} 
+                    className="text-xs sm:text-sm group relative pr-7"
+                  >
+                    {tab.name}
+                    <span
+                      onClick={(e) => {
                         e.stopPropagation();
-                        e.preventDefault();
                         setTabToDelete({ id: tab.id, name: tab.name });
                         setDeleteTabDialogOpen(true);
-                      }
-                    }}
-                    aria-label={`Supprimer l'onglet ${tab.name}`}
-                    data-testid={`button-delete-tab-${tab.id}`}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer rounded p-0.5"
-                  >
-                    <Trash2 className="w-3 h-3 text-destructive" />
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setTabToDelete({ id: tab.id, name: tab.name });
+                          setDeleteTabDialogOpen(true);
+                        }
+                      }}
+                      aria-label={`Supprimer l'onglet ${tab.name}`}
+                      data-testid={`button-delete-tab-${tab.id}`}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer rounded p-0.5"
+                    >
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
             <Button 
               size="icon"
               variant="outline" 
