@@ -1729,6 +1729,7 @@ function ProjectKanbanView({
     { value: "prospection", label: "Prospection", color: "bg-yellow-100 border-yellow-200" },
     { value: "signe", label: "Signé", color: "bg-purple-100 border-purple-200" },
     { value: "en_cours", label: "En cours", color: "bg-blue-100 border-blue-200" },
+    { value: "livre", label: "Livré", color: "bg-teal-100 border-teal-200" },
     { value: "termine", label: "Terminé", color: "bg-green-100 border-green-200" },
   ];
   
@@ -1969,6 +1970,11 @@ export default function Projects() {
     const saved = localStorage.getItem('projectStageFilters');
     return saved ? JSON.parse(saved) : [];
   });
+  const [projectBillingFilters, setProjectBillingFilters] = useState<string[]>(() => {
+    const saved = localStorage.getItem('projectBillingFilters');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [projectViewMode, setProjectViewMode] = useState<"grid" | "list" | "kanban">(() => {
     const saved = localStorage.getItem('projectViewMode');
     return (saved === "grid" || saved === "list" || saved === "kanban") ? saved : "list";
@@ -2001,6 +2007,11 @@ export default function Projects() {
     localStorage.setItem('projectStageFilters', JSON.stringify(projectStageFilters));
   }, [projectStageFilters]);
 
+  // Save billing filters to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('projectBillingFilters', JSON.stringify(projectBillingFilters));
+  }, [projectBillingFilters]);
+
   // Save sort settings to localStorage
   useEffect(() => {
     localStorage.setItem('projectSortColumn', projectSortColumn);
@@ -2018,7 +2029,7 @@ export default function Projects() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setProjectCurrentPage(1);
-  }, [projectSearchQuery, projectStageFilters]);
+  }, [projectSearchQuery, projectStageFilters, projectBillingFilters]);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   
   // Column order state for project list view
@@ -2478,6 +2489,14 @@ export default function Projects() {
       // Auto-set progress to 100% when stage is "termine"
       if (data.stage === "termine" && data.progress === undefined) {
         data.progress = 100;
+      }
+      // Auto-set billing status to "retard" when stage is "livre" and billing is not paid
+      if (data.stage === "livre") {
+        const project = projects.find(p => p.id === id);
+        const currentBillingStatus = data.billingStatus || project?.billingStatus;
+        if (currentBillingStatus !== "paye" && currentBillingStatus !== "partiel") {
+          data.billingStatus = "retard";
+        }
       }
       const response = await apiRequest(`/api/projects/${id}`, "PATCH", data);
       return response.json();
@@ -2959,67 +2978,24 @@ export default function Projects() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[200px] justify-between bg-white dark:bg-background" data-testid="select-project-stage-filter">
-                      <span className="truncate">
-                        {projectStageFilters.length === 0 
-                          ? "Toutes les étapes" 
-                          : projectStageFilters.length === 1 
-                            ? [
-                                { value: "prospection", label: "Prospection" },
-                                { value: "signe", label: "Signé" },
-                                { value: "en_cours", label: "En cours" },
-                                { value: "termine", label: "Terminé" }
-                              ].find(s => s.value === projectStageFilters[0])?.label
-                            : `${projectStageFilters.length} étapes`
-                        }
-                      </span>
-                      <Filter className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-2 bg-white" align="end">
-                    <div className="space-y-2">
-                      {[
-                        { value: "prospection", label: "Prospection" },
-                        { value: "signe", label: "Signé" },
-                        { value: "en_cours", label: "En cours" },
-                        { value: "termine", label: "Terminé" }
-                      ].map((stage) => (
-                        <div 
-                          key={stage.value} 
-                          className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
-                          onClick={() => {
-                            setProjectStageFilters(prev => 
-                              prev.includes(stage.value)
-                                ? prev.filter(s => s !== stage.value)
-                                : [...prev, stage.value]
-                            );
-                          }}
-                        >
-                          <Checkbox 
-                            checked={projectStageFilters.includes(stage.value)}
-                            data-testid={`checkbox-stage-${stage.value}`}
-                          />
-                          <span className="text-sm">{stage.label}</span>
-                        </div>
-                      ))}
-                      {projectStageFilters.length > 0 && (
-                        <div className="border-t pt-2 mt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="w-full text-xs"
-                            onClick={() => setProjectStageFilters([])}
-                            data-testid="button-clear-filters"
-                          >
-                            Effacer les filtres
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                {/* Filters button with badge */}
+                <Button 
+                  variant="outline" 
+                  className="relative"
+                  onClick={() => setIsFilterPanelOpen(true)}
+                  data-testid="button-open-filters"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  <span>Filtres</span>
+                  {(projectStageFilters.length > 0 || projectBillingFilters.length > 0) && (
+                    <Badge 
+                      variant="default" 
+                      className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-[10px]"
+                    >
+                      {projectStageFilters.length + projectBillingFilters.length}
+                    </Badge>
+                  )}
+                </Button>
                 {/* View toggle buttons - hidden on mobile */}
                 <div className="hidden md:flex border rounded-md">
                   <Button
@@ -3092,7 +3068,7 @@ export default function Projects() {
                 }
               };
 
-              // Filter projects based on search and stage
+              // Filter projects based on search, stage, and billing status
               const filteredProjects = projects.filter((project) => {
                 const matchesSearch = projectSearchQuery === "" || 
                   project.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
@@ -3101,7 +3077,9 @@ export default function Projects() {
                 
                 const matchesStage = projectStageFilters.length === 0 || projectStageFilters.includes(project.stage || "");
                 
-                return matchesSearch && matchesStage;
+                const matchesBilling = projectBillingFilters.length === 0 || projectBillingFilters.includes(project.billingStatus || "brouillon");
+                
+                return matchesSearch && matchesStage && matchesBilling;
               });
 
               // Sort filtered projects
@@ -3118,7 +3096,7 @@ export default function Projects() {
                     comparison = clientA.localeCompare(clientB);
                     break;
                   case "stage":
-                    const stageOrder = { prospection: 0, signe: 1, en_cours: 2, termine: 3 };
+                    const stageOrder = { prospection: 0, signe: 1, en_cours: 2, livre: 3, termine: 4 };
                     comparison = (stageOrder[a.stage as keyof typeof stageOrder] || 0) - (stageOrder[b.stage as keyof typeof stageOrder] || 0);
                     break;
                   case "category":
@@ -3200,6 +3178,8 @@ export default function Projects() {
                     return "bg-purple-100 text-purple-700 border-purple-200";
                   case "en_cours":
                     return "bg-blue-100 text-blue-700 border-blue-200";
+                  case "livre":
+                    return "bg-teal-100 text-teal-700 border-teal-200";
                   case "termine":
                     return "bg-green-100 text-green-700 border-green-200";
                   default:
@@ -3215,6 +3195,8 @@ export default function Projects() {
                     return "Signé";
                   case "en_cours":
                     return "En cours";
+                  case "livre":
+                    return "Livré";
                   case "termine":
                     return "Terminé";
                   default:
@@ -4279,6 +4261,102 @@ export default function Projects() {
         </SheetContent>
       </Sheet>
 
+      {/* Filter Panel Sheet */}
+      <Sheet open={isFilterPanelOpen} onOpenChange={setIsFilterPanelOpen}>
+        <SheetContent className="w-80" data-testid="sheet-filter-panel" side="right">
+          <SheetHeader>
+            <SheetTitle>Filtres</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-6">
+            {/* Stage Filters */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>
+              <div className="space-y-2">
+                {[
+                  { value: "prospection", label: "Prospection" },
+                  { value: "signe", label: "Signé" },
+                  { value: "en_cours", label: "En cours" },
+                  { value: "livre", label: "Livré" },
+                  { value: "termine", label: "Terminé" }
+                ].map((stage) => (
+                  <div 
+                    key={stage.value} 
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                    onClick={() => {
+                      setProjectStageFilters(prev => 
+                        prev.includes(stage.value)
+                          ? prev.filter(s => s !== stage.value)
+                          : [...prev, stage.value]
+                      );
+                    }}
+                  >
+                    <Checkbox 
+                      checked={projectStageFilters.includes(stage.value)}
+                      data-testid={`checkbox-filter-stage-${stage.value}`}
+                    />
+                    <span className="text-sm">{stage.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Billing Status Filters */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Statut de facturation</Label>
+              <div className="space-y-2">
+                {[
+                  { value: "brouillon", label: "Brouillon" },
+                  { value: "devis_envoye", label: "Devis envoyé" },
+                  { value: "devis_accepte", label: "Devis accepté" },
+                  { value: "bon_commande", label: "Bon de commande" },
+                  { value: "facture", label: "Facturé" },
+                  { value: "paye", label: "Payé" },
+                  { value: "partiel", label: "Paiement partiel" },
+                  { value: "annule", label: "Annulé" },
+                  { value: "retard", label: "En retard" }
+                ].map((status) => (
+                  <div 
+                    key={status.value} 
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
+                    onClick={() => {
+                      setProjectBillingFilters(prev => 
+                        prev.includes(status.value)
+                          ? prev.filter(s => s !== status.value)
+                          : [...prev, status.value]
+                      );
+                    }}
+                  >
+                    <Checkbox 
+                      checked={projectBillingFilters.includes(status.value)}
+                      data-testid={`checkbox-filter-billing-${status.value}`}
+                    />
+                    <span className="text-sm">{status.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(projectStageFilters.length > 0 || projectBillingFilters.length > 0) && (
+              <div className="border-t pt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => {
+                    setProjectStageFilters([]);
+                    setProjectBillingFilters([]);
+                  }}
+                  data-testid="button-clear-all-filters"
+                >
+                  Effacer tous les filtres
+                </Button>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={isCreateProjectDialogOpen} onOpenChange={setIsCreateProjectDialogOpen}>
         <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-project">
           <SheetHeader>
@@ -4336,6 +4414,7 @@ export default function Projects() {
                     <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
                     <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
                     <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                    <SelectItem value="livre" className="cursor-pointer">Livré</SelectItem>
                     <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                   </SelectContent>
                 </Select>
@@ -4548,6 +4627,7 @@ export default function Projects() {
                     <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
                     <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
                     <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                    <SelectItem value="livre" className="cursor-pointer">Livré</SelectItem>
                     <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                   </SelectContent>
                 </Select>

@@ -102,9 +102,19 @@ export function ListView({
   const { toast } = useToast();
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('taskListColumnOrder');
-    return saved ? JSON.parse(saved) : [
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure project column exists for backward compatibility
+      if (!parsed.includes('project')) {
+        parsed.splice(2, 0, 'project');
+        localStorage.setItem('taskListColumnOrder', JSON.stringify(parsed));
+      }
+      return parsed;
+    }
+    return [
       'checkbox',
       'title',
+      'project',
       'assignedTo',
       'status',
       'priority',
@@ -124,8 +134,18 @@ export function ListView({
   // Column visibility state with localStorage persistence
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('taskColumnVisibility');
-    return saved ? JSON.parse(saved) : {
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure project column exists for backward compatibility
+      if (parsed.project === undefined) {
+        parsed.project = true;
+        localStorage.setItem('taskColumnVisibility', JSON.stringify(parsed));
+      }
+      return parsed;
+    }
+    return {
       title: true,
+      project: true,
       assignedTo: true,
       status: true,
       priority: true,
@@ -285,6 +305,12 @@ export function ListView({
           aValue = userA ? `${userA.firstName} ${userA.lastName}`.toLowerCase() : 'zzz';
           bValue = userB ? `${userB.firstName} ${userB.lastName}`.toLowerCase() : 'zzz';
           break;
+        case 'project':
+          const projectA = projects.find(p => p.id === a.projectId);
+          const projectB = projects.find(p => p.id === b.projectId);
+          aValue = projectA?.name?.toLowerCase() || 'zzz';
+          bValue = projectB?.name?.toLowerCase() || 'zzz';
+          break;
         case 'status':
           const colA = columns.find(c => c.id === a.columnId);
           const colB = columns.find(c => c.id === b.columnId);
@@ -324,6 +350,7 @@ export function ListView({
   const columnHeaders = {
     checkbox: { label: '', id: 'checkbox' },
     title: { label: 'Tâche', id: 'title' },
+    project: { label: 'Projet', id: 'project' },
     assignedTo: { label: 'Assigné à', id: 'assignedTo' },
     status: { label: 'Statut', id: 'status' },
     priority: { label: 'Priorité', id: 'priority' },
@@ -813,6 +840,19 @@ export function ListView({
                                     data-testid={`cell-title-${task.id}`}
                                   >
                                     {task.title}
+                                  </TableCell>
+                                );
+                              case 'project':
+                                const taskProject = projects.find(p => p.id === task.projectId);
+                                return (
+                                  <TableCell key={columnId} data-testid={`cell-project-${task.id}`}>
+                                    {taskProject ? (
+                                      <span className="text-[11px] text-muted-foreground truncate max-w-[150px] inline-block">
+                                        {taskProject.name}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[11px] text-muted-foreground">—</span>
+                                    )}
                                   </TableCell>
                                 );
                               case 'assignedTo':

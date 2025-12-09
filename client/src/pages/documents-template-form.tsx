@@ -537,6 +537,7 @@ export default function DocumentTemplateForm() {
                     <SelectItem value="prospection">Prospection</SelectItem>
                     <SelectItem value="signe">Signé</SelectItem>
                     <SelectItem value="en_cours">En cours</SelectItem>
+                    <SelectItem value="livre">Livré</SelectItem>
                     <SelectItem value="termine">Terminé</SelectItem>
                   </SelectContent>
                 </Select>

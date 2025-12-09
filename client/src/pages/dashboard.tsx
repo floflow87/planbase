@@ -33,6 +33,7 @@ const getStageColor = (stage: string) => {
   const colors: Record<string, string> = {
     prospection: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
     en_cours: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    livre: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
     termine: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
     signe: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   };
@@ -44,6 +45,7 @@ const getStageLabel = (stage: string) => {
   const labels: Record<string, string> = {
     prospection: "Prospection",
     en_cours: "En cours",
+    livre: "Livré",
     termine: "Terminé",
     signe: "Signé",
   };
@@ -945,6 +947,7 @@ export default function Dashboard() {
                       <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
                       <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
                       <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
+                      <SelectItem value="livre" className="cursor-pointer">Livré</SelectItem>
                       <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
                     </SelectContent>
                   </Select>

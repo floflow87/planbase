@@ -1453,6 +1453,8 @@ export default function ClientDetail() {
                             return "bg-purple-100 text-purple-700 border-purple-200";
                           case "en_cours":
                             return "bg-blue-100 text-blue-700 border-blue-200";
+                          case "livre":
+                            return "bg-teal-100 text-teal-700 border-teal-200";
                           case "termine":
                             return "bg-green-100 text-green-700 border-green-200";
                           default:
@@ -1468,6 +1470,8 @@ export default function ClientDetail() {
                             return "Signé";
                           case "en_cours":
                             return "En cours";
+                          case "livre":
+                            return "Livré";
                           case "termine":
                             return "Terminé";
                           default:
