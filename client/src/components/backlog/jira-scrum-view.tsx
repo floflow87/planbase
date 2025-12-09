@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { 
   ChevronDown, ChevronRight, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
-  Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil
+  Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
+  ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,11 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { 
   Select, 
@@ -123,16 +128,28 @@ function getPriorityIcon(priority: string | null | undefined) {
   return <Flag className={cn("h-3.5 w-3.5", color)} />;
 }
 
+export interface TicketAction {
+  type: "move_top" | "move_bottom" | "move_sprint" | "copy" | "delete" | "assign" | "mark_status" | "set_estimate";
+  ticketId: string;
+  ticketType: TicketType;
+  sprintId?: string | null;
+  assigneeId?: string | null;
+  state?: string;
+  estimatePoints?: number;
+}
+
 interface TicketRowProps {
   ticket: FlatTicket;
   users?: AppUser[];
+  sprints?: Sprint[];
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onTicketAction?: (action: TicketAction) => void;
   isSelected?: boolean;
   isDraggable?: boolean;
 }
 
-export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, isDraggable = true }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   
@@ -237,6 +254,190 @@ export function TicketRow({ ticket, users, onSelect, onUpdateState, isSelected, 
           <User className="h-3 w-3 text-muted-foreground/50" />
         </div>
       )}
+      
+      {/* Actions Menu */}
+      {onTicketAction && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 opacity-0 group-hover:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+              data-testid={`button-ticket-menu-${ticket.id}`}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-white dark:bg-white w-48">
+            {/* Move submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-gray-900">
+                <ArrowUp className="h-4 w-4 mr-2" />
+                Déplacer
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-white">
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTicketAction({ type: "move_top", ticketId: ticket.id, ticketType: ticket.type });
+                  }}
+                  className="text-gray-900"
+                >
+                  <ArrowUp className="h-4 w-4 mr-2" />
+                  Haut du backlog
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTicketAction({ type: "move_bottom", ticketId: ticket.id, ticketType: ticket.type });
+                  }}
+                  className="text-gray-900"
+                >
+                  <ArrowDown className="h-4 w-4 mr-2" />
+                  Bas du backlog
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {sprints?.filter(s => s.status !== "termine").map(sprint => (
+                  <DropdownMenuItem 
+                    key={sprint.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketAction({ type: "move_sprint", ticketId: ticket.id, ticketType: ticket.type, sprintId: sprint.id });
+                    }}
+                    className="text-gray-900"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    {sprint.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTicketAction({ type: "move_sprint", ticketId: ticket.id, ticketType: ticket.type, sprintId: null });
+                  }}
+                  className="text-gray-900"
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Backlog
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
+            {/* Copy */}
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onTicketAction({ type: "copy", ticketId: ticket.id, ticketType: ticket.type });
+              }}
+              className="text-gray-900"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copier
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            {/* Assign submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-gray-900">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Assigner à
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-white">
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTicketAction({ type: "assign", ticketId: ticket.id, ticketType: ticket.type, assigneeId: null });
+                  }}
+                  className="text-gray-900"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Non assigné
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {users?.map(user => (
+                  <DropdownMenuItem 
+                    key={user.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketAction({ type: "assign", ticketId: ticket.id, ticketType: ticket.type, assigneeId: user.id });
+                    }}
+                    className="text-gray-900"
+                  >
+                    <Avatar className="h-4 w-4 mr-2">
+                      <AvatarFallback className="text-[8px]">
+                        {user.displayName?.charAt(0) || user.email?.charAt(0) || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {user.displayName || user.email}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
+            {/* Mark status submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-gray-900">
+                <Check className="h-4 w-4 mr-2" />
+                Marquer comme
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-white">
+                {backlogItemStateOptions.map(opt => (
+                  <DropdownMenuItem 
+                    key={opt.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketAction({ type: "mark_status", ticketId: ticket.id, ticketType: ticket.type, state: opt.value });
+                    }}
+                    className="text-gray-900"
+                  >
+                    <span className={cn("w-2 h-2 rounded-full mr-2", getStateDot(opt.value))} />
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
+            {/* Estimate points submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-gray-900">
+                <Hash className="h-4 w-4 mr-2" />
+                Points d'estimation
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-white">
+                {[0, 1, 2, 3, 5, 8, 13, 21].map(points => (
+                  <DropdownMenuItem 
+                    key={points}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketAction({ type: "set_estimate", ticketId: ticket.id, ticketType: ticket.type, estimatePoints: points });
+                    }}
+                    className="text-gray-900"
+                  >
+                    <Badge variant="outline" className="text-xs mr-2">{points}</Badge>
+                    {points === 0 ? "Sans estimation" : `${points} point${points > 1 ? "s" : ""}`}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
+            <DropdownMenuSeparator />
+            
+            {/* Delete */}
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onTicketAction({ type: "delete", ticketId: ticket.id, ticketType: ticket.type });
+              }}
+              className="text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }
@@ -245,6 +446,7 @@ interface SprintSectionProps {
   sprint: Sprint;
   tickets: FlatTicket[];
   users?: AppUser[];
+  sprints?: Sprint[];
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
@@ -253,6 +455,7 @@ interface SprintSectionProps {
   onCompleteSprint?: (sprintId: string) => void;
   onEditSprint?: (sprint: Sprint) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
 }
 
@@ -260,6 +463,7 @@ export function SprintSection({
   sprint, 
   tickets, 
   users,
+  sprints,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
@@ -268,6 +472,7 @@ export function SprintSection({
   onCompleteSprint,
   onEditSprint,
   onUpdateState,
+  onTicketAction,
   selectedTicketId
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
@@ -349,13 +554,13 @@ export function SprintSection({
           
           {sprint.status === "en_cours" && onCompleteSprint && (
             <Button 
-              variant="outline" 
               size="sm" 
               onClick={() => onCompleteSprint(sprint.id)}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
               data-testid={`button-complete-sprint-${sprint.id}`}
             >
               <Check className="h-3.5 w-3.5 mr-1" />
-              Terminer
+              Terminer le sprint
             </Button>
           )}
           
@@ -387,8 +592,10 @@ export function SprintSection({
                 key={`${ticket.type}-${ticket.id}`}
                 ticket={ticket}
                 users={users}
+                sprints={sprints}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
+                onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
               />
             ))}
@@ -482,22 +689,26 @@ export function SprintSection({
 interface BacklogPoolProps {
   tickets: FlatTicket[];
   users?: AppUser[];
+  sprints?: Sprint[];
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
   onCreateTicket: (type: TicketType, title: string) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
 }
 
 export function BacklogPool({ 
   tickets, 
   users,
+  sprints,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
   onCreateTicket,
   onUpdateState,
+  onTicketAction,
   selectedTicketId
 }: BacklogPoolProps) {
   const [isCreating, setIsCreating] = useState(false);
@@ -562,8 +773,10 @@ export function BacklogPool({
                 key={`${ticket.type}-${ticket.id}`}
                 ticket={ticket}
                 users={users}
+                sprints={sprints}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
+                onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
               />
             ))}
