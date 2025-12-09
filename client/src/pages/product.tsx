@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +21,13 @@ import { backlogModeOptions } from "@shared/schema";
 
 type BacklogWithProject = Backlog & { 
   project?: Project | null;
+  creator?: {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
+  } | null;
   ticketCounts?: {
     todo: number;
     inProgress: number;
@@ -290,7 +297,7 @@ export default function Product() {
             ))}
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr className="text-left text-sm font-medium text-muted-foreground">
@@ -299,10 +306,11 @@ export default function Product() {
                   <th className="px-4 py-3 hidden md:table-cell">Sprint actif</th>
                   <th className="px-4 py-3 hidden lg:table-cell">Tickets</th>
                   <th className="px-4 py-3 hidden xl:table-cell">Projet</th>
+                  <th className="px-4 py-3 hidden xl:table-cell">Créateur</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y bg-white dark:bg-gray-900">
                 {backlogs.map((backlog) => (
                   <tr 
                     key={backlog.id}
@@ -357,6 +365,20 @@ export default function Product() {
                           <Folder className="h-3 w-3" />
                           {backlog.project.name}
                         </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      {backlog.creator ? (
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground" data-testid={`text-creator-${backlog.id}`}>
+                          <User className="h-3.5 w-3.5" />
+                          <span>
+                            {backlog.creator.firstName && backlog.creator.lastName 
+                              ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
+                              : backlog.creator.email || "Inconnu"}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>
                       )}

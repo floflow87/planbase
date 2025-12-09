@@ -121,35 +121,32 @@ function getStateDot(state: string | null | undefined) {
   }
 }
 
-// Priority icons: low = 1 violet chevron down, medium = 2 violet chevrons up, high = 2 orange chevrons up (diamond outline), critical = red filled diamond
+// Priority icons: low = 1 violet chevron DOWN, medium = 2 violet chevrons DOWN, high = 1 orange chevron UP, critical = 2 red chevrons UP
 function PriorityIcon({ priority, className }: { priority: string | null | undefined; className?: string }) {
   switch (priority) {
     case "critical":
-      // Red filled diamond
-      return (
-        <svg className={cn("h-4 w-4", className)} viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 1L15 8L8 15L1 8L8 1Z" className="text-red-500 fill-current" />
-        </svg>
-      );
-    case "high":
-      // Orange empty diamond outline
-      return (
-        <svg className={cn("h-4 w-4", className)} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M8 2L14 8L8 14L2 8L8 2Z" className="text-orange-500 stroke-current" />
-        </svg>
-      );
-    case "medium":
-      // Two violet chevrons up stacked
+      // Two red chevrons UP stacked (highest priority)
       return (
         <div className={cn("flex flex-col items-center -space-y-2.5", className)}>
-          <ChevronUp className="h-3.5 w-3.5 text-violet-500" />
-          <ChevronUp className="h-3.5 w-3.5 text-violet-500" />
+          <ChevronUp className="h-[18px] w-[18px] text-red-500" />
+          <ChevronUp className="h-[18px] w-[18px] text-red-500" />
+        </div>
+      );
+    case "high":
+      // One orange chevron UP
+      return <ChevronUp className={cn("h-[18px] w-[18px] text-orange-500", className)} />;
+    case "medium":
+      // Two violet chevrons DOWN stacked
+      return (
+        <div className={cn("flex flex-col items-center -space-y-2.5", className)}>
+          <ChevronDown className="h-[18px] w-[18px] text-violet-500" />
+          <ChevronDown className="h-[18px] w-[18px] text-violet-500" />
         </div>
       );
     case "low":
     default:
-      // One violet chevron up (lowest priority)
-      return <ChevronUp className={cn("h-4 w-4 text-violet-500", className)} />;
+      // One violet chevron DOWN (lowest priority)
+      return <ChevronDown className={cn("h-[18px] w-[18px] text-violet-500", className)} />;
   }
 }
 

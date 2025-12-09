@@ -63,6 +63,7 @@ import {
   tasks,
   ticketComments,
   projects,
+  appUsers,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -3938,13 +3939,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accountId = req.accountId!;
       const backlogsList = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
       
-      // Enrich with project, ticket counts, and active sprint info
+      // Enrich with project, ticket counts, active sprint, and creator info
       const enrichedBacklogs = await Promise.all(backlogsList.map(async (backlog) => {
         // Get project if linked
         let project = null;
         if (backlog.projectId) {
           const [proj] = await db.select().from(projects).where(eq(projects.id, backlog.projectId));
           project = proj || null;
+        }
+        
+        // Get creator info
+        let creator = null;
+        if (backlog.createdBy) {
+          const [user] = await db.select().from(appUsers).where(eq(appUsers.id, backlog.createdBy));
+          if (user) {
+            creator = {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              avatarUrl: user.avatarUrl,
+            };
+          }
         }
         
         // Get ticket counts by state
@@ -3982,6 +3998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...backlog,
           project,
+          creator,
           ticketCounts,
           activeSprint,
         };
