@@ -256,17 +256,18 @@ function AppLayout() {
   const handleAddTab = () => {
     if (tabs.length >= 5) return;
     
+    // Create new tab with current location (so user can navigate from it)
     const newTab: Tab = {
       id: Date.now().toString(),
-      path: '/',
-      title: 'Tableau de bord'
+      path: location,
+      title: getPageTitle(location)
     };
     
     const newTabs = [...tabs, newTab];
     setTabs(newTabs);
     localStorage.setItem('headerTabs', JSON.stringify(newTabs));
     setActiveTabId(newTab.id);
-    setLocation('/');
+    // Don't navigate - new tab starts at current location, user can then navigate elsewhere
   };
 
   const handleCloseTab = (e: React.MouseEvent, tabId: string) => {
