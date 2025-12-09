@@ -98,8 +98,8 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo & App Name - visible only on mobile */}
-          <div className="md:hidden flex flex-col items-center -mt-8 mb-8">
-            <img src={planbaseLogo} alt="PlanBase" className="w-14 h-14 rounded-xl shadow-lg mb-3" />
+          <div className="md:hidden flex flex-col items-center -mt-[27px] mb-8">
+            <img src={planbaseLogo} alt="PlanBase" className="w-14 h-14 rounded-xl shadow-lg mb-[22px]" />
             <h2 className="text-2xl font-bold italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent">
               PlanBase
             </h2>
