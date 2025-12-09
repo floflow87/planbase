@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,7 @@ export default function Product() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedBacklog, setSelectedBacklog] = useState<Backlog | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   
   const [formData, setFormData] = useState({
     name: "",
@@ -137,10 +138,32 @@ export default function Product() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Backlogs</h1>
           <p className="text-muted-foreground">Gérez vos backlogs produit en mode Kanban ou Scrum</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-backlog">
-          <Plus className="h-4 w-4 mr-2" />
-          Nouveau Backlog
-        </Button>
+        <div className="flex items-center gap-2" data-testid="container-backlog-actions">
+          <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
+            <Button 
+              variant={viewMode === "grid" ? "secondary" : "ghost"} 
+              size="icon" 
+              className="rounded-r-none"
+              onClick={() => setViewMode("grid")}
+              data-testid="button-view-grid"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant={viewMode === "list" ? "secondary" : "ghost"} 
+              size="icon" 
+              className="rounded-l-none"
+              onClick={() => setViewMode("list")}
+              data-testid="button-view-list"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-backlog">
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau Backlog
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
@@ -158,7 +181,7 @@ export default function Product() {
               Créer un backlog
             </Button>
           </div>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {backlogs.map((backlog) => (
               <Card 
@@ -221,6 +244,84 @@ export default function Product() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr className="text-left text-sm font-medium text-muted-foreground">
+                  <th className="px-4 py-3">Nom</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">Mode</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Projet</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Créé le</th>
+                  <th className="px-4 py-3 w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {backlogs.map((backlog) => (
+                  <tr 
+                    key={backlog.id}
+                    className="hover:bg-muted/30 cursor-pointer group"
+                    onClick={() => navigate(`/product/backlog/${backlog.id}`)}
+                    data-testid={`row-backlog-${backlog.id}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{backlog.name}</span>
+                        {backlog.description && (
+                          <span className="text-sm text-muted-foreground line-clamp-1">{backlog.description}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                        {getModeIcon(backlog.mode)}
+                        {getModeLabel(backlog.mode)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {backlog.project ? (
+                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                          <Folder className="h-3 w-3" />
+                          {backlog.project.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell text-sm text-muted-foreground">
+                      {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-list-menu-backlog-${backlog.id}`}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} data-testid={`list-menu-open-backlog-${backlog.id}`}>
+                            <ArrowRight className="h-4 w-4 mr-2" />
+                            Ouvrir
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => {
+                              setSelectedBacklog(backlog);
+                              setShowDeleteDialog(true);
+                            }}
+                            data-testid={`list-menu-delete-backlog-${backlog.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
