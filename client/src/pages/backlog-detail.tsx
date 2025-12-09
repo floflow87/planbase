@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
@@ -70,6 +71,7 @@ export default function BacklogDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { accountId } = useAuth();
   
   const [showEpicDialog, setShowEpicDialog] = useState(false);
   const [showUserStoryDialog, setShowUserStoryDialog] = useState(false);
@@ -88,13 +90,22 @@ export default function BacklogDetail() {
   const [expandedSprints, setExpandedSprints] = useState<Set<string> | "all">("all");
   const [backlogPoolExpanded, setBacklogPoolExpanded] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<FlatTicket | null>(null);
+  const [hideFinishedSprints, setHideFinishedSprints] = useState(true);
+  const [showSprintCloseModal, setShowSprintCloseModal] = useState(false);
+  const [closingSprintId, setClosingSprintId] = useState<string | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState<string>("backlog");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("default");
 
   const { data: backlog, isLoading } = useQuery<BacklogData>({
     queryKey: ["/api/backlogs", id],
   });
 
+  // Fetch account users for assignee/reporter selectors
   const { data: users = [] } = useQuery<AppUser[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/accounts", accountId, "users"],
+    enabled: !!accountId,
   });
 
   const sensors = useSensors(
@@ -402,12 +413,89 @@ export default function BacklogDetail() {
     );
   }, [backlog?.epics, backlog?.userStories, backlog?.backlogTasks]);
 
+  // Priority order for sorting
+  const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+  const stateOrder: Record<string, number> = { a_faire: 1, en_cours: 2, review: 3, termine: 4 };
+
+  // Apply filters and sorting to tickets
+  const applyFiltersAndSort = (tickets: FlatTicket[]) => {
+    let result = [...tickets];
+    
+    // Apply state filter
+    if (stateFilter !== "all") {
+      result = result.filter(t => t.state === stateFilter);
+    }
+    
+    // Apply priority filter
+    if (priorityFilter !== "all") {
+      result = result.filter(t => t.priority === priorityFilter);
+    }
+    
+    // Apply sorting
+    if (sortBy === "priority_desc") {
+      result.sort((a, b) => (priorityOrder[b.priority || "medium"] || 2) - (priorityOrder[a.priority || "medium"] || 2));
+    } else if (sortBy === "priority_asc") {
+      result.sort((a, b) => (priorityOrder[a.priority || "medium"] || 2) - (priorityOrder[b.priority || "medium"] || 2));
+    } else if (sortBy === "state") {
+      result.sort((a, b) => (stateOrder[a.state || "a_faire"] || 1) - (stateOrder[b.state || "a_faire"] || 1));
+    } else if (sortBy === "title") {
+      result.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    }
+    
+    return result;
+  };
+
   const getTicketsForSprint = (sprintId: string) => {
-    return flatTickets.filter(t => t.sprintId === sprintId);
+    const tickets = flatTickets.filter(t => t.sprintId === sprintId);
+    return applyFiltersAndSort(tickets);
   };
 
   const getBacklogTickets = () => {
-    return flatTickets.filter(t => !t.sprintId);
+    const tickets = flatTickets.filter(t => !t.sprintId);
+    return applyFiltersAndSort(tickets);
+  };
+
+  // Get unfinished tickets without filters (for sprint close modal)
+  const getUnfinishedTicketsForSprint = (sprintId: string) => {
+    const rawTickets = flatTickets.filter(t => t.sprintId === sprintId);
+    return rawTickets.filter(t => t.state !== "termine");
+  };
+
+  // Handle sprint close attempt - check for unfinished tickets
+  const handleSprintCloseAttempt = (sprintId: string) => {
+    const unfinishedTickets = getUnfinishedTicketsForSprint(sprintId);
+    if (unfinishedTickets.length === 0) {
+      // All tickets are done, close directly
+      closeSprintMutation.mutate(sprintId);
+    } else {
+      // Show modal to redirect unfinished tickets
+      setClosingSprintId(sprintId);
+      setRedirectTarget("backlog");
+      setShowSprintCloseModal(true);
+    }
+  };
+
+  // Handle sprint close with ticket redirection
+  const handleConfirmSprintClose = async () => {
+    if (!closingSprintId) return;
+    
+    const unfinishedTickets = getUnfinishedTicketsForSprint(closingSprintId);
+    const targetSprintId = redirectTarget === "backlog" ? null : redirectTarget;
+    
+    try {
+      // Move all unfinished tickets to target
+      for (const ticket of unfinishedTickets) {
+        await handleUpdateTicket(ticket.id, ticket.type, { sprintId: targetSprintId });
+      }
+      
+      // Close the sprint
+      await closeSprintMutation.mutateAsync(closingSprintId);
+      
+      setShowSprintCloseModal(false);
+      setClosingSprintId(null);
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
   };
 
   const toggleSprint = (sprintId: string) => {
@@ -560,6 +648,37 @@ export default function BacklogDetail() {
             className: "bg-green-500 text-white border-green-600", 
             duration: 3000 
           });
+          break;
+          
+        case "set_priority":
+          if (action.priority) {
+            await handleUpdateTicket(action.ticketId, action.ticketType, { priority: action.priority });
+            const priorityLabel = backlogPriorityOptions.find(p => p.value === action.priority)?.label || action.priority;
+            toast({ title: `Priorité: ${priorityLabel}`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          }
+          break;
+          
+        case "convert_to_task":
+          // Convert backlog task to a main task (Tasks page)
+          if (action.ticketType === "task") {
+            const backlogTask = backlog?.backlogTasks?.find(t => t.id === action.ticketId);
+            if (backlogTask) {
+              // Create a new task in the main Tasks system
+              await apiRequest("/api/tasks", "POST", {
+                title: backlogTask.title,
+                description: backlogTask.description,
+                priority: backlogTask.priority || "medium",
+                status: backlogTask.state === "termine" ? "completed" : 
+                        backlogTask.state === "en_cours" ? "in_progress" : "todo",
+              });
+              toast({ 
+                title: "Tâche créée", 
+                description: "Le ticket a été ajouté dans les Tâches",
+                className: "bg-green-500 text-white border-green-600", 
+                duration: 3000 
+              });
+            }
+          }
           break;
       }
     } catch (error: any) {
@@ -825,8 +944,69 @@ export default function BacklogDetail() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="flex gap-0 h-full">
               <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
+                {/* Filters and sorting toolbar */}
+                <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {/* State filter */}
+                    <Select value={stateFilter} onValueChange={setStateFilter}>
+                      <SelectTrigger className="w-[140px] h-8 text-sm" data-testid="select-state-filter">
+                        <SelectValue placeholder="État" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les états</SelectItem>
+                        {backlogItemStateOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Priority filter */}
+                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                      <SelectTrigger className="w-[140px] h-8 text-sm" data-testid="select-priority-filter">
+                        <SelectValue placeholder="Priorité" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes priorités</SelectItem>
+                        {backlogPriorityOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Sort by */}
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-[160px] h-8 text-sm" data-testid="select-sort-by">
+                        <SelectValue placeholder="Trier par" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Par défaut</SelectItem>
+                        <SelectItem value="priority_asc">Priorité croissante</SelectItem>
+                        <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
+                        <SelectItem value="state">État</SelectItem>
+                        <SelectItem value="title">Titre (A-Z)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="hide-finished-sprints" 
+                      checked={hideFinishedSprints}
+                      onCheckedChange={(checked) => setHideFinishedSprints(checked === true)}
+                      data-testid="checkbox-hide-finished-sprints"
+                    />
+                    <label 
+                      htmlFor="hide-finished-sprints" 
+                      className="text-sm text-muted-foreground cursor-pointer"
+                    >
+                      Masquer terminés
+                    </label>
+                  </div>
+                </div>
+
                 {/* Sprint Sections */}
                 {backlog.sprints
+                  .filter(s => !hideFinishedSprints || s.status !== "termine")
                   .sort((a, b) => {
                     if (a.status === "en_cours" && b.status !== "en_cours") return -1;
                     if (b.status === "en_cours" && a.status !== "en_cours") return 1;
@@ -846,7 +1026,7 @@ export default function BacklogDetail() {
                       onSelectTicket={handleSelectTicket}
                       onCreateTicket={handleCreateSprintTicket}
                       onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
-                      onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
+                      onCompleteSprint={handleSprintCloseAttempt}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
                       onUpdateState={handleInlineStateUpdate}
                       onTicketAction={handleTicketAction}
@@ -958,6 +1138,71 @@ export default function BacklogDetail() {
         onCreate={(data) => createKanbanTaskMutation.mutate(data)}
         isPending={createKanbanTaskMutation.isPending}
       />
+
+      {/* Sprint Close Modal */}
+      <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Terminer le sprint</DialogTitle>
+            <DialogDescription>
+              {closingSprintId && (
+                <>
+                  Ce sprint contient {getUnfinishedTicketsForSprint(closingSprintId).length} ticket(s) non terminé(s). 
+                  Choisissez où les rediriger avant de clôturer le sprint.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Rediriger les tickets non terminés vers :</Label>
+              <Select value={redirectTarget} onValueChange={setRedirectTarget}>
+                <SelectTrigger data-testid="select-redirect-target">
+                  <SelectValue placeholder="Choisir la destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="backlog">Backlog</SelectItem>
+                  {backlog.sprints
+                    .filter(s => s.id !== closingSprintId && s.status !== "termine")
+                    .map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {closingSprintId && getUnfinishedTicketsForSprint(closingSprintId).length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                <p className="text-sm text-muted-foreground mb-2">Tickets à rediriger :</p>
+                <ul className="space-y-1">
+                  {getUnfinishedTicketsForSprint(closingSprintId).map(ticket => (
+                    <li key={ticket.id} className="text-sm flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : "Task"}
+                      </Badge>
+                      <span className="truncate">{ticket.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSprintCloseModal(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleConfirmSprintClose}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              data-testid="button-confirm-close-sprint"
+            >
+              Terminer le sprint
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

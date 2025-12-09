@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3 } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,19 @@ import { fr } from "date-fns/locale";
 import type { Backlog, Project, BacklogMode } from "@shared/schema";
 import { backlogModeOptions } from "@shared/schema";
 
-type BacklogWithProject = Backlog & { project?: Project | null };
+type BacklogWithProject = Backlog & { 
+  project?: Project | null;
+  ticketCounts?: {
+    todo: number;
+    inProgress: number;
+    done: number;
+    total: number;
+  };
+  activeSprint?: {
+    id: string;
+    name: string;
+  } | null;
+};
 
 export default function Product() {
   const [, navigate] = useLocation();
@@ -27,7 +39,17 @@ export default function Product() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedBacklog, setSelectedBacklog] = useState<Backlog | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
+  // Default to list view, persist choice in localStorage
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    const saved = localStorage.getItem("backlog-view-mode");
+    return (saved === "grid" || saved === "list") ? saved : "list";
+  });
+  
+  // Persist view mode changes
+  useEffect(() => {
+    localStorage.setItem("backlog-view-mode", viewMode);
+  }, [viewMode]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -236,7 +258,29 @@ export default function Product() {
                         {backlog.project.name}
                       </Badge>
                     )}
+                    {backlog.activeSprint && (
+                      <Badge className="bg-violet-500 text-white flex items-center gap-1" data-testid={`badge-active-sprint-${backlog.id}`}>
+                        <Play className="h-3 w-3" />
+                        {backlog.activeSprint.name}
+                      </Badge>
+                    )}
                   </div>
+                  
+                  {/* Ticket counts */}
+                  {backlog.ticketCounts && backlog.ticketCounts.total > 0 && (
+                    <div className="flex items-center gap-2 mt-3" data-testid={`container-ticket-counts-${backlog.id}`}>
+                      <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">
+                        {backlog.ticketCounts.todo} à faire
+                      </Badge>
+                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs">
+                        {backlog.ticketCounts.inProgress} en cours
+                      </Badge>
+                      <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
+                        {backlog.ticketCounts.done} terminé
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
@@ -252,8 +296,9 @@ export default function Product() {
                 <tr className="text-left text-sm font-medium text-muted-foreground">
                   <th className="px-4 py-3">Nom</th>
                   <th className="px-4 py-3 hidden sm:table-cell">Mode</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Projet</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Créé le</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Sprint actif</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Tickets</th>
+                  <th className="px-4 py-3 hidden xl:table-cell">Projet</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
@@ -280,6 +325,33 @@ export default function Product() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
+                      {backlog.activeSprint ? (
+                        <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit" data-testid={`list-badge-active-sprint-${backlog.id}`}>
+                          <Play className="h-3 w-3" />
+                          {backlog.activeSprint.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {backlog.ticketCounts && backlog.ticketCounts.total > 0 ? (
+                        <div className="flex items-center gap-1" data-testid={`list-ticket-counts-${backlog.id}`}>
+                          <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-1.5">
+                            {backlog.ticketCounts.todo}
+                          </Badge>
+                          <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs px-1.5">
+                            {backlog.ticketCounts.inProgress}
+                          </Badge>
+                          <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-1.5">
+                            {backlog.ticketCounts.done}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell">
                       {backlog.project ? (
                         <Badge variant="outline" className="flex items-center gap-1 w-fit">
                           <Folder className="h-3 w-3" />
@@ -288,9 +360,6 @@ export default function Product() {
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-sm text-muted-foreground">
-                      {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>

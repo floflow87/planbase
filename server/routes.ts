@@ -3931,12 +3931,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // BACKLOGS MODULE
   // ============================================
 
-  // List all backlogs for the account
+  // List all backlogs for the account with summary data
   app.get("/api/backlogs", requireAuth, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const result = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
-      res.json(result);
+      const backlogsList = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
+      
+      // Enrich with project, ticket counts, and active sprint info
+      const enrichedBacklogs = await Promise.all(backlogsList.map(async (backlog) => {
+        // Get project if linked
+        let project = null;
+        if (backlog.projectId) {
+          const [proj] = await db.select().from(projects).where(eq(projects.id, backlog.projectId));
+          project = proj || null;
+        }
+        
+        // Get ticket counts by state
+        const [epicsList, userStoriesList, backlogTasksList] = await Promise.all([
+          db.select().from(epics).where(eq(epics.backlogId, backlog.id)),
+          db.select().from(userStories).where(eq(userStories.backlogId, backlog.id)),
+          db.select().from(backlogTasks).where(eq(backlogTasks.backlogId, backlog.id)),
+        ]);
+        
+        // Count tickets by state
+        const allTickets = [
+          ...epicsList.map(e => ({ state: e.state })),
+          ...userStoriesList.map(s => ({ state: s.state })),
+          ...backlogTasksList.map(t => ({ state: t.state })),
+        ];
+        
+        const ticketCounts = {
+          todo: allTickets.filter(t => t.state === "a_faire").length,
+          inProgress: allTickets.filter(t => t.state === "en_cours" || t.state === "review").length,
+          done: allTickets.filter(t => t.state === "termine").length,
+          total: allTickets.length,
+        };
+        
+        // Get active sprint (en_cours status)
+        let activeSprint = null;
+        const [activeSprintRow] = await db.select().from(sprints)
+          .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.status, "en_cours")));
+        if (activeSprintRow) {
+          activeSprint = {
+            id: activeSprintRow.id,
+            name: activeSprintRow.name,
+          };
+        }
+        
+        return {
+          ...backlog,
+          project,
+          ticketCounts,
+          activeSprint,
+        };
+      }));
+      
+      res.json(enrichedBacklogs);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

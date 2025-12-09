@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { 
-  ChevronDown, ChevronRight, Plus, MoreVertical, 
+  ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
-  ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash
+  ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { Epic, UserStory, BacklogTask, Sprint, AppUser } from "@shared/schema";
-import { backlogItemStateOptions } from "@shared/schema";
+import { backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 
 export type TicketType = "epic" | "user_story" | "task";
 
@@ -121,21 +121,54 @@ function getStateDot(state: string | null | undefined) {
   }
 }
 
+// Priority icons: low = 1 violet chevron down, medium = 2 violet chevrons up, high = 2 orange chevrons up (diamond outline), critical = red filled diamond
+function PriorityIcon({ priority, className }: { priority: string | null | undefined; className?: string }) {
+  switch (priority) {
+    case "critical":
+      // Red filled diamond
+      return (
+        <svg className={cn("h-4 w-4", className)} viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1L15 8L8 15L1 8L8 1Z" className="text-red-500 fill-current" />
+        </svg>
+      );
+    case "high":
+      // Orange empty diamond outline
+      return (
+        <svg className={cn("h-4 w-4", className)} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M8 2L14 8L8 14L2 8L8 2Z" className="text-orange-500 stroke-current" />
+        </svg>
+      );
+    case "medium":
+      // Two violet chevrons up stacked
+      return (
+        <div className={cn("flex flex-col items-center -space-y-2.5", className)}>
+          <ChevronUp className="h-3.5 w-3.5 text-violet-500" />
+          <ChevronUp className="h-3.5 w-3.5 text-violet-500" />
+        </div>
+      );
+    case "low":
+    default:
+      // One violet chevron up (lowest priority)
+      return <ChevronUp className={cn("h-4 w-4 text-violet-500", className)} />;
+  }
+}
+
+// Export for use in other components
+export { PriorityIcon };
+
 function getPriorityIcon(priority: string | null | undefined) {
-  const color = priority === "critical" ? "text-red-500" : 
-                priority === "high" ? "text-orange-500" : 
-                priority === "medium" ? "text-yellow-500" : "text-gray-400";
-  return <Flag className={cn("h-3.5 w-3.5", color)} />;
+  return <PriorityIcon priority={priority} />;
 }
 
 export interface TicketAction {
-  type: "move_top" | "move_bottom" | "move_sprint" | "copy" | "delete" | "assign" | "mark_status" | "set_estimate";
+  type: "move_top" | "move_bottom" | "move_sprint" | "copy" | "delete" | "assign" | "mark_status" | "set_estimate" | "set_priority" | "convert_to_task";
   ticketId: string;
   ticketType: TicketType;
   sprintId?: string | null;
   assigneeId?: string | null;
   state?: string;
   estimatePoints?: number;
+  priority?: string;
 }
 
 interface TicketRowProps {
@@ -422,7 +455,44 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onT
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             
+            {/* Priority submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-gray-900">
+                <Flag className="h-4 w-4 mr-2" />
+                Priorité
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-white dark:bg-white">
+                {backlogPriorityOptions.map(opt => (
+                  <DropdownMenuItem 
+                    key={opt.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketAction({ type: "set_priority", ticketId: ticket.id, ticketType: ticket.type, priority: opt.value });
+                    }}
+                    className="text-gray-900"
+                  >
+                    <span className="mr-2"><PriorityIcon priority={opt.value} /></span>
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
             <DropdownMenuSeparator />
+            
+            {/* Convert to Task (only for task type) */}
+            {ticket.type === "task" && (
+              <DropdownMenuItem 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTicketAction({ type: "convert_to_task", ticketId: ticket.id, ticketType: ticket.type });
+                }}
+                className="text-gray-900"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Ajouter dans les Tâches
+              </DropdownMenuItem>
+            )}
             
             {/* Delete */}
             <DropdownMenuItem 
