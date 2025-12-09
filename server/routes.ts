@@ -62,6 +62,7 @@ import {
   backlogColumns,
   tasks,
   ticketComments,
+  projects,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -69,7 +70,7 @@ import { getDemoCredentials } from "./middleware/demo-helper";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, not } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -4638,21 +4639,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Close sprint
+  // Close sprint with ticket reassignment
   app.patch("/api/sprints/:id/close", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
+      const { redirectTo } = req.body; // 'backlog' or sprint ID
       
+      // Get the sprint first
+      const [sprint] = await db.select().from(sprints)
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)));
+      
+      if (!sprint) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      
+      // Get all unfinished tickets in this sprint (epics, user stories, tasks)
+      const unfinishedEpics = await db.select().from(epics)
+        .where(and(eq(epics.sprintId, id), eq(epics.accountId, accountId), not(eq(epics.state, "termine"))));
+      
+      const unfinishedStories = await db.select().from(userStories)
+        .where(and(eq(userStories.sprintId, id), eq(userStories.accountId, accountId), not(eq(userStories.state, "termine"))));
+      
+      const unfinishedTasks = await db.select().from(backlogTasks)
+        .where(and(eq(backlogTasks.sprintId, id), eq(backlogTasks.accountId, accountId), not(eq(backlogTasks.state, "termine"))));
+      
+      const totalUnfinished = unfinishedEpics.length + unfinishedStories.length + unfinishedTasks.length;
+      
+      // If there are unfinished tickets and no redirect target, return error
+      if (totalUnfinished > 0 && !redirectTo) {
+        return res.status(400).json({ 
+          error: "unfinished_tickets",
+          message: "Sprint has unfinished tickets that must be redirected",
+          unfinishedCount: totalUnfinished
+        });
+      }
+      
+      // Determine target sprint ID (null for backlog)
+      const targetSprintId = redirectTo === 'backlog' ? null : redirectTo;
+      
+      // If redirecting to a sprint, validate it exists
+      if (targetSprintId) {
+        const [targetSprint] = await db.select().from(sprints)
+          .where(and(eq(sprints.id, targetSprintId), eq(sprints.accountId, accountId)));
+        
+        if (!targetSprint) {
+          return res.status(400).json({ error: "Target sprint not found" });
+        }
+        
+        if (targetSprint.status === "termine") {
+          return res.status(400).json({ error: "Cannot redirect to a closed sprint" });
+        }
+      }
+      
+      // Move all unfinished tickets to target
+      if (unfinishedEpics.length > 0) {
+        await db.update(epics)
+          .set({ sprintId: targetSprintId, updatedAt: new Date() })
+          .where(and(eq(epics.sprintId, id), eq(epics.accountId, accountId), not(eq(epics.state, "termine"))));
+      }
+      
+      if (unfinishedStories.length > 0) {
+        await db.update(userStories)
+          .set({ sprintId: targetSprintId, updatedAt: new Date() })
+          .where(and(eq(userStories.sprintId, id), eq(userStories.accountId, accountId), not(eq(userStories.state, "termine"))));
+      }
+      
+      if (unfinishedTasks.length > 0) {
+        await db.update(backlogTasks)
+          .set({ sprintId: targetSprintId, updatedAt: new Date() })
+          .where(and(eq(backlogTasks.sprintId, id), eq(backlogTasks.accountId, accountId), not(eq(backlogTasks.state, "termine"))));
+      }
+      
+      // Close the sprint
       const [updated] = await db.update(sprints)
         .set({ status: "termine", updatedAt: new Date() })
         .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
         .returning();
       
-      if (!updated) {
-        return res.status(404).json({ error: "Sprint not found" });
-      }
-      res.json(updated);
+      res.json({ 
+        sprint: updated, 
+        movedTickets: totalUnfinished,
+        redirectedTo: redirectTo === 'backlog' ? 'backlog' : targetSprintId
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

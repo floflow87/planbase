@@ -271,7 +271,8 @@ export default function BacklogDetail() {
   });
 
   const closeSprintMutation = useMutation({
-    mutationFn: async (sprintId: string) => apiRequest(`/api/sprints/${sprintId}/close`, "PATCH"),
+    mutationFn: async ({ sprintId, redirectTo }: { sprintId: string; redirectTo?: string }) => 
+      apiRequest(`/api/sprints/${sprintId}/close`, "PATCH", { redirectTo }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toast({ title: "Sprint clôturé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
@@ -465,8 +466,8 @@ export default function BacklogDetail() {
   const handleSprintCloseAttempt = (sprintId: string) => {
     const unfinishedTickets = getUnfinishedTicketsForSprint(sprintId);
     if (unfinishedTickets.length === 0) {
-      // All tickets are done, close directly
-      closeSprintMutation.mutate(sprintId);
+      // All tickets are done, close directly (no redirect needed)
+      closeSprintMutation.mutate({ sprintId });
     } else {
       // Show modal to redirect unfinished tickets
       setClosingSprintId(sprintId);
@@ -475,21 +476,16 @@ export default function BacklogDetail() {
     }
   };
 
-  // Handle sprint close with ticket redirection
+  // Handle sprint close with ticket redirection (backend handles all logic)
   const handleConfirmSprintClose = async () => {
     if (!closingSprintId) return;
     
-    const unfinishedTickets = getUnfinishedTicketsForSprint(closingSprintId);
-    const targetSprintId = redirectTarget === "backlog" ? null : redirectTarget;
-    
     try {
-      // Move all unfinished tickets to target
-      for (const ticket of unfinishedTickets) {
-        await handleUpdateTicket(ticket.id, ticket.type, { sprintId: targetSprintId });
-      }
-      
-      // Close the sprint
-      await closeSprintMutation.mutateAsync(closingSprintId);
+      // Backend handles ticket reassignment and sprint closure
+      await closeSprintMutation.mutateAsync({ 
+        sprintId: closingSprintId, 
+        redirectTo: redirectTarget 
+      });
       
       setShowSprintCloseModal(false);
       setClosingSprintId(null);
