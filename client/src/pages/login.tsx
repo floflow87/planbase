@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Monitor } from "lucide-react";
 import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
+import planbaseLogo from "@assets/planbase-logo.png";
 
 async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
@@ -97,11 +98,9 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo & App Name - visible only on mobile */}
-          <div className="md:hidden flex flex-col items-center mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-lg mb-3">
-              <span className="text-white text-2xl font-bold">P</span>
-            </div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-cyan-500 bg-clip-text text-transparent">
+          <div className="md:hidden flex flex-col items-center -mt-4 mb-6">
+            <img src={planbaseLogo} alt="PlanBase" className="w-14 h-14 rounded-xl shadow-lg mb-3" />
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent">
               PlanBase
             </h2>
           </div>
