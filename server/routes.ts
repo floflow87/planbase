@@ -4228,6 +4228,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // BACKLOG TASKS
   // ============================================
 
+  // Create standalone task for backlog (without user story)
+  app.post("/api/backlogs/:backlogId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      // Verify backlog belongs to account
+      const [backlog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      
+      const data = insertBacklogTaskSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+        userStoryId: null, // Standalone task
+        createdBy: userId,
+      });
+      
+      const [task] = await db.insert(backlogTasks).values(data).returning();
+      res.status(201).json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create task under user story
   app.post("/api/user-stories/:userStoryId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {

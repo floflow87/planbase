@@ -47,6 +47,14 @@ import {
   backlogItemStateOptions, backlogPriorityOptions, complexityOptions, 
   sprintStatusOptions 
 } from "@shared/schema";
+import { 
+  SprintSection, 
+  BacklogPool, 
+  transformToFlatTickets,
+  type FlatTicket,
+  type TicketType
+} from "@/components/backlog/jira-scrum-view";
+import { TicketDetailPanel } from "@/components/backlog/ticket-detail-panel";
 
 type BacklogData = Backlog & {
   epics: Epic[];
@@ -73,6 +81,10 @@ export default function BacklogDetail() {
   const [showColumnDialog, setShowColumnDialog] = useState(false);
   const [showKanbanTaskDialog, setShowKanbanTaskDialog] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  
+  const [expandedSprints, setExpandedSprints] = useState<Set<string>>(new Set());
+  const [backlogPoolExpanded, setBacklogPoolExpanded] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<FlatTicket | null>(null);
 
   const { data: backlog, isLoading } = useQuery<BacklogData>({
     queryKey: ["/api/backlogs", id],
@@ -351,6 +363,122 @@ export default function BacklogDetail() {
     return backlog?.backlogTasks.filter(t => !t.columnId) || [];
   };
 
+  // Jira-style helpers
+  const flatTickets = useMemo(() => {
+    if (!backlog) return [];
+    return transformToFlatTickets(
+      backlog.epics,
+      backlog.userStories,
+      backlog.backlogTasks
+    );
+  }, [backlog?.epics, backlog?.userStories, backlog?.backlogTasks]);
+
+  const getTicketsForSprint = (sprintId: string) => {
+    return flatTickets.filter(t => t.sprintId === sprintId);
+  };
+
+  const getBacklogTickets = () => {
+    return flatTickets.filter(t => !t.sprintId);
+  };
+
+  const toggleSprint = (sprintId: string) => {
+    setExpandedSprints(prev => {
+      const next = new Set(prev);
+      if (next.has(sprintId)) next.delete(sprintId);
+      else next.add(sprintId);
+      return next;
+    });
+  };
+
+  const handleSelectTicket = (ticket: FlatTicket) => {
+    setSelectedTicket(ticket);
+  };
+
+  const handleUpdateTicket = async (ticketId: string, type: TicketType, data: Record<string, any>) => {
+    try {
+      let endpoint = "";
+      if (type === "epic") endpoint = `/api/epics/${ticketId}`;
+      else if (type === "user_story") endpoint = `/api/user-stories/${ticketId}`;
+      else endpoint = `/api/backlog-tasks/${ticketId}`;
+      
+      await apiRequest(endpoint, "PATCH", data);
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      
+      // Update selected ticket with new data
+      if (selectedTicket && selectedTicket.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, ...data });
+      }
+      
+      toast({ title: "Ticket mis à jour" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteTicket = async (ticketId: string, type: TicketType) => {
+    try {
+      let endpoint = "";
+      if (type === "epic") endpoint = `/api/epics/${ticketId}`;
+      else if (type === "user_story") endpoint = `/api/user-stories/${ticketId}`;
+      else endpoint = `/api/backlog-tasks/${ticketId}`;
+      
+      await apiRequest(endpoint, "DELETE");
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      setSelectedTicket(null);
+      toast({ title: "Ticket supprimé" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateSprintTicket = async (sprintId: string, type: TicketType, title: string) => {
+    try {
+      let endpoint = "";
+      let data: Record<string, any> = { title, sprintId };
+      
+      if (type === "epic") {
+        endpoint = `/api/backlogs/${id}/epics`;
+        data = { title, sprintId, priority: "medium", state: "a_faire" };
+      } else if (type === "user_story") {
+        endpoint = `/api/backlogs/${id}/user-stories`;
+        data = { title, sprintId, priority: "medium", state: "a_faire" };
+      } else {
+        endpoint = `/api/backlogs/${id}/tasks`;
+        data = { title, sprintId, priority: "medium", state: "a_faire" };
+      }
+      
+      await apiRequest(endpoint, "POST", data);
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      toast({ title: "Ticket créé" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateBacklogTicket = async (type: TicketType, title: string) => {
+    try {
+      let endpoint = "";
+      let data: Record<string, any> = { title };
+      
+      if (type === "epic") {
+        endpoint = `/api/backlogs/${id}/epics`;
+        data = { title, priority: "medium", state: "a_faire" };
+      } else if (type === "user_story") {
+        endpoint = `/api/backlogs/${id}/user-stories`;
+        data = { title, priority: "medium", state: "a_faire" };
+      } else {
+        endpoint = `/api/backlogs/${id}/tasks`;
+        data = { title, priority: "medium", state: "a_faire" };
+      }
+      
+      await apiRequest(endpoint, "POST", data);
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      toast({ title: "Ticket créé" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleKanbanDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -546,153 +674,60 @@ export default function BacklogDetail() {
           </DndContext>
         )}
 
-        {/* Scrum Backlog View */}
+        {/* Jira-style Scrum Backlog View */}
         {backlog.mode === "scrum" && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Layers className="h-5 w-5" />
-            Backlog
-          </h2>
-
-          {backlog.epics.map(epic => (
-            <Collapsible 
-              key={epic.id} 
-              open={expandedEpics.has(epic.id)}
-              onOpenChange={() => toggleEpic(epic.id)}
-            >
-              <Card data-testid={`card-epic-${epic.id}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-toggle-epic-${epic.id}`}>
-                        {expandedEpics.has(epic.id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                    <div 
-                      className="h-3 w-3 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: epic.color || "#C4B5FD" }}
-                    />
-                    <span className="font-medium flex-1 truncate" data-testid={`text-epic-title-${epic.id}`}>{epic.title}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {getStoriesForEpic(epic.id).length} US
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-menu-epic-${epic.id}`}>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          setEditingEpic(epic);
-                          setShowEpicDialog(true);
-                        }} data-testid={`menu-edit-epic-${epic.id}`}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Modifier
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => deleteEpicMutation.mutate(epic.id)}
-                          data-testid={`menu-delete-epic-${epic.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="pt-0 space-y-2">
-                    {getStoriesForEpic(epic.id).map(story => (
-                      <UserStoryRow 
-                        key={story.id}
-                        story={story}
-                        expanded={expandedStories.has(story.id)}
-                        onToggle={() => toggleStory(story.id)}
-                        onEdit={() => {
-                          setEditingUserStory(story);
-                          setShowUserStoryDialog(true);
-                        }}
-                        onDelete={() => deleteUserStoryMutation.mutate(story.id)}
-                        onAddTask={() => {
-                          setParentUserStoryId(story.id);
-                          setShowTaskDialog(true);
-                        }}
-                        onUpdateTask={(taskId, data) => updateTaskMutation.mutate({ taskId, data })}
-                        onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
-                        onToggleChecklist={(itemId, done) => toggleChecklistItemMutation.mutate({ itemId, done })}
-                        getStateColor={getStateColor}
-                        getStateLabel={getStateLabel}
-                        getPriorityColor={getPriorityColor}
-                        calculateProgress={calculateProgress}
-                      />
-                    ))}
-                    {getStoriesForEpic(epic.id).length === 0 && (
-                      <p className="text-sm text-muted-foreground py-2 text-center">
-                        Aucune User Story dans cet Epic
-                      </p>
-                    )}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          ))}
-
-          {storiesWithoutEpic.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ListTodo className="h-4 w-4" />
-                  Sans Epic
-                  <Badge variant="outline" className="text-xs ml-2">
-                    {storiesWithoutEpic.length} US
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {storiesWithoutEpic.map(story => (
-                  <UserStoryRow 
-                    key={story.id}
-                    story={story}
-                    expanded={expandedStories.has(story.id)}
-                    onToggle={() => toggleStory(story.id)}
-                    onEdit={() => {
-                      setEditingUserStory(story);
-                      setShowUserStoryDialog(true);
-                    }}
-                    onDelete={() => deleteUserStoryMutation.mutate(story.id)}
-                    onAddTask={() => {
-                      setParentUserStoryId(story.id);
-                      setShowTaskDialog(true);
-                    }}
-                    onUpdateTask={(taskId, data) => updateTaskMutation.mutate({ taskId, data })}
-                    onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
-                    onToggleChecklist={(itemId, done) => toggleChecklistItemMutation.mutate({ itemId, done })}
-                    getStateColor={getStateColor}
-                    getStateLabel={getStateLabel}
-                    getPriorityColor={getPriorityColor}
-                    calculateProgress={calculateProgress}
+          <div className="flex gap-0 h-full">
+            <div className={`flex-1 space-y-4 ${selectedTicket ? 'pr-0' : ''}`}>
+              {/* Sprint Sections */}
+              {backlog.sprints
+                .sort((a, b) => {
+                  if (a.status === "en_cours" && b.status !== "en_cours") return -1;
+                  if (b.status === "en_cours" && a.status !== "en_cours") return 1;
+                  if (a.status === "preparation" && b.status === "termine") return -1;
+                  if (b.status === "preparation" && a.status === "termine") return 1;
+                  return 0;
+                })
+                .map(sprint => (
+                  <SprintSection
+                    key={sprint.id}
+                    sprint={sprint}
+                    tickets={getTicketsForSprint(sprint.id)}
+                    users={users}
+                    isExpanded={expandedSprints.has(sprint.id) || sprint.status === "en_cours"}
+                    onToggle={() => toggleSprint(sprint.id)}
+                    onSelectTicket={handleSelectTicket}
+                    onCreateTicket={handleCreateSprintTicket}
+                    onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
+                    onCompleteSprint={(sprintId) => closeSprintMutation.mutate(sprintId)}
+                    selectedTicketId={selectedTicket?.id}
                   />
                 ))}
-              </CardContent>
-            </Card>
-          )}
 
-          {backlog.epics.length === 0 && storiesWithoutEpic.length === 0 && (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  Votre backlog est vide. Commencez par créer un Epic ou une User Story.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              {/* Backlog Pool */}
+              <BacklogPool
+                tickets={getBacklogTickets()}
+                users={users}
+                isExpanded={backlogPoolExpanded}
+                onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
+                onSelectTicket={handleSelectTicket}
+                onCreateTicket={handleCreateBacklogTicket}
+                selectedTicketId={selectedTicket?.id}
+              />
+            </div>
+
+            {/* Ticket Detail Panel */}
+            {selectedTicket && (
+              <TicketDetailPanel
+                ticket={selectedTicket}
+                epics={backlog.epics}
+                sprints={backlog.sprints}
+                users={users}
+                onClose={() => setSelectedTicket(null)}
+                onUpdate={handleUpdateTicket}
+                onDelete={handleDeleteTicket}
+              />
+            )}
+          </div>
         )}
       </div>
 
