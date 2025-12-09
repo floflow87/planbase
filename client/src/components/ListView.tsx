@@ -162,7 +162,7 @@ export function ListView({
   
   // Memoized movable columns - excludes fixed columns and respects visibility
   const movableColumns = useMemo(() => 
-    columnOrder.filter(id => 
+    columnOrder.filter((id: string) => 
       !FIXED_COLUMNS.includes(id) && columnVisibility[id] !== false
     ), 
     [columnOrder, columnVisibility]

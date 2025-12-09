@@ -590,7 +590,38 @@ export default function Notes() {
       <div className="p-6 space-y-6">
         {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Mobile: Single row with search, new button, and filter */}
+          <div className="flex md:hidden items-center gap-2 w-full">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                className="pl-9 w-full"
+                data-testid="input-rechercher-mobile"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Link href="/notes/new">
+              <Button size="icon" data-testid="button-nouvelle-note-mobile">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </Link>
+            <select
+              className="border border-border rounded-md px-2 h-9 text-sm bg-white dark:bg-card"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              data-testid="select-status-filter-mobile"
+            >
+              <option value="all">Tous</option>
+              <option value="draft">Brouillons</option>
+              <option value="active">Publiées</option>
+              <option value="archived">Archivées</option>
+            </select>
+          </div>
+          
+          {/* Desktop: Original layout */}
+          <div className="hidden md:flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -614,7 +645,7 @@ export default function Notes() {
             </select>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             {selectedNotes.size > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
