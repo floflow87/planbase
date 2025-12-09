@@ -82,7 +82,7 @@ export default function BacklogDetail() {
   const [showKanbanTaskDialog, setShowKanbanTaskDialog] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   
-  const [expandedSprints, setExpandedSprints] = useState<Set<string>>(new Set());
+  const [expandedSprints, setExpandedSprints] = useState<Set<string> | "all">("all");
   const [backlogPoolExpanded, setBacklogPoolExpanded] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<FlatTicket | null>(null);
 
@@ -105,7 +105,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic créé" });
+      toast({ title: "Epic créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowEpicDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -117,7 +117,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic mis à jour" });
+      toast({ title: "Epic mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setEditingEpic(null);
       setShowEpicDialog(false);
     },
@@ -128,7 +128,7 @@ export default function BacklogDetail() {
     mutationFn: async (epicId: string) => apiRequest(`/api/epics/${epicId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic supprimé" });
+      toast({ title: "Epic supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -146,7 +146,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story créée" });
+      toast({ title: "User Story créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowUserStoryDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -158,7 +158,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story mise à jour" });
+      toast({ title: "User Story mise à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setEditingUserStory(null);
       setShowUserStoryDialog(false);
     },
@@ -169,7 +169,7 @@ export default function BacklogDetail() {
     mutationFn: async (usId: string) => apiRequest(`/api/user-stories/${usId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story supprimée" });
+      toast({ title: "User Story supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -183,7 +183,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Tâche créée" });
+      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowTaskDialog(false);
       setParentUserStoryId(null);
     },
@@ -204,7 +204,7 @@ export default function BacklogDetail() {
     mutationFn: async (taskId: string) => apiRequest(`/api/backlog-tasks/${taskId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Tâche supprimée" });
+      toast({ title: "Tâche supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -215,7 +215,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint créé" });
+      toast({ title: "Sprint créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowSprintDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -225,7 +225,7 @@ export default function BacklogDetail() {
     mutationFn: async (sprintId: string) => apiRequest(`/api/sprints/${sprintId}/start`, "PATCH"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint démarré" });
+      toast({ title: "Sprint démarré", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -234,7 +234,7 @@ export default function BacklogDetail() {
     mutationFn: async (sprintId: string) => apiRequest(`/api/sprints/${sprintId}/close`, "PATCH"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint clôturé" });
+      toast({ title: "Sprint clôturé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -257,7 +257,7 @@ export default function BacklogDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowColumnDialog(false);
-      toast({ title: "Colonne créée" });
+      toast({ title: "Colonne créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -268,7 +268,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Colonne supprimée" });
+      toast({ title: "Colonne supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -281,7 +281,7 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowKanbanTaskDialog(false);
       setSelectedColumnId(null);
-      toast({ title: "Tâche créée" });
+      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -383,11 +383,20 @@ export default function BacklogDetail() {
 
   const toggleSprint = (sprintId: string) => {
     setExpandedSprints(prev => {
+      if (prev === "all") {
+        const allSprintIds = new Set(backlog?.sprints.map(s => s.id) || []);
+        allSprintIds.delete(sprintId);
+        return allSprintIds;
+      }
       const next = new Set(prev);
       if (next.has(sprintId)) next.delete(sprintId);
       else next.add(sprintId);
       return next;
     });
+  };
+
+  const isSprintExpanded = (sprintId: string) => {
+    return expandedSprints === "all" || expandedSprints.has(sprintId);
   };
 
   const handleSelectTicket = (ticket: FlatTicket) => {
@@ -409,7 +418,7 @@ export default function BacklogDetail() {
         setSelectedTicket({ ...selectedTicket, ...data });
       }
       
-      toast({ title: "Ticket mis à jour" });
+      toast({ title: "Ticket mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -425,7 +434,7 @@ export default function BacklogDetail() {
       await apiRequest(endpoint, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setSelectedTicket(null);
-      toast({ title: "Ticket supprimé" });
+      toast({ title: "Ticket supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -449,7 +458,7 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Ticket créé" });
+      toast({ title: "Ticket créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -473,7 +482,7 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Ticket créé" });
+      toast({ title: "Ticket créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -552,7 +561,7 @@ export default function BacklogDetail() {
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
         <div className="flex flex-wrap gap-2 mb-6">
-          <Button size="sm" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
+          <Button size="sm" variant="outline" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
             <Plus className="h-4 w-4 mr-1" />
             Epic
           </Button>
@@ -561,7 +570,7 @@ export default function BacklogDetail() {
             User Story
           </Button>
           {backlog.mode === "scrum" && (
-            <Button size="sm" variant="outline" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
+            <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white" onClick={() => setShowSprintDialog(true)} data-testid="button-add-sprint">
               <Plus className="h-4 w-4 mr-1" />
               Sprint
             </Button>
@@ -573,70 +582,6 @@ export default function BacklogDetail() {
             </Button>
           )}
         </div>
-
-        {backlog.mode === "scrum" && backlog.sprints.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Sprints
-            </h2>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {backlog.sprints.map(sprint => (
-                <Card key={sprint.id} className="hover-elevate" data-testid={`card-sprint-${sprint.id}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base truncate" data-testid={`text-sprint-name-${sprint.id}`}>{sprint.name}</CardTitle>
-                      <Badge 
-                        variant="secondary"
-                        style={{ backgroundColor: sprintStatusOptions.find(o => o.value === sprint.status)?.color }}
-                        data-testid={`badge-sprint-status-${sprint.id}`}
-                      >
-                        {sprintStatusOptions.find(o => o.value === sprint.status)?.label}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {sprint.goal && <p className="text-sm text-muted-foreground mb-2" data-testid={`text-sprint-goal-${sprint.id}`}>{sprint.goal}</p>}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                      {sprint.startDate && (
-                        <span>{format(new Date(sprint.startDate), "d MMM", { locale: fr })}</span>
-                      )}
-                      {sprint.startDate && sprint.endDate && <span>-</span>}
-                      {sprint.endDate && (
-                        <span>{format(new Date(sprint.endDate), "d MMM yyyy", { locale: fr })}</span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {sprint.status === "preparation" && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          disabled={hasActiveSprint}
-                          onClick={() => startSprintMutation.mutate(sprint.id)}
-                          data-testid={`button-start-sprint-${sprint.id}`}
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Démarrer
-                        </Button>
-                      )}
-                      {sprint.status === "en_cours" && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => closeSprintMutation.mutate(sprint.id)}
-                          data-testid={`button-close-sprint-${sprint.id}`}
-                        >
-                          <Square className="h-3 w-3 mr-1" />
-                          Clôturer
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Kanban Board View */}
         {backlog.mode === "kanban" && (
@@ -693,7 +638,7 @@ export default function BacklogDetail() {
                     sprint={sprint}
                     tickets={getTicketsForSprint(sprint.id)}
                     users={users}
-                    isExpanded={expandedSprints.has(sprint.id) || sprint.status === "en_cours"}
+                    isExpanded={isSprintExpanded(sprint.id)}
                     onToggle={() => toggleSprint(sprint.id)}
                     onSelectTicket={handleSelectTicket}
                     onCreateTicket={handleCreateSprintTicket}

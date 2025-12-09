@@ -269,8 +269,8 @@ export function SprintSection({
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsCreating(true)}>
+            <DropdownMenuContent align="end" className="bg-white dark:bg-white">
+              <DropdownMenuItem onClick={() => setIsCreating(true)} className="text-gray-900">
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un ticket
               </DropdownMenuItem>
@@ -291,9 +291,14 @@ export function SprintSection({
             ))}
             
             {tickets.length === 0 && !isCreating && (
-              <div className="px-4 py-8 text-center text-muted-foreground text-sm">
-                Ce sprint est vide. Glissez des tickets depuis le backlog ou créez-en un nouveau.
-              </div>
+              <button
+                className="w-full px-4 py-4 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
+                onClick={() => setIsCreating(true)}
+                data-testid={`button-inline-create-empty-${sprint.id}`}
+              >
+                <Plus className="h-4 w-4" />
+                Ce sprint est vide. Cliquez pour créer un ticket.
+              </button>
             )}
             
             {isCreating && (
@@ -310,20 +315,20 @@ export function SprintSection({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setNewTicketType("epic")}>
+                  <DropdownMenuContent className="bg-white dark:bg-white">
+                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
                         <Layers className="h-3 w-3 text-white" />
                       </div>
                       Epic
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")}>
+                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
                         <BookOpen className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("task")}>
+                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>
@@ -355,7 +360,7 @@ export function SprintSection({
             )}
           </div>
           
-          {!isCreating && (
+          {!isCreating && tickets.length > 0 && (
             <button
               className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2"
               onClick={() => setIsCreating(true)}
@@ -446,9 +451,14 @@ export function BacklogPool({
             ))}
             
             {tickets.length === 0 && !isCreating && (
-              <div className="px-4 py-8 text-center text-muted-foreground text-sm">
-                Votre backlog est vide. Créez des tickets pour commencer.
-              </div>
+              <button
+                className="w-full px-4 py-4 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
+                onClick={() => setIsCreating(true)}
+                data-testid="button-inline-create-empty-backlog"
+              >
+                <Plus className="h-4 w-4" />
+                Votre backlog est vide. Cliquez pour créer un ticket.
+              </button>
             )}
             
             {isCreating && (
@@ -465,20 +475,20 @@ export function BacklogPool({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setNewTicketType("epic")}>
+                  <DropdownMenuContent className="bg-white dark:bg-white">
+                    <DropdownMenuItem onClick={() => setNewTicketType("epic")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
                         <Layers className="h-3 w-3 text-white" />
                       </div>
                       Epic
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")}>
+                    <DropdownMenuItem onClick={() => setNewTicketType("user_story")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
                         <BookOpen className="h-3 w-3 text-white" />
                       </div>
                       User Story
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setNewTicketType("task")}>
+                    <DropdownMenuItem onClick={() => setNewTicketType("task")} className="text-gray-900">
                       <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>

@@ -107,7 +107,7 @@ export function TicketDetailPanel({
   };
   
   return (
-    <div className="w-[400px] border-l bg-card h-full flex flex-col" data-testid="ticket-detail-panel">
+    <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
           <div 
@@ -187,9 +187,9 @@ export function TicketDetailPanel({
               <SelectTrigger className="w-[140px] h-8" data-testid="select-state">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-white">
                 {backlogItemStateOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -207,9 +207,9 @@ export function TicketDetailPanel({
               <SelectTrigger className="w-[140px] h-8" data-testid="select-priority">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white dark:bg-white">
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -240,10 +240,10 @@ export function TicketDetailPanel({
                   ) : "Non assigné"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Non assigné</SelectItem>
+              <SelectContent className="bg-white dark:bg-white">
+                <SelectItem value="none" className="text-gray-900">Non assigné</SelectItem>
                 {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
+                  <SelectItem key={user.id} value={user.id} className="text-gray-900">
                     {user.displayName || user.email}
                   </SelectItem>
                 ))}
@@ -266,9 +266,9 @@ export function TicketDetailPanel({
                 <SelectTrigger className="w-[140px] h-8" data-testid="select-points">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-white">
                   {[0, 1, 2, 3, 5, 8, 13, 21].map(pts => (
-                    <SelectItem key={pts} value={String(pts)}>
+                    <SelectItem key={pts} value={String(pts)} className="text-gray-900">
                       {pts === 0 ? "Non estimé" : `${pts} pts`}
                     </SelectItem>
                   ))}
@@ -293,10 +293,10 @@ export function TicketDetailPanel({
                   {currentSprint?.name || "Backlog"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="backlog">Backlog</SelectItem>
+              <SelectContent className="bg-white dark:bg-white">
+                <SelectItem value="backlog" className="text-gray-900">Backlog</SelectItem>
                 {sprints.map(sprint => (
-                  <SelectItem key={sprint.id} value={sprint.id}>
+                  <SelectItem key={sprint.id} value={sprint.id} className="text-gray-900">
                     {sprint.name}
                   </SelectItem>
                 ))}
@@ -321,10 +321,10 @@ export function TicketDetailPanel({
                     {parentEpic?.title || "Aucun"}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
+                <SelectContent className="bg-white dark:bg-white">
+                  <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
                   {epics.map(epic => (
-                    <SelectItem key={epic.id} value={epic.id}>
+                    <SelectItem key={epic.id} value={epic.id} className="text-gray-900">
                       <div className="flex items-center gap-2">
                         <div 
                           className="h-2 w-2 rounded-full" 

@@ -59,9 +59,17 @@ export default function Product() {
       
       return backlog;
     },
-    onSuccess: (backlog) => {
+    onSuccess: async (backlog) => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog créé", description: `Le backlog "${backlog.name}" a été créé.` });
+      await queryClient.prefetchQuery({
+        queryKey: ["/api/backlogs", backlog.id],
+        queryFn: async () => {
+          const response = await fetch(`/api/backlogs/${backlog.id}`);
+          if (!response.ok) throw new Error("Failed to fetch backlog");
+          return response.json();
+        },
+      });
+      toast({ title: "Backlog créé", description: `Le backlog "${backlog.name}" a été créé.`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
       setShowCreateDialog(false);
       resetForm();
       navigate(`/product/backlog/${backlog.id}`);
