@@ -332,7 +332,7 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onU
           }}
         >
           <SelectTrigger 
-            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border-0 cursor-pointer", getStateStyle(ticket.state))}
+            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
             onClick={(e) => e.stopPropagation()}
             data-testid={`select-inline-state-${ticket.id}`}
           >

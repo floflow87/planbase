@@ -163,10 +163,6 @@ export default function Product() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 md:p-6 border-b">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Backlogs</h1>
-          <p className="text-muted-foreground">Gérez vos backlogs produit en mode Kanban ou Scrum</p>
-        </div>
         <div className="flex items-center gap-2" data-testid="container-backlog-actions">
           <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
             <Button 
@@ -234,13 +230,13 @@ export default function Product() {
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} data-testid={`menu-open-backlog-${backlog.id}`}>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-white border shadow-md">
+                      <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`menu-open-backlog-${backlog.id}`}>
                         <ArrowRight className="h-4 w-4 mr-2" />
                         Ouvrir
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        className="text-destructive"
+                        className="text-destructive cursor-pointer"
                         onClick={() => {
                           setSelectedBacklog(backlog);
                           setShowDeleteDialog(true);
@@ -307,6 +303,7 @@ export default function Product() {
                   <th className="px-4 py-2 hidden lg:table-cell">Tickets</th>
                   <th className="px-4 py-2 hidden xl:table-cell">Projet</th>
                   <th className="px-4 py-2 hidden xl:table-cell">Créateur</th>
+                  <th className="px-4 py-2 hidden lg:table-cell">Créé le</th>
                   <th className="px-4 py-2 w-12"></th>
                 </tr>
               </thead>
@@ -383,6 +380,12 @@ export default function Product() {
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </td>
+                    <td className="px-4 py-2 hidden lg:table-cell">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+                      </div>
+                    </td>
                     <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -390,13 +393,13 @@ export default function Product() {
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} data-testid={`list-menu-open-backlog-${backlog.id}`}>
+                        <DropdownMenuContent align="end" className="bg-white dark:bg-white border shadow-md">
+                          <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`list-menu-open-backlog-${backlog.id}`}>
                             <ArrowRight className="h-4 w-4 mr-2" />
                             Ouvrir
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            className="text-destructive"
+                            className="text-destructive cursor-pointer"
                             onClick={() => {
                               setSelectedBacklog(backlog);
                               setShowDeleteDialog(true);

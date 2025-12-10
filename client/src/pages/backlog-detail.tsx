@@ -936,7 +936,7 @@ export default function BacklogDetail() {
         <div className="px-4 md:px-6 border-b">
           <TabsList className="h-10">
             <TabsTrigger value="backlog" className="text-sm" data-testid="tab-backlog">
-              Backlog
+              {backlog.name || "Backlog"}
             </TabsTrigger>
             <TabsTrigger value="done" className="text-sm" data-testid="tab-done">
               Tickets terminés
@@ -949,8 +949,20 @@ export default function BacklogDetail() {
 
         <TabsContent value="backlog" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          {/* Left: Creation buttons */}
+          {/* Left: Search + Creation buttons */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Rechercher..."
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                className="pl-8 h-8 w-[150px] text-sm"
+                data-testid="input-ticket-search"
+              />
+            </div>
             <Button size="sm" variant="outline" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
               <Plus className="h-4 w-4 mr-1" />
               Epic
@@ -973,24 +985,11 @@ export default function BacklogDetail() {
             )}
           </div>
           
-          {/* Right: Search, Filters and Sort */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search bar */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Rechercher un ticket..."
-                value={ticketSearch}
-                onChange={(e) => setTicketSearch(e.target.value)}
-                className="pl-8 h-8 w-[180px] text-sm"
-                data-testid="input-ticket-search"
-              />
-            </div>
-            
+          {/* Right: Filters and Sort */}
+          <div className="flex flex-wrap items-center gap-3">
             {/* Priority filter */}
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Priorité</Label>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Priorité</Label>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger className="w-[130px] h-8 text-sm" data-testid="select-priority-filter">
                   <SelectValue placeholder="Toutes" />
@@ -1005,8 +1004,8 @@ export default function BacklogDetail() {
             </div>
             
             {/* Sort by */}
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Trier par</Label>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Trier par</Label>
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-[150px] h-8 text-sm" data-testid="select-sort-by">
                   <SelectValue />
