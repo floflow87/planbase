@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +84,7 @@ export default function BacklogDetail() {
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [showSprintDialog, setShowSprintDialog] = useState(false);
   const [showEditBacklogDialog, setShowEditBacklogDialog] = useState(false);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [editBacklogName, setEditBacklogName] = useState("");
   const [editBacklogDescription, setEditBacklogDescription] = useState("");
   const [editBacklogProjectId, setEditBacklogProjectId] = useState<string | null>(null);
@@ -1495,11 +1497,7 @@ export default function BacklogDetail() {
             </div>
             <Button 
               variant="destructive" 
-              onClick={() => {
-                if (confirm("Êtes-vous sûr de vouloir supprimer ce backlog ? Cette action est irréversible.")) {
-                  deleteBacklogMutation.mutate();
-                }
-              }}
+              onClick={() => setShowDeleteConfirmDialog(true)}
               disabled={deleteBacklogMutation.isPending}
               className="w-full"
               data-testid="button-delete-backlog"
@@ -1510,6 +1508,31 @@ export default function BacklogDetail() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Delete Backlog Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le backlog</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce backlog ? Cette action est irréversible et supprimera tous les tickets, epics, user stories et tâches associés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-backlog">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                deleteBacklogMutation.mutate();
+                setShowDeleteConfirmDialog(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-backlog"
+            >
+              {deleteBacklogMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sprint Close Modal */}
       <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>
