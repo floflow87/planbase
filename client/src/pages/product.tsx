@@ -300,14 +300,14 @@ export default function Product() {
           <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
             <table className="w-full">
               <thead className="bg-muted/50">
-                <tr className="text-left text-sm font-medium text-muted-foreground">
-                  <th className="px-4 py-3">Nom</th>
-                  <th className="px-4 py-3 hidden sm:table-cell">Mode</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Sprint actif</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Tickets</th>
-                  <th className="px-4 py-3 hidden xl:table-cell">Projet</th>
-                  <th className="px-4 py-3 hidden xl:table-cell">Créateur</th>
-                  <th className="px-4 py-3 w-12"></th>
+                <tr className="text-left text-xs font-medium text-muted-foreground">
+                  <th className="px-4 py-2">Nom</th>
+                  <th className="px-4 py-2 hidden sm:table-cell">Mode</th>
+                  <th className="px-4 py-2 hidden md:table-cell">Sprint actif</th>
+                  <th className="px-4 py-2 hidden lg:table-cell">Tickets</th>
+                  <th className="px-4 py-2 hidden xl:table-cell">Projet</th>
+                  <th className="px-4 py-2 hidden xl:table-cell">Créateur</th>
+                  <th className="px-4 py-2 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y bg-white dark:bg-gray-900">
@@ -318,31 +318,31 @@ export default function Product() {
                     onClick={() => navigate(`/product/backlog/${backlog.id}`)}
                     data-testid={`row-backlog-${backlog.id}`}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <div className="flex flex-col">
-                        <span className="font-medium">{backlog.name}</span>
+                        <span className="text-sm font-medium">{backlog.name}</span>
                         {backlog.description && (
-                          <span className="text-sm text-muted-foreground line-clamp-1">{backlog.description}</span>
+                          <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                    <td className="px-4 py-2 hidden sm:table-cell">
+                      <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs">
                         {getModeIcon(backlog.mode)}
                         {getModeLabel(backlog.mode)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
+                    <td className="px-4 py-2 hidden md:table-cell">
                       {backlog.activeSprint ? (
-                        <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit" data-testid={`list-badge-active-sprint-${backlog.id}`}>
+                        <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit text-xs" data-testid={`list-badge-active-sprint-${backlog.id}`}>
                           <Play className="h-3 w-3" />
                           {backlog.activeSprint.name}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
+                    <td className="px-4 py-2 hidden lg:table-cell">
                       {backlog.ticketCounts && backlog.ticketCounts.total > 0 ? (
                         <div className="flex items-center gap-1" data-testid={`list-ticket-counts-${backlog.id}`}>
                           <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-1.5">
@@ -356,23 +356,23 @@ export default function Product() {
                           </Badge>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">0</span>
+                        <span className="text-muted-foreground text-xs">0</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
+                    <td className="px-4 py-2 hidden xl:table-cell">
                       {backlog.project ? (
-                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                        <Badge variant="outline" className="flex items-center gap-1 w-fit text-xs">
                           <Folder className="h-3 w-3" />
                           {backlog.project.name}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
+                    <td className="px-4 py-2 hidden xl:table-cell">
                       {backlog.creator ? (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground" data-testid={`text-creator-${backlog.id}`}>
-                          <User className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-creator-${backlog.id}`}>
+                          <User className="h-3 w-3" />
                           <span>
                             {backlog.creator.firstName && backlog.creator.lastName 
                               ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
@@ -380,10 +380,10 @@ export default function Product() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-list-menu-backlog-${backlog.id}`}>

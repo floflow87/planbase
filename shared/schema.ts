@@ -951,13 +951,15 @@ export const backlogColumns = pgTable("backlog_columns", {
 export const retros = pgTable("retros", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  sprintId: uuid("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  sprintId: uuid("sprint_id").references(() => sprints.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "cascade" }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountIdx: index().on(table.accountId),
   sprintIdx: index().on(table.sprintId),
+  backlogIdx: index().on(table.backlogId),
 }));
 
 // Retro Cards table

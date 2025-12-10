@@ -701,6 +701,18 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket comments table created");
     
+    // Add backlog_id column to retros table and make sprint_id nullable
+    await db.execute(sql`
+      ALTER TABLE retros ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE;
+    `);
+    await db.execute(sql`
+      ALTER TABLE retros ALTER COLUMN sprint_id DROP NOT NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS retros_backlog_idx ON retros(backlog_id);
+    `);
+    console.log("✅ Retros backlog_id column added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

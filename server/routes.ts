@@ -64,6 +64,8 @@ import {
   ticketComments,
   projects,
   appUsers,
+  retros,
+  retroCards,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -4981,6 +4983,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!deleted) {
         return res.status(404).json({ error: "Comment not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // RETROSPECTIVES
+  // ============================================
+
+  // Get or create retro for a backlog
+  app.get("/api/backlogs/:backlogId/retro", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      // Check if retro exists for this backlog
+      let [retro] = await db.select().from(retros)
+        .where(and(eq(retros.backlogId, backlogId), eq(retros.accountId, accountId)));
+      
+      // Create if doesn't exist
+      if (!retro) {
+        [retro] = await db.insert(retros).values({
+          accountId,
+          backlogId,
+          createdBy: userId,
+        }).returning();
+      }
+      
+      res.json(retro);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get retro cards
+  app.get("/api/retros/:retroId/cards", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const retroId = req.params.retroId;
+      
+      const cards = await db.select().from(retroCards)
+        .where(and(eq(retroCards.retroId, retroId), eq(retroCards.accountId, accountId)))
+        .orderBy(asc(retroCards.order), asc(retroCards.createdAt));
+      
+      res.json(cards);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create retro card
+  app.post("/api/retros/:retroId/cards", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const retroId = req.params.retroId;
+      const { column, content } = req.body;
+      
+      if (!column || !content) {
+        return res.status(400).json({ error: "Column and content are required" });
+      }
+      
+      const [card] = await db.insert(retroCards).values({
+        accountId,
+        retroId,
+        column,
+        content,
+        authorId: userId,
+        order: 0,
+      }).returning();
+      
+      res.status(201).json(card);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete retro card
+  app.delete("/api/retro-cards/:cardId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const cardId = req.params.cardId;
+      
+      const [deleted] = await db.delete(retroCards)
+        .where(and(eq(retroCards.id, cardId), eq(retroCards.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Card not found" });
       }
       res.json({ success: true });
     } catch (error: any) {
