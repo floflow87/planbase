@@ -237,12 +237,12 @@ export default function Mindmaps() {
               onClick={() => setLocation(`/mindmaps/${mindmap.id}`)}
               data-testid={`card-mindmap-${mindmap.id}`}
             >
-              <CardHeader className="pb-2">
+              <CardHeader className="p-3 pb-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base truncate">{mindmap.name}</CardTitle>
+                    <CardTitle className="text-sm truncate">{mindmap.name}</CardTitle>
                     {mindmap.description && (
-                      <CardDescription className="line-clamp-2 mt-1">
+                      <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {mindmap.description}
                       </CardDescription>
                     )}
@@ -250,28 +250,31 @@ export default function Mindmaps() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0"
-                    onClick={(e) => handleDelete(e, mindmap.id)}
+                    className="shrink-0 h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(e, mindmap.id);
+                    }}
                     data-testid={`button-delete-mindmap-${mindmap.id}`}
                   >
-                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pt-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={MINDMAP_KIND_LABELS[mindmap.kind as MindmapKind]?.color || "bg-gray-100 text-gray-800"}>
+              <CardContent className="p-3 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge className={`text-[10px] ${MINDMAP_KIND_LABELS[mindmap.kind as MindmapKind]?.color || "bg-gray-100 text-gray-800"}`}>
                     {MINDMAP_KIND_LABELS[mindmap.kind as MindmapKind]?.label || mindmap.kind}
                   </Badge>
                   {mindmap.clientId && getClientName(mindmap.clientId) && (
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
+                    <Badge variant="outline" className="flex items-center gap-1 text-[10px]">
+                      <User className="w-2.5 h-2.5" />
                       {getClientName(mindmap.clientId)}
                     </Badge>
                   )}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-3">
-                  <Calendar className="w-3 h-3" />
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
+                  <Calendar className="w-2.5 h-2.5" />
                   {format(new Date(mindmap.createdAt), "dd MMM yyyy", { locale: fr })}
                 </div>
               </CardContent>

@@ -686,8 +686,8 @@ export default function Dashboard() {
   }
 
   // Calculate real KPIs
-  // Par définition, tous les projets sont "en cours" sauf ceux qui sont terminés
-  const activeProjectsCount = projects.filter(p => p.stage !== "termine").length;
+  // Projets en cours = pas de prospection et pas terminés
+  const activeProjectsCount = projects.filter(p => p.stage !== "termine" && p.stage !== "prospection").length;
   const totalProjectsCount = projects.length;
   
   // Compter les tâches en cours (status !== 'done')
@@ -1177,7 +1177,7 @@ export default function Dashboard() {
                 Revenus Mensuels
               </CardTitle>
               <Select value={revenuePeriod} onValueChange={(value: "full_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
-                <SelectTrigger className="w-[180px]" data-testid="select-revenue-period">
+                <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1339,7 +1339,7 @@ export default function Dashboard() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Select value={myDayFilter} onValueChange={(value: any) => setMyDayFilter(value)}>
-                    <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-my-day-filter">
+                    <SelectTrigger className="w-40 h-8 text-xs bg-card" data-testid="select-my-day-filter">
                       <SelectValue className="text-xs" />
                     </SelectTrigger>
                     <SelectContent>

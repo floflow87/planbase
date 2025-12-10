@@ -533,12 +533,74 @@ export default function CRM() {
   return (
     <div className="h-full overflow-auto">
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-end">
-          <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
-            <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
-          </Button>
+        {/* KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map((kpi, index) => {
+            const Icon = kpi.icon;
+            return (
+              <Card key={index} data-testid={`card-kpi-${index}`}>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-[10px] text-green-600 mt-2">
+                        {kpi.change} {kpi.changeLabel}
+                      </p>
+                    </div>
+                    <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
+                      <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Filters bar with search, status filter, view toggles, export and new client button */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+            <div className="relative flex-1 w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un contact..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-clients"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="prospecting">Prospection</SelectItem>
+                <SelectItem value="qualified">Qualifié</SelectItem>
+                <SelectItem value="negotiation">Négociation</SelectItem>
+                <SelectItem value="won">Gagné</SelectItem>
+                <SelectItem value="lost">Perdu</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+            <Button variant="outline" size="icon" onClick={() => setViewMode("table")} data-testid="button-view-table">
+              <Table2 className={`w-4 h-4 ${viewMode === "table" ? "text-primary" : ""}`} />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setViewMode("card")} data-testid="button-view-card">
+              <LayoutGrid className={`w-4 h-4 ${viewMode === "card" ? "text-primary" : ""}`} />
+            </Button>
+            <Button variant="outline" size="sm" data-testid="button-export">
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Exporter</span>
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
+            </Button>
+          </div>
         </div>
 
         {/* Sheet pour création/modification de client */}
@@ -635,61 +697,10 @@ export default function CRM() {
           </SheetContent>
         </Sheet>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map((kpi, index) => {
-            const Icon = kpi.icon;
-            return (
-              <Card key={index} data-testid={`card-kpi-${index}`}>
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
-                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
-                      <p className="text-[10px] text-green-600 mt-2">
-                        {kpi.change} {kpi.changeLabel}
-                      </p>
-                    </div>
-                    <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
-                      <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Filters and Actions */}
+        {/* Clients Table/Cards */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-                <div className="relative flex-1 w-full sm:max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher un contact..."
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    data-testid="input-search-clients"
-                  />
-                </div>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="prospecting">Prospection</SelectItem>
-                    <SelectItem value="qualified">Qualifié</SelectItem>
-                    <SelectItem value="negotiation">Négociation</SelectItem>
-                    <SelectItem value="won">Gagné</SelectItem>
-                    <SelectItem value="lost">Perdu</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 {selectedClients.size > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
@@ -730,28 +741,6 @@ export default function CRM() {
                     </DropdownMenu>
                   </div>
                 )}
-                <Button variant="outline" size="sm" data-testid="button-export" className="hidden sm:flex">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exporter
-                </Button>
-                <div className="flex border rounded-md hidden md:flex">
-                  <Button
-                    variant={viewMode === "table" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("table")}
-                    data-testid="button-view-table"
-                  >
-                    <Table2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "card" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("card")}
-                    data-testid="button-view-card"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                </div>
                 {viewMode === "table" && (
                   <Button
                     variant="outline"
@@ -763,7 +752,6 @@ export default function CRM() {
                     <Settings2 className="w-4 h-4" />
                   </Button>
                 )}
-              </div>
             </div>
           </CardHeader>
           <CardContent>
