@@ -153,6 +153,32 @@ export default function BacklogDetail() {
     };
   }, [backlog?.name]);
 
+  // Auto-open ticket from URL query parameter (e.g., ?ticket=abc123)
+  useEffect(() => {
+    if (!backlog) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const ticketId = urlParams.get('ticket');
+    
+    if (ticketId && !selectedTicket) {
+      // Transform all tickets to flat format to find the one with matching ID
+      const allTickets = transformToFlatTickets(
+        backlog.epics || [],
+        backlog.userStories || [],
+        backlog.backlogTasks || [],
+        users
+      );
+      
+      const foundTicket = allTickets.find(t => t.id === ticketId);
+      if (foundTicket) {
+        setSelectedTicket(foundTicket);
+        // Clear the query parameter from URL without reloading
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [backlog, users, selectedTicket]);
+
   // Create new backlog mutation
   const createBacklogMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; mode: BacklogMode; projectId?: string | null }) => {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog } from "@shared/schema";
-import { billingStatusOptions, backlogModeOptions } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority } from "@shared/schema";
+import { billingStatusOptions, backlogModeOptions, backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -579,9 +579,293 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   );
 }
 
+// Helper functions for ticket display - defined outside component to avoid recreating
+const getTicketPriorityColor = (priority: string | null) => {
+  switch (priority) {
+    case "critique": return "text-red-600 dark:text-red-400";
+    case "haute": return "text-orange-500 dark:text-orange-400";
+    case "moyenne": return "text-yellow-500 dark:text-yellow-400";
+    case "basse": return "text-blue-500 dark:text-blue-400";
+    default: return "text-gray-400";
+  }
+};
+
+const getTicketStateStyle = (state: string) => {
+  switch (state) {
+    case "a_faire": return "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+    case "en_cours": return "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300";
+    case "review": return "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300";
+    case "termine": return "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300";
+    default: return "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+  }
+};
+
+// Component to display a backlog row with expandable ticket list
+interface BacklogRowWithTicketsProps {
+  backlog: {
+    id: string;
+    name: string;
+    description: string | null;
+    mode: string;
+    createdAt: string;
+    activeSprint?: { id: string; name: string } | null;
+  };
+  isExpanded: boolean;
+  onToggle: () => void;
+  todoCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  totalTickets: number;
+  creatorName: string | null;
+  modeLabel: string;
+  navigate: (path: string) => void;
+}
+
+function BacklogRowWithTickets({
+  backlog, isExpanded, onToggle, todoCount, inProgressCount, doneCount, totalTickets,
+  creatorName, modeLabel, navigate
+}: BacklogRowWithTicketsProps) {
+  // Fetch full backlog data with tickets only when expanded
+  const { data: backlogData, isLoading: ticketsLoading } = useQuery<{
+    epics: Epic[];
+    userStories: UserStory[];
+    backlogTasks: BacklogTask[];
+  }>({
+    queryKey: ['/api/backlogs', backlog.id],
+    enabled: isExpanded,
+  });
+  
+  // Transform tickets to flat list with type info
+  const allTickets = useMemo(() => {
+    if (!backlogData) return [];
+    const tickets: Array<{
+      id: string;
+      type: 'epic' | 'user_story' | 'task';
+      title: string;
+      state: string;
+      priority: string | null;
+      estimatePoints: number | null;
+    }> = [];
+    
+    backlogData.epics?.forEach(epic => {
+      tickets.push({
+        id: epic.id,
+        type: 'epic',
+        title: epic.title,
+        state: epic.state,
+        priority: epic.priority,
+        estimatePoints: null,
+      });
+    });
+    
+    backlogData.userStories?.forEach(story => {
+      tickets.push({
+        id: story.id,
+        type: 'user_story',
+        title: story.title,
+        state: story.state,
+        priority: story.priority,
+        estimatePoints: story.estimatePoints,
+      });
+    });
+    
+    backlogData.backlogTasks?.forEach(task => {
+      tickets.push({
+        id: task.id,
+        type: 'task',
+        title: task.title,
+        state: task.state,
+        priority: task.priority,
+        estimatePoints: task.estimatePoints,
+      });
+    });
+    
+    return tickets;
+  }, [backlogData]);
+
+  const getStateLabel = (state: string) => {
+    const option = backlogItemStateOptions.find(o => o.value === state);
+    return option?.label || state;
+  };
+
+  // Mode icon component to avoid recreating on each render
+  const modeIcon = backlog.mode === "kanban" ? <Kanban className="h-3 w-3" /> : <LayoutGrid className="h-3 w-3" />;
+
+  // Handle row click - navigate only if clicking directly on the row, not on buttons
+  const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
+    // Check if the click target is an interactive element
+    const target = e.target as HTMLElement;
+    const isInteractive = target.closest('button') || 
+                          target.closest('a') || 
+                          target.tagName === 'BUTTON' || 
+                          target.tagName === 'A';
+    if (!isInteractive) {
+      navigate(`/product/backlog/${backlog.id}`);
+    }
+  };
+
+  return (
+    <>
+      {/* Main backlog row - clicking non-interactive areas navigates to backlog detail */}
+      <tr 
+        className="hover:bg-muted/30 cursor-pointer"
+        onClick={handleRowClick}
+        data-testid={`row-backlog-${backlog.id}`}
+      >
+        <td className="px-2 py-3">
+          {totalTickets > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+              }}
+              data-testid={`button-toggle-backlog-${backlog.id}`}
+            >
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium" data-testid={`title-backlog-${backlog.id}`}>{backlog.name}</span>
+            {backlog.description && (
+              <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
+            )}
+          </div>
+        </td>
+        <td className="px-4 py-3 hidden sm:table-cell">
+          <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs">
+            {modeIcon}
+            {modeLabel}
+          </Badge>
+        </td>
+        <td className="px-4 py-3 hidden md:table-cell">
+          {backlog.activeSprint ? (
+            <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit text-xs">
+              <Play className="h-3 w-3" />
+              {backlog.activeSprint.name}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground text-xs">-</span>
+          )}
+        </td>
+        <td className="px-4 py-3 hidden lg:table-cell">
+          {totalTickets > 0 ? (
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-1.5">
+                {todoCount}
+              </Badge>
+              <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs px-1.5">
+                {inProgressCount}
+              </Badge>
+              <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-1.5">
+                {doneCount}
+              </Badge>
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">0</span>
+          )}
+        </td>
+        <td className="px-4 py-3 hidden xl:table-cell">
+          {creatorName ? (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <User className="h-3 w-3" />
+              <span>{creatorName}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">-</span>
+          )}
+        </td>
+        <td className="px-4 py-3 hidden lg:table-cell">
+          {backlog.createdAt && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <CalendarIcon className="h-3 w-3" />
+              {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+            </div>
+          )}
+        </td>
+        <td className="px-2 py-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/product/backlog/${backlog.id}`);
+            }}
+            data-testid={`button-open-backlog-${backlog.id}`}
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </td>
+      </tr>
+      
+      {/* Expanded ticket rows */}
+      {isExpanded && (
+        <tr>
+          <td colSpan={8} className="p-0">
+            <div className="bg-muted/20 border-t">
+              {ticketsLoading ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  Chargement des tickets...
+                </div>
+              ) : allTickets.length === 0 ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  Aucun ticket dans ce backlog
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {allTickets.map((ticket) => {
+                    const typeIcon = ticket.type === 'epic' 
+                      ? <Layers className="h-3 w-3 text-violet-500" />
+                      : ticket.type === 'user_story'
+                        ? <ListTodo className="h-3 w-3 text-blue-500" />
+                        : <Check className="h-3 w-3 text-green-500" />;
+                    
+                    return (
+                      <div 
+                        key={ticket.id}
+                        className="px-6 py-2 hover:bg-muted/40 cursor-pointer flex items-center gap-3"
+                        onClick={() => navigate(`/product/backlog/${backlog.id}?ticket=${ticket.id}`)}
+                        data-testid={`ticket-row-${ticket.id}`}
+                      >
+                        <div className="w-5 flex justify-center">
+                          {typeIcon}
+                        </div>
+                        <span className="text-sm flex-1 truncate">{ticket.title}</span>
+                        <div className="flex items-center gap-2">
+                          {ticket.priority && (
+                            <Flag className={cn("h-3 w-3", getTicketPriorityColor(ticket.priority))} />
+                          )}
+                          {ticket.estimatePoints && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {ticket.estimatePoints}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5", getTicketStateStyle(ticket.state))}>
+                            {getStateLabel(ticket.state)}
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -623,6 +907,9 @@ export default function ProjectDetail() {
   const [editPaymentDate, setEditPaymentDate] = useState<Date | undefined>(undefined);
   const [editPaymentDescription, setEditPaymentDescription] = useState<string>("");
   const [isEditPaymentDatePickerOpen, setIsEditPaymentDatePickerOpen] = useState(false);
+  
+  // Expanded backlogs state for showing tickets
+  const [expandedBacklogs, setExpandedBacklogs] = useState<Set<string>>(new Set());
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -699,6 +986,16 @@ export default function ProjectDetail() {
     activeSprint?: { id: string; name: string } | null;
     creator?: { id: string; firstName?: string; lastName?: string; email: string } | null;
   }
+  
+  // Full backlog data with tickets (for expanded view)
+  type BacklogFullData = Backlog & {
+    epics: Epic[];
+    userStories: UserStory[];
+    backlogTasks: BacklogTask[];
+    sprints: Sprint[];
+    columns: BacklogColumn[];
+  };
+  
   const { data: allBacklogs = [] } = useQuery<BacklogWithDetails[]>({
     queryKey: ['/api/backlogs'],
     enabled: !!id,
@@ -708,6 +1005,19 @@ export default function ProjectDetail() {
   const projectBacklogs = useMemo(() => {
     return allBacklogs.filter((b) => b.projectId === id);
   }, [allBacklogs, id]);
+  
+  // Toggle backlog expansion
+  const toggleBacklogExpanded = (backlogId: string) => {
+    setExpandedBacklogs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(backlogId)) {
+        newSet.delete(backlogId);
+      } else {
+        newSet.add(backlogId);
+      }
+      return newSet;
+    });
+  };
 
   // Initialize billing fields when project loads
   useEffect(() => {
@@ -1482,64 +1792,52 @@ export default function ProjectDetail() {
                     Aucun backlog associé à ce projet.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {projectBacklogs.map((backlog) => {
-                      const todoCount = backlog.ticketCounts?.todo || 0;
-                      const inProgressCount = backlog.ticketCounts?.inProgress || 0;
-                      const doneCount = backlog.ticketCounts?.done || 0;
-                      const creatorName = backlog.creator 
-                        ? (backlog.creator.firstName && backlog.creator.lastName 
-                            ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
-                            : backlog.creator.email)
-                        : null;
-                      const modeLabel = backlogModeOptions.find(m => m.value === backlog.mode)?.label || backlog.mode;
-                      
-                      return (
-                        <Link key={backlog.id} href={`/backlogs/${backlog.id}`}>
-                          <div 
-                            className="p-4 border rounded-md hover-elevate cursor-pointer" 
-                            data-testid={`backlog-${backlog.id}`}
-                          >
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h4 className="text-sm font-medium" data-testid={`title-backlog-${backlog.id}`}>
-                                    {backlog.name}
-                                  </h4>
-                                  <Badge variant="outline" className="text-xs">
-                                    {modeLabel}
-                                  </Badge>
-                                  {backlog.activeSprint && (
-                                    <Badge className="text-xs bg-violet-600 text-white">
-                                      Sprint: {backlog.activeSprint.name}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                    {todoCount} à faire
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                    {inProgressCount} en cours
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                    {doneCount} terminé
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground">
-                                  {creatorName && (
-                                    <span>Créé par {creatorName}</span>
-                                  )}
-                                  {backlog.createdAt && (
-                                    <span>le {format(new Date(backlog.createdAt), "dd MMM yyyy", { locale: fr })}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
+                  <div className="border rounded-lg overflow-hidden bg-card">
+                    <table className="w-full">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left text-xs font-medium text-muted-foreground">
+                          <th className="px-4 py-2 w-8"></th>
+                          <th className="px-4 py-2">Nom</th>
+                          <th className="px-4 py-2 hidden sm:table-cell">Mode</th>
+                          <th className="px-4 py-2 hidden md:table-cell">Sprint actif</th>
+                          <th className="px-4 py-2 hidden lg:table-cell">Tickets</th>
+                          <th className="px-4 py-2 hidden xl:table-cell">Créateur</th>
+                          <th className="px-4 py-2 hidden lg:table-cell">Créé le</th>
+                          <th className="px-4 py-2 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {projectBacklogs.map((backlog) => {
+                          const todoCount = backlog.ticketCounts?.todo || 0;
+                          const inProgressCount = backlog.ticketCounts?.inProgress || 0;
+                          const doneCount = backlog.ticketCounts?.done || 0;
+                          const totalTickets = todoCount + inProgressCount + doneCount;
+                          const creatorName = backlog.creator 
+                            ? (backlog.creator.firstName && backlog.creator.lastName 
+                                ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
+                                : backlog.creator.email)
+                            : null;
+                          const modeLabel = backlogModeOptions.find(m => m.value === backlog.mode)?.label || backlog.mode;
+                          const isExpanded = expandedBacklogs.has(backlog.id);
+                          
+                          return (
+                            <BacklogRowWithTickets 
+                              key={backlog.id}
+                              backlog={backlog}
+                              isExpanded={isExpanded}
+                              onToggle={() => toggleBacklogExpanded(backlog.id)}
+                              todoCount={todoCount}
+                              inProgressCount={inProgressCount}
+                              doneCount={doneCount}
+                              totalTickets={totalTickets}
+                              creatorName={creatorName}
+                              modeLabel={modeLabel}
+                              navigate={navigate}
+                            />
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>
