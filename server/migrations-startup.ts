@@ -722,6 +722,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Retros number and status columns added");
     
+    // Update retro_cards column check constraint to use new values
+    await db.execute(sql`
+      ALTER TABLE retro_cards DROP CONSTRAINT IF EXISTS retro_cards_column_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE retro_cards ADD CONSTRAINT retro_cards_column_check 
+        CHECK ("column" IN ('worked', 'not_worked', 'to_improve'));
+    `);
+    console.log("✅ Retro cards column constraint updated");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

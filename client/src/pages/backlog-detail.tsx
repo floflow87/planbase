@@ -1159,6 +1159,7 @@ export default function BacklogDetail() {
           <CompletedTicketsView 
             tickets={flatTickets.filter(t => t.state === "termine")}
             users={users}
+            sprints={backlog.sprints}
             onSelectTicket={handleSelectTicket}
             selectedTicketId={selectedTicket?.id}
           />
@@ -2201,11 +2202,13 @@ function KanbanStoryCard({
 function CompletedTicketsView({
   tickets,
   users,
+  sprints,
   onSelectTicket,
   selectedTicketId
 }: {
   tickets: FlatTicket[];
   users: AppUser[];
+  sprints: Sprint[];
   onSelectTicket: (ticket: FlatTicket) => void;
   selectedTicketId?: string;
 }) {
@@ -2215,6 +2218,12 @@ function CompletedTicketsView({
     if (!user) return null;
     if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
     return user.email || null;
+  };
+
+  const getSprintName = (sprintId?: string | null) => {
+    if (!sprintId) return null;
+    const sprint = sprints.find(s => s.id === sprintId);
+    return sprint?.name || null;
   };
 
   if (tickets.length === 0) {
@@ -2242,6 +2251,7 @@ function CompletedTicketsView({
             <tr className="text-left text-xs font-medium text-muted-foreground">
               <th className="px-4 py-2">Type</th>
               <th className="px-4 py-2">Titre</th>
+              <th className="px-4 py-2 hidden md:table-cell">Sprint</th>
               <th className="px-4 py-2 hidden md:table-cell">Assigné à</th>
               <th className="px-4 py-2 hidden lg:table-cell">Points</th>
             </tr>
@@ -2261,6 +2271,11 @@ function CompletedTicketsView({
                 </td>
                 <td className="px-4 py-2">
                   <span className="text-sm font-medium">{ticket.title}</span>
+                </td>
+                <td className="px-4 py-2 hidden md:table-cell">
+                  <span className="text-xs text-muted-foreground">
+                    {getSprintName(ticket.sprintId) || '-'}
+                  </span>
                 </td>
                 <td className="px-4 py-2 hidden md:table-cell">
                   <span className="text-xs text-muted-foreground">
