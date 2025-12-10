@@ -1166,7 +1166,7 @@ export default function BacklogDetail() {
 
         {/* Rétrospective tab */}
         <TabsContent value="retrospective" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
-          <RetrospectiveView backlogId={id!} sprints={sprints || []} />
+          <RetrospectiveView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
       </Tabs>
 
