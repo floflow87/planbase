@@ -1,4 +1,4 @@
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Scale, Settings, Network } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -51,7 +51,6 @@ export function AppSidebar() {
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "Marketing", url: "/marketing", icon: TrendingUp },
     { title: "Finance", url: "/finance", icon: DollarSign },
-    { title: "Légal", url: "/legal", icon: Scale },
   ];
 
   return (

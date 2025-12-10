@@ -572,10 +572,10 @@ export default function CRM() {
               />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-filter-status">
+              <SelectTrigger className="w-full sm:w-[180px] bg-card" data-testid="select-filter-status">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card">
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="prospecting">Prospection</SelectItem>
                 <SelectItem value="qualified">Qualifié</SelectItem>
@@ -709,7 +709,7 @@ export default function CRM() {
         </Sheet>
 
         {/* Clients Table/Cards - No card wrapper for table view */}
-        <div>
+        <div className="bg-card rounded-lg">
             {filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 Aucun client trouvé
@@ -875,7 +875,7 @@ export default function CRM() {
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="bg-card">
                               <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
                                 <Edit className="w-4 h-4 mr-2" />
                                 Modifier
@@ -953,7 +953,7 @@ export default function CRM() {
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="bg-card">
                             <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-card-edit-${client.id}`}>
                               <Edit className="w-4 h-4 mr-2" />
                               Modifier

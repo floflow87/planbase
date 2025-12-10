@@ -332,6 +332,19 @@ export default function BacklogDetail() {
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
+  const deleteBacklogMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/backlogs/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+      toast({ title: "Backlog supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      setShowEditBacklogDialog(false);
+      navigate("/product");
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
   const toggleChecklistItemMutation = useMutation({
     mutationFn: async ({ itemId, done }: { itemId: string; done: boolean }) => {
       return apiRequest(`/api/checklist-items/${itemId}`, "PATCH", { done });
@@ -1408,16 +1421,13 @@ export default function BacklogDetail() {
         isPending={createKanbanTaskMutation.isPending}
       />
 
-      {/* Edit Backlog Dialog */}
-      <Dialog open={showEditBacklogDialog} onOpenChange={setShowEditBacklogDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Modifier le backlog</DialogTitle>
-            <DialogDescription>
-              Modifiez les informations du backlog.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
+      {/* Edit Backlog Sheet (Side Panel) */}
+      <Sheet open={showEditBacklogDialog} onOpenChange={setShowEditBacklogDialog}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Modifier le backlog</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-6">
             <div className="space-y-2">
               <Label>Nom *</Label>
               <Input 
@@ -1460,24 +1470,46 @@ export default function BacklogDetail() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditBacklogDialog(false)} data-testid="button-cancel-edit-backlog">
-              Annuler
-            </Button>
+          <SheetFooter className="flex flex-col gap-3 sm:flex-col">
+            <div className="flex gap-2 w-full">
+              <Button variant="outline" onClick={() => {
+                  setShowEditBacklogDialog(false);
+                  setEditBacklogName("");
+                  setEditBacklogDescription("");
+                  setEditBacklogProjectId(null);
+                }} className="flex-1" data-testid="button-cancel-edit-backlog">
+                Annuler
+              </Button>
+              <Button 
+                onClick={() => updateBacklogMutation.mutate({ 
+                  name: editBacklogName, 
+                  description: editBacklogDescription || undefined,
+                  projectId: editBacklogProjectId
+                })}
+                disabled={updateBacklogMutation.isPending || !editBacklogName.trim()}
+                className="flex-1"
+                data-testid="button-submit-edit-backlog"
+              >
+                {updateBacklogMutation.isPending ? "..." : "Enregistrer"}
+              </Button>
+            </div>
             <Button 
-              onClick={() => updateBacklogMutation.mutate({ 
-                name: editBacklogName, 
-                description: editBacklogDescription || undefined,
-                projectId: editBacklogProjectId
-              })}
-              disabled={updateBacklogMutation.isPending || !editBacklogName.trim()}
-              data-testid="button-submit-edit-backlog"
+              variant="destructive" 
+              onClick={() => {
+                if (confirm("Êtes-vous sûr de vouloir supprimer ce backlog ? Cette action est irréversible.")) {
+                  deleteBacklogMutation.mutate();
+                }
+              }}
+              disabled={deleteBacklogMutation.isPending}
+              className="w-full"
+              data-testid="button-delete-backlog"
             >
-              {updateBacklogMutation.isPending ? "..." : "Enregistrer"}
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteBacklogMutation.isPending ? "Suppression..." : "Supprimer le backlog"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Sprint Close Modal */}
       <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>

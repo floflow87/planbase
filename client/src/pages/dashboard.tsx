@@ -776,8 +776,8 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  // Activity feed from API
-  const activityFeed = activities.slice(0, 5);
+  // Activity feed from API - show more history for filtering (max 50 total)
+  const activityFeed = activities.slice(0, 50);
 
   return (
     <div className="h-full overflow-auto overflow-x-hidden">
@@ -1262,7 +1262,7 @@ export default function Dashboard() {
                   if (activityFilter === "notes") return activity.subjectType === "note";
                   if (activityFilter === "documents") return activity.subjectType === "document";
                   return true;
-                }).map((activity) => {
+                }).slice(0, 5).map((activity) => {
                   const payload = activity.payload as { description?: string };
                   const translatedKind = translateActivityKind(activity.kind);
                   const translatedSubject = translateSubjectType(activity.subjectType);
