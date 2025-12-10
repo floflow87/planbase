@@ -163,6 +163,7 @@ export default function Dashboard() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
   const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
+  const [activityFilter, setActivityFilter] = useState<"all" | "crm" | "projets" | "product" | "taches" | "whiteboards" | "notes" | "documents">("all");
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
   const [showTaskReminder, setShowTaskReminder] = useState(false);
   const [projectFormData, setProjectFormData] = useState({
@@ -1229,14 +1230,39 @@ export default function Dashboard() {
 
           {/* Recent Activity Feed */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Activités Récentes
               </CardTitle>
+              <Select value={activityFilter} onValueChange={(value: any) => setActivityFilter(value)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs bg-card" data-testid="select-activity-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Toutes</SelectItem>
+                  <SelectItem value="crm" className="text-xs">CRM</SelectItem>
+                  <SelectItem value="projets" className="text-xs">Projets</SelectItem>
+                  <SelectItem value="product" className="text-xs">Product</SelectItem>
+                  <SelectItem value="taches" className="text-xs">Tâches</SelectItem>
+                  <SelectItem value="whiteboards" className="text-xs">WhiteBoards</SelectItem>
+                  <SelectItem value="notes" className="text-xs">Notes</SelectItem>
+                  <SelectItem value="documents" className="text-xs">Documents</SelectItem>
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityFeed.map((activity) => {
+                {activityFeed.filter((activity) => {
+                  if (activityFilter === "all") return true;
+                  if (activityFilter === "crm") return activity.subjectType === "client" || activity.subjectType === "contact" || activity.subjectType === "deal";
+                  if (activityFilter === "projets") return activity.subjectType === "project";
+                  if (activityFilter === "product") return activity.subjectType === "backlog";
+                  if (activityFilter === "taches") return activity.subjectType === "task";
+                  if (activityFilter === "whiteboards") return activity.subjectType === "mindmap";
+                  if (activityFilter === "notes") return activity.subjectType === "note";
+                  if (activityFilter === "documents") return activity.subjectType === "document";
+                  return true;
+                }).map((activity) => {
                   const payload = activity.payload as { description?: string };
                   const translatedKind = translateActivityKind(activity.kind);
                   const translatedSubject = translateSubjectType(activity.subjectType);

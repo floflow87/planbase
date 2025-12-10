@@ -592,6 +592,17 @@ export default function CRM() {
             <Button variant="outline" size="icon" onClick={() => setViewMode("card")} data-testid="button-view-card">
               <LayoutGrid className={`w-4 h-4 ${viewMode === "card" ? "text-primary" : ""}`} />
             </Button>
+            {viewMode === "table" && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsColumnSettingsOpen(true)}
+                data-testid="button-column-settings"
+                className="hidden md:flex"
+              >
+                <Settings2 className="w-4 h-4" />
+              </Button>
+            )}
             <Button variant="outline" size="sm" data-testid="button-export">
               <Download className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Exporter</span>
@@ -697,64 +708,8 @@ export default function CRM() {
           </SheetContent>
         </Sheet>
 
-        {/* Clients Table/Cards */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                {selectedClients.size > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{selectedClients.size} sélectionné{selectedClients.size > 1 ? 's' : ''}</span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" data-testid="button-bulk-actions">
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setIsBulkDeleteDialogOpen(true)}
-                          className="text-red-600"
-                          data-testid="button-bulk-delete"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "prospecting" })}
-                          data-testid="button-bulk-prospecting"
-                        >
-                          Marquer comme prospection
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "won" })}
-                          data-testid="button-bulk-won"
-                        >
-                          Marquer comme gagné
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => bulkUpdateStatusMutation.mutate({ ids: Array.from(selectedClients), status: "lost" })}
-                          data-testid="button-bulk-lost"
-                        >
-                          Marquer comme perdu
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )}
-                {viewMode === "table" && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsColumnSettingsOpen(true)}
-                    data-testid="button-column-settings"
-                    className="hidden md:flex"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </Button>
-                )}
-            </div>
-          </CardHeader>
-          <CardContent>
+        {/* Clients Table/Cards - No card wrapper for table view */}
+        <div>
             {filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 Aucun client trouvé
@@ -1044,8 +999,7 @@ export default function CRM() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+        </div>
 
         {/* Delete Single Client Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {

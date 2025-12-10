@@ -154,7 +154,8 @@ export default function BacklogDetail() {
   // Create new backlog mutation
   const createBacklogMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; mode: BacklogMode; projectId?: string | null }) => {
-      return apiRequest("/api/backlogs", "POST", data);
+      const res = await apiRequest("/api/backlogs", "POST", data);
+      return res.json();
     },
     onSuccess: (newBacklog: Backlog) => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });

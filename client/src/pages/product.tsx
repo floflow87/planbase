@@ -215,11 +215,11 @@ export default function Product() {
                 onClick={() => navigate(`/product/backlog/${backlog.id}`)}
                 data-testid={`card-backlog-${backlog.id}`}
               >
-                <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{backlog.name}</CardTitle>
+                    <CardTitle className="text-sm truncate">{backlog.name}</CardTitle>
                     {backlog.description && (
-                      <CardDescription className="line-clamp-2 mt-1">
+                      <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {backlog.description}
                       </CardDescription>
                     )}
@@ -249,20 +249,20 @@ export default function Product() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary" className="flex items-center gap-1">
+                <CardContent className="p-3 pt-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                       {getModeIcon(backlog.mode)}
                       {getModeLabel(backlog.mode)}
                     </Badge>
                     {backlog.project && (
-                      <Badge variant="outline" className="flex items-center gap-1">
+                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
                         <Folder className="h-3 w-3" />
                         {backlog.project.name}
                       </Badge>
                     )}
                     {backlog.activeSprint && (
-                      <Badge className="bg-violet-500 text-white flex items-center gap-1" data-testid={`badge-active-sprint-${backlog.id}`}>
+                      <Badge className="bg-violet-500 text-white flex items-center gap-1 text-xs" data-testid={`badge-active-sprint-${backlog.id}`}>
                         <Play className="h-3 w-3" />
                         {backlog.activeSprint.name}
                       </Badge>
@@ -271,21 +271,21 @@ export default function Product() {
                   
                   {/* Ticket counts */}
                   {backlog.ticketCounts && backlog.ticketCounts.total > 0 && (
-                    <div className="flex items-center gap-2 mt-3" data-testid={`container-ticket-counts-${backlog.id}`}>
-                      <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">
+                    <div className="flex items-center gap-1.5 mt-2" data-testid={`container-ticket-counts-${backlog.id}`}>
+                      <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px]">
                         {backlog.ticketCounts.todo} à faire
                       </Badge>
-                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs">
+                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-[10px]">
                         {backlog.ticketCounts.inProgress} en cours
                       </Badge>
-                      <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
+                      <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-[10px]">
                         {backlog.ticketCounts.done} terminé
                       </Badge>
                     </div>
                   )}
                   
-                  <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
+                  <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+                    <Calendar className="h-2.5 w-2.5" />
                     {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
                   </div>
                 </CardContent>
