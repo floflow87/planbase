@@ -28,11 +28,14 @@ import { fr } from "date-fns/locale";
 import { 
   DndContext, 
   closestCenter, 
+  closestCorners,
   KeyboardSensor, 
   PointerSensor, 
   useSensor, 
   useSensors,
-  DragEndEvent 
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent
 } from "@dnd-kit/core";
 import { 
   SortableContext, 
@@ -593,6 +596,11 @@ export default function BacklogDetail() {
   const handleInlineStateUpdate = async (ticketId: string, type: TicketType, state: string) => {
     await handleUpdateTicket(ticketId, type, { state });
   };
+  
+  // Handle inline field update (priority, estimatePoints, assigneeId)
+  const handleInlineFieldUpdate = async (ticketId: string, type: TicketType, field: string, value: any) => {
+    await handleUpdateTicket(ticketId, type, { [field]: value });
+  };
 
   // Handle ticket actions from dropdown menu
   const handleTicketAction = async (action: TicketAction) => {
@@ -1096,6 +1104,7 @@ export default function BacklogDetail() {
                       onCompleteSprint={handleSprintCloseAttempt}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
                       onUpdateState={handleInlineStateUpdate}
+                      onUpdateField={handleInlineFieldUpdate}
                       onTicketAction={handleTicketAction}
                       selectedTicketId={selectedTicket?.id}
                     />
@@ -1122,6 +1131,7 @@ export default function BacklogDetail() {
                   onSelectTicket={handleSelectTicket}
                   onCreateTicket={handleCreateBacklogTicket}
                   onUpdateState={handleInlineStateUpdate}
+                  onUpdateField={handleInlineFieldUpdate}
                   onTicketAction={handleTicketAction}
                   selectedTicketId={selectedTicket?.id}
                 />
@@ -1156,13 +1166,38 @@ export default function BacklogDetail() {
 
         {/* Tickets terminés tab */}
         <TabsContent value="done" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
-          <CompletedTicketsView 
-            tickets={flatTickets.filter(t => t.state === "termine")}
-            users={users}
-            sprints={backlog.sprints}
-            onSelectTicket={handleSelectTicket}
-            selectedTicketId={selectedTicket?.id}
-          />
+          <div className="relative h-full">
+            <CompletedTicketsView 
+              tickets={flatTickets.filter(t => t.state === "termine")}
+              users={users}
+              sprints={backlog.sprints}
+              onSelectTicket={handleSelectTicket}
+              selectedTicketId={selectedTicket?.id}
+            />
+            {/* Read-only Ticket Detail Panel for completed tickets */}
+            {selectedTicket && selectedTicket.state === "termine" && (
+              <>
+                <div 
+                  className="fixed inset-0 bg-black/10 z-40"
+                  onClick={() => setSelectedTicket(null)}
+                  data-testid="completed-ticket-panel-backdrop"
+                />
+                <div className="relative z-50">
+                  <TicketDetailPanel
+                    ticket={selectedTicket}
+                    epics={backlog.epics}
+                    sprints={backlog.sprints}
+                    users={users}
+                    onClose={() => setSelectedTicket(null)}
+                    onUpdate={handleUpdateTicket}
+                    onDelete={handleDeleteTicket}
+                    onConvertType={handleConvertType}
+                    readOnly={true}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </TabsContent>
 
         {/* Rétrospective tab */}
@@ -2304,7 +2339,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
   const [selectedSprintId, setSelectedSprintId] = useState<string>("");
 
   // Fetch all retros for this backlog
-  const { data: retrosList = [], isLoading: retrosLoading } = useQuery<(Retro & { sprint?: Sprint })[]>({
+  const { data: retrosList = [], isLoading: retrosLoading } = useQuery<(Retro & { sprint?: Sprint; cardCount?: number })[]>({
     queryKey: ["/api/backlogs", backlogId, "retros"],
     queryFn: async () => {
       const res = await apiRequest(`/api/backlogs/${backlogId}/retros`, "GET");
@@ -2314,13 +2349,16 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
 
   const createRetroMutation = useMutation({
     mutationFn: async (sprintId: string | null) => {
-      return apiRequest(`/api/backlogs/${backlogId}/retros`, "POST", { sprintId });
+      const res = await apiRequest(`/api/backlogs/${backlogId}/retros`, "POST", { sprintId });
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: Retro) => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
       setCreateDialogOpen(false);
       setSelectedSprintId("");
       toast({ title: "Rétrospective créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      // Auto-redirect to the new retro
+      setSelectedRetroId(data.id);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -2403,6 +2441,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
               <tr>
                 <th className="px-4 py-2 text-left text-xs font-medium">N°</th>
                 <th className="px-4 py-2 text-left text-xs font-medium">Sprint</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Cartes</th>
                 <th className="px-4 py-2 text-left text-xs font-medium">Date de création</th>
                 <th className="px-4 py-2 text-left text-xs font-medium">Statut</th>
               </tr>
@@ -2420,6 +2459,11 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm">{retro.sprint?.name || '-'}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant="outline" className="text-xs">
+                      {retro.cardCount || 0}
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-muted-foreground">
@@ -2452,6 +2496,18 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     not_worked: '',
     to_improve: ''
   });
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [localCards, setLocalCards] = useState<RetroCard[]>([]);
+
+  // Sensors with activation constraint for smoother drag
+  const retroSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px of movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Fetch retro details
   const { data: retro, isLoading: retroLoading } = useQuery<Retro & { sprint?: Sprint }>({
@@ -2471,12 +2527,18 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     },
   });
 
+  // Sync local cards with fetched cards
+  useEffect(() => {
+    setLocalCards(cards);
+  }, [cards]);
+
   const createCardMutation = useMutation({
     mutationFn: async ({ column, content }: { column: string; content: string }) => {
       return apiRequest(`/api/retros/${retroId}/cards`, "POST", { column, content });
     },
     onSuccess: (_, { column }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
       setNewCardContent(prev => ({ ...prev, [column]: '' }));
       toast({ title: "Carte ajoutée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
@@ -2489,8 +2551,13 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any) => {
+      // Revert optimistic update on error
+      setLocalCards(cards);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
   });
 
   const deleteCardMutation = useMutation({
@@ -2522,20 +2589,41 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     { id: 'to_improve', title: 'À améliorer', color: 'bg-yellow-500' }
   ];
 
-  const handleDragEnd = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
 
-    const cardId = active.id;
-    const targetColumn = over.id;
+    const cardId = active.id as string;
+    let targetColumn = over.id as string;
+    
+    // If dropped on another card, get that card's column
+    const overCard = localCards.find(c => c.id === targetColumn);
+    if (overCard) {
+      targetColumn = overCard.column;
+    }
+    
+    // Validate target column is one of our columns
+    if (!columns.some(c => c.id === targetColumn)) return;
     
     // Find the card
-    const card = cards.find(c => c.id === cardId);
+    const card = localCards.find(c => c.id === cardId);
     if (!card || card.column === targetColumn) return;
 
-    // Update the card's column
+    // Optimistic update - update local state immediately
+    setLocalCards(prev => prev.map(c => 
+      c.id === cardId ? { ...c, column: targetColumn } : c
+    ));
+
+    // Then sync with server
     updateCardMutation.mutate({ cardId, column: targetColumn });
   };
+
+  const activeCard = activeId ? localCards.find(c => c.id === activeId) : null;
 
   if (retroLoading) {
     return (
@@ -2580,10 +2668,15 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
         )}
       </div>
 
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext 
+        sensors={retroSensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex gap-4 overflow-x-auto pb-4" data-testid="retro-kanban">
           {columns.map(column => {
-            const columnCards = cards.filter(c => c.column === column.id);
+            const columnCards = localCards.filter(c => c.column === column.id);
             return (
               <RetroColumn
                 key={column.id}
@@ -2599,6 +2692,13 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
             );
           })}
         </div>
+        <DragOverlay>
+          {activeCard ? (
+            <Card className="p-3 shadow-lg opacity-90 rotate-3">
+              <p className="text-sm">{activeCard.content}</p>
+            </Card>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
   );

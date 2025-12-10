@@ -89,6 +89,7 @@ interface TicketDetailPanelProps {
   onUpdate: (ticketId: string, type: TicketType, data: Record<string, any>) => void;
   onDelete: (ticketId: string, type: TicketType) => void;
   onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
+  readOnly?: boolean;
 }
 
 export function TicketDetailPanel({ 
@@ -99,7 +100,8 @@ export function TicketDetailPanel({
   onClose, 
   onUpdate,
   onDelete,
-  onConvertType
+  onConvertType,
+  readOnly = false
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
@@ -217,65 +219,81 @@ export function TicketDetailPanel({
   return (
     <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 hover:opacity-80 cursor-pointer" data-testid="button-change-type">
-              <div 
-                className="flex items-center justify-center h-6 w-6 rounded"
-                style={{ backgroundColor: typeColor }}
+        {readOnly ? (
+          <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center justify-center h-6 w-6 rounded"
+              style={{ backgroundColor: typeColor }}
+            >
+              <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {ticketTypeLabel(ticket.type)}
+            </span>
+          </div>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 hover:opacity-80 cursor-pointer" data-testid="button-change-type">
+                <div 
+                  className="flex items-center justify-center h-6 w-6 rounded"
+                  style={{ backgroundColor: typeColor }}
+                >
+                  <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {ticketTypeLabel(ticket.type)}
+                </span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white dark:bg-white">
+              <DropdownMenuItem 
+                onClick={() => ticket.type !== "epic" && onConvertType?.(ticket.id, ticket.type, "epic")}
+                className={cn("text-gray-900", ticket.type === "epic" && "opacity-50")}
+                disabled={ticket.type === "epic"}
               >
-                <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">
-                {ticketTypeLabel(ticket.type)}
-              </span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="bg-white dark:bg-white">
-            <DropdownMenuItem 
-              onClick={() => ticket.type !== "epic" && onConvertType?.(ticket.id, ticket.type, "epic")}
-              className={cn("text-gray-900", ticket.type === "epic" && "opacity-50")}
-              disabled={ticket.type === "epic"}
-            >
-              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
-                <Layers className="h-3 w-3 text-white" />
-              </div>
-              Epic
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => ticket.type !== "user_story" && onConvertType?.(ticket.id, ticket.type, "user_story")}
-              className={cn("text-gray-900", ticket.type === "user_story" && "opacity-50")}
-              disabled={ticket.type === "user_story"}
-            >
-              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
-                <BookOpen className="h-3 w-3 text-white" />
-              </div>
-              User Story
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => ticket.type !== "task" && onConvertType?.(ticket.id, ticket.type, "task")}
-              className={cn("text-gray-900", ticket.type === "task" && "opacity-50")}
-              disabled={ticket.type === "task"}
-            >
-              <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
-                <ListTodo className="h-3 w-3 text-white" />
-              </div>
-              Task
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-purple-500">
+                  <Layers className="h-3 w-3 text-white" />
+                </div>
+                Epic
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => ticket.type !== "user_story" && onConvertType?.(ticket.id, ticket.type, "user_story")}
+                className={cn("text-gray-900", ticket.type === "user_story" && "opacity-50")}
+                disabled={ticket.type === "user_story"}
+              >
+                <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-green-500">
+                  <BookOpen className="h-3 w-3 text-white" />
+                </div>
+                User Story
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => ticket.type !== "task" && onConvertType?.(ticket.id, ticket.type, "task")}
+                className={cn("text-gray-900", ticket.type === "task" && "opacity-50")}
+                disabled={ticket.type === "task"}
+              >
+                <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-blue-500">
+                  <ListTodo className="h-3 w-3 text-white" />
+                </div>
+                Task
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         
         <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => onDelete(ticket.id, ticket.type)}
-            data-testid="button-delete-ticket"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {!readOnly && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => onDelete(ticket.id, ticket.type)}
+              data-testid="button-delete-ticket"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -290,7 +308,7 @@ export function TicketDetailPanel({
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div>
-          {isEditingTitle ? (
+          {!readOnly && isEditingTitle ? (
             <Input
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
@@ -308,8 +326,11 @@ export function TicketDetailPanel({
             />
           ) : (
             <h2 
-              className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
-              onClick={() => setIsEditingTitle(true)}
+              className={cn(
+                "text-lg font-semibold",
+                !readOnly && "cursor-pointer hover:text-primary transition-colors"
+              )}
+              onClick={() => !readOnly && setIsEditingTitle(true)}
               data-testid="text-ticket-title"
             >
               {ticket.title}
@@ -320,14 +341,20 @@ export function TicketDetailPanel({
         {/* Description - moved under title */}
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground">Description</Label>
-          <Textarea
-            value={editedDescription}
-            onChange={(e) => setEditedDescription(e.target.value)}
-            onBlur={handleSaveDescription}
-            placeholder="Ajoutez une description..."
-            className="min-h-[100px] resize-none"
-            data-testid="textarea-description"
-          />
+          {readOnly ? (
+            <div className="text-sm text-muted-foreground min-h-[60px] p-3 bg-muted/30 rounded-md whitespace-pre-wrap">
+              {ticket.description || "Aucune description"}
+            </div>
+          ) : (
+            <Textarea
+              value={editedDescription}
+              onChange={(e) => setEditedDescription(e.target.value)}
+              onBlur={handleSaveDescription}
+              placeholder="Ajoutez une description..."
+              className="min-h-[100px] resize-none"
+              data-testid="textarea-description"
+            />
+          )}
         </div>
         
         <Separator />
@@ -380,8 +407,9 @@ export function TicketDetailPanel({
             <Select
               value={ticket.priority || "medium"}
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { priority: value })}
+              disabled={readOnly}
             >
-              <SelectTrigger className="w-[140px] h-8" data-testid="select-priority">
+              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-priority">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-white">
@@ -402,8 +430,9 @@ export function TicketDetailPanel({
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
                 assigneeId: value === "none" ? null : value 
               })}
+              disabled={readOnly}
             >
-              <SelectTrigger className="w-[140px] h-8" data-testid="select-assignee">
+              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-assignee">
                 <SelectValue placeholder="Non assigné">
                   {assignee ? (
                     <div className="flex items-center gap-2">
@@ -439,8 +468,9 @@ export function TicketDetailPanel({
                 onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
                   reporterId: value === "none" ? null : value 
                 })}
+                disabled={readOnly}
               >
-                <SelectTrigger className="w-[140px] h-8" data-testid="select-reporter">
+                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-reporter">
                   <SelectValue placeholder="Non défini">
                     {reporter ? (
                       <div className="flex items-center gap-2">
@@ -477,8 +507,9 @@ export function TicketDetailPanel({
                 onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
                   estimatePoints: parseFloat(value) || null 
                 })}
+                disabled={readOnly}
               >
-                <SelectTrigger className="w-[140px] h-8" data-testid="select-points">
+                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-points">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-white">
@@ -502,8 +533,9 @@ export function TicketDetailPanel({
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
                 sprintId: value === "backlog" ? null : value 
               })}
+              disabled={readOnly}
             >
-              <SelectTrigger className="w-[140px] h-8" data-testid="select-sprint">
+              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-sprint">
                 <SelectValue>
                   {currentSprint?.name || "Backlog"}
                 </SelectValue>
@@ -530,8 +562,9 @@ export function TicketDetailPanel({
                 onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
                   epicId: value === "none" ? null : value 
                 })}
+                disabled={readOnly}
               >
-                <SelectTrigger className="w-[140px] h-8" data-testid="select-epic">
+                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-epic">
                   <SelectValue>
                     {parentEpic?.title || "Aucun"}
                   </SelectValue>
@@ -551,6 +584,15 @@ export function TicketDetailPanel({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+          
+          {/* Read-only notice */}
+          {readOnly && (
+            <div className="mt-2 p-2 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+              <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                Ce ticket est terminé. Changez son état pour le modifier.
+              </p>
             </div>
           )}
         </div>

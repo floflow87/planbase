@@ -73,7 +73,7 @@ import { getDemoCredentials } from "./middleware/demo-helper";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
-import { eq, and, asc, desc, not } from "drizzle-orm";
+import { eq, and, asc, desc, not, sql, inArray } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -5009,9 +5009,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(and(eq(retros.backlogId, backlogId), eq(retros.accountId, accountId)))
         .orderBy(desc(retros.createdAt));
       
+      // Get card counts for all retros
+      const retroIds = retroList.map(r => r.retro.id);
+      const cardCounts: Record<string, number> = {};
+      
+      if (retroIds.length > 0) {
+        const counts = await db.select({
+          retroId: retroCards.retroId,
+          count: sql<number>`count(*)::int`,
+        })
+          .from(retroCards)
+          .where(inArray(retroCards.retroId, retroIds))
+          .groupBy(retroCards.retroId);
+        
+        counts.forEach(c => {
+          cardCounts[c.retroId] = c.count;
+        });
+      }
+      
       res.json(retroList.map(r => ({
         ...r.retro,
         sprint: r.sprint,
+        cardCount: cardCounts[r.retro.id] || 0,
       })));
     } catch (error: any) {
       res.status(400).json({ error: error.message });

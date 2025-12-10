@@ -31,6 +31,8 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -174,14 +176,20 @@ interface TicketRowProps {
   sprints?: Sprint[];
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
   isSelected?: boolean;
   isDraggable?: boolean;
 }
 
-export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const isCompleted = ticket.state === "termine";
+  
+  const [pointsPopoverOpen, setPointsPopoverOpen] = useState(false);
+  const [priorityPopoverOpen, setPriorityPopoverOpen] = useState(false);
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `ticket-${ticket.type}-${ticket.id}`,
@@ -223,13 +231,97 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onT
         {ticket.title}
       </span>
       
-      {ticket.estimatePoints !== undefined && ticket.estimatePoints !== null && ticket.estimatePoints > 0 && (
-        <Badge variant="outline" className="text-xs px-1.5 cursor-pointer" data-testid={`ticket-points-${ticket.id}`}>
-          {ticket.estimatePoints}
+      {/* Inline Points Editor with Tooltip */}
+      {onUpdateField && !isCompleted ? (
+        <Popover open={pointsPopoverOpen} onOpenChange={setPointsPopoverOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className="text-xs px-1.5 cursor-pointer hover:bg-muted"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`ticket-points-${ticket.id}`}
+                >
+                  {ticket.estimatePoints || "-"}
+                </Badge>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+              <p className="text-xs">Cliquez pour modifier les points d'estimation</p>
+            </TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-28 p-2 bg-white" align="center" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700 mb-2">Points</p>
+              {[0.25, 0.5, 1, 2, 3, 5, 8, 13].map(pts => (
+                <Button
+                  key={pts}
+                  variant={ticket.estimatePoints === pts ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full h-7 text-xs justify-start"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateField(ticket.id, ticket.type, "estimatePoints", pts);
+                    setPointsPopoverOpen(false);
+                  }}
+                >
+                  {pts} pts
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <Badge variant="outline" className="text-xs px-1.5" data-testid={`ticket-points-${ticket.id}`}>
+          {ticket.estimatePoints || "-"}
         </Badge>
       )}
       
-      {ticket.priority && getPriorityIcon(ticket.priority)}
+      {/* Inline Priority Editor with Tooltip */}
+      {onUpdateField && !isCompleted ? (
+        <Popover open={priorityPopoverOpen} onOpenChange={setPriorityPopoverOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <div 
+                  className="cursor-pointer hover:opacity-80 p-0.5 rounded hover:bg-muted"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`ticket-priority-${ticket.id}`}
+                >
+                  {getPriorityIcon(ticket.priority)}
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+              <p className="text-xs">Cliquez pour modifier la priorité</p>
+            </TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-36 p-2 bg-white" align="center" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700 mb-2">Priorité</p>
+              {backlogPriorityOptions.map(opt => (
+                <Button
+                  key={opt.value}
+                  variant={ticket.priority === opt.value ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full h-7 text-xs justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateField(ticket.id, ticket.type, "priority", opt.value);
+                    setPriorityPopoverOpen(false);
+                  }}
+                >
+                  <PriorityIcon priority={opt.value} className="h-3 w-3" />
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        getPriorityIcon(ticket.priority)
+      )}
       
       {/* Inline Status Dropdown */}
       {onUpdateState ? (
@@ -273,16 +365,88 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onT
         </Badge>
       )}
       
-      {assignee ? (
-        <Avatar className="h-6 w-6">
-          <AvatarFallback className="text-xs bg-primary/10">
-            {assignee.firstName?.charAt(0) || assignee.email?.charAt(0) || "?"}
-          </AvatarFallback>
-        </Avatar>
+      {/* Inline Assignee Editor with Tooltip */}
+      {onUpdateField && !isCompleted ? (
+        <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <div 
+                  className="cursor-pointer hover:opacity-80"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`ticket-assignee-${ticket.id}`}
+                >
+                  {assignee ? (
+                    <Avatar className="h-6 w-6 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+                      <AvatarFallback className="text-xs bg-primary/10">
+                        {assignee.firstName?.charAt(0) || assignee.email?.charAt(0) || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary/50 transition-colors">
+                      <User className="h-3 w-3 text-muted-foreground/50" />
+                    </div>
+                  )}
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+              <p className="text-xs">Cliquez pour assigner un collaborateur</p>
+            </TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-48 p-2 bg-white max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700 mb-2">Assigner à</p>
+              <Button
+                variant={!ticket.assigneeId ? "default" : "ghost"}
+                size="sm"
+                className="w-full h-7 text-xs justify-start gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateField(ticket.id, ticket.type, "assigneeId", null);
+                  setAssigneePopoverOpen(false);
+                }}
+              >
+                <User className="h-3 w-3" />
+                Non assigné
+              </Button>
+              {users?.map(user => (
+                <Button
+                  key={user.id}
+                  variant={ticket.assigneeId === user.id ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full h-7 text-xs justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateField(ticket.id, ticket.type, "assigneeId", user.id);
+                    setAssigneePopoverOpen(false);
+                  }}
+                >
+                  <Avatar className="h-4 w-4">
+                    <AvatarFallback className="text-[10px]">
+                      {user.firstName?.charAt(0) || user.email?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">
+                    {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       ) : (
-        <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-          <User className="h-3 w-3 text-muted-foreground/50" />
-        </div>
+        assignee ? (
+          <Avatar className="h-6 w-6">
+            <AvatarFallback className="text-xs bg-primary/10">
+              {assignee.firstName?.charAt(0) || assignee.email?.charAt(0) || "?"}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="h-6 w-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+            <User className="h-3 w-3 text-muted-foreground/50" />
+          </div>
+        )
       )}
       
       {/* Actions Menu */}
@@ -522,6 +686,7 @@ interface SprintSectionProps {
   onCompleteSprint?: (sprintId: string) => void;
   onEditSprint?: (sprint: Sprint) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
 }
@@ -539,6 +704,7 @@ export function SprintSection({
   onCompleteSprint,
   onEditSprint,
   onUpdateState,
+  onUpdateField,
   onTicketAction,
   selectedTicketId
 }: SprintSectionProps) {
@@ -662,6 +828,7 @@ export function SprintSection({
                 sprints={sprints}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
+                onUpdateField={onUpdateField}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
               />
@@ -762,6 +929,7 @@ interface BacklogPoolProps {
   onSelectTicket: (ticket: FlatTicket) => void;
   onCreateTicket: (type: TicketType, title: string) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
+  onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
 }
@@ -775,6 +943,7 @@ export function BacklogPool({
   onSelectTicket, 
   onCreateTicket,
   onUpdateState,
+  onUpdateField,
   onTicketAction,
   selectedTicketId
 }: BacklogPoolProps) {
@@ -843,6 +1012,7 @@ export function BacklogPool({
                 sprints={sprints}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
+                onUpdateField={onUpdateField}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
               />
