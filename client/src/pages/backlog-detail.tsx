@@ -52,7 +52,7 @@ import type {
 } from "@shared/schema";
 import { 
   backlogItemStateOptions, backlogPriorityOptions, complexityOptions, 
-  sprintStatusOptions 
+  sprintStatusOptions, backlogModeOptions, type BacklogMode
 } from "@shared/schema";
 import { 
   SprintSection, 
@@ -108,9 +108,18 @@ export default function BacklogDetail() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("state");
   const [ticketSearch, setTicketSearch] = useState<string>("");
+  
+  // New backlog form state
+  const [newBacklogName, setNewBacklogName] = useState("");
+  const [newBacklogDescription, setNewBacklogDescription] = useState("");
+  const [newBacklogMode, setNewBacklogMode] = useState<BacklogMode>("scrum");
+  const [newBacklogProjectId, setNewBacklogProjectId] = useState<string | null>(null);
+  
+  const isCreatingNew = id === "new";
 
   const { data: backlog, isLoading } = useQuery<BacklogData>({
     queryKey: ["/api/backlogs", id],
+    enabled: !isCreatingNew,
   });
 
   // Fetch account users for assignee/reporter selectors
@@ -141,6 +150,19 @@ export default function BacklogDetail() {
       document.title = 'PlanBase';
     };
   }, [backlog?.name]);
+
+  // Create new backlog mutation
+  const createBacklogMutation = useMutation({
+    mutationFn: async (data: { name: string; description?: string; mode: BacklogMode; projectId?: string | null }) => {
+      return apiRequest("/api/backlogs", "POST", data);
+    },
+    onSuccess: (newBacklog: Backlog) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+      toast({ title: "Backlog créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      navigate(`/product/backlog/${newBacklog.id}`);
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
 
   const createEpicMutation = useMutation({
     mutationFn: async (data: { title: string; description?: string; priority?: string; color?: string }) => {
@@ -879,10 +901,138 @@ export default function BacklogDetail() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !isCreatingNew) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show creation form when id is "new"
+  if (isCreatingNew) {
+    const handleCreateBacklog = () => {
+      if (!newBacklogName.trim()) {
+        toast({ title: "Erreur", description: "Le nom est requis", variant: "destructive" });
+        return;
+      }
+      createBacklogMutation.mutate({
+        name: newBacklogName,
+        description: newBacklogDescription || undefined,
+        mode: newBacklogMode,
+        projectId: newBacklogProjectId,
+      });
+    };
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center gap-4 p-4 md:p-6 border-b">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/product")} data-testid="button-back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold" data-testid="text-page-title">Nouveau Backlog</h1>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle>Créer un nouveau backlog</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Mode selection */}
+              <div className="space-y-2">
+                <Label>Mode de gestion</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {backlogModeOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                        newBacklogMode === option.value
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                      onClick={() => setNewBacklogMode(option.value as BacklogMode)}
+                      data-testid={`button-mode-${option.value}`}
+                    >
+                      {option.value === "kanban" ? (
+                        <Layers className="h-8 w-8 mb-2 text-primary" />
+                      ) : (
+                        <ListTodo className="h-8 w-8 mb-2 text-primary" />
+                      )}
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground text-center mt-1">
+                        {option.value === "kanban" 
+                          ? "Gestion visuelle par colonnes"
+                          : "Gestion par sprints et itérations"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div className="space-y-2">
+                <Label>Nom *</Label>
+                <Input 
+                  value={newBacklogName} 
+                  onChange={(e) => setNewBacklogName(e.target.value)} 
+                  placeholder="Nom du backlog"
+                  data-testid="input-backlog-name"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea 
+                  value={newBacklogDescription} 
+                  onChange={(e) => setNewBacklogDescription(e.target.value)} 
+                  placeholder="Description (optionnel)"
+                  rows={3}
+                  data-testid="input-backlog-description"
+                />
+              </div>
+
+              {/* Project */}
+              <div className="space-y-2">
+                <Label>Projet (optionnel)</Label>
+                <Select 
+                  value={newBacklogProjectId || "none"} 
+                  onValueChange={(v) => setNewBacklogProjectId(v === "none" ? null : v)}
+                >
+                  <SelectTrigger data-testid="select-backlog-project">
+                    <SelectValue placeholder="Sélectionner un projet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun projet</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <Folder className="h-3 w-3" />
+                          {project.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => navigate("/product")} data-testid="button-cancel">
+                  Annuler
+                </Button>
+                <Button 
+                  onClick={handleCreateBacklog} 
+                  disabled={createBacklogMutation.isPending || !newBacklogName.trim()}
+                  data-testid="button-create"
+                >
+                  {createBacklogMutation.isPending ? "Création..." : "Créer le backlog"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -936,7 +1086,7 @@ export default function BacklogDetail() {
         <div className="px-4 md:px-6 border-b">
           <TabsList className="h-10">
             <TabsTrigger value="backlog" className="text-sm" data-testid="tab-backlog">
-              {backlog.name || "Backlog"}
+              Backlog
             </TabsTrigger>
             <TabsTrigger value="done" className="text-sm" data-testid="tab-done">
               Tickets terminés
@@ -1608,38 +1758,38 @@ function EpicDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{epic ? "Modifier l'Epic" : "Nouvel Epic"}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+        <SheetHeader>
+          <SheetTitle className="text-gray-900">{epic ? "Modifier l'Epic" : "Nouvel Epic"}</SheetTitle>
+        </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de l'epic" data-testid="input-epic-title" />
+            <Label className="text-gray-700">Titre *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre de l'epic" className="bg-white text-gray-900 border-gray-300" data-testid="input-epic-title" />
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} data-testid="input-epic-description" />
+            <Label className="text-gray-700">Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="bg-white text-gray-900 border-gray-300" data-testid="input-epic-description" />
           </div>
           <div className="space-y-2">
-            <Label>Priorité</Label>
+            <Label className="text-gray-700">Priorité</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger data-testid="select-epic-priority"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-epic-priority"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-white">
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Couleur</Label>
+            <Label className="text-gray-700">Couleur</Label>
             <div className="flex gap-2">
               {colors.map((c, i) => (
                 <button
                   key={c}
-                  className={`h-6 w-6 rounded-full border-2 ${color === c ? "border-foreground" : "border-transparent"}`}
+                  className={`h-6 w-6 rounded-full border-2 ${color === c ? "border-gray-900" : "border-transparent"}`}
                   style={{ backgroundColor: c }}
                   onClick={() => setColor(c)}
                   data-testid={`button-epic-color-${i}`}
@@ -1648,14 +1798,14 @@ function EpicDialog({
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} data-testid="button-cancel-epic">Annuler</Button>
+        <SheetFooter className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={onClose} className="text-gray-700" data-testid="button-cancel-epic">Annuler</Button>
           <Button onClick={handleSubmit} disabled={isPending || !title.trim()} data-testid="button-submit-epic">
             {isPending ? "..." : epic ? "Enregistrer" : "Créer"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -1734,40 +1884,40 @@ function UserStoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+        <SheetHeader>
+          <SheetTitle className="text-gray-900">{userStory ? "Modifier la User Story" : "Nouvelle User Story"}</SheetTitle>
+        </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Titre *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="En tant que..." data-testid="input-userstory-title" />
+            <Label className="text-gray-700">Titre *</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="En tant que..." className="bg-white text-gray-900 border-gray-300" data-testid="input-userstory-title" />
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} data-testid="input-userstory-description" />
+            <Label className="text-gray-700">Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="bg-white text-gray-900 border-gray-300" data-testid="input-userstory-description" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Epic</Label>
+              <Label className="text-gray-700">Epic</Label>
               <Select value={epicId || "none"} onValueChange={(v) => setEpicId(v === "none" ? null : v)}>
-                <SelectTrigger data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-epic"><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
                   {epics.map(epic => (
-                    <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                    <SelectItem key={epic.id} value={epic.id} className="text-gray-900">{epic.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Priorité</Label>
+              <Label className="text-gray-700">Priorité</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger data-testid="select-userstory-priority"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-priority"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white">
                   {backlogPriorityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1775,37 +1925,38 @@ function UserStoryDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Complexité</Label>
+              <Label className="text-gray-700">Complexité</Label>
               <Select value={complexity || "none"} onValueChange={(v) => setComplexity(v === "none" ? null : v)}>
-                <SelectTrigger data-testid="select-userstory-complexity"><SelectValue placeholder="--" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">--</SelectItem>
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-userstory-complexity"><SelectValue placeholder="--" /></SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="none" className="text-gray-900">--</SelectItem>
                   {complexityOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Story Points</Label>
+              <Label className="text-gray-700">Story Points</Label>
               <Input 
                 type="number" 
                 value={estimatePoints ?? ""} 
                 onChange={(e) => setEstimatePoints(e.target.value ? parseInt(e.target.value) : null)} 
                 min={0}
+                className="bg-white text-gray-900 border-gray-300"
                 data-testid="input-userstory-points"
               />
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} data-testid="button-cancel-userstory">Annuler</Button>
+        <SheetFooter className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={onClose} className="text-gray-700" data-testid="button-cancel-userstory">Annuler</Button>
           <Button onClick={handleSubmit} disabled={isPending || !title.trim()} data-testid="button-submit-userstory">
             {isPending ? "..." : userStory ? "Enregistrer" : "Créer"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

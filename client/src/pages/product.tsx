@@ -162,7 +162,7 @@ export default function Product() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 md:p-6 border-b">
+      <div className="flex items-center justify-end p-4 md:p-6 border-b">
         <div className="flex items-center gap-2" data-testid="container-backlog-actions">
           <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
             <Button 
@@ -184,7 +184,7 @@ export default function Product() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-backlog">
+          <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog">
             <Plus className="h-4 w-4 mr-2" />
             Nouveau Backlog
           </Button>
@@ -201,7 +201,7 @@ export default function Product() {
             <p className="text-muted-foreground mb-4 max-w-md">
               Créez votre premier backlog pour commencer à organiser vos epics, user stories et tâches.
             </p>
-            <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-first-backlog">
+            <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-first-backlog">
               <Plus className="h-4 w-4 mr-2" />
               Créer un backlog
             </Button>
