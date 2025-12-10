@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment } from "@shared/schema";
-import { billingStatusOptions } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog } from "@shared/schema";
+import { billingStatusOptions, backlogModeOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -693,6 +693,22 @@ export default function ProjectDetail() {
   const totalPaid = paymentsData?.totalPaid || 0;
   const remainingAmount = paymentsData?.remainingAmount || 0;
 
+  // Fetch all backlogs and filter by projectId
+  interface BacklogWithDetails extends Backlog {
+    ticketCounts?: { todo: number; inProgress: number; done: number; total: number };
+    activeSprint?: { id: string; name: string } | null;
+    creator?: { id: string; firstName?: string; lastName?: string; email: string } | null;
+  }
+  const { data: allBacklogs = [] } = useQuery<BacklogWithDetails[]>({
+    queryKey: ['/api/backlogs'],
+    enabled: !!id,
+  });
+  
+  // Filter backlogs linked to this project
+  const projectBacklogs = useMemo(() => {
+    return allBacklogs.filter((b) => b.projectId === id);
+  }, [allBacklogs, id]);
+
   // Initialize billing fields when project loads
   useEffect(() => {
     if (project) {
@@ -1225,6 +1241,13 @@ export default function ProjectDetail() {
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="backlogs" className="gap-2 text-xs" data-testid="tab-backlogs">
+              <FolderKanban className="h-4 w-4" />
+              Backlogs
+              <Badge variant="secondary" className="ml-1" data-testid="backlogs-count">
+                {projectBacklogs.length}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="billing" className="gap-2 text-xs" data-testid="tab-billing">
               <DollarSign className="h-4 w-4" />
               Facturation
@@ -1445,6 +1468,78 @@ export default function ProjectDetail() {
                         </div>
                       </Link>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="backlogs" className="mt-0">
+            <Card>
+              <CardContent className="pt-6">
+                {projectBacklogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-[12px]">
+                    Aucun backlog associé à ce projet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {projectBacklogs.map((backlog) => {
+                      const todoCount = backlog.ticketCounts?.todo || 0;
+                      const inProgressCount = backlog.ticketCounts?.inProgress || 0;
+                      const doneCount = backlog.ticketCounts?.done || 0;
+                      const creatorName = backlog.creator 
+                        ? (backlog.creator.firstName && backlog.creator.lastName 
+                            ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
+                            : backlog.creator.email)
+                        : null;
+                      const modeLabel = backlogModeOptions.find(m => m.value === backlog.mode)?.label || backlog.mode;
+                      
+                      return (
+                        <Link key={backlog.id} href={`/backlogs/${backlog.id}`}>
+                          <div 
+                            className="p-4 border rounded-md hover-elevate cursor-pointer" 
+                            data-testid={`backlog-${backlog.id}`}
+                          >
+                            <div className="flex items-start justify-between gap-3 flex-wrap">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-sm font-medium" data-testid={`title-backlog-${backlog.id}`}>
+                                    {backlog.name}
+                                  </h4>
+                                  <Badge variant="outline" className="text-xs">
+                                    {modeLabel}
+                                  </Badge>
+                                  {backlog.activeSprint && (
+                                    <Badge className="text-xs bg-violet-600 text-white">
+                                      Sprint: {backlog.activeSprint.name}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                    {todoCount} à faire
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                    {inProgressCount} en cours
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                    {doneCount} terminé
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 text-[11px] text-muted-foreground">
+                                  {creatorName && (
+                                    <span>Créé par {creatorName}</span>
+                                  )}
+                                  {backlog.createdAt && (
+                                    <span>le {format(new Date(backlog.createdAt), "dd MMM yyyy", { locale: fr })}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
