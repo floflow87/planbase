@@ -4994,27 +4994,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // RETROSPECTIVES
   // ============================================
 
-  // Get or create retro for a backlog
-  app.get("/api/backlogs/:backlogId/retro", requireAuth, async (req, res) => {
+  // List all retros for a backlog
+  app.get("/api/backlogs/:backlogId/retros", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const retroList = await db.select({
+        retro: retros,
+        sprint: sprints,
+      })
+        .from(retros)
+        .leftJoin(sprints, eq(retros.sprintId, sprints.id))
+        .where(and(eq(retros.backlogId, backlogId), eq(retros.accountId, accountId)))
+        .orderBy(desc(retros.createdAt));
+      
+      res.json(retroList.map(r => ({
+        ...r.retro,
+        sprint: r.sprint,
+      })));
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create new retro for a sprint
+  app.post("/api/backlogs/:backlogId/retros", requireAuth, async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
       const backlogId = req.params.backlogId;
+      const { sprintId } = req.body;
       
-      // Check if retro exists for this backlog
-      let [retro] = await db.select().from(retros)
+      // Get next number for this backlog
+      const existingRetros = await db.select().from(retros)
         .where(and(eq(retros.backlogId, backlogId), eq(retros.accountId, accountId)));
+      const nextNumber = existingRetros.length + 1;
       
-      // Create if doesn't exist
-      if (!retro) {
-        [retro] = await db.insert(retros).values({
-          accountId,
-          backlogId,
-          createdBy: userId,
-        }).returning();
+      const [retro] = await db.insert(retros).values({
+        accountId,
+        backlogId,
+        sprintId: sprintId || null,
+        number: nextNumber,
+        status: "en_cours",
+        createdBy: userId,
+      }).returning();
+      
+      res.status(201).json(retro);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get single retro
+  app.get("/api/retros/:retroId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const retroId = req.params.retroId;
+      
+      const [result] = await db.select({
+        retro: retros,
+        sprint: sprints,
+      })
+        .from(retros)
+        .leftJoin(sprints, eq(retros.sprintId, sprints.id))
+        .where(and(eq(retros.id, retroId), eq(retros.accountId, accountId)));
+      
+      if (!result) {
+        return res.status(404).json({ error: "Retro not found" });
       }
       
-      res.json(retro);
+      res.json({
+        ...result.retro,
+        sprint: result.sprint,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update retro (status, etc.)
+  app.patch("/api/retros/:retroId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const retroId = req.params.retroId;
+      const { status } = req.body;
+      
+      const [updated] = await db.update(retros)
+        .set({ status, updatedAt: new Date() })
+        .where(and(eq(retros.id, retroId), eq(retros.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Retro not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete retro
+  app.delete("/api/retros/:retroId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const retroId = req.params.retroId;
+      
+      const [deleted] = await db.delete(retros)
+        .where(and(eq(retros.id, retroId), eq(retros.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Retro not found" });
+      }
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -5058,6 +5151,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).returning();
       
       res.status(201).json(card);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update retro card (for drag-drop column change)
+  app.patch("/api/retro-cards/:cardId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const cardId = req.params.cardId;
+      const { column, order } = req.body;
+      
+      const updateData: any = { updatedAt: new Date() };
+      if (column) updateData.column = column;
+      if (order !== undefined) updateData.order = order;
+      
+      const [updated] = await db.update(retroCards)
+        .set(updateData)
+        .where(and(eq(retroCards.id, cardId), eq(retroCards.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Card not found" });
+      }
+      res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -713,6 +713,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Retros backlog_id column added");
     
+    // Add number and status columns to retros table
+    await db.execute(sql`
+      ALTER TABLE retros ADD COLUMN IF NOT EXISTS number integer NOT NULL DEFAULT 1;
+    `);
+    await db.execute(sql`
+      ALTER TABLE retros ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'en_cours';
+    `);
+    console.log("✅ Retros number and status columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

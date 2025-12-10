@@ -951,15 +951,17 @@ export const backlogColumns = pgTable("backlog_columns", {
 export const retros = pgTable("retros", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   sprintId: uuid("sprint_id").references(() => sprints.id, { onDelete: "cascade" }),
-  backlogId: uuid("backlog_id").references(() => backlogs.id, { onDelete: "cascade" }),
+  number: integer("number").notNull().default(1),
+  status: text("status").notNull().default("en_cours"), // 'en_cours', 'termine'
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountIdx: index().on(table.accountId),
-  sprintIdx: index().on(table.sprintId),
   backlogIdx: index().on(table.backlogId),
+  sprintIdx: index().on(table.sprintId),
 }));
 
 // Retro Cards table
@@ -980,8 +982,8 @@ export const retroCards = pgTable("retro_cards", {
 
 // Retro column options
 export const retroColumnOptions = [
-  { value: "went_well", label: "Ce qui s'est bien passé", color: "#86EFAC", icon: "ThumbsUp" },
-  { value: "went_bad", label: "Ce qui s'est mal passé", color: "#FCA5A5", icon: "ThumbsDown" },
+  { value: "worked", label: "Ça a fonctionné", color: "#86EFAC", icon: "ThumbsUp" },
+  { value: "not_worked", label: "Ça n'a pas fonctionné", color: "#FCA5A5", icon: "ThumbsDown" },
   { value: "to_improve", label: "À améliorer", color: "#FDE047", icon: "Lightbulb" },
 ] as const;
 

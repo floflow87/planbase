@@ -5,12 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
-  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search
+  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -1166,7 +1166,7 @@ export default function BacklogDetail() {
 
         {/* Rétrospective tab */}
         <TabsContent value="retrospective" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
-          <RetrospectiveKanban backlogId={id!} />
+          <RetrospectiveView backlogId={id!} sprints={sprints || []} />
         </TabsContent>
       </Tabs>
 
@@ -2281,43 +2281,199 @@ function CompletedTicketsView({
   );
 }
 
-// Retrospective Kanban Component
-function RetrospectiveKanban({ backlogId }: { backlogId: string }) {
+// Retrospective List and Detail Component
+function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints: Sprint[] }) {
+  const { toast } = useToast();
+  const [selectedRetroId, setSelectedRetroId] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedSprintId, setSelectedSprintId] = useState<string>("");
+
+  // Fetch all retros for this backlog
+  const { data: retrosList = [], isLoading: retrosLoading } = useQuery<(Retro & { sprint?: Sprint })[]>({
+    queryKey: ["/api/backlogs", backlogId, "retros"],
+    queryFn: async () => {
+      const res = await apiRequest(`/api/backlogs/${backlogId}/retros`, "GET");
+      return res.json();
+    },
+  });
+
+  const createRetroMutation = useMutation({
+    mutationFn: async (sprintId: string | null) => {
+      return apiRequest(`/api/backlogs/${backlogId}/retros`, "POST", { sprintId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
+      setCreateDialogOpen(false);
+      setSelectedSprintId("");
+      toast({ title: "Rétrospective créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  if (retrosLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show detail view if a retro is selected
+  if (selectedRetroId) {
+    return (
+      <RetroKanbanDetail 
+        retroId={selectedRetroId} 
+        backlogId={backlogId}
+        onBack={() => setSelectedRetroId(null)} 
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4" data-testid="retro-list">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Rétrospectives</h3>
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" data-testid="button-create-retro">
+              <Plus className="h-4 w-4 mr-1" />
+              Nouvelle rétrospective
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nouvelle rétrospective</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Sprint associé (optionnel)</Label>
+                <Select value={selectedSprintId} onValueChange={setSelectedSprintId}>
+                  <SelectTrigger data-testid="select-sprint-for-retro">
+                    <SelectValue placeholder="Sélectionner un sprint" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun sprint</SelectItem>
+                    {sprints.map(sprint => (
+                      <SelectItem key={sprint.id} value={sprint.id}>
+                        {sprint.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Annuler</Button>
+              <Button 
+                onClick={() => createRetroMutation.mutate(selectedSprintId === "none" ? null : selectedSprintId || null)}
+                disabled={createRetroMutation.isPending}
+                data-testid="button-confirm-create-retro"
+              >
+                Créer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {retrosList.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>Aucune rétrospective</p>
+          <p className="text-sm mt-1">Créez une rétrospective pour commencer</p>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium">N°</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Sprint</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Date de création</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {retrosList.map(retro => (
+                <tr 
+                  key={retro.id}
+                  className="border-t hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setSelectedRetroId(retro.id)}
+                  data-testid={`row-retro-${retro.id}`}
+                >
+                  <td className="px-4 py-3">
+                    <span className="text-sm font-medium">#{retro.number}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm">{retro.sprint?.name || '-'}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-muted-foreground">
+                      {format(new Date(retro.createdAt), "dd/MM/yyyy", { locale: fr })}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge 
+                      variant={retro.status === 'termine' ? 'secondary' : 'default'}
+                      className={retro.status === 'termine' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}
+                    >
+                      {retro.status === 'termine' ? 'Terminé' : 'En cours'}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Retro Kanban Detail with Drag and Drop
+function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; backlogId: string; onBack: () => void }) {
   const { toast } = useToast();
   const [newCardContent, setNewCardContent] = useState<{ [key: string]: string }>({
-    went_well: '',
-    went_bad: '',
+    worked: '',
+    not_worked: '',
     to_improve: ''
   });
 
-  // Fetch retro for this backlog
-  const { data: retro, isLoading: retroLoading } = useQuery<Retro>({
-    queryKey: ["/api/backlogs", backlogId, "retro"],
+  // Fetch retro details
+  const { data: retro, isLoading: retroLoading } = useQuery<Retro & { sprint?: Sprint }>({
+    queryKey: ["/api/retros", retroId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/backlogs/${backlogId}/retro`, "GET");
+      const res = await apiRequest(`/api/retros/${retroId}`, "GET");
       return res.json();
     },
   });
 
   // Fetch retro cards
-  const { data: retroCards = [] } = useQuery<RetroCard[]>({
-    queryKey: ["/api/retros", retro?.id, "cards"],
+  const { data: cards = [] } = useQuery<RetroCard[]>({
+    queryKey: ["/api/retros", retroId, "cards"],
     queryFn: async () => {
-      if (!retro?.id) return [];
-      const res = await apiRequest(`/api/retros/${retro.id}/cards`, "GET");
+      const res = await apiRequest(`/api/retros/${retroId}/cards`, "GET");
       return res.json();
     },
-    enabled: !!retro?.id,
   });
 
   const createCardMutation = useMutation({
     mutationFn: async ({ column, content }: { column: string; content: string }) => {
-      return apiRequest(`/api/retros/${retro?.id}/cards`, "POST", { column, content });
+      return apiRequest(`/api/retros/${retroId}/cards`, "POST", { column, content });
     },
     onSuccess: (_, { column }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/retros", retro?.id, "cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
       setNewCardContent(prev => ({ ...prev, [column]: '' }));
       toast({ title: "Carte ajoutée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  const updateCardMutation = useMutation({
+    mutationFn: async ({ cardId, column }: { cardId: string; column: string }) => {
+      return apiRequest(`/api/retro-cards/${cardId}`, "PATCH", { column });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -2327,17 +2483,44 @@ function RetrospectiveKanban({ backlogId }: { backlogId: string }) {
       return apiRequest(`/api/retro-cards/${cardId}`, "DELETE");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/retros", retro?.id, "cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
       toast({ title: "Carte supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
+  const finishRetroMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/retros/${retroId}`, "PATCH", { status: "termine" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
+      toast({ title: "Rétrospective terminée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
   const columns = [
-    { id: 'went_well', title: 'Ce qui a bien marché', color: 'bg-green-500' },
-    { id: 'went_bad', title: 'Ce qui n\'a pas marché', color: 'bg-red-500' },
+    { id: 'worked', title: 'Ça a fonctionné', color: 'bg-green-500' },
+    { id: 'not_worked', title: 'Ça n\'a pas fonctionné', color: 'bg-red-500' },
     { id: 'to_improve', title: 'À améliorer', color: 'bg-yellow-500' }
   ];
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const cardId = active.id;
+    const targetColumn = over.id;
+    
+    // Find the card
+    const card = cards.find(c => c.id === cardId);
+    if (!card || card.column === targetColumn) return;
+
+    // Update the card's column
+    updateCardMutation.mutate({ cardId, column: targetColumn });
+  };
 
   if (retroLoading) {
     return (
@@ -2347,66 +2530,180 @@ function RetrospectiveKanban({ backlogId }: { backlogId: string }) {
     );
   }
 
+  const isFinished = retro?.status === 'termine';
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4" data-testid="retro-kanban">
-      {columns.map(column => {
-        const columnCards = retroCards.filter(c => c.column === column.id);
-        return (
-          <div 
-            key={column.id}
-            className="flex-shrink-0 w-80 rounded-lg p-4 bg-muted/50"
-            data-testid={`retro-column-${column.id}`}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div className={`h-3 w-3 rounded-full ${column.color}`} />
-              <h3 className="font-medium text-sm">{column.title}</h3>
-              <Badge variant="secondary" className="text-xs ml-auto">
-                {columnCards.length}
-              </Badge>
-            </div>
-
-            <div className="space-y-2 mb-4 min-h-[100px]">
-              {columnCards.map(card => (
-                <Card key={card.id} className="p-3" data-testid={`retro-card-${card.id}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm flex-1">{card.content}</p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 flex-shrink-0"
-                      onClick={() => deleteCardMutation.mutate(card.id)}
-                      data-testid={`button-delete-retro-card-${card.id}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <Textarea
-                placeholder="Ajouter une carte..."
-                value={newCardContent[column.id]}
-                onChange={(e) => setNewCardContent(prev => ({ ...prev, [column.id]: e.target.value }))}
-                rows={2}
-                className="text-sm"
-                data-testid={`input-retro-card-${column.id}`}
-              />
-              <Button
-                size="sm"
-                className="w-full"
-                disabled={!newCardContent[column.id]?.trim() || createCardMutation.isPending}
-                onClick={() => createCardMutation.mutate({ column: column.id, content: newCardContent[column.id] })}
-                data-testid={`button-add-retro-card-${column.id}`}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Ajouter
-              </Button>
-            </div>
+    <div className="space-y-4" data-testid="retro-kanban-detail">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} data-testid="button-back-to-retros">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h3 className="text-lg font-semibold">Rétrospective #{retro?.number}</h3>
+            {retro?.sprint && (
+              <p className="text-sm text-muted-foreground">Sprint: {retro.sprint.name}</p>
+            )}
           </div>
-        );
-      })}
+          <Badge 
+            variant={isFinished ? 'secondary' : 'default'}
+            className={isFinished ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}
+          >
+            {isFinished ? 'Terminé' : 'En cours'}
+          </Badge>
+        </div>
+        {!isFinished && (
+          <Button 
+            variant="outline" 
+            onClick={() => finishRetroMutation.mutate()}
+            disabled={finishRetroMutation.isPending}
+            data-testid="button-finish-retro"
+          >
+            <Check className="h-4 w-4 mr-1" />
+            Terminer
+          </Button>
+        )}
+      </div>
+
+      <DndContext onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4" data-testid="retro-kanban">
+          {columns.map(column => {
+            const columnCards = cards.filter(c => c.column === column.id);
+            return (
+              <RetroColumn
+                key={column.id}
+                column={column}
+                cards={columnCards}
+                isFinished={isFinished}
+                newCardContent={newCardContent[column.id]}
+                onNewCardChange={(value) => setNewCardContent(prev => ({ ...prev, [column.id]: value }))}
+                onAddCard={() => createCardMutation.mutate({ column: column.id, content: newCardContent[column.id] })}
+                onDeleteCard={(cardId) => deleteCardMutation.mutate(cardId)}
+                isAddingCard={createCardMutation.isPending}
+              />
+            );
+          })}
+        </div>
+      </DndContext>
     </div>
+  );
+}
+
+// Droppable Column for Retro Kanban
+function RetroColumn({ 
+  column, 
+  cards, 
+  isFinished,
+  newCardContent, 
+  onNewCardChange, 
+  onAddCard, 
+  onDeleteCard,
+  isAddingCard
+}: { 
+  column: { id: string; title: string; color: string };
+  cards: RetroCard[];
+  isFinished: boolean;
+  newCardContent: string;
+  onNewCardChange: (value: string) => void;
+  onAddCard: () => void;
+  onDeleteCard: (cardId: string) => void;
+  isAddingCard: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`flex-shrink-0 w-80 rounded-lg p-4 bg-muted/50 transition-colors ${isOver ? 'bg-muted' : ''}`}
+      data-testid={`retro-column-${column.id}`}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <div className={`h-3 w-3 rounded-full ${column.color}`} />
+        <h3 className="font-medium text-sm">{column.title}</h3>
+        <Badge variant="secondary" className="text-xs ml-auto">
+          {cards.length}
+        </Badge>
+      </div>
+
+      <div className="space-y-2 mb-4 min-h-[100px]">
+        <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          {cards.map(card => (
+            <DraggableRetroCard 
+              key={card.id} 
+              card={card} 
+              onDelete={onDeleteCard}
+              isFinished={isFinished}
+            />
+          ))}
+        </SortableContext>
+      </div>
+
+      {!isFinished && (
+        <div className="space-y-2">
+          <Textarea
+            placeholder="Ajouter une carte..."
+            value={newCardContent}
+            onChange={(e) => onNewCardChange(e.target.value)}
+            rows={2}
+            className="text-sm"
+            data-testid={`input-retro-card-${column.id}`}
+          />
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={!newCardContent?.trim() || isAddingCard}
+            onClick={onAddCard}
+            data-testid={`button-add-retro-card-${column.id}`}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Ajouter
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Draggable Card for Retro
+function DraggableRetroCard({ card, onDelete, isFinished }: { card: RetroCard; onDelete: (id: string) => void; isFinished: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
+    id: card.id,
+    disabled: isFinished,
+  });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 ${!isFinished ? 'cursor-grab' : ''}`}
+      data-testid={`retro-card-${card.id}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm flex-1">{card.content}</p>
+        {!isFinished && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(card.id);
+            }}
+            data-testid={`button-delete-retro-card-${card.id}`}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
