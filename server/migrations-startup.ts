@@ -209,7 +209,7 @@ export async function runStartupMigrations() {
         ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_kind_check;
         ALTER TABLE activities 
         ADD CONSTRAINT activities_kind_check 
-        CHECK (kind IN ('created','updated','deleted','email','call','meeting','note','task','file'));
+        CHECK (kind IN ('created','updated','deleted','email','call','meeting','note','task','file','custom'));
       EXCEPTION
         WHEN duplicate_object THEN
           NULL;
