@@ -357,10 +357,10 @@ export function TimeTracker() {
                   }}
                   disabled={isLoadingProjects}
                 >
-                  <SelectTrigger data-testid="select-project-after-stop">
+                  <SelectTrigger className="cursor-pointer" data-testid="select-project-after-stop">
                     <SelectValue placeholder="Aucun projet" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card">
                     <SelectItem value="none" data-testid="option-no-project">
                       Aucun projet
                     </SelectItem>
@@ -520,10 +520,10 @@ export function TimeTracker() {
                   onValueChange={setSelectedProjectId}
                   disabled={isLoadingProjects}
                 >
-                  <SelectTrigger data-testid="select-project">
+                  <SelectTrigger className="cursor-pointer" data-testid="select-project">
                     <SelectValue placeholder="Aucun projet" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card">
                     <SelectItem value="none" data-testid="option-no-project">
                       Aucun projet
                     </SelectItem>
