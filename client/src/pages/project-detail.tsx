@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2723,6 +2723,15 @@ export default function ProjectDetail() {
                         };
                         return colors[kind] || colors.custom;
                       };
+                      const getKindIcon = (kind: string) => {
+                        switch (kind) {
+                          case "email": return <Mail className="h-3 w-3" />;
+                          case "call": return <Phone className="h-3 w-3" />;
+                          case "meeting": return <Video className="h-3 w-3" />;
+                          case "note": return <StickyNote className="h-3 w-3" />;
+                          default: return <MoreHorizontal className="h-3 w-3" />;
+                        }
+                      };
 
                       return (
                         <div 
@@ -2733,7 +2742,8 @@ export default function ProjectDetail() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <Badge className={cn("text-xs", getKindColor(activity.kind))}>
+                                <Badge className={cn("text-xs flex items-center gap-1", getKindColor(activity.kind))}>
+                                  {getKindIcon(activity.kind)}
                                   {getKindLabel(activity.kind)}
                                 </Badge>
                                 {activity.occurredAt && (
@@ -2774,6 +2784,110 @@ export default function ProjectDetail() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Historique - Timeline du projet */}
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Historique</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {projectTasks.length === 0 && projectNotes.length === 0 && projectDocuments.length === 0 && !project ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    Aucun historique pour le moment
+                  </div>
+                ) : (
+                  <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+                    {[
+                      ...(project ? [{ ...project, _date: new Date(project.createdAt), _type: 'project_created' as const }] : []),
+                      ...projectTasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
+                      ...projectNotes.map((n) => ({ ...n, _date: new Date(n.createdAt), _type: 'note' as const })),
+                      ...projectDocuments.map((d) => ({ ...d, _date: new Date(d.createdAt), _type: 'document' as const })),
+                    ]
+                      .sort((a, b) => b._date.getTime() - a._date.getTime())
+                      .map((item) => {
+                        const author = users.find((u) => u.id === item.createdBy);
+                        
+                        if (item._type === 'project_created') {
+                          return (
+                            <div key="project-created" className="relative" data-testid="history-project-created">
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                <Briefcase className="w-3 h-3 text-primary-foreground" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">
+                                    {author?.firstName} {author?.lastName}
+                                  </span>{" "}
+                                  a créé le projet
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'task') {
+                          return (
+                            <div key={`task-${item.id}`} className="relative" data-testid={`history-task-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une tâche : {(item as Task).title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'note') {
+                          return (
+                            <div key={`note-${item.id}`} className="relative" data-testid={`history-note-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                                <StickyNote className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une note : {(item as Note).title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (item._type === 'document') {
+                          return (
+                            <div key={`document-${item.id}`} className="relative" data-testid={`history-document-${item.id}`}>
+                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                <FileText className="w-3 h-3 text-white" />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-foreground">
+                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un document : {(item as Document).name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })}
                   </div>
                 )}
               </CardContent>

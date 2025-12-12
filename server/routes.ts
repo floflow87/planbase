@@ -2759,6 +2759,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete all activities for a specific project (cleanup endpoint)
+  app.delete("/api/projects/:projectId/activities", requireAuth, async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const activities = await storage.getActivitiesBySubject("project", projectId);
+      
+      // Filter by account
+      const accountActivities = activities.filter(a => a.accountId === req.accountId);
+      
+      // Delete each activity
+      for (const activity of accountActivities) {
+        await storage.deleteActivity(activity.id);
+      }
+      
+      res.json({ success: true, deleted: accountActivities.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Cleanup all project activities (admin cleanup endpoint)
+  app.delete("/api/admin/cleanup-project-activities", requireAuth, async (req, res) => {
+    try {
+      // Get all activities for the account
+      const allActivities = await storage.getActivitiesByAccountId(req.accountId!, 10000);
+      
+      // Filter only project activities
+      const projectActivities = allActivities.filter(a => a.subjectType === "project");
+      
+      // Delete each project activity
+      for (const activity of projectActivities) {
+        await storage.deleteActivity(activity.id);
+      }
+      
+      res.json({ success: true, deleted: projectActivities.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // SEARCH - Protected Routes
   // ============================================
