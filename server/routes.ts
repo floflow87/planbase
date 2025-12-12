@@ -2655,10 +2655,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: a.id,
         kind: a.kind,
         subjectType: a.subjectType,
-        description: (a.payload as any)?.description,
+        description: a.description || (a.payload as any)?.description,
         createdAt: a.createdAt
       })));
       res.json(activities);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get activities for a specific client
+  app.get("/api/clients/:clientId/activities", requireAuth, async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const activities = await storage.getActivitiesBySubject(req.accountId!, 'client', clientId);
+      res.json(activities);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new activity
+  app.post("/api/activities", requireAuth, async (req, res) => {
+    try {
+      const { subjectType, subjectId, kind, description, occurredAt, payload } = req.body;
+      
+      if (!subjectType || !subjectId || !kind) {
+        return res.status(400).json({ error: "subjectType, subjectId, and kind are required" });
+      }
+      
+      const activity = await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType,
+        subjectId,
+        kind,
+        description: description || null,
+        occurredAt: occurredAt ? new Date(occurredAt) : null,
+        payload: payload || {},
+        createdBy: req.userId!,
+      });
+      
+      res.status(201).json(activity);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update an activity
+  app.patch("/api/activities/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getActivity(id);
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const { kind, description, occurredAt, payload } = req.body;
+      const activity = await storage.updateActivity(id, {
+        kind,
+        description,
+        occurredAt: occurredAt ? new Date(occurredAt) : undefined,
+        payload,
+      });
+      
+      res.json(activity);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete an activity
+  app.delete("/api/activities/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getActivity(id);
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      if (existing.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      await storage.deleteActivity(id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

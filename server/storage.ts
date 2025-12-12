@@ -196,8 +196,12 @@ export interface IStorage {
   deleteFile(id: string): Promise<boolean>;
 
   // Activities
+  getActivity(id: string): Promise<Activity | undefined>;
   getActivitiesByAccountId(accountId: string, limit?: number): Promise<Activity[]>;
+  getActivitiesBySubject(accountId: string, subjectType: string, subjectId: string): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
+  updateActivity(id: string, data: Partial<InsertActivity>): Promise<Activity | undefined>;
+  deleteActivity(id: string): Promise<boolean>;
 
   // Deals (Sales Pipeline)
   getDeal(id: string): Promise<Deal | undefined>;
@@ -1179,6 +1183,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Activities
+  async getActivity(id: string): Promise<Activity | undefined> {
+    const [activity] = await db.select().from(activities).where(eq(activities.id, id));
+    return activity || undefined;
+  }
+
   async getActivitiesByAccountId(accountId: string, limit: number = 20): Promise<Activity[]> {
     return await db
       .select()
@@ -1188,12 +1197,40 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  async getActivitiesBySubject(accountId: string, subjectType: string, subjectId: string): Promise<Activity[]> {
+    return await db
+      .select()
+      .from(activities)
+      .where(
+        and(
+          eq(activities.accountId, accountId),
+          eq(activities.subjectType, subjectType),
+          eq(activities.subjectId, subjectId)
+        )
+      )
+      .orderBy(desc(activities.occurredAt), desc(activities.createdAt));
+  }
+
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
     const [activity] = await db
       .insert(activities)
       .values(insertActivity)
       .returning();
     return activity;
+  }
+
+  async updateActivity(id: string, updateData: Partial<InsertActivity>): Promise<Activity | undefined> {
+    const [activity] = await db
+      .update(activities)
+      .set(updateData)
+      .where(eq(activities.id, id))
+      .returning();
+    return activity || undefined;
+  }
+
+  async deleteActivity(id: string): Promise<boolean> {
+    const result = await db.delete(activities).where(eq(activities.id, id));
+    return result.length > 0;
   }
 
   // Deals (Sales Pipeline)
