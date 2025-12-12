@@ -732,6 +732,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Retro cards column constraint updated");
     
+    // Add description and occurred_at columns to activities table
+    await db.execute(sql`
+      ALTER TABLE activities ADD COLUMN IF NOT EXISTS description text;
+    `);
+    await db.execute(sql`
+      ALTER TABLE activities ADD COLUMN IF NOT EXISTS occurred_at timestamp with time zone;
+    `);
+    console.log("✅ Activities description and occurred_at columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
