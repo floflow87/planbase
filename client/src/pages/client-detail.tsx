@@ -88,6 +88,17 @@ export default function ClientDetail() {
   const [tabToDelete, setTabToDelete] = useState<{ id: string; name: string } | null>(null);
   const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>({});
   const savedFieldValuesRef = useRef<Record<string, any>>({});
+  
+  // Activity management state
+  const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
+  const [isDeleteActivityDialogOpen, setIsDeleteActivityDialogOpen] = useState(false);
+  const [activityFormData, setActivityFormData] = useState({
+    kind: "custom" as string,
+    description: "",
+    occurredAt: "",
+  });
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -136,9 +147,8 @@ export default function ClientDetail() {
     enabled: !!accountId && !!id,
   });
 
-  const { data: activities = [] } = useQuery<Activity[]>({
-    queryKey: ['/api/activities'],
-    select: (data) => data.filter((a: Activity) => a.subjectType === 'client' && a.subjectId === id),
+  const { data: clientActivities = [] } = useQuery<Activity[]>({
+    queryKey: ['/api/clients', id, 'activities'],
     enabled: !!accountId && !!id,
   });
 
@@ -551,6 +561,90 @@ export default function ClientDetail() {
       toast({ title: "Erreur lors de la modification du champ", variant: "destructive" });
     },
   });
+
+  // Activity mutations
+  const createActivityMutation = useMutation({
+    mutationFn: async (data: { kind: string; description: string; occurredAt: string }) => {
+      return await apiRequest("/api/activities", "POST", {
+        subjectType: "client",
+        subjectId: id,
+        kind: data.kind,
+        description: data.description,
+        occurredAt: data.occurredAt ? new Date(data.occurredAt).toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
+      setIsActivityDialogOpen(false);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: "" });
+      toast({ title: "Activité créée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création de l'activité", variant: "destructive" });
+    },
+  });
+
+  const updateActivityMutation = useMutation({
+    mutationFn: async (data: { id: string; kind: string; description: string; occurredAt: string }) => {
+      return await apiRequest(`/api/activities/${data.id}`, "PATCH", {
+        kind: data.kind,
+        description: data.description,
+        occurredAt: data.occurredAt ? new Date(data.occurredAt).toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
+      setIsActivityDialogOpen(false);
+      setEditingActivity(null);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: "" });
+      toast({ title: "Activité modifiée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la modification de l'activité", variant: "destructive" });
+    },
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      return await apiRequest(`/api/activities/${activityId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'activities'] });
+      setIsDeleteActivityDialogOpen(false);
+      setDeleteActivityId(null);
+      toast({ title: "Activité supprimée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression de l'activité", variant: "destructive" });
+    },
+  });
+
+  const handleActivitySubmit = () => {
+    if (!activityFormData.description.trim()) return;
+    if (editingActivity) {
+      updateActivityMutation.mutate({
+        id: editingActivity.id,
+        ...activityFormData,
+      });
+    } else {
+      createActivityMutation.mutate(activityFormData);
+    }
+  };
+
+  const openActivityDialog = (activity?: Activity) => {
+    if (activity) {
+      setEditingActivity(activity);
+      setActivityFormData({
+        kind: activity.kind,
+        description: activity.description || "",
+        occurredAt: activity.occurredAt ? format(new Date(activity.occurredAt), "yyyy-MM-dd") : "",
+      });
+    } else {
+      setEditingActivity(null);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: format(new Date(), "yyyy-MM-dd") });
+    }
+    setIsActivityDialogOpen(true);
+  };
 
   const handleCommentSubmit = () => {
     if (!newComment.trim()) return;
@@ -1224,32 +1318,111 @@ export default function ClientDetail() {
 
           {/* Activités */}
           <TabsContent value="activites" className="space-y-4">
-            {/* Timeline des activités */}
+            {/* Activités manuelles */}
             <Card>
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight text-[18px]">Historique des activités</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Activités</CardTitle>
+                <Button onClick={() => openActivityDialog()} data-testid="button-add-activity" className="text-[12px]">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle activité
+                </Button>
               </CardHeader>
               <CardContent>
-                {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length === 0 && (
+                {clientActivities.length === 0 ? (
                   <div className="py-12 text-center text-muted-foreground">
-                    Aucune activité pour le moment
+                    Aucune activité enregistrée pour ce client
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {clientActivities.map((activity) => {
+                      const author = users.find((u) => u.id === activity.createdBy);
+                      const activityKindLabels: Record<string, string> = {
+                        email: "Email",
+                        call: "Appel",
+                        meeting: "Réunion",
+                        note: "Note",
+                        task: "Tâche",
+                        custom: "Autre",
+                      };
+                      return (
+                        <div
+                          key={activity.id}
+                          className="flex items-start justify-between p-4 border rounded-lg hover-elevate"
+                          data-testid={`activity-item-${activity.id}`}
+                        >
+                          <div className="flex items-start gap-4 flex-1">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <Clock className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <Badge variant="outline" className="text-xs">
+                                  {activityKindLabels[activity.kind] || activity.kind}
+                                </Badge>
+                                {activity.occurredAt && (
+                                  <span className="text-sm text-muted-foreground">
+                                    {format(new Date(activity.occurredAt), "d MMMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-foreground whitespace-pre-wrap">{activity.description}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Par {author?.firstName} {author?.lastName}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openActivityDialog(activity)}
+                              data-testid={`button-edit-activity-${activity.id}`}
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setDeleteActivityId(activity.id);
+                                setIsDeleteActivityDialogOpen(true);
+                              }}
+                              data-testid={`button-delete-activity-${activity.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Timeline des activités automatiques */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-semibold tracking-tight text-[18px]">Historique</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {[...comments, ...contacts, ...projects, ...tasks].length === 0 && !client && (
+                  <div className="py-12 text-center text-muted-foreground">
+                    Aucun historique pour le moment
                   </div>
                 )}
                 
-                {[...activities, ...comments.map((c) => ({ ...c, type: 'comment' as const })), ...contacts.map((c) => ({ ...c, type: 'contact' as const })), ...projects.map((p) => ({ ...p, type: 'project' as const })), ...tasks.map((t) => ({ ...t, type: 'task' as const }))].length > 0 && (
+                {([...comments, ...contacts, ...projects, ...tasks].length > 0 || client) && (
                   <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-                    {/* Toutes les activités triées par ordre décroissant chronologique (plus récentes en premier, création du client en bas) */}
                     {[
-                      // Ajouter la création du client
                       ...(client ? [{ ...client, _date: new Date(client.createdAt), _type: 'client_created' as const }] : []),
-                      // Ajouter les autres activités
                       ...projects.map((p) => ({ ...p, _date: new Date(p.createdAt), _type: 'project' as const })),
                       ...tasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
                       ...contacts.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'contact' as const })),
                       ...comments.map((c) => ({ ...c, _date: new Date(c.createdAt), _type: 'comment' as const })),
                     ]
                       .sort((a, b) => b._date.getTime() - a._date.getTime())
-                      .map((item, index) => {
+                      .map((item) => {
                         const author = users.find((u) => u.id === item.createdBy);
                         
                         if (item._type === 'client_created') {
@@ -2230,6 +2403,93 @@ export default function ClientDetail() {
               <AlertDialogAction
                 onClick={() => deleteFieldId && deleteCustomFieldMutation.mutate(deleteFieldId)}
                 data-testid="button-confirm-delete-field"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Create/Edit Activity Dialog */}
+        <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
+          <DialogContent data-testid="dialog-activity">
+            <DialogHeader>
+              <DialogTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="activity-kind">Type d'activité</Label>
+                <Select
+                  value={activityFormData.kind}
+                  onValueChange={(value) => setActivityFormData({ ...activityFormData, kind: value })}
+                >
+                  <SelectTrigger className="cursor-pointer" data-testid="select-activity-kind">
+                    <SelectValue placeholder="Sélectionner un type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card">
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="call">Appel</SelectItem>
+                    <SelectItem value="meeting">Réunion</SelectItem>
+                    <SelectItem value="note">Note</SelectItem>
+                    <SelectItem value="custom">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="activity-date">Date</Label>
+                <Input
+                  id="activity-date"
+                  type="date"
+                  value={activityFormData.occurredAt}
+                  onChange={(e) => setActivityFormData({ ...activityFormData, occurredAt: e.target.value })}
+                  data-testid="input-activity-date"
+                />
+              </div>
+              <div>
+                <Label htmlFor="activity-description">Description</Label>
+                <Textarea
+                  id="activity-description"
+                  value={activityFormData.description}
+                  onChange={(e) => setActivityFormData({ ...activityFormData, description: e.target.value })}
+                  placeholder="Décrivez l'activité..."
+                  rows={4}
+                  data-testid="input-activity-description"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setIsActivityDialogOpen(false);
+                  setEditingActivity(null);
+                }}>
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleActivitySubmit}
+                  disabled={createActivityMutation.isPending || updateActivityMutation.isPending || !activityFormData.description.trim()}
+                  data-testid="button-submit-activity"
+                >
+                  {editingActivity ? "Modifier" : "Créer"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Activity Confirmation Dialog */}
+        <AlertDialog open={isDeleteActivityDialogOpen} onOpenChange={setIsDeleteActivityDialogOpen}>
+          <AlertDialogContent data-testid="dialog-delete-activity-confirm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer l'activité</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer cette activité ? Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-activity">Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteActivityId && deleteActivityMutation.mutate(deleteActivityId)}
+                data-testid="button-confirm-delete-activity"
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Supprimer

@@ -2718,7 +2718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const activity = await storage.updateActivity(id, {
         kind,
         description,
-        occurredAt: occurredAt ? new Date(occurredAt) : undefined,
+        occurredAt: occurredAt ? new Date(occurredAt) : null,
         payload,
       });
       
