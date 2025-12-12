@@ -2675,6 +2675,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get activities for a specific project
+  app.get("/api/projects/:projectId/activities", requireAuth, async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const activities = await storage.getActivitiesBySubject(req.accountId!, 'project', projectId);
+      res.json(activities);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create a new activity
   app.post("/api/activities", requireAuth, async (req, res) => {
     try {

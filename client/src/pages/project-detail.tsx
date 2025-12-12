@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority, Activity } from "@shared/schema";
 import { billingStatusOptions, backlogModeOptions, backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -911,6 +911,17 @@ export default function ProjectDetail() {
   // Expanded backlogs state for showing tickets
   const [expandedBacklogs, setExpandedBacklogs] = useState<Set<string>>(new Set());
 
+  // Activity management state
+  const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [deleteActivityId, setDeleteActivityId] = useState<string | null>(null);
+  const [isDeleteActivityDialogOpen, setIsDeleteActivityDialogOpen] = useState(false);
+  const [activityFormData, setActivityFormData] = useState({
+    kind: "custom" as string,
+    description: "",
+    occurredAt: "",
+  });
+
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
   });
@@ -979,6 +990,12 @@ export default function ProjectDetail() {
   const payments = paymentsData?.payments || [];
   const totalPaid = paymentsData?.totalPaid || 0;
   const remainingAmount = paymentsData?.remainingAmount || 0;
+
+  // Fetch activities for this project
+  const { data: projectActivities = [] } = useQuery<Activity[]>({
+    queryKey: ['/api/projects', id, 'activities'],
+    enabled: !!id,
+  });
 
   // Fetch all backlogs and filter by projectId
   interface BacklogWithDetails extends Backlog {
@@ -1224,6 +1241,90 @@ export default function ProjectDetail() {
       });
     },
   });
+
+  // Activity mutations
+  const createActivityMutation = useMutation({
+    mutationFn: async (data: { kind: string; description: string; occurredAt: string }) => {
+      return await apiRequest("/api/activities", "POST", {
+        subjectType: "project",
+        subjectId: id,
+        kind: data.kind,
+        description: data.description,
+        occurredAt: data.occurredAt ? new Date(data.occurredAt).toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'activities'] });
+      setIsActivityDialogOpen(false);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: "" });
+      toast({ title: "Activité créée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création de l'activité", variant: "destructive" });
+    },
+  });
+
+  const updateActivityMutation = useMutation({
+    mutationFn: async (data: { id: string; kind: string; description: string; occurredAt: string }) => {
+      return await apiRequest(`/api/activities/${data.id}`, "PATCH", {
+        kind: data.kind,
+        description: data.description,
+        occurredAt: data.occurredAt ? new Date(data.occurredAt).toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'activities'] });
+      setIsActivityDialogOpen(false);
+      setEditingActivity(null);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: "" });
+      toast({ title: "Activité modifiée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la modification de l'activité", variant: "destructive" });
+    },
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      return await apiRequest(`/api/activities/${activityId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'activities'] });
+      setIsDeleteActivityDialogOpen(false);
+      setDeleteActivityId(null);
+      toast({ title: "Activité supprimée avec succès", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la suppression de l'activité", variant: "destructive" });
+    },
+  });
+
+  const handleActivitySubmit = () => {
+    if (!activityFormData.description.trim()) return;
+    if (editingActivity) {
+      updateActivityMutation.mutate({
+        id: editingActivity.id,
+        ...activityFormData,
+      });
+    } else {
+      createActivityMutation.mutate(activityFormData);
+    }
+  };
+
+  const openActivityDialog = (activity?: Activity) => {
+    if (activity) {
+      setEditingActivity(activity);
+      setActivityFormData({
+        kind: activity.kind,
+        description: activity.description || "",
+        occurredAt: activity.occurredAt ? format(new Date(activity.occurredAt), "yyyy-MM-dd") : "",
+      });
+    } else {
+      setEditingActivity(null);
+      setActivityFormData({ kind: "custom", description: "", occurredAt: format(new Date(), "yyyy-MM-dd") });
+    }
+    setIsActivityDialogOpen(true);
+  };
 
   // Debounced autosave for task edits
   useEffect(() => {
@@ -1565,6 +1666,13 @@ export default function ProjectDetail() {
             <TabsTrigger value="time" className="gap-2 text-xs" data-testid="tab-time">
               <Timer className="h-4 w-4" />
               Temps
+            </TabsTrigger>
+            <TabsTrigger value="activities" className="gap-2 text-xs" data-testid="tab-activities">
+              <MessageSquare className="h-4 w-4" />
+              Activité
+              <Badge variant="secondary" className="ml-1" data-testid="activities-count">
+                {projectActivities.length}
+              </Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -2572,6 +2680,105 @@ export default function ProjectDetail() {
           <TabsContent value="time" className="mt-0">
             <TimeTrackingTab projectId={id!} project={project} />
           </TabsContent>
+
+          <TabsContent value="activities" className="mt-0">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
+                <CardTitle className="text-base">Activités</CardTitle>
+                <Button 
+                  size="sm" 
+                  onClick={() => openActivityDialog()}
+                  data-testid="button-new-activity"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle activité
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {projectActivities.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Aucune activité enregistrée pour ce projet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {projectActivities.map((activity) => {
+                      const user = users.find(u => u.id === activity.createdBy);
+                      const getKindLabel = (kind: string) => {
+                        const labels: Record<string, string> = {
+                          email: "Email",
+                          call: "Appel",
+                          meeting: "Réunion",
+                          note: "Note",
+                          custom: "Autre",
+                        };
+                        return labels[kind] || kind;
+                      };
+                      const getKindColor = (kind: string) => {
+                        const colors: Record<string, string> = {
+                          email: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                          call: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                          meeting: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+                          note: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                          custom: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+                        };
+                        return colors[kind] || colors.custom;
+                      };
+
+                      return (
+                        <div 
+                          key={activity.id} 
+                          className="p-4 border rounded-md hover-elevate"
+                          data-testid={`activity-${activity.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className={cn("text-xs", getKindColor(activity.kind))}>
+                                  {getKindLabel(activity.kind)}
+                                </Badge>
+                                {activity.occurredAt && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(activity.occurredAt), "dd MMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm">{activity.description}</p>
+                              {user && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Par {user.firstName} {user.lastName}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openActivityDialog(activity)}
+                                data-testid={`button-edit-activity-${activity.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setDeleteActivityId(activity.id);
+                                  setIsDeleteActivityDialogOpen(true);
+                                }}
+                                data-testid={`button-delete-activity-${activity.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
       <Sheet open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -2905,6 +3112,88 @@ export default function ProjectDetail() {
             <AlertDialogAction
               onClick={() => deleteTaskId && deleteTaskMutation.mutate(deleteTaskId)}
               data-testid="button-confirm-delete-task"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Activity Dialog */}
+      <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
+        <DialogContent data-testid="dialog-activity">
+          <DialogHeader>
+            <DialogTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Type d'activité</Label>
+              <Select
+                value={activityFormData.kind}
+                onValueChange={(value) => setActivityFormData({ ...activityFormData, kind: value })}
+              >
+                <SelectTrigger data-testid="select-activity-kind">
+                  <SelectValue placeholder="Sélectionner un type" />
+                </SelectTrigger>
+                <SelectContent className="bg-card">
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="call">Appel</SelectItem>
+                  <SelectItem value="meeting">Réunion</SelectItem>
+                  <SelectItem value="note">Note</SelectItem>
+                  <SelectItem value="custom">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={activityFormData.description}
+                onChange={(e) => setActivityFormData({ ...activityFormData, description: e.target.value })}
+                placeholder="Description de l'activité..."
+                className="min-h-[100px]"
+                data-testid="input-activity-description"
+              />
+            </div>
+            <div>
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={activityFormData.occurredAt}
+                onChange={(e) => setActivityFormData({ ...activityFormData, occurredAt: e.target.value })}
+                data-testid="input-activity-date"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsActivityDialogOpen(false)} data-testid="button-cancel-activity">
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleActivitySubmit} 
+              disabled={!activityFormData.description.trim()}
+              data-testid="button-save-activity"
+            >
+              {editingActivity ? "Modifier" : "Créer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Activity Dialog */}
+      <AlertDialog open={isDeleteActivityDialogOpen} onOpenChange={setIsDeleteActivityDialogOpen}>
+        <AlertDialogContent data-testid="dialog-delete-activity-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'activité</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette activité ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-activity">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteActivityId && deleteActivityMutation.mutate(deleteActivityId)}
+              data-testid="button-confirm-delete-activity"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Supprimer
