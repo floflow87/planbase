@@ -1596,7 +1596,7 @@ export default function Dashboard() {
       
       {/* Task Reminder Dialog */}
       <Dialog open={showTaskReminder} onOpenChange={setShowTaskReminder}>
-        <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2">
+        <DialogContent className="w-[92vw] max-w-md overflow-hidden flex flex-col left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 max-sm:w-full max-sm:h-full max-sm:max-w-full max-sm:max-h-full max-sm:rounded-none max-sm:top-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />

@@ -1629,8 +1629,15 @@ export default function ProjectDetail() {
           </Card>
         )}
 
-        <Tabs defaultValue="tasks" className="w-full">
+        <Tabs defaultValue="activities" className="w-full">
           <TabsList className="w-full justify-start mb-4 overflow-x-auto overflow-y-hidden flex-nowrap">
+            <TabsTrigger value="activities" className="gap-2 text-xs" data-testid="tab-activities">
+              <MessageSquare className="h-4 w-4" />
+              Activité
+              <Badge variant="secondary" className="ml-1" data-testid="activities-count">
+                {projectActivities.length}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-2 text-xs">
               <Users className="h-4 w-4" />
               Tâches
@@ -1666,13 +1673,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="time" className="gap-2 text-xs" data-testid="tab-time">
               <Timer className="h-4 w-4" />
               Temps
-            </TabsTrigger>
-            <TabsTrigger value="activities" className="gap-2 text-xs" data-testid="tab-activities">
-              <MessageSquare className="h-4 w-4" />
-              Activité
-              <Badge variant="secondary" className="ml-1" data-testid="activities-count">
-                {projectActivities.length}
-              </Badge>
             </TabsTrigger>
           </TabsList>
 
