@@ -2411,13 +2411,13 @@ export default function ClientDetail() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Create/Edit Activity Dialog */}
-        <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
-          <DialogContent data-testid="dialog-activity">
-            <DialogHeader>
-              <DialogTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
+        {/* Create/Edit Activity Sheet (Side Panel) */}
+        <Sheet open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
+          <SheetContent className="sm:max-w-md w-full" data-testid="sheet-activity">
+            <SheetHeader>
+              <SheetTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 py-4">
               <div>
                 <Label htmlFor="activity-kind">Type d'activité</Label>
                 <Select
@@ -2457,24 +2457,24 @@ export default function ClientDetail() {
                   data-testid="input-activity-description"
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => {
-                  setIsActivityDialogOpen(false);
-                  setEditingActivity(null);
-                }}>
-                  Annuler
-                </Button>
-                <Button
-                  onClick={handleActivitySubmit}
-                  disabled={createActivityMutation.isPending || updateActivityMutation.isPending || !activityFormData.description.trim()}
-                  data-testid="button-submit-activity"
-                >
-                  {editingActivity ? "Modifier" : "Créer"}
-                </Button>
-              </div>
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => {
+                setIsActivityDialogOpen(false);
+                setEditingActivity(null);
+              }}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleActivitySubmit}
+                disabled={createActivityMutation.isPending || updateActivityMutation.isPending || !activityFormData.description.trim()}
+                data-testid="button-submit-activity"
+              >
+                {editingActivity ? "Modifier" : "Créer"}
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Delete Activity Confirmation Dialog */}
         <AlertDialog open={isDeleteActivityDialogOpen} onOpenChange={setIsDeleteActivityDialogOpen}>

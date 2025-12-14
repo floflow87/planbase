@@ -1631,46 +1631,46 @@ export default function ProjectDetail() {
 
         <Tabs defaultValue="activities" className="w-full">
           <TabsList className="w-full justify-start mb-4 overflow-x-auto overflow-y-hidden flex-nowrap">
-            <TabsTrigger value="activities" className="gap-2 text-xs" data-testid="tab-activities">
+            <TabsTrigger value="activities" className="gap-2 text-xs sm:text-sm" data-testid="tab-activities">
               <MessageSquare className="h-4 w-4" />
               Activité
               <Badge variant="secondary" className="ml-1" data-testid="activities-count">
                 {projectActivities.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-2 text-xs">
+            <TabsTrigger value="tasks" className="gap-2 text-xs sm:text-sm">
               <Users className="h-4 w-4" />
               Tâches
               <Badge variant="secondary" className="ml-1" data-testid="tasks-count">
                 {projectTasks.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-2 text-xs">
+            <TabsTrigger value="notes" className="gap-2 text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
               Notes
               <Badge variant="secondary" className="ml-1" data-testid="notes-count">
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-2 text-xs">
+            <TabsTrigger value="documents" className="gap-2 text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
               Documents
               <Badge variant="secondary" className="ml-1" data-testid="documents-count">
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="backlogs" className="gap-2 text-xs" data-testid="tab-backlogs">
+            <TabsTrigger value="backlogs" className="gap-2 text-xs sm:text-sm" data-testid="tab-backlogs">
               <FolderKanban className="h-4 w-4" />
               Backlogs
               <Badge variant="secondary" className="ml-1" data-testid="backlogs-count">
                 {projectBacklogs.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-2 text-xs" data-testid="tab-billing">
+            <TabsTrigger value="billing" className="gap-2 text-xs sm:text-sm" data-testid="tab-billing">
               <DollarSign className="h-4 w-4" />
               Facturation
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-2 text-xs" data-testid="tab-time">
+            <TabsTrigger value="time" className="gap-2 text-xs sm:text-sm" data-testid="tab-time">
               <Timer className="h-4 w-4" />
               Temps
             </TabsTrigger>
@@ -3234,13 +3234,13 @@ export default function ProjectDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Activity Dialog */}
-      <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
-        <DialogContent data-testid="dialog-activity">
-          <DialogHeader>
-            <DialogTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      {/* Activity Sheet (Side Panel) */}
+      <Sheet open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
+        <SheetContent className="sm:max-w-md w-full" data-testid="sheet-activity">
+          <SheetHeader>
+            <SheetTitle>{editingActivity ? "Modifier l'activité" : "Nouvelle activité"}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
             <div>
               <Label>Type d'activité</Label>
               <Select
@@ -3279,7 +3279,7 @@ export default function ProjectDetail() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setIsActivityDialogOpen(false)} data-testid="button-cancel-activity">
               Annuler
             </Button>
@@ -3290,9 +3290,9 @@ export default function ProjectDetail() {
             >
               {editingActivity ? "Modifier" : "Créer"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Activity Dialog */}
       <AlertDialog open={isDeleteActivityDialogOpen} onOpenChange={setIsDeleteActivityDialogOpen}>
