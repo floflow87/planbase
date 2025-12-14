@@ -26,6 +26,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "@/components/Loader";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -99,6 +101,7 @@ export default function ClientDetail() {
     description: "",
     occurredAt: "",
   });
+  const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -2438,13 +2441,38 @@ export default function ClientDetail() {
               </div>
               <div>
                 <Label htmlFor="activity-date">Date</Label>
-                <Input
-                  id="activity-date"
-                  type="date"
-                  value={activityFormData.occurredAt}
-                  onChange={(e) => setActivityFormData({ ...activityFormData, occurredAt: e.target.value })}
-                  data-testid="input-activity-date"
-                />
+                <Popover open={isActivityDatePickerOpen} onOpenChange={setIsActivityDatePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !activityFormData.occurredAt && "text-muted-foreground"
+                      )}
+                      data-testid="input-activity-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {activityFormData.occurredAt 
+                        ? format(new Date(activityFormData.occurredAt), "dd/MM/yyyy", { locale: fr }) 
+                        : "Sélectionner une date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={activityFormData.occurredAt ? new Date(activityFormData.occurredAt) : undefined}
+                      onSelect={(date) => {
+                        setActivityFormData({ 
+                          ...activityFormData, 
+                          occurredAt: date ? format(date, "yyyy-MM-dd") : "" 
+                        });
+                        setIsActivityDatePickerOpen(false);
+                      }}
+                      initialFocus
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="activity-description">Description</Label>

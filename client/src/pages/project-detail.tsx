@@ -921,6 +921,7 @@ export default function ProjectDetail() {
     description: "",
     occurredAt: "",
   });
+  const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -2818,7 +2819,7 @@ export default function ProjectDetail() {
                                 <Briefcase className="w-3 h-3 text-primary-foreground" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">
                                     {author?.firstName} {author?.lastName}
                                   </span>{" "}
@@ -3071,7 +3072,7 @@ export default function ProjectDetail() {
         </DialogContent>
       </Dialog>
       <Sheet open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-        <SheetContent className="sm:max-w-xl w-full overflow-y-auto" data-testid="dialog-task-detail">
+        <SheetContent className="sm:max-w-xl w-full overflow-y-auto bg-background" data-testid="dialog-task-detail">
           <SheetHeader>
             <SheetTitle>Détails de la tâche</SheetTitle>
           </SheetHeader>
@@ -3271,12 +3272,38 @@ export default function ProjectDetail() {
             </div>
             <div>
               <Label>Date</Label>
-              <Input
-                type="date"
-                value={activityFormData.occurredAt}
-                onChange={(e) => setActivityFormData({ ...activityFormData, occurredAt: e.target.value })}
-                data-testid="input-activity-date"
-              />
+              <Popover open={isActivityDatePickerOpen} onOpenChange={setIsActivityDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !activityFormData.occurredAt && "text-muted-foreground"
+                    )}
+                    data-testid="input-activity-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {activityFormData.occurredAt 
+                      ? format(new Date(activityFormData.occurredAt), "dd/MM/yyyy", { locale: fr }) 
+                      : "Sélectionner une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={activityFormData.occurredAt ? new Date(activityFormData.occurredAt) : undefined}
+                    onSelect={(date) => {
+                      setActivityFormData({ 
+                        ...activityFormData, 
+                        occurredAt: date ? format(date, "yyyy-MM-dd") : "" 
+                      });
+                      setIsActivityDatePickerOpen(false);
+                    }}
+                    initialFocus
+                    locale={fr}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
