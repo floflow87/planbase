@@ -2752,9 +2752,9 @@ export default function ProjectDetail() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm">{activity.description}</p>
+                              <p className="text-xs">{activity.description}</p>
                               {user && (
-                                <p className="text-xs text-muted-foreground mt-2">
+                                <p className="text-[10px] text-muted-foreground mt-2">
                                   Par {user.firstName} {user.lastName}
                                 </p>
                               )}
@@ -2824,7 +2824,7 @@ export default function ProjectDetail() {
                                   </span>{" "}
                                   a créé le projet
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -2839,10 +2839,10 @@ export default function ProjectDetail() {
                                 <CheckCircle2 className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une tâche : {(item as Task).title}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -2857,10 +2857,10 @@ export default function ProjectDetail() {
                                 <StickyNote className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une note : {(item as Note).title}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -2875,10 +2875,10 @@ export default function ProjectDetail() {
                                 <FileText className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un document : {(item as Document).name}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>

@@ -1356,17 +1356,17 @@ export default function ClientDetail() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[10px]">
                                   {activityKindLabels[activity.kind] || activity.kind}
                                 </Badge>
                                 {activity.occurredAt && (
-                                  <span className="text-sm text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground">
                                     {format(new Date(activity.occurredAt), "d MMMM yyyy", { locale: fr })}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-foreground whitespace-pre-wrap">{activity.description}</p>
-                              <p className="text-sm text-muted-foreground mt-1">
+                              <p className="text-xs text-foreground whitespace-pre-wrap">{activity.description}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">
                                 Par {author?.firstName} {author?.lastName}
                               </p>
                             </div>
@@ -1432,13 +1432,13 @@ export default function ClientDetail() {
                                 <User className="w-3 h-3 text-primary-foreground" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">
                                     {author?.firstName} {author?.lastName}
                                   </span>{" "}
                                   a créé le compte
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -1453,10 +1453,10 @@ export default function ClientDetail() {
                                 <Briefcase className="w-3 h-3 text-accent-foreground" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé un projet : {(item as Project).name}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -1471,10 +1471,10 @@ export default function ClientDetail() {
                                 <CheckCircle2 className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une tâche : {(item as Task).title}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -1489,10 +1489,10 @@ export default function ClientDetail() {
                                 <UserPlus className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé le contact {(item as Contact).fullName}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
@@ -1507,10 +1507,10 @@ export default function ClientDetail() {
                                 <MessageSquare className="w-3 h-3 text-white" />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-foreground">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un commentaire
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                                 </p>
                               </div>
