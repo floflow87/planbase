@@ -1,0 +1,182 @@
+1.1 Rework “Config” (source unique)
+
+Aujourd’hui, certains paramètres (stages projets, statuts, priorités, couleurs, labels, options de select…) sont déclarés inline dans des pages (ex: projects.tsx) et validés ailleurs (ex: shared/schema.ts), ce qui provoque duplication et risques d’incohérence.
+
+👉 Je veux centraliser ces paramètres dans un module partagé consommable par le front et le back :
+
+shared/config/*
+
+exports typés TypeScript
+
+helpers de lookup (color/label/order)
+
+zéro duplication : les pages front doivent générer leurs selects/labels/couleurs depuis cette config.
+
+1.2 Rework “Docs” (Markdown)
+
+Il y a trop de .md à la racine (ex: DOCUMENTATION.md, SECURITY_MULTI_TENANT.md, DNS-CONFIGURATION-OVH.md, etc.).
+Je veux une arborescence docs/ structurée, avec un docs/README.md index qui fait office de table des matières.
+
+2) Contraintes fortes
+
+Ne pas casser l’app (build + lint + tests si présents).
+
+Rework progressif, sans refacto massive non nécessaire.
+
+Préserver les routes, les DB scripts et migrations existantes.
+
+Mettre à jour tous les imports après déplacement des fichiers.
+
+Mettre à jour les liens internes entre docs (URLs relatives).
+
+Tout nouveau code doit être typé et lisible.
+
+3) Rework Config : plan d’implémentation
+3.1 Créer une arborescence shared/config/
+
+Créer le dossier :
+
+shared/config/
+  index.ts
+  projectStages.ts
+  taskStatuses.ts
+  taskPriorities.ts
+  billingStatuses.ts   (si déjà existant dans schema.ts, le déplacer ici)
+  timeCategories.ts    (préparer pour tags temps)
+  uiTokens.ts          (si besoin pour mapping couleurs)
+
+Convention
+
+Chaque fichier exporte :
+
+un tableau as const avec key, label, order, (optionnel : colorClass / colorToken, isTerminal, etc.)
+
+un type TS dérivé (union de keys)
+
+des helpers :
+
+Exemple attendu :
+
+export const PROJECT_STAGES = [
+  { key: "prospection", label: "Prospection", order: 10, colorClass: "bg-yellow-100 border-yellow-200" },
+  ...
+] as const;
+
+export type ProjectStageKey = typeof PROJECT_STAGES[number]["key"];
+
+export const projectStageByKey = Object.fromEntries(PROJECT_STAGES.map(s => [s.key, s])) as Record<ProjectStageKey, typeof PROJECT_STAGES[number]>;
+
+export function getProjectStageLabel(key: ProjectStageKey) { return projectStageByKey[key].label; }
+export function getProjectStageColorClass(key: ProjectStageKey) { return projectStageByKey[key].colorClass; }
+
+3.2 Remplacer le hardcode côté client
+
+Rechercher et remplacer les occurrences de :
+
+const stages = [...] dans projects.tsx
+
+tout getStageColor() ou switch similaire
+
+tout <SelectItem value="..."> hardcodé
+
+➡️ Objectif : générer les options via .map(PROJECT_STAGES).
+
+3.3 Aligner shared/schema.ts
+
+Le schéma de validation ne doit plus redéclarer les valeurs.
+Il doit importer les keys depuis shared/config/*.
+
+Exemples :
+
+un champ stage doit être validé via une enum construite depuis PROJECT_STAGES.map(s=>s.key)
+
+idem pour statuts, priorités, billing statuses.
+
+3.4 Ajouter une règle de non-régression (optionnel mais recommandé)
+
+Mettre en place une convention :
+
+pas de listes “options” en dur dans les pages
+
+tout passe par shared/config/
+
+Si ESLint est présent, ajouter une règle simple (ou au minimum un commentaire dans TECHNICAL_DEBT.md) pour prévenir la réintroduction du hardcode.
+
+4) Rework Docs : nouvelle arborescence
+
+Créer un dossier docs/ et déplacer/renommer les fichiers Markdown existants depuis la racine.
+
+4.1 Arborescence cible
+docs/
+  README.md                       # index + table des matières
+  getting-started/
+    overview.md                   # intro PlanBase, architecture high level
+    local-setup.md                # setup local, env vars
+    deployment.md                 # Render/Prod, scripts
+  architecture/
+    backend.md                    # patterns API, auth, multi-tenant
+    frontend.md                   # routing, state, patterns UI
+    shared.md                     # shared/schema, shared/config, contrats
+    database.md                   # supabase, drizzle, RLS, migrations
+  security/
+    multi-tenant.md               # contenu de SECURITY_MULTI_TENANT.md
+    critical-todos.md             # CRITICAL_SECURITY_TODO.md
+  operations/
+    dns-ovh.md                    # DNS-CONFIGURATION-OVH.md
+    storage-setup.md              # STORAGE_SETUP.md
+    pdf-export.md                 # PDF_EXPORT_SETUP.md
+    render.md                     # RENDER_DEPLOYMENT.md
+  product/
+    modules.md                    # modules PlanBase (CRM, notes, backlog, reports...)
+    kpis-billing-payments.md      # KPIS_BILLING_PAYMENTS.md
+  changelog/
+    patch-notes.md                # PATCH_NOTES.md
+    changelog-session.md          # CHANGELOG_SESSION.md
+  technical-debt/
+    technical-debt.md             # TECHNICAL_DEBT.md
+
+4.2 Règles
+
+Aucun .md à la racine sauf README.md (et éventuellement LICENSE).
+
+Tous les liens cross-doc doivent être mis à jour.
+
+docs/README.md doit contenir une table des matières cliquable, structurée par sections.
+
+4.3 Migration
+
+Déplacer les fichiers existants en conservant leur contenu, puis :
+
+mettre à jour les titres
+
+standardiser la structure (H1 unique, sections H2/H3)
+
+ajouter en haut de chaque doc :
+
+“But”
+
+“Audience”
+
+“Dernière mise à jour”
+
+“Liens associés”
+
+5) Livraison attendue
+
+Tous les fichiers shared/config/* créés + shared/config/index.ts exportant tout.
+
+Les pages front (projects.tsx + autres pertinentes) ne contiennent plus de listes hardcodées d’options.
+
+shared/schema.ts aligné : plus de duplication des options.
+
+docs/ créé avec l’arborescence demandée, fichiers déplacés + liens mis à jour.
+
+Mise à jour du README.md racine : pointer vers docs/README.md comme entrée principale.
+
+Vérifier que l’app compile.
+
+6) Extra bonus (si tu peux sans casser)
+
+Ajouter une page “Settings → Config” plus tard (non obligatoire maintenant), qui sera compatible avec une future migration vers des settings DB JSONB.
+
+Ajouter un petit script scripts/find-hardcoded-options.ts (ou simple grep doc) listant les occurrences de patterns type const stages = [ ou <SelectItem value=.

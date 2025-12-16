@@ -61,6 +61,7 @@ import { fr } from "date-fns/locale";
 import type { Task, TaskColumn, AppUser, Project, InsertTask } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
+import { getTaskPriorityBadgeClass, getTaskPriorityLabel, TASK_PRIORITIES } from "@shared/config";
 
 interface ListViewProps {
   tasks: Task[];
@@ -221,31 +222,8 @@ export function ListView({
     });
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "Urgent";
-      case "medium":
-        return "Moyen";
-      case "low":
-        return "Faible";
-      default:
-        return priority;
-    }
-  };
+  const getPriorityColor = (priority: string) => getTaskPriorityBadgeClass(priority);
+  const getPriorityLabel = (priority: string) => getTaskPriorityLabel(priority);
 
   const handleSort = (column: string) => {
     if (column === 'actions') return;

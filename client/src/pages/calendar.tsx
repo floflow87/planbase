@@ -10,6 +10,7 @@ import { queryClient } from "@/lib/queryClient";
 import { AppointmentPanel } from "@/components/appointment-panel";
 import { supabase } from "@/lib/supabase";
 import googleLogo from "@assets/png-clipart-google-logo-google-search-google-s-g-suite-google-text-trademark_1763028333519.png";
+import { getTaskPriorityColorWithBorder } from "@shared/config";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -504,20 +505,10 @@ export default function Calendar() {
                       
                       {/* Tasks with Due Dates */}
                       {showTasks && dayTasks.map(task => {
-                        const getPriorityColor = (priority: string | null) => {
-                          if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
-                          switch (priority) {
-                            case "high": return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500";
-                            case "medium": return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500";
-                            case "low": return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500";
-                            default: return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
-                          }
-                        };
-                        
                         return (
                           <div
                             key={task.id}
-                            className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getPriorityColor(task.priority)}`}
+                            className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
                             title={`Tâche: ${task.title}`}
                             data-testid={`task-${task.id}`}
                           >

@@ -99,56 +99,21 @@ import type {
   InsertTask,
   InsertTaskColumn,
 } from "@shared/schema";
-import { billingStatusOptions } from "@shared/schema";
+import {
+  PROJECT_STAGES,
+  projectStageKeys,
+  getProjectStageLabel,
+  getProjectStageColorClass,
+  billingStatusOptions,
+  getBillingStatusColorClass,
+  getStatusFromColumnName,
+} from "@shared/config";
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { Loader } from "@/components/Loader";
 
-// Helper function to derive task status from column name
-function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
-  const lowerName = columnName.toLowerCase();
-  
-  if (lowerName.includes("à faire") || lowerName.includes("todo") || lowerName.includes("backlog")) {
-    return "todo";
-  } else if (lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété")) {
-    return "done";
-  } else if (lowerName.includes("en cours") || lowerName.includes("progress") || lowerName.includes("doing")) {
-    return "in_progress";
-  } else if (lowerName.includes("revue") || lowerName.includes("review") || lowerName.includes("validation")) {
-    return "review";
-  }
-  
-  // Default to in_progress for custom columns
-  return "in_progress";
-}
-
-// Helper function to get billing status color classes (pastel colors)
-function getBillingStatusColorForCard(status: string | null) {
-  switch (status || "brouillon") {
-    case "brouillon":
-      return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800";
-    case "devis_envoye":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800";
-    case "devis_accepte":
-      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-    case "bon_commande":
-      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-    case "facture":
-      return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-    case "paye":
-      return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
-    case "partiel":
-      return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
-    case "annule":
-      return "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700";
-    case "retard":
-      return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
-    default:
-      return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800/20 dark:text-gray-400 dark:border-gray-700";
-  }
-}
 
 // Helper function to calculate days overdue
 function getBillingDaysOverdueForCard(billingDueDate: string | null) {
@@ -200,31 +165,8 @@ function SortableTaskCard({
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "Urgent";
-      case "medium":
-        return "Moyen";
-      case "low":
-        return "Faible";
-      default:
-        return priority;
-    }
-  };
+  const getPriorityColor = (priority: string) => getTaskPriorityBadgeClass(priority);
+  const getPriorityLabel = (priority: string) => getTaskPriorityLabel(priority);
 
   const assignedUser = users.find((u) => u.id === task.assignedToId);
 
@@ -555,31 +497,8 @@ function ListView({
     });
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "Urgent";
-      case "medium":
-        return "Moyen";
-      case "low":
-        return "Faible";
-      default:
-        return priority;
-    }
-  };
+  const getPriorityColor = (priority: string) => getTaskPriorityBadgeClass(priority);
+  const getPriorityLabel = (priority: string) => getTaskPriorityLabel(priority);
 
   const getColumnName = (task: Task) => {
     const column = columns.find(c => c.id === task.columnId);
@@ -1669,7 +1588,7 @@ function DraggableProjectCard({
             </Badge>
           )}
           <Badge 
-            className={`${getBillingStatusColorForCard(project.billingStatus)} text-[10px]`}
+            className={`${getBillingStatusColorClass(project.billingStatus)} text-[10px]`}
             data-testid={`badge-kanban-billing-status-${project.id}`}
           >
             {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
@@ -1725,15 +1644,13 @@ function ProjectKanbanView({
     })
   );
   
-  const stages = [
-    { value: "prospection", label: "Prospection", color: "bg-yellow-100 border-yellow-200" },
-    { value: "signe", label: "Signé", color: "bg-purple-100 border-purple-200" },
-    { value: "en_cours", label: "En cours", color: "bg-blue-100 border-blue-200" },
-    { value: "livre", label: "Livré", color: "bg-teal-100 border-teal-200" },
-    { value: "termine", label: "Terminé", color: "bg-green-100 border-green-200" },
-  ];
+  const stages = PROJECT_STAGES.map(s => ({
+    value: s.key,
+    label: s.label,
+    color: `${s.colorClass}`,
+  }));
   
-  const validStages = stages.map(s => s.value);
+  const validStages = projectStageKeys;
   
   const handleKanbanDragStart = (event: DragStartEvent) => {
     setActiveKanbanProjectId(event.active.id as string);
@@ -3170,39 +3087,6 @@ export default function Projects() {
                 );
               }
 
-              const getStageColor = (stage: string | null) => {
-                switch (stage) {
-                  case "prospection":
-                    return "bg-yellow-100 text-yellow-700 border-yellow-200";
-                  case "signe":
-                    return "bg-purple-100 text-purple-700 border-purple-200";
-                  case "en_cours":
-                    return "bg-blue-100 text-blue-700 border-blue-200";
-                  case "livre":
-                    return "bg-teal-100 text-teal-700 border-teal-200";
-                  case "termine":
-                    return "bg-green-100 text-green-700 border-green-200";
-                  default:
-                    return "bg-gray-100 text-gray-700 border-gray-200";
-                }
-              };
-
-              const getStageLabel = (stage: string | null) => {
-                switch (stage) {
-                  case "prospection":
-                    return "Prospection";
-                  case "signe":
-                    return "Signé";
-                  case "en_cours":
-                    return "En cours";
-                  case "livre":
-                    return "Livré";
-                  case "termine":
-                    return "Terminé";
-                  default:
-                    return stage || "Non défini";
-                }
-              };
 
               // Mobile Card View - always visible on mobile, hidden on desktop
               const mobileCardView = (
@@ -3306,8 +3190,8 @@ export default function Projects() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-3">
-                            <Badge variant="outline" className={`text-[10px] ${getStageColor(project.stage)}`}>
-                              {getStageLabel(project.stage)}
+                            <Badge variant="outline" className={`text-[10px] ${getProjectStageColorClass(project.stage)}`}>
+                              {getProjectStageLabel(project.stage)}
                             </Badge>
                             {project.category && (
                               <Badge variant="secondary" className="text-[10px]">
@@ -3503,8 +3387,8 @@ export default function Projects() {
 
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`${getStageColor(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
-                                {getStageLabel(project.stage)}
+                              <Badge className={`${getProjectStageColorClass(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
+                                {getProjectStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
                                 <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
@@ -3512,7 +3396,7 @@ export default function Projects() {
                                 </Badge>
                               )}
                               <Badge 
-                                className={`${getBillingStatusColorForCard(project.billingStatus)} text-xs`}
+                                className={`${getBillingStatusColorClass(project.billingStatus)} text-xs`}
                                 data-testid={`badge-billing-status-${project.id}`}
                               >
                                 {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
@@ -3661,8 +3545,8 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-stage-${project.id}`}
                                       >
-                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-[10px]`}>
-                                          {getStageLabel(project.stage)}
+                                        <Badge className={`${getProjectStageColorClass(project.stage)} cursor-pointer text-[10px]`}>
+                                          {getProjectStageLabel(project.stage)}
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
@@ -3687,7 +3571,7 @@ export default function Projects() {
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
                                             data-testid={`item-stage-${stage.value}`}
                                           >
-                                            <Badge className={`${getStageColor(stage.value)} text-[10px]`}>
+                                            <Badge className={`${getProjectStageColorClass(stage.value)} text-[10px]`}>
                                               {stage.label}
                                             </Badge>
                                           </button>
@@ -3964,7 +3848,7 @@ export default function Projects() {
                                         data-testid={`button-edit-billing-status-${project.id}`}
                                       >
                                         <Badge 
-                                          className={`${getBillingStatusColorForCard(project.billingStatus)} cursor-pointer text-[10px]`}
+                                          className={`${getBillingStatusColorClass(project.billingStatus)} cursor-pointer text-[10px]`}
                                           data-testid={`badge-table-billing-status-${project.id}`}
                                         >
                                           {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
@@ -3988,7 +3872,7 @@ export default function Projects() {
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
                                             data-testid={`item-billing-status-${status.value}`}
                                           >
-                                            <Badge className={`${getBillingStatusColorForCard(status.value)} text-[10px]`}>
+                                            <Badge className={`${getBillingStatusColorClass(status.value)} text-[10px]`}>
                                               {status.label}
                                             </Badge>
                                           </button>
@@ -4411,11 +4295,11 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
-                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
-                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
-                    <SelectItem value="livre" className="cursor-pointer">Livré</SelectItem>
-                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
+                    {PROJECT_STAGES.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
+                        {stage.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -4624,11 +4508,11 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    <SelectItem value="prospection" className="cursor-pointer">Prospection</SelectItem>
-                    <SelectItem value="signe" className="cursor-pointer">Signé</SelectItem>
-                    <SelectItem value="en_cours" className="cursor-pointer">En cours</SelectItem>
-                    <SelectItem value="livre" className="cursor-pointer">Livré</SelectItem>
-                    <SelectItem value="termine" className="cursor-pointer">Terminé</SelectItem>
+                    {PROJECT_STAGES.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
+                        {stage.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

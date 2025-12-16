@@ -28,6 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "@/components/Loader";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { getProjectStageColorClass, getProjectStageLabel } from "@shared/config";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -1621,40 +1622,6 @@ export default function ClientDetail() {
                 ) : (
                   <div className="space-y-3">
                     {projects.map((project) => {
-                      const getStageColor = (stage: string | null) => {
-                        switch (stage) {
-                          case "prospection":
-                            return "bg-yellow-100 text-yellow-700 border-yellow-200";
-                          case "signe":
-                            return "bg-purple-100 text-purple-700 border-purple-200";
-                          case "en_cours":
-                            return "bg-blue-100 text-blue-700 border-blue-200";
-                          case "livre":
-                            return "bg-teal-100 text-teal-700 border-teal-200";
-                          case "termine":
-                            return "bg-green-100 text-green-700 border-green-200";
-                          default:
-                            return "bg-gray-100 text-gray-700 border-gray-200";
-                        }
-                      };
-
-                      const getStageLabel = (stage: string | null) => {
-                        switch (stage) {
-                          case "prospection":
-                            return "Prospection";
-                          case "signe":
-                            return "Signé";
-                          case "en_cours":
-                            return "En cours";
-                          case "livre":
-                            return "Livré";
-                          case "termine":
-                            return "Terminé";
-                          default:
-                            return stage || "Non défini";
-                        }
-                      };
-
                       return (
                         <Link href={`/projects/${project.id}`} key={project.id}>
                           <div
@@ -1673,8 +1640,8 @@ export default function ClientDetail() {
                                   </p>
                                 )}
                                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                                  <Badge className={getStageColor(project.stage)}>
-                                    {getStageLabel(project.stage)}
+                                  <Badge className={getProjectStageColorClass(project.stage)}>
+                                    {getProjectStageLabel(project.stage)}
                                   </Badge>
                                   {project.category && (
                                     <Badge variant="outline">{project.category}</Badge>

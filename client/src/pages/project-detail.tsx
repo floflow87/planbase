@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
 import { cn } from "@/lib/utils";
+import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass } from "@shared/config";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -1359,52 +1360,9 @@ export default function ProjectDetail() {
     }
   }, [selectedTask, isTaskDetailDialogOpen]);
 
-  const getStageLabel = (stage: string) => {
-    const labels: Record<string, string> = {
-      prospection: "Prospection",
-      en_cours: "En cours",
-      livre: "Livré",
-      termine: "Terminé",
-      signe: "Signé",
-    };
-    return labels[stage] || stage;
-  };
-
-  const getStageColor = (stage: string) => {
-    const colors: Record<string, string> = {
-      prospection: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      en_cours: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      livre: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-      termine: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      signe: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-    };
-    return colors[stage] || "";
-  };
-
-  const getBillingStatusColor = (status: string | null) => {
-    switch (status || "brouillon") {
-      case "brouillon":
-        return "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800";
-      case "devis_envoye":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800";
-      case "devis_accepte":
-        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-      case "bon_commande":
-        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-      case "facture":
-        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
-      case "paye":
-        return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
-      case "partiel":
-        return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
-      case "annule":
-        return "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700";
-      case "retard":
-        return "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800";
-      default:
-        return "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800/20 dark:text-gray-400 dark:border-gray-700";
-    }
-  };
+  const getStageLabel = (stage: string) => getProjectStageLabel(stage);
+  const getStageColor = (stage: string) => getProjectStageColorClass(stage);
+  const getBillingStatusColor = (status: string | null) => getBillingStatusColorClass(status);
 
   const getBillingDaysOverdue = (billingDueDate: string | null) => {
     if (!billingDueDate) return "";

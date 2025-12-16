@@ -27,30 +27,11 @@ import { useState, useEffect, useMemo } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Loader } from "@/components/Loader";
 import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
+import { getProjectStageColorClass, getProjectStageLabel, getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
 
-// Fonction pour obtenir les couleurs du badge selon le stage (même logique que dans project-detail.tsx)
-const getStageColor = (stage: string) => {
-  const colors: Record<string, string> = {
-    prospection: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    en_cours: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    livre: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-    termine: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    signe: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  };
-  return colors[stage] || "";
-};
-
-// Fonction pour obtenir le label du stage
-const getStageLabel = (stage: string) => {
-  const labels: Record<string, string> = {
-    prospection: "Prospection",
-    en_cours: "En cours",
-    livre: "Livré",
-    termine: "Terminé",
-    signe: "Signé",
-  };
-  return labels[stage] || stage;
-};
+// Use centralized config for stage colors and labels
+const getStageColor = (stage: string) => getProjectStageColorClass(stage);
+const getStageLabel = (stage: string) => getProjectStageLabel(stage);
 
 // Fonction pour traduire les types d'activités
 const translateActivityKind = (kind: string) => {
@@ -68,22 +49,8 @@ const translateActivityKind = (kind: string) => {
   return translations[kind] || kind;
 };
 
-// Helper function to derive task status from column name
-function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
-  const lowerName = columnName.toLowerCase();
-  
-  if (lowerName.includes("à faire") || lowerName.includes("todo") || lowerName.includes("backlog")) {
-    return "todo";
-  } else if (lowerName.includes("terminé") || lowerName.includes("done") || lowerName.includes("complété")) {
-    return "done";
-  } else if (lowerName.includes("en cours") || lowerName.includes("progress") || lowerName.includes("doing")) {
-    return "in_progress";
-  } else if (lowerName.includes("revue") || lowerName.includes("review") || lowerName.includes("validation")) {
-    return "review";
-  }
-  
-  return "in_progress";
-}
+// Use centralized config for status from column name
+const getStatusFromColumnName = getStatusFromColumnNameConfig;
 
 // Fonction pour traduire les types de sujets
 const translateSubjectType = (subjectType: string) => {

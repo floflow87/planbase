@@ -1276,17 +1276,14 @@ export const mindmapNodeTypeOptions = [
 
 export type MindmapNodeType = typeof mindmapNodeTypeOptions[number]["value"];
 
-// Billing Status Options with Colors
-export const billingStatusOptions = [
-  { value: "brouillon", label: "Brouillon", color: "#C4B5FD" }, // Violet pastel
-  { value: "devis_envoye", label: "Devis envoyé", color: "#FDE047" }, // Yellow pastel
-  { value: "devis_accepte", label: "Devis accepté", color: "#93C5FD" }, // Blue pastel
-  { value: "bon_commande", label: "BDC émis", color: "#93C5FD" }, // Blue pastel
-  { value: "facture", label: "Facturé", color: "#93C5FD" }, // Blue pastel
-  { value: "paye", label: "Payé", color: "#86EFAC" }, // Green pastel
-  { value: "partiel", label: "Partiel", color: "#5EEAD4" }, // Turquoise pastel
-  { value: "annule", label: "Annulé", color: "#D1D5DB" }, // Gray pastel
-  { value: "retard", label: "Retard", color: "#FCA5A5" }, // Red pastel
-] as const;
-
-export type BillingStatus = typeof billingStatusOptions[number]["value"];
+// Billing Status Options - Re-exported from centralized config for backwards compatibility
+export { 
+  billingStatusOptions,
+  BILLING_STATUSES,
+  type BillingStatusKey as BillingStatus,
+  getBillingStatusLabel,
+  getBillingStatusColorClass,
+  getBillingStatusColor,
+  getBillingStatusOrder,
+  isTerminalBillingStatus
+} from "./config/billingStatuses";

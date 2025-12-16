@@ -91,6 +91,15 @@ import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
 import { Loader } from "@/components/Loader";
+import {
+  TASK_PRIORITIES,
+  getTaskPriorityLabel,
+  getTaskPriorityColorClass,
+  getTaskPriorityBadgeClass,
+  TASK_STATUSES,
+  getTaskStatusLabel,
+  getTaskStatusColorClass,
+} from "@shared/config";
 
 // Helper function to derive task status from column name
 function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
@@ -213,13 +222,7 @@ function CalendarView({ tasks, onTaskClick }: CalendarViewProps) {
   };
 
   const getPriorityColor = (priority: string | null) => {
-    if (!priority) return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
-    switch (priority) {
-      case "high": return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500";
-      case "medium": return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500";
-      case "low": return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500";
-      default: return "bg-gray-100 dark:bg-gray-800/30 text-gray-700 dark:text-gray-300";
-    }
+    return getTaskPriorityColorClass(priority);
   };
 
   return (
@@ -458,31 +461,8 @@ function SortableTaskCard({
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "Urgent";
-      case "medium":
-        return "Moyen";
-      case "low":
-        return "Faible";
-      default:
-        return priority;
-    }
-  };
+  const getPriorityColor = (priority: string) => getTaskPriorityBadgeClass(priority);
+  const getPriorityLabel = (priority: string) => getTaskPriorityLabel(priority);
 
   const assignedUser = users.find((u) => u.id === task.assignedToId);
 
@@ -1957,9 +1937,9 @@ export default function Tasks() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      <SelectItem value="low">Basse</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
-                      <SelectItem value="high">Haute</SelectItem>
+                      {TASK_PRIORITIES.map((p) => (
+                        <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
