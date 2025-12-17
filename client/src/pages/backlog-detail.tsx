@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
-  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check
+  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1152,8 +1152,9 @@ export default function BacklogDetail() {
           </TabsList>
         </div>
 
-        <TabsContent value="backlog" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <TabsContent value="backlog" className="flex-1 flex flex-col overflow-hidden mt-0">
+        {/* Fixed Header/Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 md:px-6 md:py-4 border-b bg-background sticky top-0 z-10">
           {/* Left: Search + Creation buttons */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Search bar */}
@@ -1302,7 +1303,9 @@ export default function BacklogDetail() {
           </div>
         </div>
 
-        {/* Kanban Board View */}
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:px-6 md:py-4">
+          {/* Kanban Board View */}
         {backlog.mode === "kanban" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleKanbanDragEnd}>
             <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
@@ -1446,6 +1449,8 @@ export default function BacklogDetail() {
             </div>
           </DndContext>
         )}
+        </div>
+        {/* End Scrollable Content Area */}
         </TabsContent>
 
         {/* Epics tab */}
@@ -1821,6 +1826,36 @@ export default function BacklogDetail() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Time saved calculation */}
+            {closingSprintId && (() => {
+              const sprint = backlog.sprints.find(s => s.id === closingSprintId);
+              if (sprint?.endDate) {
+                const endDate = new Date(sprint.endDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                endDate.setHours(0, 0, 0, 0);
+                const diffTime = endDate.getTime() - today.getTime();
+                const daysSaved = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (daysSaved > 0) {
+                  return (
+                    <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-green-600 dark:text-green-500" />
+                        <span className="font-medium text-green-700 dark:text-green-400">
+                          Temps gagné : {daysSaved} jour{daysSaved > 1 ? 's' : ''} d'avance
+                        </span>
+                      </div>
+                      <p className="text-sm text-green-600 dark:text-green-500 mt-1 ml-7">
+                        Ce sprint se termine avant la date prévue du {format(new Date(sprint.endDate), "d MMMM yyyy", { locale: fr })}
+                      </p>
+                    </div>
+                  );
+                }
+              }
+              return null;
+            })()}
+            
             <div className="space-y-2">
               <Label>Rediriger les tickets non terminés vers :</Label>
               <Select value={redirectTarget} onValueChange={setRedirectTarget}>
