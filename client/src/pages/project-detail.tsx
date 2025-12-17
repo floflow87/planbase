@@ -295,10 +295,10 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Temps total enregistré</p>
               <p className="text-2xl font-semibold" data-testid="text-total-time">
-                {totalTimeHours.toFixed(2)} heures
+                {(totalTimeHours / 8).toFixed(2)} jours
               </p>
               <p className="text-xs text-muted-foreground">
-                {timeEntries.length} session{timeEntries.length !== 1 ? "s" : ""}
+                {totalTimeHours.toFixed(2)} heures ({timeEntries.length} session{timeEntries.length !== 1 ? "s" : ""})
               </p>
             </div>
 

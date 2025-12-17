@@ -111,22 +111,25 @@ export function calculateMetrics(
   const timeOverrunPercent = theoreticalDays > 0 ? (timeOverrun / theoreticalDays) * 100 : 0;
   
   // Financial metrics
-  const totalBilled = parseFloat(project.totalBilled?.toString() || '0');
+  // totalPaid = CA encaissé (sum of actual payments received) - used for profitability calculations
+  // totalBilled = totalPaid for consistency with dashboard revenue (CA = encaissé)
   const totalPaid = calculateTotalPaid(payments);
-  const remainingToPay = totalBilled - totalPaid;
-  const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
+  const totalBilled = totalPaid; // CA = montant encaissé (cohérent avec dashboard)
+  const theoreticalBilled = parseFloat(project.totalBilled?.toString() || '0');
+  const remainingToPay = theoreticalBilled - totalPaid;
+  const paymentProgress = theoreticalBilled > 0 ? (totalPaid / theoreticalBilled) * 100 : 0;
   
-  // TJM metrics
+  // TJM metrics - Based on actual revenue received
   const targetTJM = parseFloat(project.billingRate?.toString() || '0');
-  const actualTJM = actualDaysWorked > 0 ? totalBilled / actualDaysWorked : 0;
+  const actualTJM = actualDaysWorked > 0 ? totalPaid / actualDaysWorked : 0;
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
   const tjmGapPercent = targetTJM > 0 ? (tjmGap / targetTJM) * 100 : 0;
   
-  // Profitability metrics
+  // Profitability metrics - Based on actual revenue received (CA encaissé)
   const internalDailyCost = parseFloat(project.internalDailyCost?.toString() || THRESHOLDS.DEFAULT_INTERNAL_COST.toString());
   const totalCost = actualDaysWorked * internalDailyCost;
-  const margin = totalBilled - totalCost;
-  const marginPercent = totalBilled > 0 ? (margin / totalBilled) * 100 : 0;
+  const margin = totalPaid - totalCost;
+  const marginPercent = totalPaid > 0 ? (margin / totalPaid) * 100 : 0;
   const targetMarginPercent = parseFloat(project.targetMarginPercent?.toString() || THRESHOLDS.DEFAULT_TARGET_MARGIN.toString());
   
   // Status
