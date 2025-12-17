@@ -158,6 +158,38 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
   );
 }
 
+// Type for profitability analysis from backend
+interface ProfitabilityMetrics {
+  actualDaysWorked: number;
+  theoreticalDays: number;
+  timeOverrun: number;
+  timeOverrunPercent: number;
+  totalBilled: number;
+  totalPaid: number;
+  remainingToPay: number;
+  paymentProgress: number;
+  targetTJM: number;
+  actualTJM: number;
+  tjmGap: number;
+  tjmGapPercent: number;
+  internalDailyCost: number;
+  totalCost: number;
+  margin: number;
+  marginPercent: number;
+  targetMarginPercent: number;
+  status: 'profitable' | 'at_risk' | 'deficit';
+  statusLabel: string;
+  statusColor: string;
+}
+
+interface ProfitabilityAnalysis {
+  projectId: string;
+  projectName: string;
+  metrics: ProfitabilityMetrics;
+  recommendations: any[];
+  generatedAt: string;
+}
+
 function TimeTrackingTab({ projectId, project }: { projectId: string; project?: ProjectWithRelations }) {
   const { toast } = useToast();
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
@@ -175,6 +207,12 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     queryKey: [`/api/projects/${projectId}/time-entries`],
   });
 
+  // Fetch profitability from backend for consistent calculations
+  const { data: profitabilityData } = useQuery<ProfitabilityAnalysis>({
+    queryKey: ['/api/projects', projectId, 'profitability'],
+    enabled: !!projectId,
+  });
+
   const { data: users = [] } = useQuery<AppUser[]>({
     queryKey: ["/api/accounts", project?.accountId, "users"],
     enabled: !!project?.accountId,
@@ -188,6 +226,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'profitability'] });
       toast({
         title: "Session supprimée",
         description: "La session de temps a été supprimée avec succès",
@@ -212,56 +251,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   // Convert to hours
   const totalTimeHours = totalTimeSeconds / 3600;
 
-  // Calculate profitability
-  const calculateProfitability = () => {
-    if (!project) return null;
-
-    const billingRate = parseFloat(project.billingRate || "0");
-    const totalBilled = parseFloat(project.totalBilled || "0");
-    const billingUnit = project.billingUnit || "hour";
-    const billingType = project.billingType || "time";
-
-    // Convert time to the right unit
-    let timeInUnits = totalTimeHours;
-    if (billingUnit === "day") {
-      timeInUnits = totalTimeHours / 8; // Assuming 8 hours per day
-    }
-
-    // Calculate actual cost (time spent × rate)
-    const actualCost = timeInUnits * billingRate;
-
-    // Calculate TJM réel (pour facturation au temps passé uniquement)
-    // TJM réel = montant facturé / (heures totales / 8)
-    let realDailyRate = undefined;
-    if (billingType === "time") {
-      const totalDays = totalTimeHours / 8;
-      realDailyRate = totalDays > 0 ? totalBilled / totalDays : 0;
-    }
-
-    // Calculate TJM théorique
-    // TJM théorique = montant total facturé / nombre de jours
-    const numberOfDays = parseFloat(project.numberOfDays || "0");
-    const theoreticalDailyRate = (numberOfDays > 0 && !isNaN(numberOfDays) && totalBilled > 0) 
-      ? totalBilled / numberOfDays 
-      : undefined;
-
-    // Calculate profit/loss
-    const profitLoss = totalBilled - actualCost;
-    const profitLossPercentage = totalBilled > 0 ? (profitLoss / totalBilled) * 100 : 0;
-
-    return {
-      actualCost,
-      realDailyRate,
-      theoreticalDailyRate,
-      totalBilled,
-      profitLoss,
-      profitLossPercentage,
-      isProfit: profitLoss >= 0,
-      billingType,
-    };
-  };
-
-  const profitability = calculateProfitability();
+  // Use profitability data from backend (consistent with finance page)
+  const metrics = profitabilityData?.metrics;
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -302,7 +293,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
               </p>
             </div>
 
-            {profitability && (
+            {metrics && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">Rentabilité</p>
@@ -315,27 +306,24 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge
-                    variant={profitability.isProfit ? "default" : "destructive"}
-                    className={profitability.isProfit ? "bg-green-600 dark:bg-green-700" : ""}
+                    variant={metrics.margin >= 0 ? "default" : "destructive"}
+                    className={metrics.margin >= 0 ? "bg-green-600 dark:bg-green-700" : ""}
                     data-testid="badge-profitability"
                   >
-                    {profitability.isProfit ? "GAIN" : "PERTE"}
+                    {metrics.statusLabel}
                   </Badge>
-                  <span className={`text-lg font-semibold ${profitability.isProfit ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
-                    {profitability.profitLoss >= 0 ? "+" : ""}
-                    {profitability.profitLoss.toFixed(2)} €
+                  <span className={`text-lg font-semibold ${metrics.margin >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
+                    {metrics.margin >= 0 ? "+" : ""}
+                    {metrics.margin.toFixed(2)} €
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  {profitability.billingType === "time" && profitability.realDailyRate !== undefined ? (
-                    <p>TJM réel: {profitability.realDailyRate.toFixed(2)} €</p>
-                  ) : (
-                    <p>Coût réel: {profitability.actualCost.toFixed(2)} €</p>
+                  <p>TJM réel: {metrics.actualTJM.toFixed(2)} €</p>
+                  {metrics.targetTJM > 0 && (
+                    <p>TJM cible: {metrics.targetTJM.toFixed(2)} €</p>
                   )}
-                  {profitability.theoreticalDailyRate !== undefined && (
-                    <p>TJM théorique: {profitability.theoreticalDailyRate.toFixed(2)} €</p>
-                  )}
-                  <p>Montant facturé: {profitability.totalBilled.toFixed(2)} €</p>
+                  <p>CA facturé: {metrics.totalBilled.toFixed(2)} €</p>
+                  <p>Encaissé: {metrics.totalPaid.toFixed(2)} €</p>
                 </div>
               </div>
             )}
@@ -468,6 +456,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                       
                       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
                       queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'profitability'] });
                       
                       setNewTimeHours("");
                       setNewTimeMinutes("0");
