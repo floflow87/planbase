@@ -2,32 +2,22 @@
  * TaskStatusBadge - Design System V1 Product Component
  * 
  * Displays a task status with proper styling
- * Consumes config + semantics for labels and colors
+ * Uses BadgeIntent primitive with semantic intent mapping
  */
 
 import { forwardRef } from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getTaskStatusLabel, type TaskStatusKey } from "@shared/config";
-import { getTaskStatusClasses } from "@shared/design/semantics";
+import { getTaskStatusIntent } from "@shared/design/semantics";
+import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 import { Circle, PlayCircle, Eye, CheckCircle, XCircle } from "lucide-react";
 
-export interface TaskStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
-  /** The task status key */
+export interface TaskStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
   statusKey: TaskStatusKey | string | null;
-  /** Optional size variant */
-  size?: "sm" | "md" | "lg";
-  /** Show icon alongside label */
+  size?: IntentSize;
   showIcon?: boolean;
-  /** Icon-only mode */
   iconOnly?: boolean;
 }
-
-const sizeClasses = {
-  sm: "text-[10px] px-1.5 py-0.5",
-  md: "text-xs px-2.5 py-0.5",
-  lg: "text-sm px-3 py-1",
-};
 
 const iconSizes = {
   sm: "w-3 h-3",
@@ -35,67 +25,56 @@ const iconSizes = {
   lg: "w-4 h-4",
 };
 
-function getStatusIcon(key: string | null, size: "sm" | "md" | "lg") {
-  const iconClass = iconSizes[size];
-  switch (key) {
-    case "todo":
-      return <Circle className={cn(iconClass, "text-gray-500 dark:text-gray-400")} />;
-    case "in_progress":
-      return <PlayCircle className={cn(iconClass, "text-blue-600 dark:text-blue-400")} />;
-    case "review":
-      return <Eye className={cn(iconClass, "text-yellow-600 dark:text-yellow-400")} />;
-    case "done":
-      return <CheckCircle className={cn(iconClass, "text-green-600 dark:text-green-400")} />;
-    case "blocked":
-      return <XCircle className={cn(iconClass, "text-red-600 dark:text-red-400")} />;
-    default:
-      return <Circle className={cn(iconClass, "text-gray-400")} />;
-  }
-}
+const statusIcons: Record<string, typeof Circle> = {
+  todo: Circle,
+  in_progress: PlayCircle,
+  review: Eye,
+  done: CheckCircle,
+  blocked: XCircle,
+};
 
 /**
  * TaskStatusBadge displays the current status of a task
- * 
- * @example
- * <TaskStatusBadge statusKey={task.status} />
- * <TaskStatusBadge statusKey="in_progress" showIcon />
+ * Uses BadgeIntent primitive for consistent design system integration
  */
-export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
+export const TaskStatusBadge = forwardRef<HTMLSpanElement, TaskStatusBadgeProps>(
   ({ statusKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
     const label = getTaskStatusLabel(statusKey);
-    const colorClasses = getTaskStatusClasses(statusKey);
-    const sizeClass = sizeClasses[size];
-    const icon = getStatusIcon(statusKey, size);
+    const intent = getTaskStatusIntent(statusKey) as Intent;
+    const iconSize = iconSizes[size];
+    
+    const IconComponent = statusIcons[statusKey as string] || Circle;
 
-    if (iconOnly && icon) {
+    if (iconOnly) {
       return (
-        <span
+        <BadgeIntent
           ref={ref}
-          className={cn("inline-flex items-center", className)}
+          intent={intent}
+          variant="ghost"
+          size={size}
+          className={cn("p-1", className)}
           title={label}
+          data-testid={`icon-task-status-${statusKey || "none"}`}
           {...props}
         >
-          {icon}
-        </span>
+          <IconComponent className={iconSize} />
+        </BadgeIntent>
       );
     }
 
     return (
-      <Badge
+      <BadgeIntent
         ref={ref}
-        variant="outline"
-        className={cn(
-          "border font-medium inline-flex items-center gap-1",
-          colorClasses,
-          sizeClass,
-          className
-        )}
+        intent={intent}
+        variant="soft"
+        size={size}
+        className={cn(showIcon && "gap-1", className)}
         data-testid={`badge-task-status-${statusKey || "none"}`}
         {...props}
       >
-        {showIcon && icon}
+        {showIcon && <IconComponent className={iconSize} />}
         {label}
-      </Badge>
+      </BadgeIntent>
     );
   }
 );

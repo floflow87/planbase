@@ -2,24 +2,25 @@
  * BadgeIntent - Design System V1 Primitive
  * 
  * A badge component that accepts semantic intents
- * Wraps the base shadcn Badge with intent-based styling
+ * Consumes intent-to-style mappings from shared/design/semantics
  */
 
 import { forwardRef } from "react";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "./cx";
-import type { Intent, IntentVariant, IntentSize } from "@shared/design/semantics";
-import { getIntentClasses } from "@shared/design/semantics";
+import { cn } from "@/lib/utils";
+import { 
+  getIntentClasses, 
+  type Intent, 
+  type IntentVariant, 
+  type IntentSize 
+} from "@shared/design/semantics";
 
-export interface BadgeIntentProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
-  /** The semantic intent for styling */
+export type { Intent, IntentVariant, IntentSize };
+
+export interface BadgeIntentProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
   intent?: Intent;
-  /** The visual variant */
   variant?: IntentVariant;
-  /** The size of the badge */
   size?: IntentSize;
-  /** Badge content */
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const sizeClasses: Record<IntentSize, string> = {
@@ -30,22 +31,22 @@ const sizeClasses: Record<IntentSize, string> = {
 
 /**
  * BadgeIntent renders a badge with semantic intent styling
+ * Consumes styling from shared/design/semantics layer
  * 
  * @example
  * <BadgeIntent intent="success">Completed</BadgeIntent>
  * <BadgeIntent intent="warning" variant="outline">Pending</BadgeIntent>
  */
-export const BadgeIntent = forwardRef<HTMLDivElement, BadgeIntentProps>(
+export const BadgeIntent = forwardRef<HTMLSpanElement, BadgeIntentProps>(
   ({ intent = "neutral", variant = "soft", size = "md", className, children, ...props }, ref) => {
     const intentClasses = getIntentClasses(intent, variant);
     const sizeClass = sizeClasses[size];
 
     return (
-      <Badge
+      <span
         ref={ref}
-        variant="outline"
         className={cn(
-          "border font-medium",
+          "inline-flex items-center rounded-md border font-medium whitespace-nowrap",
           intentClasses,
           sizeClass,
           className
@@ -53,7 +54,7 @@ export const BadgeIntent = forwardRef<HTMLDivElement, BadgeIntentProps>(
         {...props}
       >
         {children}
-      </Badge>
+      </span>
     );
   }
 );

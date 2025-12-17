@@ -10,4 +10,4 @@ export { cn, cxIf, cxVariant } from "./cx";
 
 // Components
 export { BadgeIntent } from "./BadgeIntent";
-export type { BadgeIntentProps } from "./BadgeIntent";
+export type { BadgeIntentProps, Intent, IntentVariant, IntentSize } from "./BadgeIntent";

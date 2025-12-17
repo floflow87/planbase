@@ -2,73 +2,61 @@
  * ProjectStageBadge - Design System V1 Product Component
  * 
  * Displays a project stage with proper styling
- * Consumes config + semantics for labels and colors
+ * Uses BadgeIntent primitive with semantic intent mapping
  */
 
 import { forwardRef } from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getProjectStageLabel, type ProjectStageKey } from "@shared/config";
-import { getProjectStageClasses } from "@shared/design/semantics";
+import { getProjectStageIntent } from "@shared/design/semantics";
+import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 
-export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
-  /** The project stage key */
+export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
   stageKey: ProjectStageKey | string | null;
-  /** Optional size variant */
-  size?: "sm" | "md" | "lg";
-  /** Show only dot indicator */
+  size?: IntentSize;
   dotOnly?: boolean;
 }
 
-const sizeClasses = {
-  sm: "text-[10px] px-1.5 py-0.5",
-  md: "text-xs px-2.5 py-0.5",
-  lg: "text-sm px-3 py-1",
-};
-
 /**
  * ProjectStageBadge displays the current stage of a project
+ * Uses BadgeIntent primitive for consistent design system integration
  * 
  * @example
  * <ProjectStageBadge stageKey={project.stage} />
  * <ProjectStageBadge stageKey="en_cours" size="sm" />
  */
-export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgeProps>(
+export const ProjectStageBadge = forwardRef<HTMLSpanElement, ProjectStageBadgeProps>(
   ({ stageKey, size = "md", dotOnly = false, className, ...props }, ref) => {
     const label = getProjectStageLabel(stageKey);
-    const colorClasses = getProjectStageClasses(stageKey);
-    const sizeClass = sizeClasses[size];
+    const intent = getProjectStageIntent(stageKey) as Intent;
 
     if (dotOnly) {
       return (
-        <span
+        <BadgeIntent
           ref={ref}
-          className={cn(
-            "inline-block w-2 h-2 rounded-full",
-            colorClasses.split(" ").find(c => c.startsWith("bg-")),
-            className
-          )}
+          intent={intent}
+          variant="solid"
+          size="sm"
+          className={cn("w-2 h-2 p-0 min-w-0", className)}
           title={label}
+          data-testid={`dot-project-stage-${stageKey || "none"}`}
           {...props}
         />
       );
     }
 
     return (
-      <Badge
+      <BadgeIntent
         ref={ref}
-        variant="outline"
-        className={cn(
-          "border font-medium",
-          colorClasses,
-          sizeClass,
-          className
-        )}
+        intent={intent}
+        variant="soft"
+        size={size}
+        className={className}
         data-testid={`badge-project-stage-${stageKey || "none"}`}
         {...props}
       >
         {label}
-      </Badge>
+      </BadgeIntent>
     );
   }
 );

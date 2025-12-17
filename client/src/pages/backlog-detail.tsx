@@ -23,6 +23,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -187,7 +188,7 @@ export default function BacklogDetail() {
     },
     onSuccess: (newBacklog: Backlog) => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Backlog créé" });
       navigate(`/product/backlog/${newBacklog.id}`);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -199,7 +200,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Epic créé" });
       setShowEpicDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -211,7 +212,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Epic mis à jour" });
       setEditingEpic(null);
       setShowEpicDialog(false);
     },
@@ -222,7 +223,7 @@ export default function BacklogDetail() {
     mutationFn: async (epicId: string) => apiRequest(`/api/epics/${epicId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Epic supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Epic supprimé" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -240,7 +241,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "User Story créée" });
       setShowUserStoryDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -252,7 +253,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story mise à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "User Story mise à jour" });
       setEditingUserStory(null);
       setShowUserStoryDialog(false);
     },
@@ -263,7 +264,7 @@ export default function BacklogDetail() {
     mutationFn: async (usId: string) => apiRequest(`/api/user-stories/${usId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "User Story supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "User Story supprimée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -277,7 +278,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Tâche créée" });
       setShowTaskDialog(false);
       setParentUserStoryId(null);
     },
@@ -298,7 +299,7 @@ export default function BacklogDetail() {
     mutationFn: async (taskId: string) => apiRequest(`/api/backlog-tasks/${taskId}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Tâche supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Tâche supprimée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -309,7 +310,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Sprint créé" });
       setShowSprintDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -321,7 +322,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Sprint mis à jour" });
       setShowSprintDialog(false);
       setEditingSprint(null);
     },
@@ -332,7 +333,7 @@ export default function BacklogDetail() {
     mutationFn: async (sprintId: string) => apiRequest(`/api/sprints/${sprintId}/start`, "PATCH"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint démarré", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Sprint démarré" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -342,7 +343,7 @@ export default function BacklogDetail() {
       apiRequest(`/api/sprints/${sprintId}/close`, "PATCH", { redirectTo }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Sprint clôturé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Sprint clôturé" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -354,7 +355,7 @@ export default function BacklogDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Backlog mis à jour" });
       setShowEditBacklogDialog(false);
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
@@ -366,7 +367,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Backlog supprimé" });
       setShowEditBacklogDialog(false);
       navigate("/product");
     },
@@ -391,7 +392,7 @@ export default function BacklogDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowColumnDialog(false);
-      toast({ title: "Colonne créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Colonne créée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -402,7 +403,7 @@ export default function BacklogDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Colonne supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Colonne supprimée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -415,7 +416,7 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowKanbanTaskDialog(false);
       setSelectedColumnId(null);
-      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Tâche créée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -633,7 +634,7 @@ export default function BacklogDetail() {
         setSelectedTicket({ ...selectedTicket, ...data });
       }
       
-      toast({ title: "Ticket mis à jour", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Ticket mis à jour" });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -650,7 +651,7 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setSelectedTicket(null);
       
-      toast({ title: "Ticket supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Ticket supprimé" });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -673,22 +674,20 @@ export default function BacklogDetail() {
         case "move_top":
           // Move ticket to top of its current sprint/backlog
           await handleUpdateTicket(action.ticketId, action.ticketType, { order: 0 });
-          toast({ title: "Ticket déplacé en haut", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          toastSuccess({ title: "Ticket déplacé en haut" });
           break;
           
         case "move_bottom":
           // Move ticket to bottom - set a high order number
           await handleUpdateTicket(action.ticketId, action.ticketType, { order: 999999 });
-          toast({ title: "Ticket déplacé en bas", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+          toastSuccess({ title: "Ticket déplacé en bas" });
           break;
           
         case "move_sprint":
           // Move ticket to a different sprint (or null for backlog)
           await handleUpdateTicket(action.ticketId, action.ticketType, { sprintId: action.sprintId || null });
-          toast({ 
-            title: action.sprintId ? "Ticket déplacé vers le sprint" : "Ticket déplacé vers le backlog", 
-            className: "bg-green-500 text-white border-green-600", 
-            duration: 3000 
+          toastSuccess({ 
+            title: action.sprintId ? "Ticket déplacé vers le sprint" : "Ticket déplacé vers le backlog"
           });
           break;
           
@@ -719,7 +718,7 @@ export default function BacklogDetail() {
             
             await apiRequest(endpoint, "POST", baseData);
             queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-            toast({ title: "Ticket copié", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+            toastSuccess({ title: "Ticket copié" });
           }
           break;
           
@@ -729,10 +728,8 @@ export default function BacklogDetail() {
           
         case "assign":
           await handleUpdateTicket(action.ticketId, action.ticketType, { assigneeId: action.assigneeId || null });
-          toast({ 
-            title: action.assigneeId ? "Ticket assigné" : "Assignation retirée", 
-            className: "bg-green-500 text-white border-green-600", 
-            duration: 3000 
+          toastSuccess({ 
+            title: action.assigneeId ? "Ticket assigné" : "Assignation retirée"
           });
           break;
           
@@ -740,16 +737,14 @@ export default function BacklogDetail() {
           if (action.state) {
             await handleUpdateTicket(action.ticketId, action.ticketType, { state: action.state });
             const stateLabel = backlogItemStateOptions.find(s => s.value === action.state)?.label || action.state;
-            toast({ title: `Statut: ${stateLabel}`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
+            toastSuccess({ title: `Statut: ${stateLabel}` });
           }
           break;
           
         case "set_estimate":
           await handleUpdateTicket(action.ticketId, action.ticketType, { estimatePoints: action.estimatePoints || null });
-          toast({ 
-            title: action.estimatePoints ? `${action.estimatePoints} points estimés` : "Estimation retirée", 
-            className: "bg-green-500 text-white border-green-600", 
-            duration: 3000 
+          toastSuccess({ 
+            title: action.estimatePoints ? `${action.estimatePoints} points estimés` : "Estimation retirée"
           });
           break;
           
@@ -757,7 +752,7 @@ export default function BacklogDetail() {
           if (action.priority) {
             await handleUpdateTicket(action.ticketId, action.ticketType, { priority: action.priority });
             const priorityLabel = backlogPriorityOptions.find(p => p.value === action.priority)?.label || action.priority;
-            toast({ title: `Priorité: ${priorityLabel}`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
+            toastSuccess({ title: `Priorité: ${priorityLabel}` });
           }
           break;
           
@@ -774,11 +769,9 @@ export default function BacklogDetail() {
                 status: backlogTask.state === "termine" ? "completed" : 
                         backlogTask.state === "en_cours" ? "in_progress" : "todo",
               });
-              toast({ 
+              toastSuccess({ 
                 title: "Tâche créée", 
-                description: "Le ticket a été ajouté dans les Tâches",
-                className: "bg-green-500 text-white border-green-600", 
-                duration: 3000 
+                description: "Le ticket a été ajouté dans les Tâches"
               });
             }
           }
@@ -832,11 +825,9 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setSelectedTicket(null);
       
-      toast({ 
+      toastSuccess({ 
         title: "Type converti", 
-        description: `Converti en ${toType === "epic" ? "Epic" : toType === "user_story" ? "User Story" : "Task"}`,
-        className: "bg-green-500 text-white border-green-600", 
-        duration: 3000 
+        description: `Converti en ${toType === "epic" ? "Epic" : toType === "user_story" ? "User Story" : "Task"}`
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -881,7 +872,7 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Ticket créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Ticket créé" });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -905,7 +896,7 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toast({ title: "Ticket créé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Ticket créé" });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -2588,7 +2579,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
       setCreateDialogOpen(false);
       setSelectedSprintId("");
-      toast({ title: "Rétrospective créée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Rétrospective créée" });
       // Auto-redirect to the new retro
       setSelectedRetroId(data.id);
     },
@@ -2772,7 +2763,7 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
       queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
       setNewCardContent(prev => ({ ...prev, [column]: '' }));
-      toast({ title: "Carte ajoutée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Carte ajoutée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -2798,7 +2789,7 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId, "cards"] });
-      toast({ title: "Carte supprimée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Carte supprimée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
@@ -2810,7 +2801,7 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/retros", retroId] });
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
-      toast({ title: "Rétrospective terminée", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Rétrospective terminée" });
     },
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
