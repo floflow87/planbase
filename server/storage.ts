@@ -11,6 +11,7 @@ import {
   type Project, type InsertProject,
   type ProjectCategory, type InsertProjectCategory,
   type ProjectPayment, type InsertProjectPayment,
+  type ProjectScopeItem, type InsertProjectScopeItem,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
@@ -34,7 +35,7 @@ import {
   type MindmapEdge, type InsertMindmapEdge,
   type EntityLink, type InsertEntityLink,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, projectPayments, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, projectScopeItems, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks,
@@ -122,6 +123,14 @@ export interface IStorage {
   createPayment(payment: InsertProjectPayment): Promise<ProjectPayment>;
   updatePayment(id: string, payment: Partial<InsertProjectPayment>): Promise<ProjectPayment | undefined>;
   deletePayment(id: string): Promise<boolean>;
+
+  // Project Scope Items (CDC/Statement of Work)
+  getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]>;
+  getScopeItem(id: string): Promise<ProjectScopeItem | undefined>;
+  createScopeItem(scopeItem: InsertProjectScopeItem): Promise<ProjectScopeItem>;
+  updateScopeItem(id: string, scopeItem: Partial<InsertProjectScopeItem>): Promise<ProjectScopeItem | undefined>;
+  deleteScopeItem(id: string): Promise<boolean>;
+  reorderScopeItems(projectId: string, orders: { id: string; order: number }[]): Promise<void>;
 
   // Task Columns
   getTaskColumn(id: string): Promise<TaskColumn | undefined>;
@@ -667,6 +676,54 @@ export class DatabaseStorage implements IStorage {
   async deletePayment(id: string): Promise<boolean> {
     const result = await db.delete(projectPayments).where(eq(projectPayments.id, id));
     return result.length > 0;
+  }
+
+  // Project Scope Items (CDC/Statement of Work)
+  async getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]> {
+    return await db
+      .select()
+      .from(projectScopeItems)
+      .where(eq(projectScopeItems.projectId, projectId))
+      .orderBy(projectScopeItems.order);
+  }
+
+  async getScopeItem(id: string): Promise<ProjectScopeItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(projectScopeItems)
+      .where(eq(projectScopeItems.id, id));
+    return item || undefined;
+  }
+
+  async createScopeItem(scopeItemData: InsertProjectScopeItem): Promise<ProjectScopeItem> {
+    const [item] = await db
+      .insert(projectScopeItems)
+      .values(scopeItemData)
+      .returning();
+    return item;
+  }
+
+  async updateScopeItem(id: string, updateData: Partial<InsertProjectScopeItem>): Promise<ProjectScopeItem | undefined> {
+    const [item] = await db
+      .update(projectScopeItems)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(projectScopeItems.id, id))
+      .returning();
+    return item || undefined;
+  }
+
+  async deleteScopeItem(id: string): Promise<boolean> {
+    const result = await db.delete(projectScopeItems).where(eq(projectScopeItems.id, id));
+    return result.length > 0;
+  }
+
+  async reorderScopeItems(projectId: string, orders: { id: string; order: number }[]): Promise<void> {
+    for (const { id, order } of orders) {
+      await db
+        .update(projectScopeItems)
+        .set({ order, updatedAt: new Date() })
+        .where(and(eq(projectScopeItems.id, id), eq(projectScopeItems.projectId, projectId)));
+    }
   }
 
   // Task Columns

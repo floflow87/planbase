@@ -788,6 +788,27 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects priority column added");
     
+    // Create project_scope_items table for CDC/Statement of Work
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_scope_items (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        label text NOT NULL,
+        estimated_days numeric(10,2) NOT NULL,
+        is_optional integer NOT NULL DEFAULT 0,
+        "order" integer NOT NULL DEFAULT 0,
+        description text,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_scope_items_account_project_idx 
+      ON project_scope_items(account_id, project_id);
+    `);
+    console.log("✅ Project scope items table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

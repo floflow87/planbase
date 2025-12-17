@@ -207,6 +207,22 @@ export const projectPayments = pgTable("project_payments", {
   accountProjectIdx: index().on(table.accountId, table.projectId),
 }));
 
+// Project Scope Items (CDC - Cahier des Charges / Statement of Work items for quoting)
+export const projectScopeItems = pgTable("project_scope_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  estimatedDays: numeric("estimated_days", { precision: 10, scale: 2 }).notNull(), // Temps estimé en jours
+  isOptional: integer("is_optional").notNull().default(0), // 0 = obligatoire, 1 = optionnel
+  order: integer("order").notNull().default(0), // Pour le tri
+  description: text("description"), // Description optionnelle de la rubrique
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+}));
+
 // Task Columns (for Kanban board customization)
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1052,6 +1068,11 @@ export const insertProjectCategorySchema = createInsertSchema(projectCategories)
 export const insertProjectPaymentSchema = createInsertSchema(projectPayments).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   amount: z.union([z.string(), z.number()]).transform((val) => val.toString()),
 });
+export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  estimatedDays: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  isOptional: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
+});
+export const updateProjectScopeItemSchema = insertProjectScopeItemSchema.omit({ accountId: true, projectId: true }).partial();
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
@@ -1158,6 +1179,8 @@ export type InsertClientCustomFieldValue = z.infer<typeof insertClientCustomFiel
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type InsertProjectCategory = z.infer<typeof insertProjectCategorySchema>;
 export type InsertProjectPayment = z.infer<typeof insertProjectPaymentSchema>;
+export type InsertProjectScopeItem = z.infer<typeof insertProjectScopeItemSchema>;
+export type UpdateProjectScopeItem = z.infer<typeof updateProjectScopeItemSchema>;
 export type InsertTaskColumn = z.infer<typeof insertTaskColumnSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertTimeEntry = z.infer<typeof insertTimeEntrySchema>;
@@ -1218,6 +1241,7 @@ export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect
 export type Project = typeof projects.$inferSelect;
 export type ProjectCategory = typeof projectCategories.$inferSelect;
 export type ProjectPayment = typeof projectPayments.$inferSelect;
+export type ProjectScopeItem = typeof projectScopeItems.$inferSelect;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
