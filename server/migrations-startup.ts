@@ -764,6 +764,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Settings table created for Config Registry");
     
+    // Add completed_at and days_saved columns to sprints table
+    await db.execute(sql`
+      ALTER TABLE sprints ADD COLUMN IF NOT EXISTS completed_at timestamp with time zone;
+    `);
+    await db.execute(sql`
+      ALTER TABLE sprints ADD COLUMN IF NOT EXISTS days_saved real;
+    `);
+    console.log("✅ Sprints completed_at and days_saved columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
