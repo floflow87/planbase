@@ -158,8 +158,8 @@ function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
-          <Avatar className="h-8 w-8 cursor-pointer">
+        <Button variant="ghost" size="icon" className="rounded-full cursor-pointer" data-testid="button-user-menu">
+          <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300 text-xs">
               {userInitials}
             </AvatarFallback>
@@ -339,12 +339,12 @@ function AppLayout() {
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
                 {tabs.map((tab) => (
-                  <button
+                  <div
                     key={tab.id}
                     onClick={() => handleTabClick(tab)}
                     className={`
                       group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium 
-                      transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0
+                      transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
                       ${activeTabId === tab.id 
                         ? 'bg-primary/10 text-primary border border-primary/20' 
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -365,7 +365,7 @@ function AppLayout() {
                         <X className="w-3 h-3" />
                       </button>
                     )}
-                  </button>
+                  </div>
                 ))}
                 
                 {/* Add Tab Button */}
