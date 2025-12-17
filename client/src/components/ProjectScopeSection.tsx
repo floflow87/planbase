@@ -1,0 +1,575 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Plus, 
+  Trash2, 
+  GripVertical, 
+  AlertTriangle, 
+  TrendingUp, 
+  TrendingDown,
+  Calculator,
+  FileText,
+  Clock,
+  DollarSign,
+  Target,
+  Lightbulb
+} from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { ProjectScopeItem } from "@shared/schema";
+
+interface ProjectScopeSectionProps {
+  projectId: string;
+  dailyRate: number;
+  internalDailyCost: number;
+  targetMarginPercent: number;
+  budget: number;
+}
+
+interface ScopeItemRowProps {
+  item: ProjectScopeItem;
+  onUpdate: (id: string, data: Partial<ProjectScopeItem>) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [label, setLabel] = useState(item.label);
+  const [estimatedDays, setEstimatedDays] = useState(item.estimatedDays?.toString() || "0");
+  const [description, setDescription] = useState(item.description || "");
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleSave = () => {
+    onUpdate(item.id, {
+      label,
+      estimatedDays: estimatedDays,
+      description: description || null,
+    });
+    setIsEditing(false);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 p-3 bg-background border rounded-lg ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab text-muted-foreground hover:text-foreground"
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+
+      {isEditing ? (
+        <div className="flex-1 space-y-2">
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Intitulé de la rubrique"
+            data-testid={`input-scope-label-${item.id}`}
+          />
+          <div className="flex gap-2 items-center">
+            <div className="flex-1">
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                value={estimatedDays}
+                onChange={(e) => setEstimatedDays(e.target.value)}
+                placeholder="Jours"
+                data-testid={`input-scope-days-${item.id}`}
+              />
+            </div>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description (optionnel)"
+              className="flex-[2] resize-none"
+              rows={1}
+              data-testid={`input-scope-description-${item.id}`}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave} data-testid={`button-save-scope-${item.id}`}>
+              Enregistrer
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+              Annuler
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 min-w-0" onClick={() => setIsEditing(true)}>
+            <div className="flex items-center gap-2">
+              <span className="font-medium truncate">{item.label}</span>
+              {item.isOptional === 1 && (
+                <Badge variant="outline" className="text-xs shrink-0">Optionnel</Badge>
+              )}
+            </div>
+            {item.description && (
+              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+              <Clock className="h-3 w-3 mr-1" />
+              {parseFloat(item.estimatedDays?.toString() || "0")} j
+            </Badge>
+            <div className="flex items-center gap-1">
+              <Label htmlFor={`optional-${item.id}`} className="text-xs text-muted-foreground">
+                Opt.
+              </Label>
+              <Switch
+                id={`optional-${item.id}`}
+                checked={item.isOptional === 1}
+                onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
+                data-testid={`switch-optional-${item.id}`}
+              />
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => onDelete(item.id)}
+              data-testid={`button-delete-scope-${item.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface ScopeAlert {
+  type: 'error' | 'warning' | 'info';
+  title: string;
+  message: string;
+  icon: typeof AlertTriangle;
+}
+
+interface ScopeRecommendation {
+  title: string;
+  description: string;
+  action?: string;
+}
+
+export function ProjectScopeSection({ 
+  projectId, 
+  dailyRate, 
+  internalDailyCost, 
+  targetMarginPercent,
+  budget
+}: ProjectScopeSectionProps) {
+  const { toast } = useToast();
+  const [newItemLabel, setNewItemLabel] = useState("");
+  const [newItemDays, setNewItemDays] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const { data: scopeData, isLoading } = useQuery<{
+    scopeItems: ProjectScopeItem[];
+    totals: {
+      mandatoryDays: number;
+      optionalDays: number;
+      totalDays: number;
+      estimatedCost: number;
+      recommendedPrice: number;
+      estimatedMargin: number;
+      marginPercent: number;
+    };
+  }>({
+    queryKey: ['/api/projects', projectId, 'scope-items'],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { label: string; estimatedDays: string }) => {
+      return apiRequest(`/api/projects/${projectId}/scope-items`, "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+      setNewItemLabel("");
+      setNewItemDays("");
+      toast({ title: "Rubrique ajoutée", variant: "success" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<ProjectScopeItem> }) => {
+      return apiRequest(`/api/scope-items/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/scope-items/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+      toast({ title: "Rubrique supprimée", variant: "success" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (orders: { id: string; order: number }[]) => {
+      return apiRequest(`/api/projects/${projectId}/scope-items/reorder`, "POST", { orders });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+    },
+  });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !scopeData?.scopeItems) return;
+
+    const oldIndex = scopeData.scopeItems.findIndex((item) => item.id === active.id);
+    const newIndex = scopeData.scopeItems.findIndex((item) => item.id === over.id);
+    const newItems = arrayMove(scopeData.scopeItems, oldIndex, newIndex);
+
+    const orders = newItems.map((item, index) => ({ id: item.id, order: index }));
+    reorderMutation.mutate(orders);
+  };
+
+  const handleAddItem = () => {
+    if (!newItemLabel.trim() || !newItemDays) return;
+    createMutation.mutate({
+      label: newItemLabel.trim(),
+      estimatedDays: newItemDays,
+    });
+  };
+
+  const handleUpdate = (id: string, data: Partial<ProjectScopeItem>) => {
+    updateMutation.mutate({ id, data });
+  };
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  const totals = scopeData?.totals || {
+    mandatoryDays: 0,
+    optionalDays: 0,
+    totalDays: 0,
+    estimatedCost: 0,
+    recommendedPrice: 0,
+    estimatedMargin: 0,
+    marginPercent: 0,
+  };
+
+  const alerts: ScopeAlert[] = [];
+  const recommendations: ScopeRecommendation[] = [];
+
+  if (totals.estimatedMargin < 0) {
+    alerts.push({
+      type: 'error',
+      title: 'Marge négative',
+      message: `Le projet générerait une perte de ${Math.abs(totals.estimatedMargin).toFixed(0)} €`,
+      icon: AlertTriangle,
+    });
+    recommendations.push({
+      title: "Augmenter le prix",
+      description: `Prix minimum pour rentabilité : ${totals.estimatedCost.toFixed(0)} €`,
+      action: "increase_price",
+    });
+    recommendations.push({
+      title: "Réduire le périmètre",
+      description: "Passez certaines rubriques en optionnel pour réduire les jours obligatoires",
+      action: "reduce_scope",
+    });
+  } else if (targetMarginPercent > 0 && totals.marginPercent < targetMarginPercent) {
+    alerts.push({
+      type: 'warning',
+      title: 'Marge insuffisante',
+      message: `Marge de ${totals.marginPercent.toFixed(1)}% vs objectif de ${targetMarginPercent}%`,
+      icon: TrendingDown,
+    });
+    const targetPrice = totals.estimatedCost / (1 - targetMarginPercent / 100);
+    recommendations.push({
+      title: "Prix recommandé pour objectif",
+      description: `Augmenter à ${targetPrice.toFixed(0)} € pour atteindre ${targetMarginPercent}% de marge`,
+      action: "target_price",
+    });
+  }
+
+  if (dailyRate > 0 && internalDailyCost > 0 && dailyRate < internalDailyCost * 1.2) {
+    alerts.push({
+      type: 'warning',
+      title: 'TJM trop faible',
+      message: `Votre TJM (${dailyRate} €) est proche de votre coût interne (${internalDailyCost} €)`,
+      icon: AlertTriangle,
+    });
+    recommendations.push({
+      title: "Revoir le TJM",
+      description: `TJM recommandé pour 30% de marge : ${(internalDailyCost * 1.43).toFixed(0)} €`,
+      action: "review_rate",
+    });
+  }
+
+  if (budget > 0 && totals.recommendedPrice > budget) {
+    alerts.push({
+      type: 'info',
+      title: 'Écart avec budget',
+      message: `Le chiffrage (${totals.recommendedPrice.toFixed(0)} €) dépasse le budget (${budget.toFixed(0)} €)`,
+      icon: TrendingUp,
+    });
+    recommendations.push({
+      title: "Renégocier le budget",
+      description: `Écart de ${(totals.recommendedPrice - budget).toFixed(0)} € à combler`,
+      action: "negotiate",
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5 text-violet-600" />
+            Cahier des Charges - Estimation
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Intitulé de la rubrique"
+              value={newItemLabel}
+              onChange={(e) => setNewItemLabel(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
+              className="flex-1"
+              data-testid="input-new-scope-label"
+            />
+            <Input
+              type="number"
+              step="0.5"
+              min="0"
+              placeholder="Jours"
+              value={newItemDays}
+              onChange={(e) => setNewItemDays(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
+              className="w-24"
+              data-testid="input-new-scope-days"
+            />
+            <Button 
+              onClick={handleAddItem} 
+              disabled={!newItemLabel.trim() || !newItemDays}
+              data-testid="button-add-scope-item"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Ajouter
+            </Button>
+          </div>
+
+          {scopeData?.scopeItems && scopeData.scopeItems.length > 0 ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={scopeData.scopeItems.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {scopeData.scopeItems.map((item) => (
+                    <SortableScopeItem
+                      key={item.id}
+                      item={item}
+                      onUpdate={handleUpdate}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>Aucune rubrique définie</p>
+              <p className="text-sm">Ajoutez des rubriques pour estimer le projet</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Clock className="h-4 w-4" />
+              <span>Temps obligatoire</span>
+            </div>
+            <p className="text-2xl font-bold">{totals.mandatoryDays} j</p>
+            {totals.optionalDays > 0 && (
+              <p className="text-xs text-muted-foreground">+ {totals.optionalDays} j optionnels</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Calculator className="h-4 w-4" />
+              <span>Coût estimé</span>
+            </div>
+            <p className="text-2xl font-bold">{totals.estimatedCost.toFixed(0)} €</p>
+            <p className="text-xs text-muted-foreground">{internalDailyCost} €/j × {totals.mandatoryDays} j</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <DollarSign className="h-4 w-4" />
+              <span>Prix recommandé</span>
+            </div>
+            <p className="text-2xl font-bold text-violet-600">{totals.recommendedPrice.toFixed(0)} €</p>
+            <p className="text-xs text-muted-foreground">{dailyRate} €/j × {totals.mandatoryDays} j</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Target className="h-4 w-4" />
+              <span>Marge prévisionnelle</span>
+            </div>
+            <p className={`text-2xl font-bold ${totals.estimatedMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {totals.estimatedMargin.toFixed(0)} €
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {totals.marginPercent.toFixed(1)}% de marge
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {alerts.length > 0 && (
+        <Card className={
+          alerts[0].type === 'error' ? 'border-red-200 bg-red-50/50 dark:bg-red-900/10' :
+          alerts[0].type === 'warning' ? 'border-amber-200 bg-amber-50/50 dark:bg-amber-900/10' :
+          'border-blue-200 bg-blue-50/50 dark:bg-blue-900/10'
+        }>
+          <CardContent className="pt-4">
+            <div className="space-y-3">
+              {alerts.map((alert, index) => {
+                const Icon = alert.icon;
+                return (
+                  <div key={index} className="flex items-start gap-3">
+                    <Icon className={`h-5 w-5 shrink-0 ${
+                      alert.type === 'error' ? 'text-red-600' :
+                      alert.type === 'warning' ? 'text-amber-600' :
+                      'text-blue-600'
+                    }`} />
+                    <div>
+                      <p className="font-medium">{alert.title}</p>
+                      <p className="text-sm text-muted-foreground">{alert.message}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {recommendations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              Recommandations pré-vente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {recommendations.map((rec, index) => (
+                <div key={index} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                  <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 text-xs font-bold shrink-0">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{rec.title}</p>
+                    <p className="text-sm text-muted-foreground">{rec.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

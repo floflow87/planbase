@@ -27,6 +27,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
+import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { cn } from "@/lib/utils";
 import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass } from "@shared/config";
 
@@ -2363,6 +2364,17 @@ export default function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Project Scope Section - CDC avec allocation de temps */}
+            <div className="mt-4">
+              <ProjectScopeSection
+                projectId={id!}
+                dailyRate={parseFloat(project?.dailyRate?.toString() || "0")}
+                internalDailyCost={parseFloat(project?.internalDailyCost?.toString() || "0")}
+                targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
+                budget={parseFloat(project?.budget?.toString() || "0")}
+              />
+            </div>
 
             {/* Payment Tracking Section */}
             <Card className="mt-4">
