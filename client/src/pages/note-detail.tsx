@@ -1104,13 +1104,13 @@ export default function NoteDetail() {
             <DialogTitle>Rattacher à une entité</DialogTitle>
           </DialogHeader>
           <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="project" className="gap-2" data-testid="tab-project">
-                <FolderKanban className="w-4 h-4 text-violet-500" />
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="project" className="flex-1 gap-2" data-testid="tab-project">
+                <FolderKanban className="w-4 h-4" />
                 Projets
               </TabsTrigger>
-              <TabsTrigger value="client" className="gap-2" data-testid="tab-client">
-                <Users className="w-4 h-4 text-cyan-500" />
+              <TabsTrigger value="client" className="flex-1 gap-2" data-testid="tab-client">
+                <Users className="w-4 h-4" />
                 Clients
               </TabsTrigger>
             </TabsList>

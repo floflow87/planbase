@@ -436,7 +436,7 @@ export default function CRM() {
 
   const kpis = [
     {
-      title: "Total Contacts",
+      title: "Total Clients",
       value: totalContacts.toString(),
       change: "+12",
       changeLabel: "ce mois",

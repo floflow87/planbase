@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1572,7 +1572,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={statusSelectorOpen}
-                    className="w-44 h-9 justify-between bg-popover text-sm font-normal"
+                    className="w-44 h-9 justify-between bg-white dark:bg-white text-sm font-normal"
                     data-testid="select-status-filter"
                   >
                     <span className="truncate">{getStatusFilterLabel()}</span>
@@ -1649,17 +1649,22 @@ export default function Tasks() {
               </Popover>
             )}
             {/* Hide completed tasks toggle */}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="hide-completed"
-                checked={hideCompletedTasks}
-                onCheckedChange={setHideCompletedTasks}
-                data-testid="switch-hide-completed"
-              />
-              <Label htmlFor="hide-completed" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                Masquer terminées
-              </Label>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
+                  data-testid="button-hide-completed"
+                  className={hideCompletedTasks ? "text-primary" : "text-muted-foreground"}
+                >
+                  {hideCompletedTasks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {hideCompletedTasks ? "Afficher les tâches terminées" : "Masquer les tâches terminées"}
+              </TooltipContent>
+            </Tooltip>
             <div className="hidden md:flex border rounded-md">
               <Button
                 variant={viewMode === "kanban" ? "secondary" : "ghost"}
