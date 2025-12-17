@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -112,7 +113,12 @@ export default function BacklogDetail() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("state");
   const [ticketSearch, setTicketSearch] = useState<string>("");
-  const [showEpicColumn, setShowEpicColumn] = useState<boolean>(false);
+  const [showEpicColumn, setShowEpicColumn] = useState<boolean>(() => {
+    const saved = localStorage.getItem('backlog-show-epic-column');
+    return saved === 'true';
+  });
+  const [epicFilter, setEpicFilter] = useState<string[]>([]);
+  const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
   
   // New backlog form state
   const [newBacklogName, setNewBacklogName] = useState("");
@@ -155,6 +161,11 @@ export default function BacklogDetail() {
       document.title = 'PlanBase';
     };
   }, [backlog?.name]);
+
+  // Persist showEpicColumn to localStorage
+  useEffect(() => {
+    localStorage.setItem('backlog-show-epic-column', showEpicColumn.toString());
+  }, [showEpicColumn]);
 
   // Auto-open ticket from URL query parameter (e.g., ?ticket=abc123)
   useEffect(() => {
@@ -537,6 +548,11 @@ export default function BacklogDetail() {
       result = result.filter(t => t.priority === priorityFilter);
     }
     
+    // Apply epic filter (multi-select)
+    if (epicFilter.length > 0) {
+      result = result.filter(t => t.epicId && epicFilter.includes(t.epicId));
+    }
+    
     // Apply sorting
     if (sortBy === "priority_desc") {
       result.sort((a, b) => (priorityOrder[b.priority || "medium"] || 2) - (priorityOrder[a.priority || "medium"] || 2));
@@ -557,7 +573,8 @@ export default function BacklogDetail() {
   };
 
   const getBacklogTickets = () => {
-    const tickets = flatTickets.filter(t => !t.sprintId);
+    // Exclude epics from backlog pool - they should only appear in Epics tab
+    const tickets = flatTickets.filter(t => !t.sprintId && t.type !== "epic");
     return applyFiltersAndSort(tickets);
   };
 
@@ -1170,7 +1187,27 @@ export default function BacklogDetail() {
           </div>
           
           {/* Right: Filters and Sort */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            {/* Epic column toggle - left aligned with icon and text centered */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground invisible">Epic</Label>
+              <div className="flex items-center gap-2 h-8">
+                <Checkbox 
+                  id="show-epic-column" 
+                  checked={showEpicColumn}
+                  onCheckedChange={(checked) => setShowEpicColumn(checked === true)}
+                  data-testid="checkbox-show-epic-column"
+                />
+                <label 
+                  htmlFor="show-epic-column" 
+                  className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1"
+                >
+                  <Layers className="h-4 w-4" />
+                  Epic
+                </label>
+              </div>
+            </div>
+            
             {/* Priority filter */}
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-muted-foreground">Priorité</Label>
@@ -1187,6 +1224,66 @@ export default function BacklogDetail() {
               </Select>
             </div>
             
+            {/* Epic filter (multi-select) */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Epic</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-[150px] h-8 justify-between bg-white dark:bg-white text-gray-900"
+                    data-testid="button-epic-filter"
+                  >
+                    <span className="flex items-center gap-1 truncate">
+                      <Layers className="h-3.5 w-3.5" />
+                      {epicFilter.length === 0 
+                        ? "Toutes" 
+                        : epicFilter.length === 1 
+                          ? backlog.epics.find(e => e.id === epicFilter[0])?.title?.substring(0, 12) || "1 sélectionné"
+                          : `${epicFilter.length} sélectionnées`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-2 bg-white dark:bg-white" align="start">
+                  <div className="space-y-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-sm text-gray-900 hover:bg-gray-100"
+                      onClick={() => setEpicFilter([])}
+                    >
+                      <Check className={cn("h-4 w-4 mr-2", epicFilter.length === 0 ? "opacity-100" : "opacity-0")} />
+                      Toutes les Epics
+                    </Button>
+                    {backlog.epics.map(epic => (
+                      <Button
+                        key={epic.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-sm text-gray-900 hover:bg-gray-100"
+                        onClick={() => {
+                          setEpicFilter(prev => 
+                            prev.includes(epic.id) 
+                              ? prev.filter(id => id !== epic.id)
+                              : [...prev, epic.id]
+                          );
+                        }}
+                      >
+                        <Check className={cn("h-4 w-4 mr-2", epicFilter.includes(epic.id) ? "opacity-100" : "opacity-0")} />
+                        <span 
+                          className="w-2 h-2 rounded-full mr-2 flex-shrink-0" 
+                          style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                        />
+                        <span className="truncate">{epic.title}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
             {/* Sort by */}
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-muted-foreground">Trier par</Label>
@@ -1201,23 +1298,6 @@ export default function BacklogDetail() {
                   <SelectItem value="title">Titre (A-Z)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            
-            {/* Epic column toggle */}
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="show-epic-column" 
-                checked={showEpicColumn}
-                onCheckedChange={(checked) => setShowEpicColumn(checked === true)}
-                data-testid="checkbox-show-epic-column"
-              />
-              <label 
-                htmlFor="show-epic-column" 
-                className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1"
-              >
-                <Layers className="h-4 w-4" />
-                Epic
-              </label>
             </div>
           </div>
         </div>
@@ -1477,9 +1557,7 @@ export default function BacklogDetail() {
                             className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm("Êtes-vous sûr de vouloir supprimer cette Epic ?")) {
-                                deleteEpicMutation.mutate(epic.id);
-                              }
+                              setEpicToDelete(epic);
                             }}
                             data-testid={`button-delete-epic-${epic.id}`}
                           >
@@ -1536,6 +1614,33 @@ export default function BacklogDetail() {
           <RetrospectiveView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
       </Tabs>
+
+      {/* Epic Delete Confirmation Dialog */}
+      <AlertDialog open={!!epicToDelete} onOpenChange={(open) => !open && setEpicToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'Epic</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer l'Epic "{epicToDelete?.title}" ? 
+              Cette action est irréversible et les User Stories associées seront détachées de cette Epic.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (epicToDelete) {
+                  deleteEpicMutation.mutate(epicToDelete.id);
+                  setEpicToDelete(null);
+                }
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <EpicDialog 
         open={showEpicDialog}

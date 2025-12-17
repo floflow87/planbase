@@ -235,6 +235,8 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         {ticket.title}
       </span>
       
+      {/* Right columns container with larger spacing */}
+      <div className="flex items-center gap-4">
       {/* Inline Points Editor with Tooltip */}
       {onUpdateField && !isCompleted ? (
         <Popover open={pointsPopoverOpen} onOpenChange={setPointsPopoverOpen}>
@@ -547,6 +549,8 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           </Badge>
         )
       ) : null}
+      </div>
+      {/* End of right columns container */}
       
       {/* Actions Menu */}
       {onTicketAction && (
