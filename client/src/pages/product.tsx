@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -100,7 +101,7 @@ export default function Product() {
           return response.json();
         },
       });
-      toast({ title: "Backlog créé", description: `Le backlog "${backlog.name}" a été créé.`, className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Backlog créé", description: `Le backlog "${backlog.name}" a été créé.` });
       setShowCreateDialog(false);
       resetForm();
       navigate(`/product/backlog/${backlog.id}`);
@@ -116,7 +117,7 @@ export default function Product() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toast({ title: "Backlog supprimé", className: "bg-green-500 text-white border-green-600", duration: 3000 });
+      toastSuccess({ title: "Backlog supprimé" });
       setShowDeleteDialog(false);
       setSelectedBacklog(null);
     },

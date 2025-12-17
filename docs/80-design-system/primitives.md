@@ -2,43 +2,39 @@
 
 Atomic, reusable components with intent-based styling.
 
-## BadgeIntent
+## Badge (shadcn with Intent Support)
 
-A badge component that accepts semantic intents.
+The shadcn Badge component has been extended to support semantic intents directly.
 
-Located at `client/src/design-system/primitives/BadgeIntent.tsx`
+Located at `client/src/components/ui/badge.tsx`
 
 ### Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `intent` | Intent | "neutral" | Semantic intent (success, warning, etc.) |
-| `variant` | IntentVariant | "soft" | Visual variant (solid, soft, outline, ghost) |
-| `size` | IntentSize | "md" | Size (sm, md, lg) |
-| `children` | ReactNode | - | Badge content |
-| `className` | string | - | Additional classes |
+| `intent` | Intent | - | Semantic intent (success, warning, danger, info, neutral, primary, accent) |
+| `tone` | IntentVariant | "soft" | Visual tone (solid, soft, outline, ghost) - only when intent is provided |
+| `size` | BadgeSize | "md" | Size (sm, md, lg) |
+| `variant` | string | "default" | Legacy shadcn variant (only when intent is not provided) |
 
 ### Usage
 
 ```tsx
-import { BadgeIntent } from "@/design-system/primitives";
+import { Badge } from "@/components/ui/badge";
 
-// Basic usage
-<BadgeIntent intent="success">Completed</BadgeIntent>
+// Intent-based (recommended)
+<Badge intent="success">Completed</Badge>
+<Badge intent="warning" tone="outline">Pending</Badge>
+<Badge intent="danger" size="sm">Critical</Badge>
 
-// With variant
-<BadgeIntent intent="warning" variant="outline">Pending</BadgeIntent>
-
-// With size
-<BadgeIntent intent="danger" size="sm">Critical</BadgeIntent>
-
-// Combined
-<BadgeIntent intent="info" variant="solid" size="lg">
-  In Progress
-</BadgeIntent>
+// Legacy shadcn variants (still supported)
+<Badge variant="default">Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="destructive">Destructive</Badge>
+<Badge variant="outline">Outline</Badge>
 ```
 
-### Intent + Variant Combinations
+### Intent + Tone Combinations
 
 | Intent | soft (default) | solid | outline | ghost |
 |--------|----------------|-------|---------|-------|
@@ -47,6 +43,43 @@ import { BadgeIntent } from "@/design-system/primitives";
 | danger | Light red bg | Red bg, white text | Red border | Transparent |
 | info | Light blue bg | Blue bg, white text | Blue border | Transparent |
 | neutral | Light gray bg | Gray bg, white text | Gray border | Transparent |
+| primary | Light violet bg | Violet bg, white text | Violet border | Transparent |
+| accent | Light cyan bg | Cyan bg, white text | Cyan border | Transparent |
+
+## BadgeIntent (Legacy Wrapper)
+
+> **Note:** For new code, prefer using `<Badge intent="...">` directly.
+
+A thin wrapper around Badge for backward compatibility.
+
+Located at `client/src/design-system/primitives/BadgeIntent.tsx`
+
+### Props
+
+Same as Badge with intent, but uses `variant` instead of `tone` for the visual style.
+
+### Usage
+
+```tsx
+import { BadgeIntent } from "@/design-system/primitives";
+
+// These are equivalent:
+<BadgeIntent intent="success" variant="soft">Done</BadgeIntent>
+<Badge intent="success" tone="soft">Done</Badge>
+```
+
+## Design Tokens for Badge
+
+Structural tokens are centralized in `shared/design/tokens/components.ts`:
+
+```typescript
+import { badgeTokens, getBadgeBaseClasses } from "@shared/design/tokens";
+
+// badgeTokens.base - base structural classes
+// badgeTokens.radius - border radius
+// badgeTokens.border - border style
+// badgeTokens.sizes.sm/md/lg - size-specific classes
+```
 
 ## Utilities
 

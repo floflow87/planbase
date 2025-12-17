@@ -4,30 +4,38 @@ Best practices for maintaining consistency across the codebase.
 
 ## Do's
 
+### Use Badge with Intent (V1.2+)
+
+```tsx
+// DO: Use Badge with intent prop directly
+import { Badge } from "@/components/ui/badge";
+
+<Badge intent="success">Completed</Badge>
+<Badge intent="warning" tone="outline">Pending</Badge>
+<Badge intent="danger" size="sm">Critical</Badge>
+```
+
+**Why:** This aligns with shadcn patterns while leveraging our intent system.
+
 ### Use Product Components
 
 ```tsx
-// DO: Use centralized badge components
+// DO: Use centralized badge components for business entities
 <ProjectStageBadge stageKey={project.stage} />
 <TaskStatusBadge statusKey={task.status} />
+<TaskPriorityBadge priorityKey={task.priority} />
+<BillingStatusBadge statusKey={project.billingStatus} />
 ```
 
 ### Use Toast Helpers
 
 ```tsx
 // DO: Use typed toast helpers
-import { toastSuccess, toastError } from "@/design-system/feedback";
+import { toastSuccess, toastError, toastInfo } from "@/design-system/feedback";
 
 toastSuccess({ title: "Saved!" });
 toastError({ title: "Failed to save" });
-```
-
-### Use Intent-Based Styling
-
-```tsx
-// DO: Use semantic intents
-<BadgeIntent intent="success">Completed</BadgeIntent>
-<BadgeIntent intent="warning">Pending</BadgeIntent>
+toastInfo({ title: "Processing..." });
 ```
 
 ### Get Labels from Config
@@ -43,21 +51,36 @@ const label = getProjectStageLabel(stage);
 
 ```tsx
 // DO: Use semantic class getters
-import { getTaskStatusClasses } from "@shared/design/semantics";
+import { getIntentClasses } from "@shared/design/semantics";
 
-const classes = getTaskStatusClasses("done");
+const classes = getIntentClasses("success", "soft");
 ```
 
 ## Don'ts
 
-### Don't Hardcode Colors in Pages
+### Don't Hardcode Colors in Badges
 
 ```tsx
 // DON'T: Hardcode status colors
 <Badge className="bg-green-100 text-green-700">Terminé</Badge>
 
-// DO: Use product component
-<ProjectStageBadge stageKey="termine" />
+// DO: Use intent or product component
+<Badge intent="success">Terminé</Badge>
+// or
+<TaskStatusBadge statusKey="done" />
+```
+
+### Don't Use className for Toast Success Styling
+
+```tsx
+// DON'T: Hardcode toast colors
+toast({ 
+  title: "Done", 
+  className: "bg-green-500 text-white" // ❌ 
+});
+
+// DO: Use toastSuccess helper
+toastSuccess({ title: "Done" }); // ✅
 ```
 
 ### Don't Hardcode Labels
@@ -79,6 +102,8 @@ const classes = getTaskStatusClasses("done");
 </Badge>
 
 // DO: Use design system
+<Badge intent="warning">En attente</Badge>
+// or
 <BillingStatusBadge statusKey="pending" />
 ```
 
@@ -98,9 +123,8 @@ toastError({ title: "Error!" });
 // DON'T: Mix different color systems
 <Badge className="bg-green-100 border-emerald-200 text-teal-700">
 
-// DO: Use consistent color scales
-<Badge className="bg-green-100 border-green-200 text-green-700">
-// Or better: use product components
+// DO: Use consistent intent
+<Badge intent="success">
 ```
 
 ### Don't Skip data-testid
@@ -112,6 +136,20 @@ toastError({ title: "Error!" });
 // DO: Include test IDs
 <button onClick={save} data-testid="button-save">Save</button>
 ```
+
+## shadcn Alignment Note (V1.2)
+
+We extended the shadcn Badge component to support our intent system. This approach:
+
+1. **Preserves shadcn patterns** - Legacy variants (default, secondary, destructive, outline) still work
+2. **Adds intent support** - New `intent` and `tone` props for semantic styling
+3. **Uses centralized tokens** - Structural classes come from `shared/design/tokens/components.ts`
+4. **Consumes semantics layer** - Intent colors from `shared/design/semantics/intents.ts`
+
+When to use what:
+- `<Badge intent="...">` - For semantic meaning (success/warning/danger/etc.)
+- `<Badge variant="...">` - For non-semantic styling (secondary, outline)
+- `<ProjectStageBadge>` etc. - For business entities with automatic label/intent mapping
 
 ## Migration Tips
 
