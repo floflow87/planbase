@@ -161,15 +161,77 @@ export default function Product() {
     );
   }
 
+  // Calculate KPIs
+  const kpis = [
+    {
+      title: "Total Backlogs",
+      value: backlogs.length.toString(),
+      subtitle: `${backlogs.filter(b => b.mode === "scrum").length} scrum, ${backlogs.filter(b => b.mode === "kanban").length} kanban`,
+      icon: LayoutGrid,
+      iconBg: "bg-violet-100",
+      iconColor: "text-violet-600",
+    },
+    {
+      title: "Sprints Actifs",
+      value: backlogs.filter(b => b.activeSprint).length.toString(),
+      subtitle: "en cours",
+      icon: Play,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+    {
+      title: "Tickets En Cours",
+      value: backlogs.reduce((sum, b) => sum + (b.ticketCounts?.inProgress || 0), 0).toString(),
+      subtitle: `${backlogs.reduce((sum, b) => sum + (b.ticketCounts?.todo || 0), 0)} à faire`,
+      icon: Clock,
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-600",
+    },
+    {
+      title: "Tickets Terminés",
+      value: backlogs.reduce((sum, b) => sum + (b.ticketCounts?.done || 0), 0).toString(),
+      subtitle: `sur ${backlogs.reduce((sum, b) => sum + (b.ticketCounts?.total || 0), 0)} total`,
+      icon: CheckCircle,
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+    },
+  ];
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-end p-4 md:p-6 border-b">
-        <div className="flex items-center gap-2" data-testid="container-backlog-actions">
-          <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
+        {/* KPIs - Style CRM */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map((kpi, index) => {
+            const Icon = kpi.icon;
+            return (
+              <Card key={index} data-testid={`card-kpi-${index}`}>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        {kpi.subtitle}
+                      </p>
+                    </div>
+                    <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
+                      <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Actions bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2" data-testid="container-view-toggle">
             <Button 
               variant={viewMode === "grid" ? "secondary" : "ghost"} 
               size="icon" 
-              className="rounded-r-none"
+              className="border"
               onClick={() => setViewMode("grid")}
               data-testid="button-view-grid"
             >
@@ -178,7 +240,7 @@ export default function Product() {
             <Button 
               variant={viewMode === "list" ? "secondary" : "ghost"} 
               size="icon" 
-              className="rounded-l-none"
+              className="border"
               onClick={() => setViewMode("list")}
               data-testid="button-view-list"
             >
@@ -190,95 +252,8 @@ export default function Product() {
             Nouveau Backlog
           </Button>
         </div>
-      </div>
 
-      {/* KPIs Cards */}
-      {backlogs.length > 0 && (
-        <div className="px-4 md:px-6 py-3 border-b bg-muted/20">
-          <div className="flex flex-wrap gap-4">
-            {/* Backlogs KPI */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30">
-                <LayoutGrid className="h-4 w-4 text-violet-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Backlogs</p>
-                <p className="text-sm font-semibold">
-                  <span className="text-foreground">{backlogs.length}</span>
-                  <span className="text-xs text-muted-foreground ml-1">
-                    ({backlogs.filter(b => b.mode === "scrum").length} scrum, {backlogs.filter(b => b.mode === "kanban").length} kanban)
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            {/* Sprints actifs KPI */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <Play className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Sprints actifs</p>
-                <p className="text-sm font-semibold">
-                  <span className="text-blue-600">{backlogs.filter(b => b.activeSprint).length}</span>
-                  <span className="text-xs text-muted-foreground ml-1">en cours</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Tickets à faire KPI */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30">
-                <ListTodo className="h-4 w-4 text-cyan-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Tickets à faire</p>
-                <p className="text-sm font-semibold">
-                  <span className="text-foreground">
-                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.todo || 0), 0)}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            {/* Tickets en cours KPI */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30">
-                <Clock className="h-4 w-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">En cours</p>
-                <p className="text-sm font-semibold">
-                  <span className="text-orange-600">
-                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.inProgress || 0), 0)}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            {/* Tickets terminés KPI */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Terminés</p>
-                <p className="text-sm font-semibold">
-                  <span className="text-green-600">
-                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.done || 0), 0)}
-                  </span>
-                  <span className="text-muted-foreground mx-1">/</span>
-                  <span className="text-foreground">
-                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.total || 0), 0)}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-auto p-4 md:p-6">
+        {/* Content */}
         {backlogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="rounded-full bg-muted p-6 mb-4">

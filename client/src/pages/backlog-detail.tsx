@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
