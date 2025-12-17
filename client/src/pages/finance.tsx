@@ -24,7 +24,11 @@ import {
   PieChart,
   Target,
   Lightbulb,
-  Eye
+  Eye,
+  Zap,
+  Shield,
+  StopCircle,
+  PauseCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import type { Project } from "@shared/schema";
@@ -52,14 +56,22 @@ interface ProfitabilityMetrics {
   statusColor: string;
 }
 
+type DecisionType = 'optimize' | 'accelerate' | 'slowdown' | 'stop' | 'protect';
+type Feasibility = 'realistic' | 'discuss' | 'unrealistic';
+
 interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
+  priorityScore: number;
+  decisionType: DecisionType;
+  decisionLabel: string;
   issue: string;
   action: string;
   impact: string;
   impactValue?: number;
-  category: 'pricing' | 'time' | 'payment' | 'model';
+  feasibility: Feasibility;
+  feasibilityLabel: string;
+  category: 'pricing' | 'time' | 'payment' | 'model' | 'strategic';
   icon: string;
 }
 
@@ -173,9 +185,51 @@ const getRecommendationIcon = (iconName: string) => {
       return <RefreshCw className="w-5 h-5 text-gray-500" />;
     case 'CheckCircle':
       return <CheckCircle className="w-5 h-5 text-green-500" />;
+    case 'Zap':
+      return <Zap className="w-5 h-5 text-yellow-500" />;
+    case 'Shield':
+      return <Shield className="w-5 h-5 text-violet-500" />;
+    case 'StopCircle':
+      return <StopCircle className="w-5 h-5 text-red-600" />;
+    case 'PauseCircle':
+      return <PauseCircle className="w-5 h-5 text-orange-500" />;
     default:
       return <Lightbulb className="w-5 h-5 text-yellow-500" />;
   }
+};
+
+const getDecisionBadge = (decisionType: DecisionType, decisionLabel: string) => {
+  const colors: Record<DecisionType, string> = {
+    optimize: 'bg-green-100 text-green-700 border-green-200',
+    accelerate: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    slowdown: 'bg-orange-100 text-orange-700 border-orange-200',
+    stop: 'bg-red-100 text-red-700 border-red-200',
+    protect: 'bg-violet-100 text-violet-700 border-violet-200',
+  };
+  return (
+    <Badge className={`text-xs border ${colors[decisionType]}`}>
+      {decisionLabel}
+    </Badge>
+  );
+};
+
+const getFeasibilityBadge = (feasibility: Feasibility, label: string) => {
+  const colors: Record<Feasibility, string> = {
+    realistic: 'text-green-600',
+    discuss: 'text-orange-600',
+    unrealistic: 'text-red-600',
+  };
+  const icons: Record<Feasibility, JSX.Element> = {
+    realistic: <CheckCircle className="w-3 h-3" />,
+    discuss: <AlertTriangle className="w-3 h-3" />,
+    unrealistic: <StopCircle className="w-3 h-3" />,
+  };
+  return (
+    <span className={`flex items-center gap-1 text-xs font-medium ${colors[feasibility]}`}>
+      {icons[feasibility]}
+      {label}
+    </span>
+  );
 };
 
 function SummaryCard({ 
@@ -343,20 +397,39 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
   return (
     <Card className={`border ${getPriorityColor(recommendation.priority)}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
-        <div className="flex gap-4">
-          <div className="shrink-0 pt-1">
-            {getRecommendationIcon(recommendation.icon)}
-          </div>
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <h4 className="font-medium text-gray-900 text-sm">{recommendation.issue}</h4>
+        <div className="space-y-3">
+          {/* Header: Decision type + Priority badge */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              {getRecommendationIcon(recommendation.icon)}
+              {recommendation.decisionType && recommendation.decisionLabel && 
+                getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
+              }
+            </div>
+            <div className="flex items-center gap-2">
+              {recommendation.feasibility && recommendation.feasibilityLabel && 
+                getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)
+              }
               {getPriorityBadge(recommendation.priority)}
             </div>
+          </div>
+          
+          {/* Block 1: Pourquoi (Issue) */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Pourquoi</p>
+            <p className="text-sm text-gray-700 font-medium">{recommendation.issue}</p>
+          </div>
+          
+          {/* Block 2: Action recommandée */}
+          <div>
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandée</p>
             <p className="text-sm text-gray-600">{recommendation.action}</p>
-            <div className="flex items-center gap-2 pt-1">
-              <Target className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
-            </div>
+          </div>
+          
+          {/* Block 3: Impact */}
+          <div className="flex items-center gap-2 pt-1 border-t">
+            <Target className="w-4 h-4 text-green-500" />
+            <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
           </div>
         </div>
       </CardContent>

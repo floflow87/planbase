@@ -782,6 +782,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects profitability columns added");
     
+    // Add priority column to projects table for decision engine
+    await db.execute(sql`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS priority text DEFAULT 'normal';
+    `);
+    console.log("✅ Projects priority column added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
