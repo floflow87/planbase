@@ -1099,17 +1099,17 @@ export default function NoteDetail() {
       
       {/* Entity Selector Dialog (Project / Client) */}
       <Dialog open={entitySelectorOpen} onOpenChange={setEntitySelectorOpen}>
-        <DialogContent className="sm:max-w-[450px]" data-testid="dialog-select-entity">
+        <DialogContent className="sm:max-w-[450px] overflow-hidden" data-testid="dialog-select-entity">
           <DialogHeader>
             <DialogTitle>Rattacher à une entité</DialogTitle>
           </DialogHeader>
-          <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client")} className="w-full">
-            <TabsList className="w-full mb-4">
-              <TabsTrigger value="project" className="flex-1 gap-2" data-testid="tab-project">
+          <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client")} className="w-full overflow-hidden">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="project" className="gap-2" data-testid="tab-project">
                 <FolderKanban className="w-4 h-4" />
                 Projets
               </TabsTrigger>
-              <TabsTrigger value="client" className="flex-1 gap-2" data-testid="tab-client">
+              <TabsTrigger value="client" className="gap-2" data-testid="tab-client">
                 <Users className="w-4 h-4" />
                 Clients
               </TabsTrigger>
