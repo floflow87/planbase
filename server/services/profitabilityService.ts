@@ -34,14 +34,31 @@ export interface ProfitabilityMetrics {
   statusColor: string;
 }
 
+// Decision types for the new recommendation engine
+export type DecisionType = 'optimize' | 'accelerate' | 'slowdown' | 'stop' | 'protect';
+
+// Feasibility assessment
+export type Feasibility = 'realistic' | 'discuss' | 'unrealistic';
+
+// Recovery capacity analysis
+export type RecoveryCapacity = 'recoverable' | 'difficult' | 'unrecoverable';
+
+// Project dynamics
+export type ProjectDynamics = 'advancing' | 'stagnating' | 'dragging';
+
 export interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
-  issue: string;
-  action: string;
+  priorityScore: number; // Numeric score for sorting (higher = more urgent)
+  decisionType: DecisionType;
+  decisionLabel: string; // "Optimiser", "Accélérer", "Ralentir", "Stopper", "Protéger"
+  issue: string; // "Pourquoi"
+  action: string; // Action recommandée
   impact: string;
   impactValue?: number;
-  category: 'pricing' | 'time' | 'payment' | 'model';
+  feasibility: Feasibility;
+  feasibilityLabel: string;
+  category: 'pricing' | 'time' | 'payment' | 'model' | 'strategic';
   icon: string;
 }
 
@@ -169,143 +186,411 @@ export function calculateMetrics(
   };
 }
 
-// Rule-based recommendations engine
-// projectStage: stage of the project to contextualize recommendations
-export function generateRecommendations(metrics: ProfitabilityMetrics, projectStage?: string): Recommendation[] {
+// ==========================================
+// DECISION ENGINE - 4 AXES ANALYSIS
+// ==========================================
+
+// Axe A: Profitability status (already calculated in metrics.status)
+
+// Axe B: Recovery capacity analysis
+function analyzeRecoveryCapacity(metrics: ProfitabilityMetrics): RecoveryCapacity {
+  // Calculate what percentage of theoretical budget is already consumed
+  const budgetConsumedPercent = metrics.theoreticalDays > 0 
+    ? (metrics.actualDaysWorked / metrics.theoreticalDays) * 100 
+    : 0;
+  
+  // Amount needed to break even or reach target
+  const amountToRecover = metrics.status === 'deficit' 
+    ? Math.abs(metrics.margin) 
+    : (metrics.targetMarginPercent / 100) * metrics.totalPaid - metrics.margin;
+  
+  // Check if recovery is realistic
+  if (metrics.status === 'profitable') {
+    return 'recoverable';
+  }
+  
+  // If more than 80% of budget consumed and still deficit/at_risk
+  if (budgetConsumedPercent > 80 && metrics.status === 'deficit') {
+    return 'unrecoverable';
+  }
+  
+  // If 50-80% consumed, difficult but possible
+  if (budgetConsumedPercent > 50 && (metrics.status === 'deficit' || metrics.status === 'at_risk')) {
+    return 'difficult';
+  }
+  
+  // TJM gap analysis
+  if (metrics.tjmGapPercent < -30) {
+    return 'difficult';
+  }
+  
+  return 'recoverable';
+}
+
+// Axe C: Project priority inference (fallback if not set)
+function inferProjectPriority(project: Project): 'low' | 'normal' | 'high' | 'strategic' {
+  // Use explicit priority if set
+  if (project.priority && ['low', 'normal', 'high', 'strategic'].includes(project.priority)) {
+    return project.priority as 'low' | 'normal' | 'high' | 'strategic';
+  }
+  
+  // Fallback: infer from budget
+  const budget = parseFloat(project.budget?.toString() || '0');
+  
+  if (budget >= 50000) return 'strategic';
+  if (budget >= 20000) return 'high';
+  if (budget >= 5000) return 'normal';
+  return 'low';
+}
+
+// Axe D: Project dynamics analysis
+function analyzeProjectDynamics(metrics: ProfitabilityMetrics, projectStage?: string): ProjectDynamics {
+  // If project is finished, it's "advancing" (completed)
+  if (projectStage === 'termine' || projectStage === 'livre') {
+    return 'advancing';
+  }
+  
+  // Calculate pace: compare actual progress vs expected
+  const expectedProgress = metrics.theoreticalDays > 0 ? metrics.actualDaysWorked / metrics.theoreticalDays : 0;
+  const paymentProgress = metrics.paymentProgress / 100;
+  
+  // If time consumed but low payment progress = dragging
+  if (expectedProgress > 0.5 && paymentProgress < 0.3) {
+    return 'dragging';
+  }
+  
+  // If time significantly overrun = stagnating
+  if (metrics.timeOverrunPercent > 25) {
+    return 'stagnating';
+  }
+  
+  return 'advancing';
+}
+
+// Helper to calculate priority score
+function calculatePriorityScore(
+  impactValue: number,
+  priority: 'low' | 'normal' | 'high' | 'strategic',
+  urgency: 'low' | 'medium' | 'high',
+  feasibility: Feasibility
+): number {
+  // Base score from impact (normalized to 0-40 range)
+  const impactScore = Math.min(40, impactValue / 500);
+  
+  // Priority multiplier (0-30 range)
+  const priorityMultipliers = { low: 5, normal: 15, high: 25, strategic: 30 };
+  const priorityScore = priorityMultipliers[priority];
+  
+  // Urgency score (0-20 range)
+  const urgencyScores = { low: 5, medium: 10, high: 20 };
+  const urgencyScore = urgencyScores[urgency];
+  
+  // Feasibility modifier (0.5-1.0 multiplier)
+  const feasibilityModifiers = { realistic: 1.0, discuss: 0.75, unrealistic: 0.5 };
+  const feasibilityMod = feasibilityModifiers[feasibility];
+  
+  return Math.round((impactScore + priorityScore + urgencyScore) * feasibilityMod);
+}
+
+// Decision type labels
+const DECISION_LABELS: Record<DecisionType, string> = {
+  optimize: 'Optimiser',
+  accelerate: 'Accélérer',
+  slowdown: 'Ralentir',
+  stop: 'Stopper',
+  protect: 'Protéger'
+};
+
+const FEASIBILITY_LABELS: Record<Feasibility, string> = {
+  realistic: 'Réaliste',
+  discuss: 'À discuter',
+  unrealistic: 'Peu réaliste'
+};
+
+// ==========================================
+// MAIN RECOMMENDATION ENGINE
+// ==========================================
+export function generateRecommendations(
+  metrics: ProfitabilityMetrics, 
+  projectStage?: string,
+  projectData?: { priority?: string; budget?: string | number | null }
+): Recommendation[] {
   const recommendations: Recommendation[] = [];
   let recId = 1;
   
-  // RULE 1: Deficit project - critical priority
-  if (metrics.status === 'deficit') {
-    const amountToBreakeven = Math.abs(metrics.margin);
-    const daysToReduce = metrics.internalDailyCost > 0 ? amountToBreakeven / metrics.internalDailyCost : 0;
+  // Analyze 4 axes
+  const recoveryCapacity = analyzeRecoveryCapacity(metrics);
+  const projectPriority = projectData 
+    ? inferProjectPriority(projectData as Project)
+    : 'normal';
+  const dynamics = analyzeProjectDynamics(metrics, projectStage);
+  
+  // Daily margin erosion cost
+  const dailyMarginErosion = metrics.internalDailyCost;
+  
+  // ==========================================
+  // TYPE 5: PROTECT (Strategic projects) - Check first
+  // ==========================================
+  if (projectPriority === 'strategic' && (metrics.status === 'deficit' || metrics.status === 'at_risk')) {
+    const feasibility: Feasibility = 'discuss';
+    const priorityScore = calculatePriorityScore(
+      Math.abs(metrics.margin), projectPriority, 'high', feasibility
+    );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'high',
-      issue: `Ce projet est déficitaire de ${Math.abs(metrics.margin).toLocaleString('fr-FR')} €`,
-      action: `Pour atteindre l'équilibre, vous devez soit facturer +${amountToBreakeven.toLocaleString('fr-FR')} €, soit réduire le temps passé de ${daysToReduce.toFixed(1)} jours.`,
-      impact: `Récupérer ${amountToBreakeven.toLocaleString('fr-FR')} € de marge`,
-      impactValue: amountToBreakeven,
-      category: 'pricing',
-      icon: 'AlertTriangle',
+      priorityScore,
+      decisionType: 'protect',
+      decisionLabel: DECISION_LABELS.protect,
+      issue: `Projet stratégique avec une marge de ${metrics.marginPercent.toFixed(1)}%`,
+      action: `Acceptez une marge réduite pour ce client clé, mais limitez strictement le périmètre. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      impact: `Préserver la relation client tout en limitant les pertes`,
+      impactValue: Math.abs(metrics.margin),
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+      category: 'strategic',
+      icon: 'Shield',
     });
   }
   
-  // RULE 2: Below target margin
-  if (metrics.marginPercent < metrics.targetMarginPercent && metrics.status !== 'deficit') {
-    const marginGap = metrics.targetMarginPercent - metrics.marginPercent;
-    const targetMargin = (metrics.targetMarginPercent / 100) * metrics.totalBilled;
-    const additionalNeeded = targetMargin - metrics.margin;
-    const daysToReduce = metrics.internalDailyCost > 0 ? additionalNeeded / metrics.internalDailyCost : 0;
+  // ==========================================
+  // TYPE 4: STOP / RENEGOCIATE
+  // ==========================================
+  if (
+    metrics.status === 'deficit' && 
+    recoveryCapacity === 'unrecoverable' && 
+    projectPriority !== 'strategic'
+  ) {
+    const additionalLoss = metrics.internalDailyCost * 5; // 5 more days estimate
+    const feasibility: Feasibility = 'discuss';
+    const priorityScore = calculatePriorityScore(
+      Math.abs(metrics.margin), projectPriority, 'high', feasibility
+    );
     
     recommendations.push({
       id: `rec-${recId++}`,
-      priority: metrics.status === 'at_risk' ? 'high' : 'medium',
-      issue: `Marge actuelle (${metrics.marginPercent}%) inférieure à l'objectif (${metrics.targetMarginPercent}%)`,
-      action: `Pour atteindre ${metrics.targetMarginPercent}% de marge, facturez +${additionalNeeded.toLocaleString('fr-FR')} € ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
+      priority: 'high',
+      priorityScore,
+      decisionType: 'stop',
+      decisionLabel: DECISION_LABELS.stop,
+      issue: `Projet déficitaire de ${Math.abs(metrics.margin).toLocaleString('fr-FR')} € - rattrapage irréaliste`,
+      action: `Ne cherchez plus à rattraper ce projet. Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €. Envisagez de renégocier ou clôturer rapidement.`,
+      impact: `Éviter ${additionalLoss.toLocaleString('fr-FR')} € de pertes supplémentaires`,
+      impactValue: additionalLoss,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+      category: 'pricing',
+      icon: 'StopCircle',
+    });
+  }
+  
+  // ==========================================
+  // TYPE 3: SLOWDOWN / FREEZE
+  // ==========================================
+  else if (
+    metrics.status === 'deficit' && 
+    projectPriority === 'low' &&
+    recoveryCapacity !== 'recoverable'
+  ) {
+    const potentialSavings = dailyMarginErosion * 3;
+    const feasibility: Feasibility = 'realistic';
+    const priorityScore = calculatePriorityScore(
+      potentialSavings, projectPriority, 'medium', feasibility
+    );
+    
+    recommendations.push({
+      id: `rec-${recId++}`,
+      priority: 'medium',
+      priorityScore,
+      decisionType: 'slowdown',
+      decisionLabel: DECISION_LABELS.slowdown,
+      issue: `Projet de faible priorité en déficit - chaque jour creuse la perte`,
+      action: `Limitez le temps passé sur ce projet. Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      impact: `Économiser jusqu'à ${potentialSavings.toLocaleString('fr-FR')} € en réduisant l'effort`,
+      impactValue: potentialSavings,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+      category: 'time',
+      icon: 'PauseCircle',
+    });
+  }
+  
+  // ==========================================
+  // TYPE 2: ACCELERATE
+  // ==========================================
+  if (
+    dynamics === 'dragging' && 
+    (metrics.status === 'profitable' || recoveryCapacity === 'recoverable')
+  ) {
+    const feasibility: Feasibility = 'realistic';
+    const priorityScore = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    );
+    
+    recommendations.push({
+      id: `rec-${recId++}`,
+      priority: 'medium',
+      priorityScore,
+      decisionType: 'accelerate',
+      decisionLabel: DECISION_LABELS.accelerate,
+      issue: `Projet qui traîne - marge en érosion progressive`,
+      action: `Accélérez ce projet pour limiter l'érosion de marge. Chaque jour supplémentaire réduit la marge de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      impact: `Préserver ${dailyMarginErosion.toLocaleString('fr-FR')} € par jour gagné`,
+      impactValue: dailyMarginErosion,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+      category: 'time',
+      icon: 'Zap',
+    });
+  }
+  
+  // Accelerate for in-progress projects with remaining payment
+  if (
+    projectStage === 'en_cours' && 
+    metrics.remainingToPay > 0 &&
+    metrics.paymentProgress < 70
+  ) {
+    const feasibility: Feasibility = 'realistic';
+    const priorityScore = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    );
+    
+    // Only add if not already a dragging project recommendation
+    if (dynamics !== 'dragging') {
+      recommendations.push({
+        id: `rec-${recId++}`,
+        priority: 'medium',
+        priorityScore,
+        decisionType: 'accelerate',
+        decisionLabel: DECISION_LABELS.accelerate,
+        issue: `Projet en cours avec ${metrics.paymentProgress.toFixed(0)}% du budget encaissé`,
+        action: `Accélérez pour clôturer rapidement et facturer le solde de ${metrics.remainingToPay.toLocaleString('fr-FR')} €.`,
+        impact: `Débloquer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation`,
+        impactValue: metrics.remainingToPay,
+        feasibility,
+        feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+        category: 'time',
+        icon: 'Clock',
+      });
+    }
+  }
+  
+  // ==========================================
+  // TYPE 1: OPTIMIZE
+  // ==========================================
+  // Optimize: Small margin gap, recoverable
+  if (
+    metrics.status === 'at_risk' && 
+    recoveryCapacity === 'recoverable' &&
+    metrics.marginPercent > 0
+  ) {
+    const marginGap = metrics.targetMarginPercent - metrics.marginPercent;
+    const additionalNeeded = (marginGap / 100) * metrics.totalPaid;
+    const daysToReduce = metrics.internalDailyCost > 0 ? additionalNeeded / metrics.internalDailyCost : 0;
+    
+    const feasibility: Feasibility = marginGap < 10 ? 'realistic' : 'discuss';
+    const priorityScore = calculatePriorityScore(
+      additionalNeeded, projectPriority, 'low', feasibility
+    );
+    
+    recommendations.push({
+      id: `rec-${recId++}`,
+      priority: 'medium',
+      priorityScore,
+      decisionType: 'optimize',
+      decisionLabel: DECISION_LABELS.optimize,
+      issue: `Marge actuelle (${metrics.marginPercent.toFixed(1)}%) inférieure à l'objectif (${metrics.targetMarginPercent}%)`,
+      action: `Ajustez le TJM ou facturez +${additionalNeeded.toLocaleString('fr-FR')} €, ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
       impact: `+${marginGap.toFixed(1)}% de marge`,
       impactValue: additionalNeeded,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
       category: 'pricing',
       icon: 'TrendingUp',
     });
   }
   
-  // RULE 3: TJM below target
+  // Optimize: TJM below target (for future projects)
   if (metrics.tjmGapPercent < THRESHOLDS.TJM_GAP_WARNING && metrics.targetTJM > 0) {
     const tjmDiff = Math.abs(metrics.tjmGap);
     const additionalRevenue = tjmDiff * metrics.actualDaysWorked;
     
+    const feasibility: Feasibility = 'realistic';
+    const urgency = metrics.tjmGapPercent < THRESHOLDS.TJM_GAP_CRITICAL ? 'high' : 'medium';
+    const priorityScore = calculatePriorityScore(
+      additionalRevenue, projectPriority, urgency, feasibility
+    );
+    
     recommendations.push({
       id: `rec-${recId++}`,
-      priority: metrics.tjmGapPercent < THRESHOLDS.TJM_GAP_CRITICAL ? 'high' : 'medium',
+      priority: urgency === 'high' ? 'high' : 'medium',
+      priorityScore,
+      decisionType: 'optimize',
+      decisionLabel: DECISION_LABELS.optimize,
       issue: `TJM réel (${metrics.actualTJM.toLocaleString('fr-FR')} €) inférieur au TJM cible (${metrics.targetTJM.toLocaleString('fr-FR')} €)`,
       action: `Augmentez votre TJM de ${tjmDiff.toLocaleString('fr-FR')} € pour les prochains projets similaires.`,
-      impact: `+${additionalRevenue.toLocaleString('fr-FR')} € sur ce projet si TJM cible était appliqué`,
+      impact: `+${additionalRevenue.toLocaleString('fr-FR')} € si TJM cible était appliqué`,
       impactValue: additionalRevenue,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
       category: 'pricing',
       icon: 'DollarSign',
     });
   }
   
-  // RULE 4: Time overrun
-  if (metrics.timeOverrunPercent > THRESHOLDS.TIME_OVERRUN_WARNING && metrics.theoreticalDays > 0) {
-    const overrunCost = metrics.timeOverrun * metrics.internalDailyCost;
-    const overrunDays = metrics.timeOverrun;
+  // Optimize: Payment collection (finished projects)
+  if (
+    (projectStage === 'termine' || projectStage === 'livre') && 
+    metrics.remainingToPay > 0 &&
+    metrics.paymentProgress < 70
+  ) {
+    const feasibility: Feasibility = 'realistic';
+    const priorityScore = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    );
     
     recommendations.push({
       id: `rec-${recId++}`,
-      priority: metrics.timeOverrunPercent > THRESHOLDS.TIME_OVERRUN_CRITICAL ? 'high' : 'medium',
-      issue: `Dépassement de ${overrunDays.toFixed(1)} jours (+${metrics.timeOverrunPercent.toFixed(0)}%) par rapport au prévisionnel`,
-      action: `Analysez les causes du dépassement et ajustez vos estimations futures. Coût du dépassement : ${overrunCost.toLocaleString('fr-FR')} €.`,
-      impact: `Économiser ${overrunCost.toLocaleString('fr-FR')} € sur les prochains projets`,
-      impactValue: overrunCost,
-      category: 'time',
-      icon: 'Clock',
+      priority: 'medium',
+      priorityScore,
+      decisionType: 'optimize',
+      decisionLabel: DECISION_LABELS.optimize,
+      issue: `Seulement ${metrics.paymentProgress.toFixed(0)}% du montant facturé a été encaissé`,
+      action: `Relancez le client pour les ${metrics.remainingToPay.toLocaleString('fr-FR')} € restants à percevoir.`,
+      impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
+      impactValue: metrics.remainingToPay,
+      feasibility,
+      feasibilityLabel: FEASIBILITY_LABELS[feasibility],
+      category: 'payment',
+      icon: 'CreditCard',
     });
   }
   
-  // RULE 5: Payment delay - adapt based on project stage
-  if (metrics.paymentProgress < (100 - THRESHOLDS.PAYMENT_DELAY_WARNING) && metrics.totalBilled > 0) {
-    // If project is still in progress, recommend accelerating to close it
-    if (projectStage === 'en_cours') {
-      recommendations.push({
-        id: `rec-${recId++}`,
-        priority: 'medium',
-        issue: `Projet en cours avec ${metrics.paymentProgress.toFixed(0)}% du budget encaissé`,
-        action: `Accélérez sur ce projet pour le clôturer rapidement et facturer le solde de ${metrics.remainingToPay.toLocaleString('fr-FR')} €.`,
-        impact: `Débloquer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation`,
-        impactValue: metrics.remainingToPay,
-        category: 'time',
-        icon: 'Clock',
-      });
-    } else {
-      // Project is finished, recommend chasing payment
-      recommendations.push({
-        id: `rec-${recId++}`,
-        priority: 'medium',
-        issue: `Seulement ${metrics.paymentProgress.toFixed(0)}% du montant facturé a été encaissé`,
-        action: `Relancez le client pour les ${metrics.remainingToPay.toLocaleString('fr-FR')} € restants à percevoir.`,
-        impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
-        impactValue: metrics.remainingToPay,
-        category: 'payment',
-        icon: 'CreditCard',
-      });
-    }
-  }
-  
-  // RULE 6: Fixed price with time overrun - suggest switching to time-based
-  if (metrics.timeOverrunPercent > THRESHOLDS.TIME_OVERRUN_CRITICAL) {
-    const potentialGain = metrics.timeOverrun * metrics.targetTJM;
-    
-    recommendations.push({
-      id: `rec-${recId++}`,
-      priority: 'low',
-      issue: `Le forfait ne reflète pas le temps réellement passé`,
-      action: `Envisagez un modèle en régie (temps passé) pour les prochains projets similaires.`,
-      impact: `Gain potentiel de ${potentialGain.toLocaleString('fr-FR')} € si facturé au temps passé`,
-      impactValue: potentialGain,
-      category: 'model',
-      icon: 'RefreshCw',
-    });
-  }
-  
-  // RULE 7: Profitable project - positive reinforcement
+  // ==========================================
+  // POSITIVE REINFORCEMENT
+  // ==========================================
   if (metrics.status === 'profitable' && recommendations.length === 0) {
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'low',
+      priorityScore: 10,
+      decisionType: 'optimize',
+      decisionLabel: 'Continuer',
       issue: `Projet rentable avec une marge de ${metrics.marginPercent.toFixed(1)}%`,
-      action: `Continuez ainsi ! Documentez les bonnes pratiques de ce projet pour les reproduire.`,
+      action: `Documentez les bonnes pratiques de ce projet pour les reproduire.`,
       impact: `Maintenir une marge supérieure à ${THRESHOLDS.PROFITABLE_MARGIN}%`,
+      feasibility: 'realistic',
+      feasibilityLabel: FEASIBILITY_LABELS.realistic,
       category: 'pricing',
       icon: 'CheckCircle',
     });
   }
   
-  // Sort by priority
-  const priorityOrder = { high: 0, medium: 1, low: 2 };
-  recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  // ==========================================
+  // SORT BY PRIORITY SCORE (higher = more urgent)
+  // ==========================================
+  recommendations.sort((a, b) => b.priorityScore - a.priorityScore);
   
   return recommendations;
 }
@@ -317,7 +602,11 @@ export function generateProfitabilityAnalysis(
   payments: ProjectPayment[]
 ): ProfitabilityAnalysis {
   const metrics = calculateMetrics(project, timeEntries, payments);
-  const recommendations = generateRecommendations(metrics, project.stage || undefined);
+  const recommendations = generateRecommendations(
+    metrics, 
+    project.stage || undefined,
+    { priority: project.priority || undefined, budget: project.budget }
+  );
   
   return {
     projectId: project.id,

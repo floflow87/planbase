@@ -1,0 +1,257 @@
+“MOTEUR DE DÉCISION & PILOTAGE DE RENTABILITÉ”
+
+Tu es l’agent Replit chargé d’améliorer le module Facturation & Rentabilité afin de transformer les recommandations actuelles (calculatoires) en recommandations décisionnelles, hiérarchisées, réalistes et actionnables.
+
+L’objectif n’est plus seulement de dire “combien facturer”, mais quoi faire concrètement pour protéger ou améliorer la rentabilité globale.
+
+1️⃣ Concepts clés à introduire (fondation)
+1.1 Rentabilité ≠ Décision
+
+Un projet peut être :
+
+rentable mais chronophage
+
+déficitaire mais stratégique
+
+rentable mais à risque cash
+
+déficitaire et non rattrapable
+
+👉 Les recommandations doivent intégrer le contexte, pas seulement les chiffres.
+
+2️⃣ Nouvelle notion : Priorité / Importance du projet
+2.1 Ajouter une priorité projet (si absente)
+
+Créer un champ :
+
+project.priority = low | normal | high | strategic
+
+
+low : petit projet, faible enjeu
+
+normal : projet standard
+
+high : enjeu financier ou client important
+
+strategic : client clé, vitrine, long terme
+
+2.2 Fallback automatique (si non renseigné)
+
+Si la priorité n’existe pas encore :
+
+la déduire automatiquement de :
+
+CA facturé
+
+CA potentiel
+
+durée du projet
+
+Exemple :
+
+CA > X € → priorité high
+
+CA < Y € → priorité low
+
+3️⃣ Nouvelle grille d’analyse (LE cœur du moteur)
+
+Chaque projet doit être analysé selon 4 axes :
+
+Axe A — Rentabilité actuelle
+
+rentable
+
+à risque
+
+déficitaire
+
+Axe B — Capacité de rattrapage
+
+rattrapable
+
+difficilement rattrapable
+
+non rattrapable
+
+Basée sur :
+
+% du budget déjà consommé
+
+% du temps déjà passé
+
+montant à rattraper
+
+TJM réel vs TJM cible
+
+Axe C — Importance stratégique
+
+priorité low / normal / high / strategic
+
+Axe D — Dynamique du projet
+
+projet qui avance vite
+
+projet qui stagne
+
+projet qui traîne (temps passé sans facturation associée)
+
+4️⃣ Types de décisions à produire (nouveau standard)
+
+Les recommandations ne doivent plus être “facturez +X €”, mais appartenir à l’une de ces catégories :
+
+🟢 TYPE 1 — Optimiser
+
+Conditions :
+
+faible écart
+
+rattrapable
+
+priorité normale ou haute
+
+Exemples :
+
+ajuster le TJM
+
+facturer un complément
+
+réduire légèrement le temps
+
+🟠 TYPE 2 — Accélérer
+
+👉 NOUVEAU (important)
+
+Conditions :
+
+projet rentable ou rattrapable
+
+mais qui traîne dans le temps
+
+coût latent élevé
+
+Reco :
+
+“Accélérez ce projet pour limiter l’érosion de marge.”
+Chaque jour supplémentaire réduit la marge estimée de X €.
+
+👉 C’est une reco opérationnelle, pas financière.
+
+🔴 TYPE 3 — Ralentir / Geler
+
+Conditions :
+
+projet déficitaire
+
+faible priorité
+
+rattrapage irréaliste
+
+Reco :
+
+“Limiter le temps passé sur ce projet.”
+Chaque jour supplémentaire augmente la perte estimée de X €.
+
+🔴 TYPE 4 — Stopper ou Renégocier
+
+Conditions :
+
+projet déficitaire
+
+non rattrapable
+
+priorité faible ou normale
+
+Reco honnête :
+
+“Ne cherchez plus à rattraper ce projet.”
+La poursuite du travail augmente la perte.
+
+🟣 TYPE 5 — Protéger (stratégique)
+
+Conditions :
+
+projet stratégique
+
+déficitaire ou à risque
+
+Reco :
+
+“Projet stratégique : accepter une marge réduite, mais limiter strictement le périmètre.”
+
+5️⃣ Hiérarchisation des recommandations (critique)
+5.1 Score de priorité
+
+Chaque recommandation doit avoir un score basé sur :
+
+impact financier potentiel (€)
+
+priorité du projet
+
+urgence (temps / cash)
+
+faisabilité
+
+5.2 Ordre d’affichage
+
+Dans l’onglet “Recommandations” :
+
+🔴 Perte financière immédiate élevée
+
+🟠 Projets rattrapables à arbitrer
+
+🟢 Optimisations mineures
+
+6️⃣ UI / UX attendue (sans refonte lourde)
+Carte de recommandation = 4 blocs clairs
+
+Décision recommandée (verbe clair)
+
+Optimiser / Accélérer / Stopper / Renégocier
+
+Pourquoi
+
+1 phrase explicative simple
+
+Impact estimé
+
++X € de marge
+
+ou –X € de perte évitée
+
+Faisabilité
+
+🟢 réaliste
+
+🟠 à discuter
+
+🔴 peu réaliste
+
+7️⃣ Règles importantes
+
+❌ Ne pas proposer de rattrapage irréaliste
+
+❌ Ne pas marquer toutes les recos “Urgent”
+
+✅ Assumer des recommandations “inconfortables”
+
+✅ Toujours prioriser les projets à fort enjeu
+
+8️⃣ Objectif final
+
+Faire de PlanBase :
+
+❌ un outil qui calcule
+
+✅ un outil qui conseille
+
+✅ un copilote de décision business
+
+🎯 Critères d’acceptation
+
+Les recommandations sont hiérarchisées et contextualisées
+
+Le produit propose d’accélérer, ralentir ou stopper, pas seulement “facturer plus”
+
+La priorité du projet influence les décisions
+
+Les recommandations donnent envie d’agir, pas de réfléchir longtemps

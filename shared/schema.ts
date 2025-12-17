@@ -155,6 +155,7 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   stage: text("stage").default("prospection"), // 'prospection', 'en_cours', 'termine'
+  priority: text("priority").default("normal"), // 'low', 'normal', 'high', 'strategic' - Priorité/importance du projet
   category: text("category"),
   startDate: date("start_date"),
   endDate: date("end_date"),
