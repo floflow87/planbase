@@ -167,12 +167,12 @@ function UserMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={handleProfile} data-testid="dropdown-profile">
+        <DropdownMenuItem onClick={handleProfile} className="cursor-pointer" data-testid="dropdown-profile">
           <User className="w-4 h-4 mr-2" />
           Mon profil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={toggleTheme} data-testid="dropdown-theme-toggle">
+        <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer" data-testid="dropdown-theme-toggle">
           {theme === "dark" ? (
             <>
               <Sun className="w-4 h-4 mr-2" />
@@ -186,7 +186,7 @@ function UserMenu() {
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-destructive" data-testid="dropdown-logout">
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="dropdown-logout">
           <LogOut className="w-4 h-4 mr-2" />
           Déconnexion
         </DropdownMenuItem>
