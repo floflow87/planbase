@@ -523,25 +523,40 @@ export default function Finance() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
-            <BarChart3 className="w-4 h-4" />
-            Vue d'ensemble
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
-            <PieChart className="w-4 h-4" />
-            Par projet
-          </TabsTrigger>
-          <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
-            <Lightbulb className="w-4 h-4" />
-            Recommandations
-            {highPriorityCount > 0 && (
-              <Badge variant="destructive" className="ml-1 text-xs">
-                {highPriorityCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
+              <BarChart3 className="w-4 h-4" />
+              Vue d'ensemble
+            </TabsTrigger>
+            <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
+              <PieChart className="w-4 h-4" />
+              Par projet
+            </TabsTrigger>
+            <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
+              <Lightbulb className="w-4 h-4" />
+              Recommandations
+              {highPriorityCount > 0 && (
+                <Badge variant="destructive" className="ml-1 text-xs">
+                  {highPriorityCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          {hiddenRecommendations.size > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {hiddenRecommendations.size} recommandation{hiddenRecommendations.size > 1 ? 's' : ''} masquée{hiddenRecommendations.size > 1 ? 's' : ''} 
+              <Button
+                variant="link"
+                className="h-auto p-0 ml-1 text-xs"
+                onClick={() => setHiddenRecommendations(new Set())}
+                data-testid="button-show-all-recommendations-header"
+              >
+                Tout afficher
+              </Button>
+            </p>
+          )}
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

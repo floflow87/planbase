@@ -170,7 +170,8 @@ export function calculateMetrics(
 }
 
 // Rule-based recommendations engine
-export function generateRecommendations(metrics: ProfitabilityMetrics): Recommendation[] {
+// projectStage: stage of the project to contextualize recommendations
+export function generateRecommendations(metrics: ProfitabilityMetrics, projectStage?: string): Recommendation[] {
   const recommendations: Recommendation[] = [];
   let recId = 1;
   
@@ -244,18 +245,33 @@ export function generateRecommendations(metrics: ProfitabilityMetrics): Recommen
     });
   }
   
-  // RULE 5: Payment delay
+  // RULE 5: Payment delay - adapt based on project stage
   if (metrics.paymentProgress < (100 - THRESHOLDS.PAYMENT_DELAY_WARNING) && metrics.totalBilled > 0) {
-    recommendations.push({
-      id: `rec-${recId++}`,
-      priority: 'medium',
-      issue: `Seulement ${metrics.paymentProgress.toFixed(0)}% du montant facturé a été encaissé`,
-      action: `Relancez le client pour les ${metrics.remainingToPay.toLocaleString('fr-FR')} € restants à percevoir.`,
-      impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
-      impactValue: metrics.remainingToPay,
-      category: 'payment',
-      icon: 'CreditCard',
-    });
+    // If project is still in progress, recommend accelerating to close it
+    if (projectStage === 'en_cours') {
+      recommendations.push({
+        id: `rec-${recId++}`,
+        priority: 'medium',
+        issue: `Projet en cours avec ${metrics.paymentProgress.toFixed(0)}% du budget encaissé`,
+        action: `Accélérez sur ce projet pour le clôturer rapidement et facturer le solde de ${metrics.remainingToPay.toLocaleString('fr-FR')} €.`,
+        impact: `Débloquer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation`,
+        impactValue: metrics.remainingToPay,
+        category: 'time',
+        icon: 'Clock',
+      });
+    } else {
+      // Project is finished, recommend chasing payment
+      recommendations.push({
+        id: `rec-${recId++}`,
+        priority: 'medium',
+        issue: `Seulement ${metrics.paymentProgress.toFixed(0)}% du montant facturé a été encaissé`,
+        action: `Relancez le client pour les ${metrics.remainingToPay.toLocaleString('fr-FR')} € restants à percevoir.`,
+        impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
+        impactValue: metrics.remainingToPay,
+        category: 'payment',
+        icon: 'CreditCard',
+      });
+    }
   }
   
   // RULE 6: Fixed price with time overrun - suggest switching to time-based
@@ -301,7 +317,7 @@ export function generateProfitabilityAnalysis(
   payments: ProjectPayment[]
 ): ProfitabilityAnalysis {
   const metrics = calculateMetrics(project, timeEntries, payments);
-  const recommendations = generateRecommendations(metrics);
+  const recommendations = generateRecommendations(metrics, project.stage || undefined);
   
   return {
     projectId: project.id,
