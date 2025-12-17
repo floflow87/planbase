@@ -1,0 +1,229 @@
+Voici le prompt Replit “Design System V1 – Cassius grade” + la demande “tous les toasts de succès en vert”. Copie-colle tel quel.
+
+⸻
+
+PROMPT REPLIT — PLANBASE DESIGN SYSTEM V1 (BÉTON + SCALABLE) + TOASTS SUCCESS EN VERT
+
+Tu es l’agent Replit chargé de mettre en place un Design System V1 “Cassius-grade” pour PlanBase : tokens → sémantique → primitives UI → composants métier, avec documentation, garde-fous, et une migration progressive sans casser l’existant.
+
+En plus : rendre tous les toasts de succès (success) verts et cohérents sur toute l’app.
+
+⸻
+
+0) Contraintes
+	•	Zéro breaking change fonctionnel.
+	•	Migration progressive : on ne refactor pas 100% de l’UI d’un coup.
+	•	Aucune couleur/spacing “inventée” dans les nouveaux composants : tout doit venir de tokens.
+	•	Préserver le dark mode s’il existe (ou préparer les tokens pour).
+	•	Le système doit rester compatible avec Tailwind / shadcn UI si utilisé.
+
+⸻
+
+1) Objectif Design System : architecture en 4 couches
+
+Layer 1 — Tokens (fondation)
+
+Créer une base de tokens typés et centralisés :
+
+shared/design/
+  tokens/
+    colors.ts
+    spacing.ts
+    radius.ts
+    typography.ts
+    shadows.ts
+  semantics/
+    statusColors.ts
+    priorityColors.ts
+    stageColors.ts
+  index.ts
+
+Règles
+	•	Les tokens ne parlent pas “métier”, seulement “sens” (surface, text, border, intent…).
+	•	Pas de hex ad hoc dans les composants : si un hex existe, il doit vivre dans tokens.
+
+Exemples (à adapter à Tailwind) :
+	•	color.text.primary
+	•	color.surface.base
+	•	color.intent.success
+	•	spacing.md
+	•	radius.lg
+
+Si l’app utilise Tailwind, les tokens peuvent exposer des classes tailwind (bg-… text-… border-…) OU des variables CSS (--color-…). Choisir la solution la plus cohérente avec le code existant.
+
+⸻
+
+Layer 2 — Semantic tokens (pont avec le métier)
+
+Créer un mapping clair entre keys métier (config registry) et tokens design.
+
+Ex :
+	•	Stage projet “prospection” → intent “warning”
+	•	Stage projet “termine” → intent “success”
+	•	Priority “high” → intent “danger” (ou warning selon ton système)
+
+Ces mappings doivent consommer les keys existantes :
+	•	shared/config/projectStages
+	•	shared/config/taskPriorities
+	•	shared/config/taskStatuses
+	•	shared/config/billingStatuses
+
+L’objectif : une UI qui s’aligne automatiquement quand la config change.
+
+⸻
+
+Layer 3 — UI primitives (briques atomiques)
+
+Créer (ou renforcer) des composants atomiques, sans métier :
+
+client/src/design-system/
+  primitives/
+    Badge.tsx
+    Button.tsx
+    Text.tsx
+    Card.tsx
+    Stack.tsx
+  utils/
+    cx.ts
+    intent.ts
+
+Règles :
+	•	Les primitives acceptent des props sémantiques :
+	•	intent="success|warning|danger|info|neutral"
+	•	variant="solid|soft|outline|ghost"
+	•	size="sm|md|lg"
+	•	Les primitives ne connaissent pas les “stages”, “priorities”, etc.
+
+⸻
+
+Layer 4 — Composants métier (assemblage)
+
+Créer des composants métier qui connectent config + sémantique + primitives :
+
+client/src/design-system/product/
+  ProjectStageBadge.tsx
+  TaskPriorityBadge.tsx
+  TaskStatusBadge.tsx
+  BillingStatusBadge.tsx
+
+Règles :
+	•	Ils reçoivent une key (stageKey, priorityKey…)
+	•	Ils récupèrent label + style via shared/config + shared/design/semantics
+	•	Ils rendent une primitive (Badge)
+
+⸻
+
+2) Refactor minimal ciblé (sans Big Bang)
+
+Refactorer uniquement les usages les plus répétés et les plus visibles (MVP) :
+	•	badges de stage (projets / clients)
+	•	badges de priorité (tasks)
+	•	badges de status (tasks / kanban)
+	•	badges billing status
+
+Remplacer les className="bg-…" dispersés par des composants :
+	•	<ProjectStageBadge stageKey={project.stage} />
+	•	<TaskPriorityBadge priorityKey={task.priority} />
+etc.
+
+⸻
+
+3) Garde-fous (anti-dette design)
+
+3.1 ESLint (si déjà installé, compléter)
+	•	Ajouter une règle/convention simple (doc + script) : pas de classes tailwind “intent” en dur dans les pages.
+	•	Les styles métier (success/warning/danger) doivent passer par design-system.
+
+3.2 Script audit “design drift”
+
+Créer un script scripts/audit-design-drift.ts qui détecte dans client/src/pages/** :
+	•	occurrences de bg-green- / text-green- / border-green- etc. liées aux statuts
+	•	occurrences de bg-red-, bg-yellow- etc. dans les badges
+	•	afficher fichier + ligne + extrait
+	•	exit 1 si trop d’occurrences (ou mode report-only au début)
+
+⸻
+
+4) Documentation Design System
+
+Créer :
+
+docs/80-design-system/
+  README.md
+  tokens.md
+  semantics.md
+  primitives.md
+  product-components.md
+  do-dont.md
+
+Inclure :
+	•	comment ajouter un token
+	•	comment ajouter un stage/propriété/ statut et son style
+	•	exemples “Do / Don’t”
+	•	conventions de naming
+
+⸻
+
+5) TOASTS : tous les succès en vert
+
+5.1 Objectif
+
+Tous les toasts de succès doivent être uniformes :
+	•	fond/outline/texte “success” (vert)
+	•	cohérents en light/dark
+	•	pas de success qui sort en gris/bleu par défaut
+
+5.2 Implémentation
+	1.	Identifier le système de toast actuel :
+	•	sonner, react-hot-toast, shadcn/use-toast, etc.
+	2.	Mettre en place une API unifiée :
+
+Créer un wrapper unique :
+
+client/src/design-system/feedback/toast.ts
+
+Exposer des fonctions :
+	•	toastSuccess(message, opts?)
+	•	toastError(message, opts?)
+	•	toastInfo(message, opts?)
+
+Et faire en sorte que :
+	•	toastSuccess applique toujours la variante success (vert) via tokens/intents.
+
+5.3 Migration
+	•	Rechercher dans le code tous les usages toast(...) / toast.success(...) / useToast() etc.
+	•	Remplacer progressivement par toastSuccess, toastError, etc.
+	•	Garantir que les toasts “success” sont verts partout.
+
+5.4 Styling
+	•	Centraliser le style des toasts dans un seul endroit (CSS variables ou classes).
+	•	Utiliser tokens : intent.success (text + border + bg).
+	•	Tester light et dark.
+
+⸻
+
+6) Critères d’acceptation
+	•	✅ shared/design/tokens existe et est utilisé.
+	•	✅ shared/design/semantics mappe les keys métier vers intents/tokens.
+	•	✅ Les badges métier sont centralisés (Stage/Priority/Status/Billing).
+	•	✅ Au moins 2 à 4 pages majeures migrées (projects, tasks, project-detail, dashboard) sur les nouveaux composants de badge.
+	•	✅ Tous les toasts de succès sont verts via toastSuccess() (aucun succès non stylé).
+	•	✅ Docs design system présentes dans docs/80-design-system/.
+	•	✅ Build OK + lint OK.
+
+⸻
+
+7) Ordre d’exécution strict
+	1.	Tokens + semantics
+	2.	Primitives Badge + utils intent
+	3.	Product badges (stage/priority/status/billing)
+	4.	Refactor ciblé de quelques pages
+	5.	Toast wrapper + migration success
+	6.	Docs design system
+	7.	Audit design drift (script) + final checks
+
+Ne fais pas de refacto massive non nécessaire. Le but est une base béton, pas un big bang.
+
+⸻
+
+Si tu veux, après ça, je te ferai un V2 : theming par account (branding client), et un “UI kit” complet (tables, forms, empty states, data viz).
