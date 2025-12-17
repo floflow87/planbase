@@ -91,6 +91,8 @@ import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
 import { Loader } from "@/components/Loader";
+import { LoadingState, EmptyState } from "@/design-system/patterns";
+import { Field } from "@/design-system/primitives";
 import {
   TASK_PRIORITIES,
   getTaskPriorityLabel,
@@ -1413,9 +1415,10 @@ export default function Tasks() {
 
   if (projectsLoading || columnsLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader size="lg" />
-      </div>
+      <LoadingState 
+        message="Chargement des tâches..." 
+        className="h-full" 
+      />
     );
   }
 

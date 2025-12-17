@@ -113,6 +113,8 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { Loader } from "@/components/Loader";
+import { LoadingState, EmptyState } from "@/design-system/patterns";
+import { Field } from "@/design-system/primitives";
 
 
 // Helper function to calculate days overdue
@@ -1471,9 +1473,11 @@ function KanbanStageColumn({
           ))}
         </SortableContext>
         {projects.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-xs text-muted-foreground italic">
-            Aucun projet
-          </div>
+          <EmptyState 
+            title="Aucun projet"
+            description="Cette colonne ne contient aucun projet"
+            className="py-6"
+          />
         )}
       </div>
     </div>
@@ -2872,9 +2876,10 @@ export default function Projects() {
 
   if (projectsLoading || columnsLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader size="lg" />
-      </div>
+      <LoadingState 
+        message="Chargement des projets..." 
+        className="h-full" 
+      />
     );
   }
 
