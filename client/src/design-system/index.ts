@@ -12,3 +12,6 @@ export * from "./product";
 
 // Feedback (Toast)
 export * from "./feedback";
+
+// Patterns (V1.4)
+export * from "./patterns";

@@ -44,3 +44,17 @@ export {
   getSelectSurfaceClasses,
 } from "./surfaces";
 export type { SurfaceKey } from "./surfaces";
+
+// Form Tokens (V1.4)
+export {
+  focusTokens,
+  borderTokens,
+  spacingTokens,
+  sizeTokens,
+  stateTokens,
+  inputBaseClasses,
+  textareaBaseClasses,
+  getInputClasses,
+  getTextareaClasses,
+} from "./forms";
+export type { FormState } from "./forms";
