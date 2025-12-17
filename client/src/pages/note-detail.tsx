@@ -35,7 +35,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, X } from "lucide-react";
 import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
 
@@ -1116,88 +1116,92 @@ export default function NoteDetail() {
             </TabsList>
             
             <TabsContent value="project" className="mt-0">
-              <Command className="rounded-lg border shadow-md">
+              <Command className="rounded-lg border shadow-md bg-white dark:bg-gray-900">
                 <CommandInput placeholder="Rechercher un projet..." data-testid="input-search-project" />
-                <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto">
-                  {currentProject && (
-                    <CommandItem
-                      onSelect={() => {
-                        handleUnlinkProject();
-                        setEntitySelectorOpen(false);
-                      }}
-                      data-testid="option-unlink-project"
-                      className="text-destructive"
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Délier du projet
-                    </CommandItem>
-                  )}
-                  {projects.map((project) => (
-                    <CommandItem
-                      key={project.id}
-                      onSelect={() => handleSelectProject(project.id)}
-                      data-testid={`option-project-${project.id}`}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          currentProject?.id === project.id ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{project.name}</div>
-                        {project.description && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {project.description}
-                          </div>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                <CommandList className="max-h-[300px]">
+                  <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                  <CommandGroup>
+                    {currentProject && (
+                      <CommandItem
+                        onSelect={() => {
+                          handleUnlinkProject();
+                          setEntitySelectorOpen(false);
+                        }}
+                        data-testid="option-unlink-project"
+                        className="text-destructive"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Délier du projet
+                      </CommandItem>
+                    )}
+                    {projects.map((project) => (
+                      <CommandItem
+                        key={project.id}
+                        onSelect={() => handleSelectProject(project.id)}
+                        data-testid={`option-project-${project.id}`}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            currentProject?.id === project.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{project.name}</div>
+                          {project.description && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {project.description}
+                            </div>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
               </Command>
             </TabsContent>
             
             <TabsContent value="client" className="mt-0">
-              <Command className="rounded-lg border shadow-md">
+              <Command className="rounded-lg border shadow-md bg-white dark:bg-gray-900">
                 <CommandInput placeholder="Rechercher un client..." data-testid="input-search-client" />
-                <CommandEmpty>Aucun client trouvé.</CommandEmpty>
-                <CommandGroup className="max-h-[300px] overflow-y-auto">
-                  {currentClient && (
-                    <CommandItem
-                      onSelect={() => {
-                        handleUnlinkClient();
-                        setEntitySelectorOpen(false);
-                      }}
-                      data-testid="option-unlink-client"
-                      className="text-destructive"
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Délier du client
-                    </CommandItem>
-                  )}
-                  {clients.map((client) => (
-                    <CommandItem
-                      key={client.id}
-                      onSelect={() => handleSelectClient(client.id)}
-                      data-testid={`option-client-${client.id}`}
-                    >
-                      <Check
-                        className={`mr-2 h-4 w-4 ${
-                          currentClient?.id === client.id ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{client.name}</div>
-                        {client.email && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {client.email}
-                          </div>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                <CommandList className="max-h-[300px]">
+                  <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                  <CommandGroup>
+                    {currentClient && (
+                      <CommandItem
+                        onSelect={() => {
+                          handleUnlinkClient();
+                          setEntitySelectorOpen(false);
+                        }}
+                        data-testid="option-unlink-client"
+                        className="text-destructive"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Délier du client
+                      </CommandItem>
+                    )}
+                    {clients.map((client) => (
+                      <CommandItem
+                        key={client.id}
+                        onSelect={() => handleSelectClient(client.id)}
+                        data-testid={`option-client-${client.id}`}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            currentClient?.id === client.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{client.name}</div>
+                          {client.email && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {client.email}
+                            </div>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
               </Command>
             </TabsContent>
           </Tabs>
