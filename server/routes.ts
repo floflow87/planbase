@@ -1297,6 +1297,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // PROJECT PROFITABILITY - Protected Routes
+  // ============================================
+
+  // Get profitability analysis for a project
+  app.get("/api/projects/:projectId/profitability", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get time entries for the project
+      const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, req.params.projectId);
+      
+      // Get payments for the project
+      const payments = await storage.getPaymentsByProjectId(req.params.projectId);
+
+      // Import and use profitability service
+      const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
+      const analysis = generateProfitabilityAnalysis(project, timeEntries, payments);
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Error generating profitability analysis:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get profitability summary for all projects in account
+  app.get("/api/profitability/summary", requireAuth, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByAccountId(req.accountId!);
+      const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
+      
+      const summaries = await Promise.all(
+        projects.map(async (project) => {
+          const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, project.id);
+          const payments = await storage.getPaymentsByProjectId(project.id);
+          return generateProfitabilityAnalysis(project, timeEntries, payments);
+        })
+      );
+
+      // Calculate aggregate metrics
+      const totalBilled = summaries.reduce((sum, s) => sum + s.metrics.totalBilled, 0);
+      const totalPaid = summaries.reduce((sum, s) => sum + s.metrics.totalPaid, 0);
+      const totalMargin = summaries.reduce((sum, s) => sum + s.metrics.margin, 0);
+      const totalCost = summaries.reduce((sum, s) => sum + s.metrics.totalCost, 0);
+      
+      const profitableCount = summaries.filter(s => s.metrics.status === 'profitable').length;
+      const atRiskCount = summaries.filter(s => s.metrics.status === 'at_risk').length;
+      const deficitCount = summaries.filter(s => s.metrics.status === 'deficit').length;
+
+      res.json({
+        projects: summaries,
+        aggregate: {
+          totalBilled,
+          totalPaid,
+          totalMargin,
+          totalCost,
+          averageMarginPercent: totalBilled > 0 ? (totalMargin / totalBilled) * 100 : 0,
+          profitableCount,
+          atRiskCount,
+          deficitCount,
+          projectCount: summaries.length,
+        },
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error generating profitability summary:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TASKS - Protected Routes
   // ============================================
 
