@@ -81,7 +81,13 @@ export function calculateActualDays(timeEntries: TimeEntry[]): number {
 }
 
 // Calculate total payments received
-export function calculateTotalPaid(payments: ProjectPayment[]): number {
+// Uses same logic as Dashboard: if billingStatus === 'paye', consider full budget as paid
+export function calculateTotalPaid(project: Project, payments: ProjectPayment[]): number {
+  // If project is marked as fully paid, consider full budget as received
+  if (project.billingStatus === 'paye') {
+    return parseFloat(project.budget?.toString() || '0');
+  }
+  // Otherwise, sum individual payments
   return payments.reduce((sum, payment) => {
     return sum + parseFloat(payment.amount?.toString() || '0');
   }, 0);
@@ -112,11 +118,11 @@ export function calculateMetrics(
   
   // Financial metrics
   // totalBilled = CA facturé (utilise project.budget comme source de vérité)
-  // totalPaid = CA encaissé (sum of actual payments received)
+  // totalPaid = CA encaissé (uses same logic as Dashboard: if billingStatus='paye' => full budget)
   // Profitability calculations use totalPaid as revenue (CA encaissé)
   const totalBilled = parseFloat(project.budget?.toString() || '0');
-  const totalPaid = calculateTotalPaid(payments);
-  const remainingToPay = totalBilled - totalPaid;
+  const totalPaid = calculateTotalPaid(project, payments);
+  const remainingToPay = Math.max(0, totalBilled - totalPaid);
   const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
   
   // TJM metrics - Based on actual revenue received

@@ -24,8 +24,7 @@ import {
   PieChart,
   Target,
   Lightbulb,
-  Eye,
-  EyeOff
+  Eye
 } from "lucide-react";
 import { Link } from "wouter";
 import type { Project } from "@shared/schema";
@@ -710,41 +709,50 @@ export default function Finance() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {allRecommendations.map((rec) => {
-                    const recKey = `${rec.projectId}-${rec.id}`;
-                    const isHidden = hiddenRecommendations.has(recKey);
-                    return (
-                      <div key={recKey}>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-500">
-                              Projet : 
-                            </span>
-                            <Link href={`/projects/${rec.projectId}`} className="text-xs text-violet-600 hover:underline">
-                              {rec.projectName}
-                            </Link>
+                  {allRecommendations
+                    .filter((rec) => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
+                    .map((rec) => {
+                      const recKey = `${rec.projectId}-${rec.id}`;
+                      return (
+                        <div key={recKey}>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-500">
+                                Projet : 
+                              </span>
+                              <Link href={`/projects/${rec.projectId}`} className="text-xs text-violet-600 hover:underline">
+                                {rec.projectName}
+                              </Link>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => toggleRecommendation(recKey)}
+                              data-testid={`button-toggle-recommendation-${rec.id}`}
+                            >
+                              <Eye className="w-4 h-4 text-gray-500" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => toggleRecommendation(recKey)}
-                            data-testid={`button-toggle-recommendation-${rec.id}`}
-                          >
-                            {isHidden ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-500" />}
-                          </Button>
+                          <RecommendationCard recommendation={rec} />
                         </div>
-                        {!isHidden && <RecommendationCard recommendation={rec} />}
-                        {isHidden && (
-                          <Card className="border border-dashed border-gray-200 bg-gray-50">
-                            <CardContent className="p-3 text-center">
-                              <span className="text-sm text-gray-400">Recommandation masquée</span>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  {hiddenRecommendations.size > 0 && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        {hiddenRecommendations.size} recommandation{hiddenRecommendations.size > 1 ? 's' : ''} masquée{hiddenRecommendations.size > 1 ? 's' : ''} 
+                        <Button
+                          variant="link"
+                          className="h-auto p-0 ml-1 text-xs"
+                          onClick={() => setHiddenRecommendations(new Set())}
+                          data-testid="button-show-all-recommendations"
+                        >
+                          Tout afficher
+                        </Button>
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
