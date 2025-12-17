@@ -50,7 +50,7 @@ export function AppSidebar() {
     { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "Marketing", url: "/marketing", icon: TrendingUp },
-    { title: "Finance", url: "/finance", icon: DollarSign },
+    { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];
 
   return (
