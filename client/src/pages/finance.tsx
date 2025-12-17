@@ -23,7 +23,9 @@ import {
   BarChart3,
   PieChart,
   Target,
-  Lightbulb
+  Lightbulb,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Link } from "wouter";
 import type { Project } from "@shared/schema";
@@ -422,6 +424,19 @@ function EmptyState() {
 export default function Finance() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [activeTab, setActiveTab] = useState('overview');
+  const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
+
+  const toggleRecommendation = (recKey: string) => {
+    setHiddenRecommendations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(recKey)) {
+        newSet.delete(recKey);
+      } else {
+        newSet.add(recKey);
+      }
+      return newSet;
+    });
+  };
 
   const { data: summary, isLoading, error } = useQuery<ProfitabilitySummary>({
     queryKey: ['/api/profitability/summary'],
@@ -695,19 +710,41 @@ export default function Finance() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {allRecommendations.map((rec) => (
-                    <div key={`${rec.projectId}-${rec.id}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-medium text-gray-500">
-                          Projet : 
-                        </span>
-                        <Link href={`/projects/${rec.projectId}`} className="text-xs text-violet-600 hover:underline">
-                          {rec.projectName}
-                        </Link>
+                  {allRecommendations.map((rec) => {
+                    const recKey = `${rec.projectId}-${rec.id}`;
+                    const isHidden = hiddenRecommendations.has(recKey);
+                    return (
+                      <div key={recKey}>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">
+                              Projet : 
+                            </span>
+                            <Link href={`/projects/${rec.projectId}`} className="text-xs text-violet-600 hover:underline">
+                              {rec.projectName}
+                            </Link>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => toggleRecommendation(recKey)}
+                            data-testid={`button-toggle-recommendation-${rec.id}`}
+                          >
+                            {isHidden ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-500" />}
+                          </Button>
+                        </div>
+                        {!isHidden && <RecommendationCard recommendation={rec} />}
+                        {isHidden && (
+                          <Card className="border border-dashed border-gray-200 bg-gray-50">
+                            <CardContent className="p-3 text-center">
+                              <span className="text-sm text-gray-400">Recommandation masquée</span>
+                            </CardContent>
+                          </Card>
+                        )}
                       </div>
-                      <RecommendationCard recommendation={rec} />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

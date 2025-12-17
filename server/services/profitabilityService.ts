@@ -67,7 +67,7 @@ const THRESHOLDS = {
   
   PAYMENT_DELAY_WARNING: 30, // 30% unpaid triggers warning
   
-  DEFAULT_INTERNAL_COST: 350, // Default internal daily cost if not specified
+  DEFAULT_INTERNAL_COST: 600, // Default internal daily cost if not specified
   DEFAULT_TARGET_MARGIN: 30, // Default target margin 30%
 };
 
