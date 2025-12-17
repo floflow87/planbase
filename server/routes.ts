@@ -1334,15 +1334,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projects = await storage.getProjectsByAccountId(req.accountId!);
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
       
+      // Séparer les projets en prospection (CA potentiel) des autres (CA réel)
+      const prospectionProjects = projects.filter(p => p.stage === 'prospection');
+      const activeProjects = projects.filter(p => p.stage !== 'prospection');
+      
+      // Calculer le CA potentiel (projets en prospection)
+      const potentialRevenue = prospectionProjects.reduce((sum, p) => {
+        return sum + parseFloat(p.budget?.toString() || '0');
+      }, 0);
+      
+      // Générer les analyses uniquement pour les projets actifs (hors prospection)
       const summaries = await Promise.all(
-        projects.map(async (project) => {
+        activeProjects.map(async (project) => {
           const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, project.id);
           const payments = await storage.getPaymentsByProjectId(project.id);
           return generateProfitabilityAnalysis(project, timeEntries, payments);
         })
       );
 
-      // Calculate aggregate metrics
+      // Calculate aggregate metrics (uniquement sur projets actifs)
       const totalBilled = summaries.reduce((sum, s) => sum + s.metrics.totalBilled, 0);
       const totalPaid = summaries.reduce((sum, s) => sum + s.metrics.totalPaid, 0);
       const totalMargin = summaries.reduce((sum, s) => sum + s.metrics.margin, 0);
@@ -1359,6 +1369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPaid,
           totalMargin,
           totalCost,
+          potentialRevenue, // CA potentiel (projets en prospection)
+          potentialProjectCount: prospectionProjects.length,
           averageMarginPercent: totalBilled > 0 ? (totalMargin / totalBilled) * 100 : 0,
           profitableCount,
           atRiskCount,

@@ -77,6 +77,8 @@ interface ProfitabilitySummary {
     totalPaid: number;
     totalMargin: number;
     totalCost: number;
+    potentialRevenue: number;
+    potentialProjectCount: number;
     averageMarginPercent: number;
     profitableCount: number;
     atRiskCount: number;
@@ -528,13 +530,20 @@ export default function Finance() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <SummaryCard
-              title="Chiffre d'affaires"
+              title="CA facturé"
               value={formatCurrency(aggregate.totalBilled)}
-              subtitle={`${formatCurrency(aggregate.totalPaid)} encaissés`}
+              subtitle={`${aggregate.projectCount} projet${aggregate.projectCount > 1 ? 's' : ''} actif${aggregate.projectCount > 1 ? 's' : ''}`}
               icon={Euro}
               color="violet"
+            />
+            <SummaryCard
+              title="CA potentiel"
+              value={formatCurrency(aggregate.potentialRevenue || 0)}
+              subtitle={`${aggregate.potentialProjectCount || 0} prospect${(aggregate.potentialProjectCount || 0) > 1 ? 's' : ''}`}
+              icon={Target}
+              color="cyan"
             />
             <SummaryCard
               title="Marge totale"
