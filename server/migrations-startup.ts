@@ -773,6 +773,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Sprints completed_at and days_saved columns added");
     
+    // Add profitability columns to projects table
+    await db.execute(sql`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS internal_daily_cost numeric(14,2);
+    `);
+    await db.execute(sql`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_margin_percent numeric(5,2);
+    `);
+    console.log("✅ Projects profitability columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

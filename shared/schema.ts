@@ -168,6 +168,8 @@ export const projects = pgTable("projects", {
   billingRate: numeric("billing_rate", { precision: 14, scale: 2 }), // Hourly/daily rate
   totalBilled: numeric("total_billed", { precision: 14, scale: 2 }), // Total amount billed to client
   numberOfDays: numeric("number_of_days", { precision: 10, scale: 2 }), // Number of days for TJM calculation
+  internalDailyCost: numeric("internal_daily_cost", { precision: 14, scale: 2 }), // Internal daily cost for profitability calculation
+  targetMarginPercent: numeric("target_margin_percent", { precision: 5, scale: 2 }), // Target margin percentage (default 30%)
   // Billing status fields
   billingStatus: text("billing_status"), // 'devis_envoye', 'devis_accepte', 'bon_commande', 'facture', 'paye', 'partiel', 'annule', 'retard'
   billingDueDate: date("billing_due_date"), // Used when billingStatus is 'retard' to show late payment date
