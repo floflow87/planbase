@@ -1,0 +1,261 @@
+Tu es l’agent Replit chargé de livrer la Phase V4 sur PlanBase : stabilisation, anti-régression, documentation clean, et UI admin minimale pour piloter le Config Registry DB-first déjà en place.
+
+Contexte
+
+Le système Config Registry DB-first est déjà implémenté :
+	•	server/services/configService.ts avec cache + merge scopes
+	•	API :
+	•	GET /api/config (auth)
+	•	PUT /api/config/:key (owner-only)
+	•	Hook front client/src/hooks/useConfig.ts
+	•	Table settings en DB (JSONB)
+	•	Defaults dans shared/config/*
+
+La priorité V4 : fiabilité + scalabilité + gouvernance.
+
+⸻
+
+Objectifs V4
+	1.	Tests : prouver et verrouiller l’ordre de merge, l’authZ, et l’invalidation de cache.
+	2.	Qualité/anti-régression : installer ESLint + Prettier + script check:hardcode pour empêcher le retour du hardcode d’options.
+	3.	Schema alignment : garantir que shared/schema.ts ne contient plus d’enums métier en dur (stage/status/priority/timeCategory/etc.).
+	4.	Docs : refonte complète de l’organisation Markdown dans docs/ avec index.
+	5.	UI Admin Config (MVP) : page owner-only pour lire/éditer les configs (JSON editor) + reset defaults + export/import.
+
+⸻
+
+1) Tests (non négociable)
+
+1.1 Framework
+
+Utiliser le framework de test déjà présent.
+S’il n’y en a pas : installer Vitest (ou Jest) côté serveur avec config minimale.
+
+1.2 Tests à créer (minimum)
+
+Créer des tests ciblés sur configService + routes config :
+
+A) Merge order / scope override
+	•	Préparer des defaults SYSTEM (via getAllDefaultConfigs())
+	•	Simuler des overrides en DB :
+	•	ACCOUNT override
+	•	USER override
+	•	PROJECT override
+	•	Vérifier que le résultat final respecte :
+	•	SYSTEM < ACCOUNT < USER < PROJECT
+	•	(le scope le plus spécifique écrase le plus global)
+	•	Cas : une clé partielle (ex thresholds) doit merger correctement (si merge profond est attendu) ou remplacer complètement (si remplacement total est la règle) — préciser le comportement et le tester.
+
+B) AuthZ
+	•	GET /api/config :
+	•	non authentifié → 401
+	•	authentifié → 200
+	•	PUT /api/config/:key :
+	•	collaborator → 403
+	•	owner → 200 + version increment
+
+C) Cache invalidation
+	•	Faire un GET /api/config (cache warm)
+	•	Faire un PUT sur une clé
+	•	Refaire GET : doit retourner la nouvelle valeur immédiatement (pas l’ancienne)
+
+Si tu ne peux pas faire des tests HTTP facilement, teste directement le service + une couche de route minimale mockée.
+
+⸻
+
+2) ESLint + Prettier + garde-fou hardcode
+
+2.1 Installer
+
+Ajouter :
+	•	eslint
+	•	eslint-plugin-react (si React)
+	•	eslint-plugin-import
+	•	eslint-plugin-unused-imports
+	•	prettier
+	•	eslint-config-prettier
+
+Configurer :
+	•	.eslintrc ou eslint.config.*
+	•	.prettierrc
+
+Ajouter scripts package.json :
+	•	lint
+	•	lint:fix
+	•	format
+	•	format:check
+
+2.2 Script anti-hardcode
+
+Créer :
+	•	scripts/check-hardcoded-options.ts
+
+Il doit scanner client/src/**/*.{ts,tsx} et détecter ces patterns (regex) :
+	•	const\s+(stages|statuses|priorities|options)\s*=\s*\[
+	•	<SelectItem[^>]+value=["']
+	•	z\.enum\(\s*\[
+	•	switch\s*\(\s*(status|stage|priority)\s*\)
+
+Exclusions :
+	•	si ligne précédente contient // hardcode-ok, ignorer.
+
+Comportement :
+	•	afficher fichier + ligne + extrait
+	•	exit code 1 si occurrences non autorisées
+
+Ajouter script :
+	•	check:hardcode
+
+Option bonus :
+	•	audit:quality = lint + format:check + check:hardcode
+
+⸻
+
+3) Schema alignment (zéro enums métier en dur)
+
+3.1 Audit
+
+Ouvrir shared/schema.ts et identifier toutes les validations qui contiennent :
+	•	enums “stage/status/priority/category” en dur
+	•	options arrays duplicatives
+
+3.2 Refactor
+
+Remplacer par imports depuis shared/config :
+	•	projectStages keys
+	•	taskStatuses keys
+	•	taskPriorities keys
+	•	timeCategories keys
+	•	billingStatuses keys
+
+Créer au besoin un helper :
+	•	shared/config/zod.ts (ou shared/utils/zod.ts) pour construire une z.enum sûre depuis des as const.
+
+Critère :
+	•	shared/schema.ts ne doit plus être une 2e source de vérité des valeurs métier.
+
+⸻
+
+4) Rework documentation (docs/)
+
+4.1 Créer arborescence
+
+Créer :
+
+docs/
+  README.md
+  00-getting-started/
+    overview.md
+    local-setup.md
+  10-architecture/
+    backend.md
+    frontend.md
+    shared-contracts.md
+    config-registry.md
+  20-database/
+    supabase.md
+    drizzle.md
+    migrations.md
+  30-security/
+    multi-tenant.md
+    critical-todos.md
+    security-hardening.md
+  40-operations/
+    deployment.md
+    render.md
+    dns-ovh.md
+    storage.md
+    pdf-export.md
+  50-product/
+    modules.md
+    reports-recos.md
+  60-changelog/
+    patch-notes.md
+    changelog-session.md
+  70-technical-debt/
+    technical-debt.md
+
+4.2 Déplacer les .md existants
+
+Déplacer tous les .md à la racine (hors README si voulu) vers les dossiers correspondants.
+Mettre à jour tous les liens internes.
+
+4.3 docs/README.md
+
+Créer un index “Table des matières” avec liens vers chaque doc.
+
+4.4 README racine
+
+Rendre le README racine très court + lien vers docs/README.md.
+
+⸻
+
+5) UI Admin Config (MVP)
+
+5.1 Nouvelle page (owner-only)
+
+Créer une page dans le client (route) :
+	•	Settings → Advanced Config (ou /settings/config)
+
+Accès :
+	•	visible uniquement si user role = owner
+	•	sinon 404 ou message “Accès réservé”
+
+5.2 Fonctionnalités
+
+Cette page doit :
+	•	charger GET /api/config
+	•	afficher une liste de sections (accordéon) :
+	•	projectStages
+	•	taskStatuses
+	•	taskPriorities
+	•	billingStatuses
+	•	timeCategories
+	•	thresholds
+
+Pour chaque section :
+	•	afficher le JSON actuel (éditeur texte monaco si dispo, sinon textarea)
+	•	bouton Validate (JSON parse + validation shape basique)
+	•	bouton Save → PUT /api/config/:key
+	•	bouton Reset to defaults → PUT avec valeur defaults (récupérée via defaults côté front ou via endpoint optionnel)
+	•	bouton Export (download JSON)
+	•	bouton Import (upload JSON) + validation + save
+
+5.3 Validation
+	•	côté front : vérifier JSON parse + checks de structure minimaux
+	•	côté backend : valider payload (Zod) selon la clé avant d’écrire dans DB
+	•	en cas d’erreur : message clair
+
+5.4 Audit trail minimum
+
+À chaque PUT :
+	•	incrémenter version
+	•	mettre updated_at et updated_by
+	•	retourner ces champs au client
+
+Option bonus :
+	•	afficher “Dernière mise à jour par X à telle date”
+
+⸻
+
+6) Contrôle final & livraison
+	1.	Lancer tests
+	2.	Lancer lint/format/check:hardcode
+	3.	Vérifier que l’app compile et que useConfig() continue de fonctionner
+	4.	Vérifier que docs/README.md est navigable et que les liens sont corrects
+
+Livrer un petit rapport :
+	•	docs/10-architecture/config-registry.md : expliquer scopes, merge order, override, exemples
+	•	docs/30-security/security-hardening.md : expliquer rate limit / demo endpoints (si déjà fait) et conventions
+
+⸻
+
+Ordre d’exécution strict
+	1.	Tests merge/auth/cache
+	2.	ESLint + Prettier + check:hardcode
+	3.	Schema alignment
+	4.	Docs restructure
+	5.	UI Admin Config
+	6.	Final checks
+
+Ne change pas les fonctionnalités produit existantes : uniquement structure, qualité, gouvernance et outillage.
