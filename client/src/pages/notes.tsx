@@ -142,9 +142,9 @@ export default function Notes() {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Group by state with localStorage persistence
-  const [groupBy, setGroupBy] = useState<"none" | "project">(() => {
+  const [groupBy, setGroupBy] = useState<"none" | "project" | "status" | "visibility" | "favorite">(() => {
     const saved = localStorage.getItem('noteListGroupBy');
-    return (saved as "none" | "project") || "none";
+    return (saved as "none" | "project" | "status" | "visibility" | "favorite") || "none";
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   
@@ -252,9 +252,10 @@ export default function Notes() {
     localStorage.setItem('noteListPageSize', pageSize.toString());
   }, [pageSize]);
   
-  // Save groupBy to localStorage when it changes
+  // Save groupBy to localStorage when it changes and reset collapsed groups
   useEffect(() => {
     localStorage.setItem('noteListGroupBy', groupBy);
+    setCollapsedGroups(new Set()); // Reset collapsed state when grouping changes
   }, [groupBy]);
 
   // Reset to page 1 when filters change
@@ -347,13 +348,58 @@ export default function Notes() {
     return filteredNotes.slice(startIdx, endIdx);
   }, [filteredNotes, currentPage, pageSize]);
   
-  // Group notes by project
+  // Group notes by column
   type GroupedNotes = {
     groupKey: string;
     groupName: string;
     projectId: string | null;
     notes: Note[];
   }[];
+  
+  // Helper function to get group info based on groupBy type
+  const getGroupInfo = (note: Note, currentGroupBy: typeof groupBy): { key: string; name: string } => {
+    switch (currentGroupBy) {
+      case "project": {
+        const project = getLinkedProject(note.id);
+        return {
+          key: project?.id || "no-project",
+          name: project?.name || "Sans projet",
+        };
+      }
+      case "status": {
+        const statusLabels: Record<string, string> = {
+          draft: "Brouillons",
+          active: "Publiées",
+          archived: "Archivées",
+        };
+        return {
+          key: note.status || "active",
+          name: statusLabels[note.status || "active"] || "Publiées",
+        };
+      }
+      case "visibility": {
+        const visibilityLabels: Record<string, string> = {
+          private: "Privées",
+          shared: "Partagées",
+          public: "Publiques",
+        };
+        return {
+          key: note.visibility || "private",
+          name: visibilityLabels[note.visibility || "private"] || "Privées",
+        };
+      }
+      case "favorite": {
+        const isFav = note.isFavorite || false;
+        return {
+          key: isFav ? "favorite" : "not-favorite",
+          name: isFav ? "Favoris" : "Autres notes",
+        };
+      }
+      case "none":
+        // "none" means no grouping - return generic key
+        return { key: "all", name: "" };
+    }
+  };
   
   const groupedNotes = useMemo<GroupedNotes>(() => {
     if (groupBy === "none") {
@@ -363,9 +409,8 @@ export default function Notes() {
     const groups = new Map<string, { name: string; projectId: string | null; notes: Note[] }>();
     
     paginatedNotes.forEach((note) => {
-      const project = getLinkedProject(note.id);
-      const groupKey = project?.id || "no-project";
-      const groupName = project?.name || "Sans projet";
+      const { key: groupKey, name: groupName } = getGroupInfo(note, groupBy);
+      const project = groupBy === "project" ? getLinkedProject(note.id) : null;
       
       if (!groups.has(groupKey)) {
         groups.set(groupKey, { name: groupName, projectId: project?.id || null, notes: [] });
@@ -373,11 +418,30 @@ export default function Notes() {
       groups.get(groupKey)!.notes.push(note);
     });
     
-    // Sort groups: projects first (alphabetically), then "Sans projet" last
+    // Define sort order based on group type
+    const getSortPriority = (key: string): number => {
+      if (groupBy === "project") {
+        return key === "no-project" ? 999 : 0;
+      }
+      if (groupBy === "status") {
+        const statusOrder: Record<string, number> = { active: 0, draft: 1, archived: 2 };
+        return statusOrder[key] ?? 99;
+      }
+      if (groupBy === "visibility") {
+        const visOrder: Record<string, number> = { private: 0, shared: 1, public: 2 };
+        return visOrder[key] ?? 99;
+      }
+      if (groupBy === "favorite") {
+        return key === "favorite" ? 0 : 1;
+      }
+      return 0;
+    };
+    
     return Array.from(groups.entries())
       .sort(([keyA, a], [keyB, b]) => {
-        if (keyA === "no-project") return 1;
-        if (keyB === "no-project") return -1;
+        const priorityA = getSortPriority(keyA);
+        const priorityB = getSortPriority(keyB);
+        if (priorityA !== priorityB) return priorityA - priorityB;
         return a.name.localeCompare(b.name);
       })
       .map(([key, group]) => ({
@@ -715,7 +779,10 @@ export default function Notes() {
               data-testid="select-group-by"
             >
               <option value="none">Sans groupage</option>
-              <option value="project">Grouper par projet</option>
+              <option value="project">Par projet</option>
+              <option value="status">Par statut</option>
+              <option value="visibility">Par visibilité</option>
+              <option value="favorite">Par favoris</option>
             </select>
           </div>
           
