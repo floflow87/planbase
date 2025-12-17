@@ -174,6 +174,8 @@ interface TicketRowProps {
   ticket: FlatTicket;
   users?: AppUser[];
   sprints?: Sprint[];
+  epics?: Epic[];
+  showEpicColumn?: boolean;
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
@@ -182,14 +184,16 @@ interface TicketRowProps {
   isDraggable?: boolean;
 }
 
-export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
+  const ticketEpic = epics?.find(e => e.id === ticket.epicId);
   const isCompleted = ticket.state === "termine";
   
   const [pointsPopoverOpen, setPointsPopoverOpen] = useState(false);
   const [priorityPopoverOpen, setPriorityPopoverOpen] = useState(false);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [epicPopoverOpen, setEpicPopoverOpen] = useState(false);
   
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `ticket-${ticket.type}-${ticket.id}`,
@@ -449,6 +453,101 @@ export function TicketRow({ ticket, users, sprints, onSelect, onUpdateState, onU
         )
       )}
       
+      {/* Inline Epic Editor */}
+      {showEpicColumn && ticket.type !== "epic" && onUpdateField && !isCompleted ? (
+        <Popover open={epicPopoverOpen} onOpenChange={setEpicPopoverOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <div 
+                  className="cursor-pointer hover:opacity-80 min-w-[80px]"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`ticket-epic-${ticket.id}`}
+                >
+                  {ticketEpic ? (
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs px-2 py-0.5 bg-white border truncate max-w-[100px]"
+                      style={{ borderColor: ticketEpic.color || "#8B5CF6" }}
+                    >
+                      <div 
+                        className="h-2 w-2 rounded-full mr-1.5 flex-shrink-0" 
+                        style={{ backgroundColor: ticketEpic.color || "#8B5CF6" }}
+                      />
+                      <span className="truncate">{ticketEpic.title}</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs px-2 py-0.5 bg-white text-muted-foreground">
+                      <Layers className="h-3 w-3 mr-1" />
+                      Aucun
+                    </Badge>
+                  )}
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+              <p className="text-xs">Cliquez pour modifier l'Epic</p>
+            </TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-48 p-2 bg-white max-h-64 overflow-y-auto" align="end" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700 mb-2">Epic</p>
+              <Button
+                variant={!ticket.epicId ? "default" : "ghost"}
+                size="sm"
+                className="w-full h-7 text-xs justify-start gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateField(ticket.id, ticket.type, "epicId", null);
+                  setEpicPopoverOpen(false);
+                }}
+              >
+                <Layers className="h-3 w-3" />
+                Aucun
+              </Button>
+              {epics?.map(epic => (
+                <Button
+                  key={epic.id}
+                  variant={ticket.epicId === epic.id ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full h-7 text-xs justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateField(ticket.id, ticket.type, "epicId", epic.id);
+                    setEpicPopoverOpen(false);
+                  }}
+                >
+                  <div 
+                    className="h-3 w-3 rounded-full flex-shrink-0" 
+                    style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                  />
+                  <span className="truncate">{epic.title}</span>
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : showEpicColumn && ticket.type !== "epic" ? (
+        ticketEpic ? (
+          <Badge 
+            variant="outline" 
+            className="text-xs px-2 py-0.5 truncate max-w-[100px]"
+            style={{ borderColor: ticketEpic.color || "#8B5CF6" }}
+          >
+            <div 
+              className="h-2 w-2 rounded-full mr-1.5 flex-shrink-0" 
+              style={{ backgroundColor: ticketEpic.color || "#8B5CF6" }}
+            />
+            <span className="truncate">{ticketEpic.title}</span>
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-xs px-2 py-0.5 text-muted-foreground">
+            <Layers className="h-3 w-3 mr-1" />
+            -
+          </Badge>
+        )
+      ) : null}
+      
       {/* Actions Menu */}
       {onTicketAction && (
         <DropdownMenu>
@@ -678,6 +777,8 @@ interface SprintSectionProps {
   tickets: FlatTicket[];
   users?: AppUser[];
   sprints?: Sprint[];
+  epics?: Epic[];
+  showEpicColumn?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
@@ -696,6 +797,8 @@ export function SprintSection({
   tickets, 
   users,
   sprints,
+  epics,
+  showEpicColumn,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
@@ -826,6 +929,8 @@ export function SprintSection({
                 ticket={ticket}
                 users={users}
                 sprints={sprints}
+                epics={epics}
+                showEpicColumn={showEpicColumn}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
                 onUpdateField={onUpdateField}
@@ -924,6 +1029,8 @@ interface BacklogPoolProps {
   tickets: FlatTicket[];
   users?: AppUser[];
   sprints?: Sprint[];
+  epics?: Epic[];
+  showEpicColumn?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onSelectTicket: (ticket: FlatTicket) => void;
@@ -938,6 +1045,8 @@ export function BacklogPool({
   tickets, 
   users,
   sprints,
+  epics,
+  showEpicColumn,
   isExpanded, 
   onToggle, 
   onSelectTicket, 
@@ -1010,6 +1119,8 @@ export function BacklogPool({
                 ticket={ticket}
                 users={users}
                 sprints={sprints}
+                epics={epics}
+                showEpicColumn={showEpicColumn}
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
                 onUpdateField={onUpdateField}

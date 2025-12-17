@@ -112,6 +112,7 @@ export default function BacklogDetail() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("state");
   const [ticketSearch, setTicketSearch] = useState<string>("");
+  const [showEpicColumn, setShowEpicColumn] = useState<boolean>(false);
   
   // New backlog form state
   const [newBacklogName, setNewBacklogName] = useState("");
@@ -1201,6 +1202,23 @@ export default function BacklogDetail() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Epic column toggle */}
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="show-epic-column" 
+                checked={showEpicColumn}
+                onCheckedChange={(checked) => setShowEpicColumn(checked === true)}
+                data-testid="checkbox-show-epic-column"
+              />
+              <label 
+                htmlFor="show-epic-column" 
+                className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1"
+              >
+                <Layers className="h-4 w-4" />
+                Epic
+              </label>
+            </div>
           </div>
         </div>
 
@@ -1278,6 +1296,8 @@ export default function BacklogDetail() {
                       tickets={getTicketsForSprint(sprint.id)}
                       users={users}
                       sprints={backlog.sprints}
+                      epics={backlog.epics}
+                      showEpicColumn={showEpicColumn}
                       isExpanded={isSprintExpanded(sprint.id)}
                       onToggle={() => toggleSprint(sprint.id)}
                       onSelectTicket={handleSelectTicket}
@@ -1308,6 +1328,8 @@ export default function BacklogDetail() {
                   tickets={getBacklogTickets()}
                   users={users}
                   sprints={backlog.sprints}
+                  epics={backlog.epics}
+                  showEpicColumn={showEpicColumn}
                   isExpanded={backlogPoolExpanded}
                   onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
                   onSelectTicket={handleSelectTicket}
