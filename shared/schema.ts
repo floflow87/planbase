@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, date, check, index, uniqueIndex, primaryKey, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, jsonb, numeric, date, check, index, uniqueIndex, primaryKey, boolean, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -857,7 +857,7 @@ export const userStories = pgTable("user_stories", {
   description: text("description"),
   complexity: text("complexity"), // XS, S, M, L, XL, XXL
   priority: text("priority").default("medium"),
-  estimatePoints: integer("estimate_points"),
+  estimatePoints: real("estimate_points"),
   state: text("state").default("a_faire"),
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
@@ -886,7 +886,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   description: text("description"),
   state: text("state").default("a_faire"),
   priority: text("priority").default("medium"),
-  estimatePoints: integer("estimate_points"),
+  estimatePoints: real("estimate_points"),
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
