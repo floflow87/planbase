@@ -360,7 +360,7 @@ export default function Notes() {
   const getGroupInfo = (note: Note, currentGroupBy: typeof groupBy): { key: string; name: string } => {
     switch (currentGroupBy) {
       case "project": {
-        const project = getLinkedProject(note.id);
+        const project = getLinkedProjectForSort(note.id);
         return {
           key: project?.id || "no-project",
           name: project?.name || "Sans projet",
@@ -410,7 +410,7 @@ export default function Notes() {
     
     paginatedNotes.forEach((note) => {
       const { key: groupKey, name: groupName } = getGroupInfo(note, groupBy);
-      const project = groupBy === "project" ? getLinkedProject(note.id) : null;
+      const project = groupBy === "project" ? getLinkedProjectForSort(note.id) : null;
       
       if (!groups.has(groupKey)) {
         groups.set(groupKey, { name: groupName, projectId: project?.id || null, notes: [] });
