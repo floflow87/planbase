@@ -3559,6 +3559,7 @@ export default function Projects() {
                                           { value: "prospection", label: "Prospection" },
                                           { value: "signe", label: "Signé" },
                                           { value: "en_cours", label: "En cours" },
+                                          { value: "livre", label: "Livré" },
                                           { value: "termine", label: "Terminé" }
                                         ].map((stage) => (
                                           <button

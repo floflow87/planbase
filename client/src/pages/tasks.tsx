@@ -1,5 +1,5 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -694,6 +695,10 @@ export default function Tasks() {
     const saved = localStorage.getItem("tasks_status_filter");
     return saved ? JSON.parse(saved) : ["all"];
   });
+  const [hideCompletedTasks, setHideCompletedTasks] = useState<boolean>(() => {
+    const saved = localStorage.getItem("tasks_hide_completed");
+    return saved !== null ? JSON.parse(saved) : true; // Default: hide completed tasks
+  });
   const [statusSelectorOpen, setStatusSelectorOpen] = useState(false);
   const [quickAddTaskTitle, setQuickAddTaskTitle] = useState("");
   const [isQuickAddingTask, setIsQuickAddingTask] = useState(false);
@@ -799,11 +804,55 @@ export default function Tasks() {
     }
   }, [newTaskProjectId, newTaskProjectColumns, globalTaskColumns, isCreateTaskDialogOpen, createTaskColumnId]);
 
+  // Get completed column IDs (columns with names containing completion-related keywords)
+  const completedColumnIds = useMemo(() => {
+    return taskColumns
+      .filter(c => {
+        const name = c.name.toLowerCase();
+        // Match various completion-related terms in French and English
+        return name.includes("terminé") || 
+               name.includes("done") || 
+               name.includes("complété") ||
+               name.includes("livré") ||
+               name.includes("fait") ||
+               name.includes("fini") ||
+               name.includes("completed") ||
+               name.includes("closed") ||
+               name.includes("fermé");
+      })
+      .map(c => c.id);
+  }, [taskColumns]);
+
   // Filter tasks based on selected projects (multi-select)
   // Multi-selection or "all" shows everything; single project shows ONLY that project
-  const filteredTasks = selectedProjectIds.includes("all") || selectedProjectIds.length > 1
-    ? tasks
-    : tasks.filter((t) => t.projectId && selectedProjectIds.includes(t.projectId));
+  const filteredTasks = useMemo(() => {
+    let result = selectedProjectIds.includes("all") || selectedProjectIds.length > 1
+      ? tasks
+      : tasks.filter((t) => t.projectId && selectedProjectIds.includes(t.projectId));
+    
+    // Filter out completed tasks if hideCompletedTasks is enabled
+    // Check both the column name AND the task.status field
+    if (hideCompletedTasks) {
+      result = result.filter(t => {
+        // Check if task is in a completed column
+        const inCompletedColumn = completedColumnIds.includes(t.columnId || "");
+        // Check if task has a done/completed status (comprehensive list for various backends)
+        const status = (t.status || "").toLowerCase();
+        const hasCompletedStatus = 
+          status === "done" || 
+          status === "completed" || 
+          status === "closed" ||
+          status === "finished" ||
+          status === "delivered" ||
+          status === "archived" ||
+          status === "terminé" ||
+          status === "livré";
+        return !inCompletedColumn && !hasCompletedStatus;
+      });
+    }
+    
+    return result;
+  }, [tasks, selectedProjectIds, hideCompletedTasks, completedColumnIds]);
 
   // Filter columns based on selected projects (multi-select)
   // Multi-selection or "all" shows everything; single project shows ONLY that project's columns
@@ -824,6 +873,11 @@ export default function Tasks() {
   useEffect(() => {
     localStorage.setItem("tasks_status_filter", JSON.stringify(statusFilter));
   }, [statusFilter]);
+
+  // Save hide completed tasks to localStorage
+  useEffect(() => {
+    localStorage.setItem("tasks_hide_completed", JSON.stringify(hideCompletedTasks));
+  }, [hideCompletedTasks]);
 
   // Track if initial mount has happened
   const isInitialMount = useRef(true);
@@ -1594,6 +1648,18 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
+            {/* Hide completed tasks toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="hide-completed"
+                checked={hideCompletedTasks}
+                onCheckedChange={setHideCompletedTasks}
+                data-testid="switch-hide-completed"
+              />
+              <Label htmlFor="hide-completed" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                Masquer terminées
+              </Label>
+            </div>
             <div className="hidden md:flex border rounded-md">
               <Button
                 variant={viewMode === "kanban" ? "secondary" : "ghost"}

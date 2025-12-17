@@ -223,7 +223,7 @@ function AppLayout() {
   });
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "15.375rem",
     "--sidebar-width-icon": "3.5rem",
   };
 

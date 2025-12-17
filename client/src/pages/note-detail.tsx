@@ -662,7 +662,7 @@ export default function NoteDetail() {
                 <h1 className="text-xl font-bold text-foreground truncate mb-2 hidden md:block">
                   {title || "Sans titre"}
                 </h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge 
                     variant="outline" 
                     className={`${
@@ -676,6 +676,35 @@ export default function NoteDetail() {
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
+                  {/* Project selector - always visible */}
+                  <div className="flex items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
+                      onClick={() => setProjectSelectorOpen(true)}
+                      data-testid="button-project-selector"
+                    >
+                      <FolderKanban className="w-3 h-3" />
+                      <span className="truncate max-w-[120px]">
+                        {currentProject ? currentProject.name : "Projet"}
+                      </span>
+                    </Button>
+                    {currentProject && linkedProject && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unlinkProjectMutation.mutate();
+                        }}
+                        data-testid="button-unlink-project"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
                   {isSaving ? (
                     <span className="text-xs text-muted-foreground hidden md:inline">Sauvegarde...</span>
                   ) : lastSaved ? (
