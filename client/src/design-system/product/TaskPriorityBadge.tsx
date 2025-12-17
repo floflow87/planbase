@@ -2,21 +2,22 @@
  * TaskPriorityBadge - Design System V1 Product Component
  * 
  * Displays a task priority with proper styling
- * Uses BadgeIntent primitive with semantic intent mapping
+ * Uses Badge component with semantic intent mapping
  */
 
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { getTaskPriorityLabel, type TaskPriorityKey } from "@shared/config";
 import { getTaskPriorityIntent } from "@shared/design/semantics";
-import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
+import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
 import { AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from "lucide-react";
 
 export interface TaskPriorityBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   priorityKey: TaskPriorityKey | string | null;
-  size?: IntentSize;
+  size?: Exclude<BadgeSize, "dot">;
   showIcon?: boolean;
   iconOnly?: boolean;
+  tone?: IntentVariant;
 }
 
 const iconSizes = {
@@ -34,10 +35,10 @@ const priorityIcons: Record<string, typeof AlertTriangle> = {
 
 /**
  * TaskPriorityBadge displays the priority level of a task
- * Uses BadgeIntent primitive for consistent design system integration
+ * Uses Badge component with intent for consistent design system integration
  */
 export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgeProps>(
-  ({ priorityKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
+  ({ priorityKey, size = "md", showIcon = false, iconOnly = false, tone = "soft", className, ...props }, ref) => {
     const label = getTaskPriorityLabel(priorityKey);
     const intent = getTaskPriorityIntent(priorityKey) as Intent;
     const iconSize = iconSizes[size];
@@ -46,10 +47,10 @@ export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgePro
 
     if (iconOnly) {
       return (
-        <BadgeIntent
+        <Badge
           ref={ref}
           intent={intent}
-          variant="ghost"
+          tone="ghost"
           size={size}
           className={cn("p-1", className)}
           title={label}
@@ -57,15 +58,15 @@ export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgePro
           {...props}
         >
           <IconComponent className={iconSize} />
-        </BadgeIntent>
+        </Badge>
       );
     }
 
     return (
-      <BadgeIntent
+      <Badge
         ref={ref}
         intent={intent}
-        variant="soft"
+        tone={tone}
         size={size}
         className={cn(showIcon && "gap-1", className)}
         data-testid={`badge-task-priority-${priorityKey || "none"}`}
@@ -73,7 +74,7 @@ export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgePro
       >
         {showIcon && <IconComponent className={iconSize} />}
         {label}
-      </BadgeIntent>
+      </Badge>
     );
   }
 );

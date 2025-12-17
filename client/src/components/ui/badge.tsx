@@ -3,11 +3,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 import { 
-  getIntentClasses, 
+  getIntentClasses,
+  getIntentDotClass,
   type Intent, 
   type IntentVariant 
 } from "@shared/design/semantics"
-import { badgeTokens, type BadgeSize } from "@shared/design/tokens"
+
+/**
+ * Badge base classes - shared structural foundation for all badge variants
+ * This ensures all badge sizes inherit the same tokens
+ */
+const BADGE_BASE = "inline-flex items-center font-semibold whitespace-nowrap transition-colors";
+
+/**
+ * Badge interactive classes - focus and hover behaviors
+ */
+const BADGE_INTERACTIVE = "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover-elevate";
+
+/**
+ * Badge structural classes - border and radius
+ */
+const BADGE_STRUCTURE = "rounded-md border";
 
 /**
  * Badge variants using class-variance-authority
@@ -19,7 +35,7 @@ import { badgeTokens, type BadgeSize } from "@shared/design/tokens"
  * When using intent prop, the variant prop is ignored and intent styling takes precedence.
  */
 const badgeVariants = cva(
-  `${badgeTokens.base} ${badgeTokens.radius} ${badgeTokens.border} hover-elevate`,
+  BADGE_BASE,
   {
     variants: {
       variant: {
@@ -31,9 +47,10 @@ const badgeVariants = cva(
         outline: "border [border-color:var(--badge-outline)] shadow-xs",
       },
       size: {
-        sm: badgeTokens.sizes.sm,
-        md: badgeTokens.sizes.md,
-        lg: badgeTokens.sizes.lg,
+        sm: `${BADGE_STRUCTURE} ${BADGE_INTERACTIVE} text-[10px] min-h-5 px-1.5`,
+        md: `${BADGE_STRUCTURE} ${BADGE_INTERACTIVE} text-xs min-h-6 px-2.5`,
+        lg: `${BADGE_STRUCTURE} ${BADGE_INTERACTIVE} text-sm min-h-7 px-3`,
+        dot: "w-2 h-2 rounded-full flex-shrink-0 p-0 border-0",
       },
     },
     defaultVariants: {
@@ -42,6 +59,8 @@ const badgeVariants = cva(
     },
   },
 )
+
+export type BadgeSize = "sm" | "md" | "lg" | "dot";
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
@@ -53,41 +72,69 @@ export interface BadgeProps
   intent?: Intent;
   /**
    * Visual tone/style variant for intent-based badges
-   * Only applies when intent prop is provided
+   * Only applies when intent prop is provided and size is not "dot"
    * @default "soft"
    */
   tone?: IntentVariant;
+  /**
+   * Size variant - "dot" renders a small status indicator
+   */
+  size?: BadgeSize;
 }
 
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant, size, intent, tone = "soft", ...props }, ref) => {
+  ({ className, variant, size = "md", intent, tone = "soft", children, ...props }, ref) => {
+    const isDot = size === "dot";
+    
     if (intent) {
+      if (isDot) {
+        const dotColorClass = getIntentDotClass(intent);
+        return (
+          <div 
+            ref={ref} 
+            className={cn(
+              badgeVariants({ size: "dot", variant: null }),
+              dotColorClass,
+              className
+            )} 
+            aria-hidden="true"
+            {...props} 
+          />
+        );
+      }
+      
       const intentClasses = getIntentClasses(intent, tone);
-      const sizeClass = badgeTokens.sizes[size || "md"];
       
       return (
         <div 
           ref={ref} 
           className={cn(
-            badgeTokens.base,
-            badgeTokens.radius,
-            badgeTokens.border,
-            "hover-elevate",
-            sizeClass,
+            badgeVariants({ size, variant: null }),
             intentClasses,
             className
           )} 
-          {...props} 
-        />
+          {...props}
+        >
+          {children}
+        </div>
       );
     }
     
     return (
-      <div ref={ref} className={cn(badgeVariants({ variant, size }), className)} {...props} />
+      <div 
+        ref={ref} 
+        className={cn(
+          badgeVariants({ variant, size: isDot ? "dot" : size }),
+          className
+        )} 
+        {...props}
+      >
+        {children}
+      </div>
     );
   }
 );
 Badge.displayName = "Badge";
 
-export { Badge, badgeVariants }
-export type { Intent, IntentVariant, BadgeSize }
+export { Badge, badgeVariants, BADGE_BASE, BADGE_INTERACTIVE, BADGE_STRUCTURE }
+export type { Intent, IntentVariant }

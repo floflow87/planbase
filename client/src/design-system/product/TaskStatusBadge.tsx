@@ -2,21 +2,22 @@
  * TaskStatusBadge - Design System V1 Product Component
  * 
  * Displays a task status with proper styling
- * Uses BadgeIntent primitive with semantic intent mapping
+ * Uses Badge component with semantic intent mapping
  */
 
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { getTaskStatusLabel, type TaskStatusKey } from "@shared/config";
 import { getTaskStatusIntent } from "@shared/design/semantics";
-import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
+import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
 import { Circle, PlayCircle, Eye, CheckCircle, XCircle } from "lucide-react";
 
 export interface TaskStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   statusKey: TaskStatusKey | string | null;
-  size?: IntentSize;
+  size?: Exclude<BadgeSize, "dot">;
   showIcon?: boolean;
   iconOnly?: boolean;
+  tone?: IntentVariant;
 }
 
 const iconSizes = {
@@ -35,10 +36,10 @@ const statusIcons: Record<string, typeof Circle> = {
 
 /**
  * TaskStatusBadge displays the current status of a task
- * Uses BadgeIntent primitive for consistent design system integration
+ * Uses Badge component with intent for consistent design system integration
  */
 export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
-  ({ statusKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
+  ({ statusKey, size = "md", showIcon = false, iconOnly = false, tone = "soft", className, ...props }, ref) => {
     const label = getTaskStatusLabel(statusKey);
     const intent = getTaskStatusIntent(statusKey) as Intent;
     const iconSize = iconSizes[size];
@@ -47,10 +48,10 @@ export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
 
     if (iconOnly) {
       return (
-        <BadgeIntent
+        <Badge
           ref={ref}
           intent={intent}
-          variant="ghost"
+          tone="ghost"
           size={size}
           className={cn("p-1", className)}
           title={label}
@@ -58,15 +59,15 @@ export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
           {...props}
         >
           <IconComponent className={iconSize} />
-        </BadgeIntent>
+        </Badge>
       );
     }
 
     return (
-      <BadgeIntent
+      <Badge
         ref={ref}
         intent={intent}
-        variant="soft"
+        tone={tone}
         size={size}
         className={cn(showIcon && "gap-1", className)}
         data-testid={`badge-task-status-${statusKey || "none"}`}
@@ -74,7 +75,7 @@ export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
       >
         {showIcon && <IconComponent className={iconSize} />}
         {label}
-      </BadgeIntent>
+      </Badge>
     );
   }
 );

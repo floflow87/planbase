@@ -203,3 +203,24 @@ export function getIntentStyle(
 ) {
   return intentStyles[intent][variant];
 }
+
+/**
+ * Dot colors for status indicators
+ * These are solid background colors for small dot indicators
+ */
+export const intentDotColors: Record<Intent, string> = {
+  success: "bg-green-500 dark:bg-green-400",
+  warning: "bg-yellow-500 dark:bg-yellow-400",
+  danger: "bg-red-500 dark:bg-red-400",
+  info: "bg-blue-500 dark:bg-blue-400",
+  neutral: "bg-gray-400 dark:bg-gray-500",
+  primary: "bg-violet-500 dark:bg-violet-400",
+  accent: "bg-cyan-500 dark:bg-cyan-400",
+};
+
+/**
+ * Get dot color class for an intent
+ */
+export function getIntentDotClass(intent: Intent): string {
+  return intentDotColors[intent] || intentDotColors.neutral;
+}

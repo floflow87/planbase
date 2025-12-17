@@ -10,6 +10,8 @@ export {
   intentStyles,
   getIntentClasses,
   getIntentStyle,
+  intentDotColors,
+  getIntentDotClass,
 } from "./intents";
 export type { Intent, IntentVariant, IntentSize } from "./intents";
 

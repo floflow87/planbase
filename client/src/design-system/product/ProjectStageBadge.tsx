@@ -9,35 +9,36 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { getProjectStageLabel, type ProjectStageKey } from "@shared/config";
 import { getProjectStageIntent } from "@shared/design/semantics";
-import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
+import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
 
 export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   stageKey: ProjectStageKey | string | null;
-  size?: IntentSize;
+  size?: Exclude<BadgeSize, "dot">;
   dotOnly?: boolean;
+  tone?: IntentVariant;
 }
 
 /**
  * ProjectStageBadge displays the current stage of a project
- * Uses BadgeIntent primitive for consistent design system integration
+ * Uses Badge component with intent for consistent design system integration
  * 
  * @example
  * <ProjectStageBadge stageKey={project.stage} />
  * <ProjectStageBadge stageKey="en_cours" size="sm" />
+ * <ProjectStageBadge stageKey="termine" dotOnly />
  */
 export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgeProps>(
-  ({ stageKey, size = "md", dotOnly = false, className, ...props }, ref) => {
+  ({ stageKey, size = "md", dotOnly = false, tone = "soft", className, ...props }, ref) => {
     const label = getProjectStageLabel(stageKey);
     const intent = getProjectStageIntent(stageKey) as Intent;
 
     if (dotOnly) {
       return (
-        <BadgeIntent
+        <Badge
           ref={ref}
           intent={intent}
-          variant="solid"
-          size="sm"
-          className={cn("w-2 h-2 p-0 min-w-0", className)}
+          size="dot"
+          className={className}
           title={label}
           data-testid={`dot-project-stage-${stageKey || "none"}`}
           {...props}
@@ -46,17 +47,17 @@ export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgePro
     }
 
     return (
-      <BadgeIntent
+      <Badge
         ref={ref}
         intent={intent}
-        variant="soft"
+        tone={tone}
         size={size}
         className={className}
         data-testid={`badge-project-stage-${stageKey || "none"}`}
         {...props}
       >
         {label}
-      </BadgeIntent>
+      </Badge>
     );
   }
 );
