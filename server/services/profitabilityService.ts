@@ -111,13 +111,13 @@ export function calculateMetrics(
   const timeOverrunPercent = theoreticalDays > 0 ? (timeOverrun / theoreticalDays) * 100 : 0;
   
   // Financial metrics
-  // totalPaid = CA encaissé (sum of actual payments received) - used for profitability calculations
-  // totalBilled = totalPaid for consistency with dashboard revenue (CA = encaissé)
+  // totalBilled = montant facturé théorique (project.totalBilled)
+  // totalPaid = CA encaissé (sum of actual payments received)
+  // Profitability calculations use totalPaid as revenue (CA encaissé)
+  const totalBilled = parseFloat(project.totalBilled?.toString() || '0');
   const totalPaid = calculateTotalPaid(payments);
-  const totalBilled = totalPaid; // CA = montant encaissé (cohérent avec dashboard)
-  const theoreticalBilled = parseFloat(project.totalBilled?.toString() || '0');
-  const remainingToPay = theoreticalBilled - totalPaid;
-  const paymentProgress = theoreticalBilled > 0 ? (totalPaid / theoreticalBilled) * 100 : 0;
+  const remainingToPay = totalBilled - totalPaid;
+  const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
   
   // TJM metrics - Based on actual revenue received
   const targetTJM = parseFloat(project.billingRate?.toString() || '0');
