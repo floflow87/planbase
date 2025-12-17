@@ -30,3 +30,7 @@ export type { FontSizeKey, FontWeightKey, TextStyleKey } from "./typography";
 // Shadows
 export { shadows, semanticShadows } from "./shadows";
 export type { ShadowKey, SemanticShadowKey } from "./shadows";
+
+// Component Tokens
+export { badgeTokens, getBadgeBaseClasses } from "./components";
+export type { BadgeSize } from "./components";

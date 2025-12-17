@@ -11,7 +11,7 @@ import { getProjectStageLabel, type ProjectStageKey } from "@shared/config";
 import { getProjectStageIntent } from "@shared/design/semantics";
 import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 
-export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
+export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   stageKey: ProjectStageKey | string | null;
   size?: IntentSize;
   dotOnly?: boolean;
@@ -25,7 +25,7 @@ export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLSp
  * <ProjectStageBadge stageKey={project.stage} />
  * <ProjectStageBadge stageKey="en_cours" size="sm" />
  */
-export const ProjectStageBadge = forwardRef<HTMLSpanElement, ProjectStageBadgeProps>(
+export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgeProps>(
   ({ stageKey, size = "md", dotOnly = false, className, ...props }, ref) => {
     const label = getProjectStageLabel(stageKey);
     const intent = getProjectStageIntent(stageKey) as Intent;

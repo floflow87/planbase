@@ -12,7 +12,7 @@ import { getBillingStatusIntent } from "@shared/design/semantics";
 import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 import { FileQuestion, Clock, TrendingUp, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 
-export interface BillingStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
+export interface BillingStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   statusKey: BillingStatusKey | string | null;
   size?: IntentSize;
   showIcon?: boolean;
@@ -38,7 +38,7 @@ const billingIcons: Record<string, typeof FileQuestion> = {
  * BillingStatusBadge displays the billing status of a project
  * Uses BadgeIntent primitive for consistent design system integration
  */
-export const BillingStatusBadge = forwardRef<HTMLSpanElement, BillingStatusBadgeProps>(
+export const BillingStatusBadge = forwardRef<HTMLDivElement, BillingStatusBadgeProps>(
   ({ statusKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
     const label = getBillingStatusLabel(statusKey);
     const intent = getBillingStatusIntent(statusKey) as Intent;

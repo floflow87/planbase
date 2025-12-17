@@ -12,7 +12,7 @@ import { getTaskPriorityIntent } from "@shared/design/semantics";
 import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 import { AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from "lucide-react";
 
-export interface TaskPriorityBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
+export interface TaskPriorityBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   priorityKey: TaskPriorityKey | string | null;
   size?: IntentSize;
   showIcon?: boolean;
@@ -36,7 +36,7 @@ const priorityIcons: Record<string, typeof AlertTriangle> = {
  * TaskPriorityBadge displays the priority level of a task
  * Uses BadgeIntent primitive for consistent design system integration
  */
-export const TaskPriorityBadge = forwardRef<HTMLSpanElement, TaskPriorityBadgeProps>(
+export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgeProps>(
   ({ priorityKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
     const label = getTaskPriorityLabel(priorityKey);
     const intent = getTaskPriorityIntent(priorityKey) as Intent;

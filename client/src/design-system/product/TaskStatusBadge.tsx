@@ -12,7 +12,7 @@ import { getTaskStatusIntent } from "@shared/design/semantics";
 import { BadgeIntent, type Intent, type IntentSize } from "../primitives/BadgeIntent";
 import { Circle, PlayCircle, Eye, CheckCircle, XCircle } from "lucide-react";
 
-export interface TaskStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
+export interface TaskStatusBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   statusKey: TaskStatusKey | string | null;
   size?: IntentSize;
   showIcon?: boolean;
@@ -37,7 +37,7 @@ const statusIcons: Record<string, typeof Circle> = {
  * TaskStatusBadge displays the current status of a task
  * Uses BadgeIntent primitive for consistent design system integration
  */
-export const TaskStatusBadge = forwardRef<HTMLSpanElement, TaskStatusBadgeProps>(
+export const TaskStatusBadge = forwardRef<HTMLDivElement, TaskStatusBadgeProps>(
   ({ statusKey, size = "md", showIcon = false, iconOnly = false, className, ...props }, ref) => {
     const label = getTaskStatusLabel(statusKey);
     const intent = getTaskStatusIntent(statusKey) as Intent;

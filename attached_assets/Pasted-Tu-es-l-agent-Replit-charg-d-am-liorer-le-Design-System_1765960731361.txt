@@ -1,0 +1,164 @@
+Tu es l’agent Replit chargé d’améliorer le Design System V1 pour le rendre vraiment scalable en intégrant nos intents/tokens au cœur des composants shadcn, en commençant par Badge.
+
+Objectifs
+
+Étendre components/ui/badge.tsx (shadcn) pour que :
+
+les variants structurels (radius, padding, font) soient cohérents et centralisables,
+
+les intents (success/warning/danger/info/neutral) soient des variants officiels (pas des classes ad hoc).
+
+Faire en sorte que BadgeIntent et les badges métier utilisent Badge shadcn variant, pas des classes structurelles en dur.
+
+Migrer progressivement les usages existants vers le nouveau système (sans casser).
+
+Continuer la migration des toasts success en vert via toastSuccess() là où il reste des usages non conformes.
+
+1) Audit rapide avant modifications
+
+Ouvrir client/src/components/ui/badge.tsx (shadcn).
+
+Identifier les variants existants (variant, default, secondary, etc.).
+
+Localiser où les classes structurelles sont définies (padding, radius, font).
+
+Vérifier comment BadgeIntent applique ses classes aujourd’hui.
+
+2) Design tokens → classes structurelles Badge
+
+Créer (si pas déjà) dans shared/design/tokens/ une source unique pour :
+
+radius badge (ex radius.sm|md)
+
+spacing badge (padding)
+
+typography badge (font-size/weight)
+
+⚠️ Dans un projet Tailwind, les tokens peuvent exposer des classes plutôt que des valeurs brutes.
+Exemple : badge.base = "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium".
+
+Créer un export partagé :
+
+shared/design/tokens/components.ts (ou badge.ts)
+
+3) Ajouter des intents comme variants shadcn Badge
+
+Modifier client/src/components/ui/badge.tsx pour supporter :
+
+prop intent?: "neutral" | "success" | "warning" | "danger" | "info"
+
+prop tone?: "solid" | "soft" | "outline" (optionnel, si simple)
+
+Règles
+
+Les styles structurels viennent des tokens (ou classes centralisées).
+
+Les styles d’intent viennent de shared/design/semantics/getIntentClasses() (déjà existant).
+
+Exemple de comportement attendu
+
+Badge intent="success" → utilise getIntentClasses("success")
+
+Badge intent="danger" → rouge
+
+Badge intent="neutral" → gris
+
+Garder compatibilité :
+
+si variant shadcn existe déjà, le préserver (ou le mapper vers intent="neutral").
+
+4) Adapter BadgeIntent & badges métier
+4.1 BadgeIntent
+
+Refactor BadgeIntent pour qu’il devienne un simple wrapper (ou qu’il disparaisse) :
+
+idéalement : BadgeIntent appelle directement <Badge intent="..." />
+
+ne doit plus gérer padding/radius/typo en dur
+
+4.2 Product badges
+
+Vérifier :
+
+ProjectStageBadge
+
+TaskPriorityBadge
+
+TaskStatusBadge
+
+BillingStatusBadge
+
+Ils doivent :
+
+calculer intent via semantics
+
+rendre <Badge intent={intent}>Label</Badge>
+
+5) Migration ciblée (pages)
+
+Identifier les badges “hardcodés” restants dans pages principales.
+
+Remplacer par product badges (ou par <Badge intent="..."> quand c’est non-métier).
+
+Lancer scripts/audit-design-drift.ts et réduire les occurrences.
+
+6) Toasts : finir la migration
+
+Scanner le repo pour :
+
+toast.success(
+
+toasts avec classes bg-green-
+
+Remplacer par toastSuccess() partout.
+
+S’assurer que success = vert via design tokens.
+
+7) Tests & checks
+
+Lancer build + lint + tests.
+
+Vérifier visuellement :
+
+un badge success
+
+un badge danger
+
+un badge warning
+
+un toast success (vert)
+
+Vérifier que les anciennes pages ne sont pas cassées.
+
+8) Documentation
+
+Mettre à jour :
+
+docs/80-design-system/primitives.md (Badge)
+
+docs/80-design-system/do-dont.md :
+
+DO : <Badge intent="success" />
+
+DON’T : className="bg-green-..."
+
+Ajouter une note “shadcn alignment” : pourquoi on a étendu components/ui/badge.tsx.
+
+Critères d’acceptation
+
+✅ components/ui/badge.tsx supporte intent (et éventuellement tone) via semantics.
+
+✅ Les classes structurelles du badge sont centralisées (tokens).
+
+✅ BadgeIntent ne contient plus de structure en dur (ou est supprimé).
+
+✅ Les product badges utilisent le Badge shadcn variant intent.
+
+✅ Tous les toasts success passent par toastSuccess() et sont verts.
+
+✅ Audit drift réduit et app stable.
+
+Important
+
+Ne pas tenter d’aligner Button, Input, etc. dans ce ticket.
+Badge d’abord = victoire nette. Ensuite on itère (V1.3).
