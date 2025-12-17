@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +30,8 @@ import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, InsertNote, Project, NoteLink } from "@shared/schema";
+import type { Note, InsertNote, Project, NoteLink, Client } from "@shared/schema";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -69,7 +70,8 @@ export default function NoteDetail() {
   const [lastPersistedState, setLastPersistedState] = useState<{title: string, content: any, status: string, visibility: string} | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Default OFF - no localStorage memory
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
+  const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client">("project");
   const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
@@ -79,6 +81,85 @@ export default function NoteDetail() {
   const editorRef = useRef<NoteEditorRef>(null);
   // Ref to track interim transcript length for deletion
   const interimLengthRef = useRef(0);
+  
+  // Refs to track current values for save-on-unmount (to avoid stale closures)
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
+  const statusRef = useRef(status);
+  const visibilityRef = useRef(visibility);
+  const lastPersistedStateRef = useRef(lastPersistedState);
+  const noteIdRef = useRef(id);
+  const autoSaveEnabledRef = useRef(autoSaveEnabled);
+  
+  // Keep refs in sync with state
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { contentRef.current = content; }, [content]);
+  useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { visibilityRef.current = visibility; }, [visibility]);
+  useEffect(() => { lastPersistedStateRef.current = lastPersistedState; }, [lastPersistedState]);
+  useEffect(() => { noteIdRef.current = id; }, [id]);
+  useEffect(() => { autoSaveEnabledRef.current = autoSaveEnabled; }, [autoSaveEnabled]);
+  
+  // Save immediately on unmount (tab change, navigation, etc.) if there are unsaved changes
+  useEffect(() => {
+    return () => {
+      // Only save if autosave is enabled
+      if (!autoSaveEnabledRef.current) return;
+      
+      const currentPersisted = lastPersistedStateRef.current;
+      if (!currentPersisted) return;
+      
+      // Check for unsaved changes using refs (to get latest values)
+      const hasChanges = 
+        titleRef.current !== currentPersisted.title ||
+        JSON.stringify(contentRef.current) !== JSON.stringify(currentPersisted.content) ||
+        statusRef.current !== currentPersisted.status ||
+        visibilityRef.current !== currentPersisted.visibility;
+      
+      if (!hasChanges) return;
+      
+      // Extract plain text from content
+      const extractPlainText = (content: any): string => {
+        if (!content) return "";
+        const getText = (node: any): string => {
+          if (node.type === "text") return node.text || "";
+          if (node.content && Array.isArray(node.content)) {
+            return node.content.map(getText).join(" ");
+          }
+          return "";
+        };
+        return getText(content);
+      };
+      
+      const plainText = extractPlainText(contentRef.current);
+      
+      // Use sendBeacon for reliable save on page unload/navigation
+      const payload = JSON.stringify({
+        title: titleRef.current || "Sans titre",
+        content: contentRef.current,
+        plainText,
+        status: statusRef.current,
+        visibility: visibilityRef.current,
+      });
+      
+      // Save using fetch with keepalive (reliable for page unload)
+      const url = `/api/notes/${noteIdRef.current}`;
+      
+      // Use fetch with keepalive to allow request to complete after page unload
+      if (typeof fetch !== 'undefined') {
+        // Note: sendBeacon doesn't support PATCH, so we use a regular fetch as fallback
+        // The fetch may not complete if the page unloads, but it's better than nothing
+        fetch(url, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true, // This allows the request to outlive the page
+        }).catch(() => {
+          // Silently fail - the request may not complete on page unload
+        });
+      }
+    };
+  }, []); // Empty deps - only run cleanup on unmount
 
   // Memoized callbacks for voice recording to prevent re-renders
   const handleVoiceTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -122,6 +203,11 @@ export default function NoteDetail() {
     queryKey: ["/api/projects"],
   });
 
+  // Fetch clients
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
   // Fetch note links
   const { data: noteLinks = [] } = useQuery<NoteLink[]>({
     queryKey: ["/api/notes", id, "links"],
@@ -131,6 +217,10 @@ export default function NoteDetail() {
   // Find linked project
   const linkedProject = noteLinks.find(link => link.targetType === "project");
   const currentProject = linkedProject ? projects.find(p => p.id === linkedProject.targetId) : null;
+
+  // Find linked client
+  const linkedClient = noteLinks.find(link => link.targetType === "client");
+  const currentClient = linkedClient ? clients.find(c => c.id === linkedClient.targetId) : null;
 
   // Initialize form with note data ONLY on first load, not during autosave
   useEffect(() => {
@@ -577,7 +667,7 @@ export default function NoteDetail() {
       }
       // Link to new project
       await linkProjectMutation.mutateAsync(projectId);
-      setProjectSelectorOpen(false);
+      setEntitySelectorOpen(false);
     } catch (error) {
       // Errors are already handled by the mutations
     }
@@ -586,6 +676,75 @@ export default function NoteDetail() {
   const handleUnlinkProject = useCallback(() => {
     unlinkProjectMutation.mutate();
   }, [unlinkProjectMutation]);
+
+  // Client link mutation
+  const linkClientMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      const response = await apiRequest(`/api/notes/${id}/links`, "POST", {
+        targetType: "client",
+        targetId: clientId,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Client lié",
+        description: "La note a été liée au client avec succès",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de lier le client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unlinkClientMutation = useMutation({
+    mutationFn: async () => {
+      if (!linkedClient) return;
+      const response = await apiRequest(
+        `/api/notes/${id}/links/${linkedClient.targetType}/${linkedClient.targetId}`,
+        "DELETE"
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Client délié",
+        description: "La note n'est plus liée au client",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de délier le client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSelectClient = useCallback(async (clientId: string) => {
+    try {
+      // If already linked to a client, unlink first
+      if (linkedClient) {
+        await unlinkClientMutation.mutateAsync();
+      }
+      // Link to new client
+      await linkClientMutation.mutateAsync(clientId);
+      setEntitySelectorOpen(false);
+    } catch (error) {
+      // Errors are already handled by the mutations
+    }
+  }, [linkedClient, linkClientMutation, unlinkClientMutation]);
+
+  const handleUnlinkClient = useCallback(() => {
+    unlinkClientMutation.mutate();
+  }, [unlinkClientMutation]);
 
   // Toggle favorite handler
   const handleToggleFavorite = useCallback(() => {
@@ -676,17 +835,20 @@ export default function NoteDetail() {
                   >
                     {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
                   </Badge>
-                  {/* Project selector - always visible */}
+                  {/* Project selector */}
                   <div className="flex items-center">
                     <Button
                       variant="outline"
                       size="sm"
                       className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
-                      onClick={() => setProjectSelectorOpen(true)}
+                      onClick={() => {
+                        setEntitySelectorTab("project");
+                        setEntitySelectorOpen(true);
+                      }}
                       data-testid="button-project-selector"
                     >
-                      <FolderKanban className="w-3 h-3" />
-                      <span className="truncate max-w-[120px]">
+                      <FolderKanban className="w-3 h-3 text-violet-500" />
+                      <span className="truncate max-w-[100px]">
                         {currentProject ? currentProject.name : "Projet"}
                       </span>
                     </Button>
@@ -700,6 +862,38 @@ export default function NoteDetail() {
                           unlinkProjectMutation.mutate();
                         }}
                         data-testid="button-unlink-project"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {/* Client selector */}
+                  <div className="flex items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-6 px-2 text-xs gap-1 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                      onClick={() => {
+                        setEntitySelectorTab("client");
+                        setEntitySelectorOpen(true);
+                      }}
+                      data-testid="button-client-selector"
+                    >
+                      <Users className="w-3 h-3 text-cyan-500" />
+                      <span className="truncate max-w-[100px]">
+                        {currentClient ? currentClient.name : "Client"}
+                      </span>
+                    </Button>
+                    {currentClient && linkedClient && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unlinkClientMutation.mutate();
+                        }}
+                        data-testid="button-unlink-client"
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -875,11 +1069,26 @@ export default function NoteDetail() {
                   
                   {/* Attach to project */}
                   <DropdownMenuItem
-                    onClick={() => setProjectSelectorOpen(true)}
+                    onClick={() => {
+                      setEntitySelectorTab("project");
+                      setEntitySelectorOpen(true);
+                    }}
                     data-testid="menu-item-attach-project"
                   >
-                    <FolderKanban className="w-4 h-4 mr-2" />
+                    <FolderKanban className="w-4 h-4 mr-2 text-violet-500" />
                     {currentProject ? `Projet: ${currentProject.name}` : "Rattacher à un projet"}
+                  </DropdownMenuItem>
+                  
+                  {/* Attach to client */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEntitySelectorTab("client");
+                      setEntitySelectorOpen(true);
+                    }}
+                    data-testid="menu-item-attach-client"
+                  >
+                    <Users className="w-4 h-4 mr-2 text-cyan-500" />
+                    {currentClient ? `Client: ${currentClient.name}` : "Rattacher à un client"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -888,52 +1097,110 @@ export default function NoteDetail() {
         </div>
       </div>
       
-      {/* Project Selector Dialog */}
-      <Dialog open={projectSelectorOpen} onOpenChange={setProjectSelectorOpen}>
-        <DialogContent className="sm:max-w-[400px]" data-testid="dialog-select-project">
+      {/* Entity Selector Dialog (Project / Client) */}
+      <Dialog open={entitySelectorOpen} onOpenChange={setEntitySelectorOpen}>
+        <DialogContent className="sm:max-w-[450px]" data-testid="dialog-select-entity">
           <DialogHeader>
-            <DialogTitle>Rattacher à un projet</DialogTitle>
+            <DialogTitle>Rattacher à une entité</DialogTitle>
           </DialogHeader>
-          <Command className="rounded-lg border shadow-md">
-            <CommandInput placeholder="Rechercher un projet..." />
-            <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-            <CommandGroup className="max-h-[300px] overflow-y-auto">
-              {currentProject && (
-                <CommandItem
-                  onSelect={() => {
-                    handleUnlinkProject();
-                    setProjectSelectorOpen(false);
-                  }}
-                  data-testid="option-unlink-project"
-                  className="text-destructive"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Délier du projet
-                </CommandItem>
-              )}
-              {projects.map((project) => (
-                <CommandItem
-                  key={project.id}
-                  onSelect={() => handleSelectProject(project.id)}
-                  data-testid={`option-project-${project.id}`}
-                >
-                  <Check
-                    className={`mr-2 h-4 w-4 ${
-                      currentProject?.id === project.id ? "opacity-100" : "opacity-0"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{project.name}</div>
-                    {project.description && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {project.description}
+          <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="project" className="gap-2" data-testid="tab-project">
+                <FolderKanban className="w-4 h-4 text-violet-500" />
+                Projets
+              </TabsTrigger>
+              <TabsTrigger value="client" className="gap-2" data-testid="tab-client">
+                <Users className="w-4 h-4 text-cyan-500" />
+                Clients
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="project" className="mt-0">
+              <Command className="rounded-lg border shadow-md">
+                <CommandInput placeholder="Rechercher un projet..." data-testid="input-search-project" />
+                <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
+                  {currentProject && (
+                    <CommandItem
+                      onSelect={() => {
+                        handleUnlinkProject();
+                        setEntitySelectorOpen(false);
+                      }}
+                      data-testid="option-unlink-project"
+                      className="text-destructive"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Délier du projet
+                    </CommandItem>
+                  )}
+                  {projects.map((project) => (
+                    <CommandItem
+                      key={project.id}
+                      onSelect={() => handleSelectProject(project.id)}
+                      data-testid={`option-project-${project.id}`}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          currentProject?.id === project.id ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{project.name}</div>
+                        {project.description && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {project.description}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </TabsContent>
+            
+            <TabsContent value="client" className="mt-0">
+              <Command className="rounded-lg border shadow-md">
+                <CommandInput placeholder="Rechercher un client..." data-testid="input-search-client" />
+                <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                <CommandGroup className="max-h-[300px] overflow-y-auto">
+                  {currentClient && (
+                    <CommandItem
+                      onSelect={() => {
+                        handleUnlinkClient();
+                        setEntitySelectorOpen(false);
+                      }}
+                      data-testid="option-unlink-client"
+                      className="text-destructive"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Délier du client
+                    </CommandItem>
+                  )}
+                  {clients.map((client) => (
+                    <CommandItem
+                      key={client.id}
+                      onSelect={() => handleSelectClient(client.id)}
+                      data-testid={`option-client-${client.id}`}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          currentClient?.id === client.id ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{client.name}</div>
+                        {client.email && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {client.email}
+                          </div>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

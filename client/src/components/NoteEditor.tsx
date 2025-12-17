@@ -57,6 +57,13 @@ import { Input } from '@/components/ui/input';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown, Type } from 'lucide-react';
 import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -812,61 +819,66 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 1 }) ? 'secondary' : 'ghost'}
-                  size="sm"
+            {/* Dropdown menu for headings */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={editor.isActive('heading') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="gap-1"
+                      data-testid="dropdown-headings"
+                    >
+                      <Type className="w-4 h-4" />
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Niveau de titre</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="bg-popover">
+                <DropdownMenuItem
+                  onClick={() => editor.chain().focus().setParagraph().run()}
+                  className={!editor.isActive('heading') ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-paragraph"
+                >
+                  <span className="text-sm">Paragraphe</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                  data-testid="button-h1"
+                  className={editor.isActive('heading', { level: 1 }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-h1"
                 >
-                  <Heading1 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 1</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 2 }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <Heading1 className="w-4 h-4 mr-2" />
+                  <span className="text-xl font-bold">Titre 1</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                  data-testid="button-h2"
+                  className={editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-h2"
                 >
-                  <Heading2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 2</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 3 }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <Heading2 className="w-4 h-4 mr-2" />
+                  <span className="text-lg font-bold">Titre 2</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                  data-testid="button-h3"
+                  className={editor.isActive('heading', { level: 3 }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-h3"
                 >
-                  <Heading3 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 3</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('heading', { level: 4 }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <Heading3 className="w-4 h-4 mr-2" />
+                  <span className="text-base font-bold">Titre 3</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-                  data-testid="button-h4"
+                  className={editor.isActive('heading', { level: 4 }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-h4"
                 >
-                  <Heading4 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Titre 4</TooltipContent>
-            </Tooltip>
+                  <Heading4 className="w-4 h-4 mr-2" />
+                  <span className="text-sm font-bold">Titre 4</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -956,61 +968,59 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive({ textAlign: 'left' }) ? 'secondary' : 'ghost'}
-                  size="sm"
+            {/* Dropdown menu for text alignment */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="gap-1"
+                      data-testid="dropdown-alignment"
+                    >
+                      <AlignLeft className="w-4 h-4" />
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Alignement du texte</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="bg-popover">
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                  data-testid="button-align-left"
+                  className={editor.isActive({ textAlign: 'left' }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-align-left"
                 >
-                  <AlignLeft className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Aligner à gauche</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive({ textAlign: 'center' }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <AlignLeft className="w-4 h-4 mr-2" />
+                  Aligner à gauche
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                  data-testid="button-align-center"
+                  className={editor.isActive({ textAlign: 'center' }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-align-center"
                 >
-                  <AlignCenter className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Centrer</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive({ textAlign: 'right' }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <AlignCenter className="w-4 h-4 mr-2" />
+                  Centrer
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                  data-testid="button-align-right"
+                  className={editor.isActive({ textAlign: 'right' }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-align-right"
                 >
-                  <AlignRight className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Aligner à droite</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <AlignRight className="w-4 h-4 mr-2" />
+                  Aligner à droite
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-                  data-testid="button-align-justify"
+                  className={editor.isActive({ textAlign: 'justify' }) ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-align-justify"
                 >
-                  <AlignJustify className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Justifier</TooltipContent>
-            </Tooltip>
+                  <AlignJustify className="w-4 h-4 mr-2" />
+                  Justifier
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -1118,47 +1128,51 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('bulletList') ? 'secondary' : 'ghost'}
-                  size="sm"
+            {/* Dropdown menu for lists */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="gap-1"
+                      data-testid="dropdown-lists"
+                    >
+                      <List className="w-4 h-4" />
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Type de liste</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="bg-popover">
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleBulletList().run()}
-                  data-testid="button-bullet-list"
+                  className={editor.isActive('bulletList') ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-bullet-list"
                 >
-                  <List className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Liste à puces</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('orderedList') ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <List className="w-4 h-4 mr-2" />
+                  Liste à puces
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                  data-testid="button-ordered-list"
+                  className={editor.isActive('orderedList') ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-ordered-list"
                 >
-                  <ListOrdered className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Liste numérotée</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('taskList') ? 'secondary' : 'ghost'}
-                  size="sm"
+                  <ListOrdered className="w-4 h-4 mr-2" />
+                  Liste numérotée
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => editor.chain().focus().toggleTaskList().run()}
-                  data-testid="button-task-list"
+                  className={editor.isActive('taskList') ? 'bg-accent' : ''}
+                  data-testid="dropdown-item-task-list"
                 >
-                  <CheckSquare className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Liste de tâches</TooltipContent>
-            </Tooltip>
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  Liste de tâches
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
 

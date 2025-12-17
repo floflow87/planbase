@@ -906,7 +906,7 @@ export function SprintSection({
           
           {!isCreating && tickets.length > 0 && (
             <button
-              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2"
+              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2 mb-2"
               onClick={() => setIsCreating(true)}
               data-testid={`button-inline-create-${sprint.id}`}
             >
@@ -1090,7 +1090,7 @@ export function BacklogPool({
           
           {!isCreating && tickets.length > 0 && (
             <button
-              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2"
+              className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2 mb-2"
               onClick={() => setIsCreating(true)}
               data-testid="button-inline-create-backlog"
             >

@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2 } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +141,13 @@ export default function Notes() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Group by state with localStorage persistence
+  const [groupBy, setGroupBy] = useState<"none" | "project">(() => {
+    const saved = localStorage.getItem('noteListGroupBy');
+    return (saved as "none" | "project") || "none";
+  });
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  
   // Column order and sorting state with localStorage persistence
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('noteListColumnOrder');
@@ -244,6 +251,11 @@ export default function Notes() {
   useEffect(() => {
     localStorage.setItem('noteListPageSize', pageSize.toString());
   }, [pageSize]);
+  
+  // Save groupBy to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('noteListGroupBy', groupBy);
+  }, [groupBy]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -334,6 +346,59 @@ export default function Notes() {
     const endIdx = startIdx + pageSize;
     return filteredNotes.slice(startIdx, endIdx);
   }, [filteredNotes, currentPage, pageSize]);
+  
+  // Group notes by project
+  type GroupedNotes = {
+    groupKey: string;
+    groupName: string;
+    projectId: string | null;
+    notes: Note[];
+  }[];
+  
+  const groupedNotes = useMemo<GroupedNotes>(() => {
+    if (groupBy === "none") {
+      return [{ groupKey: "all", groupName: "", projectId: null, notes: paginatedNotes }];
+    }
+    
+    const groups = new Map<string, { name: string; projectId: string | null; notes: Note[] }>();
+    
+    paginatedNotes.forEach((note) => {
+      const project = getLinkedProject(note.id);
+      const groupKey = project?.id || "no-project";
+      const groupName = project?.name || "Sans projet";
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, { name: groupName, projectId: project?.id || null, notes: [] });
+      }
+      groups.get(groupKey)!.notes.push(note);
+    });
+    
+    // Sort groups: projects first (alphabetically), then "Sans projet" last
+    return Array.from(groups.entries())
+      .sort(([keyA, a], [keyB, b]) => {
+        if (keyA === "no-project") return 1;
+        if (keyB === "no-project") return -1;
+        return a.name.localeCompare(b.name);
+      })
+      .map(([key, group]) => ({
+        groupKey: key,
+        groupName: group.name,
+        projectId: group.projectId,
+        notes: group.notes,
+      }));
+  }, [paginatedNotes, groupBy, noteLinks, projects]);
+  
+  const toggleGroupCollapse = (groupKey: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
 
   const getUserById = (userId: string) => {
     return users.find((u) => u.id === userId);
@@ -642,6 +707,15 @@ export default function Notes() {
               <option value="draft">Brouillons</option>
               <option value="active">Publiées</option>
               <option value="archived">Archivées</option>
+            </select>
+            <select
+              className="border border-border rounded-md px-3 h-9 text-sm bg-card"
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as any)}
+              data-testid="select-group-by"
+            >
+              <option value="none">Sans groupage</option>
+              <option value="project">Grouper par projet</option>
             </select>
           </div>
           
@@ -960,9 +1034,32 @@ export default function Notes() {
                 </div>
               </div>
             ) : (
-              paginatedNotes.map((note) => {
-                const linkedProject = getLinkedProject(note.id);
-                const isSelected = selectedNotes.has(note.id);
+              groupedNotes.map((group) => (
+                <div key={group.groupKey}>
+                  {/* Group Header - only show when grouping is enabled */}
+                  {groupBy !== "none" && (
+                    <div 
+                      className="flex items-center gap-2 px-4 py-2 bg-muted/40 border-b border-border cursor-pointer hover:bg-muted/60"
+                      onClick={() => toggleGroupCollapse(group.groupKey)}
+                      data-testid={`group-header-${group.groupKey}`}
+                    >
+                      {collapsedGroups.has(group.groupKey) ? (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <FolderKanban className="h-4 w-4 text-violet-500" />
+                      <span className="font-medium text-sm">{group.groupName}</span>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {group.notes.length}
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  {/* Group Notes - hide if collapsed */}
+                  {!collapsedGroups.has(group.groupKey) && group.notes.map((note) => {
+                    const linkedProject = getLinkedProject(note.id);
+                    const isSelected = selectedNotes.has(note.id);
                 
                 const cellContent: Record<string, JSX.Element> = {
                   title: (
@@ -1268,7 +1365,9 @@ export default function Notes() {
                     {cellContent.actions}
                   </div>
                 );
-              })
+              })}
+              </div>
+            ))
             )}
 
             {/* Quick add note row */}

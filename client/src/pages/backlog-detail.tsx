@@ -1115,11 +1115,85 @@ export default function BacklogDetail() {
         </Badge>
       </div>
 
+      {/* KPIs Cards */}
+      {backlog.mode === "scrum" && (
+        <div className="px-4 md:px-6 py-3 border-b bg-muted/20">
+          <div className="flex flex-wrap gap-4">
+            {/* Sprints KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <Play className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sprints</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-blue-600">{backlog.sprints.filter(s => s.status === "en_cours").length}</span>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <span className="text-green-600">{backlog.sprints.filter(s => s.status === "termine").length}</span>
+                  <span className="text-xs text-muted-foreground ml-1">(actif / terminé)</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Tickets embarqués KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30">
+                <ListTodo className="h-4 w-4 text-cyan-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tickets embarqués</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-foreground">{flatTickets.filter(t => t.sprintId !== null && t.state !== "termine").length}</span>
+                  <span className="text-xs text-muted-foreground ml-1">en sprint</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Tickets en cours KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                <Clock className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">En cours</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-blue-600">{flatTickets.filter(t => t.state === "en_cours").length}</span>
+                  <span className="text-xs text-muted-foreground ml-1">tickets actifs</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Points KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Points terminés</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-green-600">
+                    {flatTickets.filter(t => t.state === "termine").reduce((sum, t) => sum + (t.estimatePoints || 0), 0)}
+                  </span>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <span className="text-foreground">
+                    {flatTickets.reduce((sum, t) => sum + (t.estimatePoints || 0), 0)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">pts</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
         <div className="px-4 md:px-6 border-b">
           <TabsList className="h-10">
             <TabsTrigger value="backlog" className="text-sm" data-testid="tab-backlog">
               Backlog
+            </TabsTrigger>
+            <TabsTrigger value="epics" className="text-sm" data-testid="tab-epics">
+              Epics
             </TabsTrigger>
             <TabsTrigger value="done" className="text-sm" data-testid="tab-done">
               Tickets terminés
@@ -1344,6 +1418,133 @@ export default function BacklogDetail() {
             </div>
           </DndContext>
         )}
+        </TabsContent>
+
+        {/* Epics tab */}
+        <TabsContent value="epics" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
+          <div className="space-y-4">
+            {/* Header with Create button */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Gestion des Epics</h2>
+                <p className="text-sm text-muted-foreground">
+                  Organisez vos grandes fonctionnalités en Epics pour regrouper les User Stories
+                </p>
+              </div>
+              <Button onClick={() => { setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle Epic
+              </Button>
+            </div>
+
+            {/* Epics list */}
+            {backlog.epics.length === 0 ? (
+              <div className="border rounded-lg p-8 text-center text-muted-foreground bg-muted/30">
+                <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">Aucune Epic</p>
+                <p className="text-sm">Créez votre première Epic pour commencer à organiser votre backlog</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {backlog.epics.map(epic => {
+                  const storiesInEpic = backlog.userStories.filter(us => us.epicId === epic.id);
+                  const totalPoints = storiesInEpic.reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+                  const doneStories = storiesInEpic.filter(us => us.state === "termine").length;
+                  const progress = storiesInEpic.length > 0 ? Math.round((doneStories / storiesInEpic.length) * 100) : 0;
+                  
+                  return (
+                    <div
+                      key={epic.id}
+                      className="border rounded-lg overflow-hidden bg-card hover-elevate cursor-pointer"
+                      onClick={() => {
+                        setEditingEpic(epic);
+                        setShowEpicDialog(true);
+                      }}
+                      data-testid={`epic-card-${epic.id}`}
+                    >
+                      <div 
+                        className="h-2" 
+                        style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                      />
+                      <div className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="flex items-center justify-center h-6 w-6 rounded"
+                              style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                            >
+                              <Layers className="h-3.5 w-3.5 text-white" />
+                            </div>
+                            <h3 className="font-semibold text-sm">{epic.title}</h3>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs capitalize",
+                              epic.state === "termine" && "text-green-600 border-green-200 bg-green-50",
+                              epic.state === "en_cours" && "text-blue-600 border-blue-200 bg-blue-50",
+                              epic.state === "todo" && "text-gray-600 border-gray-200 bg-gray-50"
+                            )}
+                          >
+                            {epic.state === "termine" ? "Terminé" : epic.state === "en_cours" ? "En cours" : "À faire"}
+                          </Badge>
+                        </div>
+                        
+                        {epic.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{epic.description}</p>
+                        )}
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{storiesInEpic.length} User Stories</span>
+                            <span>{totalPoints} points</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-green-500 rounded-full transition-all"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{doneStories}/{storiesInEpic.length} terminées</span>
+                            <span className="font-medium text-green-600">{progress}%</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs",
+                              epic.priority === "high" && "text-red-600 border-red-200",
+                              epic.priority === "medium" && "text-yellow-600 border-yellow-200",
+                              epic.priority === "low" && "text-blue-600 border-blue-200"
+                            )}
+                          >
+                            {epic.priority === "high" ? "Haute" : epic.priority === "medium" ? "Moyenne" : "Basse"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Êtes-vous sûr de vouloir supprimer cette Epic ?")) {
+                                deleteEpicMutation.mutate(epic.id);
+                              }
+                            }}
+                            data-testid={`button-delete-epic-${epic.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* Tickets terminés tab */}
