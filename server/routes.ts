@@ -1297,6 +1297,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // PROJECT SCOPE ITEMS (CDC) - Protected Routes
+  // ============================================
+
+  // Get all scope items for a project
+  app.get("/api/projects/:projectId/scope-items", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+      
+      // Calculate totals
+      const mandatoryItems = scopeItems.filter(item => item.isOptional === 0);
+      const optionalItems = scopeItems.filter(item => item.isOptional === 1);
+      
+      const totalMandatoryDays = mandatoryItems.reduce((sum, item) => sum + parseFloat(item.estimatedDays || "0"), 0);
+      const totalOptionalDays = optionalItems.reduce((sum, item) => sum + parseFloat(item.estimatedDays || "0"), 0);
+      const totalDays = totalMandatoryDays + totalOptionalDays;
+      
+      // Calculate costs using project's internal cost and TJM
+      const internalDailyCost = parseFloat(project.internalDailyCost?.toString() || "0");
+      const dailyRate = parseFloat(project.dailyRate?.toString() || "0");
+      
+      const estimatedCost = totalMandatoryDays * internalDailyCost;
+      const recommendedPrice = totalMandatoryDays * dailyRate;
+      const estimatedMargin = recommendedPrice - estimatedCost;
+      const marginPercent = recommendedPrice > 0 ? (estimatedMargin / recommendedPrice) * 100 : 0;
+      
+      res.json({
+        scopeItems,
+        totals: {
+          mandatoryDays: totalMandatoryDays,
+          optionalDays: totalOptionalDays,
+          totalDays,
+          estimatedCost,
+          recommendedPrice,
+          estimatedMargin,
+          marginPercent,
+        },
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new scope item
+  app.post("/api/projects/:projectId/scope-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get current items to determine next order
+      const existingItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+      const maxOrder = existingItems.length > 0 ? Math.max(...existingItems.map(i => i.order || 0)) : -1;
+
+      const scopeItem = await storage.createScopeItem({
+        ...req.body,
+        accountId: req.accountId!,
+        projectId: req.params.projectId,
+        order: maxOrder + 1,
+      });
+
+      res.json(scopeItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a scope item
+  app.patch("/api/scope-items/:itemId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const scopeItem = await storage.getScopeItem(req.params.itemId);
+      if (!scopeItem) {
+        return res.status(404).json({ error: "Scope item not found" });
+      }
+      if (scopeItem.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updatedItem = await storage.updateScopeItem(req.params.itemId, req.body);
+      res.json(updatedItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a scope item
+  app.delete("/api/scope-items/:itemId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const scopeItem = await storage.getScopeItem(req.params.itemId);
+      if (!scopeItem) {
+        return res.status(404).json({ error: "Scope item not found" });
+      }
+      if (scopeItem.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteScopeItem(req.params.itemId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reorder scope items
+  app.post("/api/projects/:projectId/scope-items/reorder", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { orders } = req.body;
+      if (!orders || !Array.isArray(orders)) {
+        return res.status(400).json({ error: "Orders array required" });
+      }
+
+      await storage.reorderScopeItems(req.params.projectId, orders);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // PROJECT PROFITABILITY - Protected Routes
   // ============================================
 
