@@ -484,7 +484,7 @@ export default function Finance() {
   const highPriorityCount = allRecommendations.filter(r => r.priority === 'high').length;
 
   return (
-    <div className="p-6 space-y-6" data-testid="page-finance">
+    <div className="p-6 space-y-6 overflow-y-auto h-full" data-testid="page-finance">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Facturation & Rentabilité</h1>

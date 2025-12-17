@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Timer, Play, Square, ChevronDown, Pause } from "lucide-react";
+import { Timer, Play, Square, ChevronDown, Pause, Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,12 +8,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,6 +46,7 @@ export function TimeTracker() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [stoppedEntryId, setStoppedEntryId] = useState<string | null>(null);
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
   
   // Use ref to capture latest selected project value for assignment
   const selectedProjectRef = useRef<string>("");
@@ -307,6 +310,10 @@ export function TimeTracker() {
       setShowProjectSelector(false);
       setStoppedEntryId(null);
     }
+    // Reset search query when closing popover
+    if (!newOpen) {
+      setProjectSearchQuery("");
+    }
     setOpen(newOpen);
   };
 
@@ -349,32 +356,53 @@ export function TimeTracker() {
                 <label className="text-sm text-muted-foreground">
                   Sélectionner un projet
                 </label>
-                <Select
-                  value={selectedProjectId}
-                  onValueChange={(value) => {
-                    setSelectedProjectId(value);
-                    selectedProjectRef.current = value; // Update ref immediately
-                  }}
-                  disabled={isLoadingProjects}
-                >
-                  <SelectTrigger className="cursor-pointer" data-testid="select-project-after-stop">
-                    <SelectValue placeholder="Aucun projet" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card">
-                    <SelectItem value="none" data-testid="option-no-project">
-                      Aucun projet
-                    </SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem 
-                        key={project.id} 
-                        value={project.id}
-                        data-testid={`option-project-${project.id}`}
+                <Command className="border rounded-md" shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Rechercher un projet..." 
+                    value={projectSearchQuery}
+                    onValueChange={setProjectSearchQuery}
+                    data-testid="input-project-search-after-stop"
+                  />
+                  <CommandList className="max-h-48">
+                    <CommandEmpty>Aucun projet trouvé</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="none"
+                        onSelect={() => {
+                          setSelectedProjectId("none");
+                          selectedProjectRef.current = "none";
+                          setProjectSearchQuery("");
+                        }}
+                        data-testid="option-no-project"
                       >
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        <Check className={cn("mr-2 h-4 w-4", selectedProjectId === "none" ? "opacity-100" : "opacity-0")} />
+                        Aucun projet
+                      </CommandItem>
+                      {projects
+                        .filter(p => p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
+                        .map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.id}
+                            onSelect={() => {
+                              setSelectedProjectId(project.id);
+                              selectedProjectRef.current = project.id;
+                              setProjectSearchQuery("");
+                            }}
+                            data-testid={`option-project-${project.id}`}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedProjectId === project.id ? "opacity-100" : "opacity-0")} />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {selectedProjectId && selectedProjectId !== "none" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Projet sélectionné : {projects.find(p => p.id === selectedProjectId)?.name}
+                  </p>
+                )}
               </div>
 
               <Button
@@ -510,34 +538,56 @@ export function TimeTracker() {
                 </div>
               </div>
 
-              {/* Project Selection */}
+              {/* Project Selection with Autocomplete */}
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground">
                   Sélectionner un projet
                 </label>
-                <Select
-                  value={selectedProjectId}
-                  onValueChange={setSelectedProjectId}
-                  disabled={isLoadingProjects}
-                >
-                  <SelectTrigger className="cursor-pointer" data-testid="select-project">
-                    <SelectValue placeholder="Aucun projet" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card">
-                    <SelectItem value="none" data-testid="option-no-project">
-                      Aucun projet
-                    </SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem 
-                        key={project.id} 
-                        value={project.id}
-                        data-testid={`option-project-${project.id}`}
+                <Command className="border rounded-md" shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Rechercher un projet..." 
+                    value={projectSearchQuery}
+                    onValueChange={setProjectSearchQuery}
+                    data-testid="input-project-search"
+                  />
+                  <CommandList className="max-h-48">
+                    <CommandEmpty>Aucun projet trouvé</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="none"
+                        onSelect={() => {
+                          setSelectedProjectId("none");
+                          setProjectSearchQuery("");
+                        }}
+                        data-testid="option-no-project-start"
                       >
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        <Check className={cn("mr-2 h-4 w-4", selectedProjectId === "none" ? "opacity-100" : "opacity-0")} />
+                        Aucun projet
+                      </CommandItem>
+                      {projects
+                        .filter(p => p.name.toLowerCase().includes(projectSearchQuery.toLowerCase()))
+                        .map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.id}
+                            onSelect={() => {
+                              setSelectedProjectId(project.id);
+                              setProjectSearchQuery("");
+                            }}
+                            data-testid={`option-project-start-${project.id}`}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedProjectId === project.id ? "opacity-100" : "opacity-0")} />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {selectedProjectId && selectedProjectId !== "none" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Projet sélectionné : {projects.find(p => p.id === selectedProjectId)?.name}
+                  </p>
+                )}
               </div>
 
               {/* Start Button */}

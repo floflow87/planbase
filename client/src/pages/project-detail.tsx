@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -304,7 +304,15 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
 
             {profitability && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Rentabilité</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">Rentabilité</p>
+                  <Button asChild variant="ghost" size="sm" className="h-6 text-xs gap-1" data-testid="link-to-finance">
+                    <Link href="/finance">
+                      <TrendingUp className="h-3 w-3" />
+                      Voir détails
+                    </Link>
+                  </Button>
+                </div>
                 <div className="flex items-center gap-2">
                   <Badge
                     variant={profitability.isProfit ? "default" : "destructive"}
