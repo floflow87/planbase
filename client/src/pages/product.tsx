@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -191,6 +191,92 @@ export default function Product() {
           </Button>
         </div>
       </div>
+
+      {/* KPIs Cards */}
+      {backlogs.length > 0 && (
+        <div className="px-4 md:px-6 py-3 border-b bg-muted/20">
+          <div className="flex flex-wrap gap-4">
+            {/* Backlogs KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <LayoutGrid className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Backlogs</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-foreground">{backlogs.length}</span>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    ({backlogs.filter(b => b.mode === "scrum").length} scrum, {backlogs.filter(b => b.mode === "kanban").length} kanban)
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Sprints actifs KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                <Play className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sprints actifs</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-blue-600">{backlogs.filter(b => b.activeSprint).length}</span>
+                  <span className="text-xs text-muted-foreground ml-1">en cours</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Tickets à faire KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30">
+                <ListTodo className="h-4 w-4 text-cyan-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tickets à faire</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-foreground">
+                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.todo || 0), 0)}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Tickets en cours KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                <Clock className="h-4 w-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">En cours</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-orange-600">
+                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.inProgress || 0), 0)}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Tickets terminés KPI */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Terminés</p>
+                <p className="text-sm font-semibold">
+                  <span className="text-green-600">
+                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.done || 0), 0)}
+                  </span>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <span className="text-foreground">
+                    {backlogs.reduce((sum, b) => sum + (b.ticketCounts?.total || 0), 0)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
         {backlogs.length === 0 ? (

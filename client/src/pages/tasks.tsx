@@ -1649,22 +1649,16 @@ export default function Tasks() {
               </Popover>
             )}
             {/* Hide completed tasks toggle */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
-                  data-testid="button-hide-completed"
-                  className={hideCompletedTasks ? "text-primary" : "text-muted-foreground"}
-                >
-                  {hideCompletedTasks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {hideCompletedTasks ? "Afficher les tâches terminées" : "Masquer les tâches terminées"}
-              </TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setHideCompletedTasks(!hideCompletedTasks)}
+              data-testid="button-hide-completed"
+              className={hideCompletedTasks ? "text-primary" : "text-muted-foreground"}
+              title={hideCompletedTasks ? "Afficher les tâches terminées" : "Masquer les tâches terminées"}
+            >
+              {hideCompletedTasks ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
             <div className="hidden md:flex border rounded-md">
               <Button
                 variant={viewMode === "kanban" ? "secondary" : "ghost"}
