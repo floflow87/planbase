@@ -78,9 +78,12 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
   };
 
   const handleSave = () => {
+    const days = parseFloat(estimatedDays);
+    if (!label.trim()) return;
+    if (!Number.isFinite(days) || days < 0) return;
     onUpdate(item.id, {
-      label,
-      estimatedDays: estimatedDays,
+      label: label.trim(),
+      estimatedDays: days.toString(),
       description: description || null,
     });
     setIsEditing(false);
@@ -291,10 +294,12 @@ export function ProjectScopeSection({
   };
 
   const handleAddItem = () => {
-    if (!newItemLabel.trim() || !newItemDays) return;
+    if (!newItemLabel.trim()) return;
+    const days = parseFloat(newItemDays);
+    if (!Number.isFinite(days) || days <= 0) return;
     createMutation.mutate({
       label: newItemLabel.trim(),
-      estimatedDays: newItemDays,
+      estimatedDays: days.toString(),
     });
   };
 
@@ -319,16 +324,31 @@ export function ProjectScopeSection({
   const alerts: ScopeAlert[] = [];
   const recommendations: ScopeRecommendation[] = [];
 
-  if (totals.estimatedMargin < 0) {
+  const hasValidConfig = dailyRate > 0 && internalDailyCost > 0;
+  const safeMargin = isNaN(totals.estimatedMargin) ? 0 : totals.estimatedMargin;
+  const safeMarginPercent = isNaN(totals.marginPercent) ? 0 : totals.marginPercent;
+  const safeCost = isNaN(totals.estimatedCost) ? 0 : totals.estimatedCost;
+  const safePrice = isNaN(totals.recommendedPrice) ? 0 : totals.recommendedPrice;
+
+  if (!hasValidConfig && totals.mandatoryDays > 0) {
+    alerts.push({
+      type: 'info',
+      title: 'Configuration incomplète',
+      message: 'Définissez le TJM et le coût interne journalier dans l\'onglet Facturation pour voir les calculs de rentabilité',
+      icon: AlertTriangle,
+    });
+  }
+
+  if (hasValidConfig && safeMargin < 0) {
     alerts.push({
       type: 'error',
       title: 'Marge négative',
-      message: `Le projet générerait une perte de ${Math.abs(totals.estimatedMargin).toFixed(0)} €`,
+      message: `Le projet générerait une perte de ${Math.abs(safeMargin).toFixed(0)} €`,
       icon: AlertTriangle,
     });
     recommendations.push({
       title: "Augmenter le prix",
-      description: `Prix minimum pour rentabilité : ${totals.estimatedCost.toFixed(0)} €`,
+      description: `Prix minimum pour rentabilité : ${safeCost.toFixed(0)} €`,
       action: "increase_price",
     });
     recommendations.push({
@@ -336,14 +356,14 @@ export function ProjectScopeSection({
       description: "Passez certaines rubriques en optionnel pour réduire les jours obligatoires",
       action: "reduce_scope",
     });
-  } else if (targetMarginPercent > 0 && totals.marginPercent < targetMarginPercent) {
+  } else if (hasValidConfig && targetMarginPercent > 0 && safeMarginPercent < targetMarginPercent) {
     alerts.push({
       type: 'warning',
       title: 'Marge insuffisante',
-      message: `Marge de ${totals.marginPercent.toFixed(1)}% vs objectif de ${targetMarginPercent}%`,
+      message: `Marge de ${safeMarginPercent.toFixed(1)}% vs objectif de ${targetMarginPercent}%`,
       icon: TrendingDown,
     });
-    const targetPrice = totals.estimatedCost / (1 - targetMarginPercent / 100);
+    const targetPrice = safeCost / (1 - targetMarginPercent / 100);
     recommendations.push({
       title: "Prix recommandé pour objectif",
       description: `Augmenter à ${targetPrice.toFixed(0)} € pour atteindre ${targetMarginPercent}% de marge`,
@@ -351,7 +371,7 @@ export function ProjectScopeSection({
     });
   }
 
-  if (dailyRate > 0 && internalDailyCost > 0 && dailyRate < internalDailyCost * 1.2) {
+  if (hasValidConfig && dailyRate < internalDailyCost * 1.2) {
     alerts.push({
       type: 'warning',
       title: 'TJM trop faible',
@@ -365,16 +385,16 @@ export function ProjectScopeSection({
     });
   }
 
-  if (budget > 0 && totals.recommendedPrice > budget) {
+  if (budget > 0 && safePrice > budget) {
     alerts.push({
       type: 'info',
       title: 'Écart avec budget',
-      message: `Le chiffrage (${totals.recommendedPrice.toFixed(0)} €) dépasse le budget (${budget.toFixed(0)} €)`,
+      message: `Le chiffrage (${safePrice.toFixed(0)} €) dépasse le budget (${budget.toFixed(0)} €)`,
       icon: TrendingUp,
     });
     recommendations.push({
       title: "Renégocier le budget",
-      description: `Écart de ${(totals.recommendedPrice - budget).toFixed(0)} € à combler`,
+      description: `Écart de ${(safePrice - budget).toFixed(0)} € à combler`,
       action: "negotiate",
     });
   }
@@ -484,8 +504,10 @@ export function ProjectScopeSection({
               <Calculator className="h-4 w-4" />
               <span>Coût estimé</span>
             </div>
-            <p className="text-2xl font-bold">{totals.estimatedCost.toFixed(0)} €</p>
-            <p className="text-xs text-muted-foreground">{internalDailyCost} €/j × {totals.mandatoryDays} j</p>
+            <p className="text-2xl font-bold">{hasValidConfig ? `${safeCost.toFixed(0)} €` : '-'}</p>
+            <p className="text-xs text-muted-foreground">
+              {hasValidConfig ? `${internalDailyCost} €/j × ${totals.mandatoryDays} j` : 'Coût interne non défini'}
+            </p>
           </CardContent>
         </Card>
 
@@ -495,8 +517,10 @@ export function ProjectScopeSection({
               <DollarSign className="h-4 w-4" />
               <span>Prix recommandé</span>
             </div>
-            <p className="text-2xl font-bold text-violet-600">{totals.recommendedPrice.toFixed(0)} €</p>
-            <p className="text-xs text-muted-foreground">{dailyRate} €/j × {totals.mandatoryDays} j</p>
+            <p className="text-2xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
+            <p className="text-xs text-muted-foreground">
+              {hasValidConfig ? `${dailyRate} €/j × ${totals.mandatoryDays} j` : 'TJM non défini'}
+            </p>
           </CardContent>
         </Card>
 
@@ -506,11 +530,11 @@ export function ProjectScopeSection({
               <Target className="h-4 w-4" />
               <span>Marge prévisionnelle</span>
             </div>
-            <p className={`text-2xl font-bold ${totals.estimatedMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {totals.estimatedMargin.toFixed(0)} €
+            <p className={`text-2xl font-bold ${!hasValidConfig ? 'text-muted-foreground' : safeMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {hasValidConfig ? `${safeMargin.toFixed(0)} €` : '-'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {totals.marginPercent.toFixed(1)}% de marge
+              {hasValidConfig ? `${safeMarginPercent.toFixed(1)}% de marge` : 'Configuration requise'}
             </p>
           </CardContent>
         </Card>
