@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,10 +52,14 @@ function ConfigEditor({
   onSave: (key: string, value: unknown) => void;
   isPending: boolean;
 }) {
-  const [editValue, setEditValue] = useState<string>(
-    JSON.stringify(currentValue, null, 2)
-  );
+  const [editValue, setEditValue] = useState<string>("");
   const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (currentValue !== undefined && !hasChanges) {
+      setEditValue(JSON.stringify(currentValue, null, 2));
+    }
+  }, [currentValue, hasChanges]);
 
   const handleChange = (value: string) => {
     setEditValue(value);
@@ -150,16 +154,18 @@ function ThresholdEditor({
   onSave: (key: string, value: unknown) => void;
   isPending: boolean;
 }) {
-  const [billingWarning, setBillingWarning] = useState(
-    thresholds?.billing?.warningDays?.toString() || "30"
-  );
-  const [billingCritical, setBillingCritical] = useState(
-    thresholds?.billing?.criticalDays?.toString() || "60"
-  );
-  const [projectOverdue, setProjectOverdue] = useState(
-    thresholds?.project?.overdueWarningDays?.toString() || "7"
-  );
+  const [billingWarning, setBillingWarning] = useState("30");
+  const [billingCritical, setBillingCritical] = useState("60");
+  const [projectOverdue, setProjectOverdue] = useState("7");
   const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (thresholds && !hasChanges) {
+      setBillingWarning(thresholds.billing?.warningDays?.toString() || "30");
+      setBillingCritical(thresholds.billing?.criticalDays?.toString() || "60");
+      setProjectOverdue(thresholds.project?.overdueWarningDays?.toString() || "7");
+    }
+  }, [thresholds, hasChanges]);
 
   const handleSave = () => {
     onSave("thresholds", {
