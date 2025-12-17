@@ -46,10 +46,21 @@ export type RecoveryCapacity = 'recoverable' | 'difficult' | 'unrecoverable';
 // Project dynamics
 export type ProjectDynamics = 'advancing' | 'stagnating' | 'dragging';
 
+// Score breakdown for transparency
+export interface ScoreBreakdown {
+  total: number;
+  components: {
+    label: string;
+    value: number;
+    description: string;
+  }[];
+}
+
 export interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
   priorityScore: number; // Numeric score for sorting (higher = more urgent)
+  scoreBreakdown: ScoreBreakdown; // Detailed breakdown for UI transparency
   decisionType: DecisionType;
   decisionLabel: string; // "Optimiser", "Accélérer", "Ralentir", "Stopper", "Protéger"
   issue: string; // "Pourquoi"
@@ -267,29 +278,136 @@ function analyzeProjectDynamics(metrics: ProfitabilityMetrics, projectStage?: st
   return 'advancing';
 }
 
-// Helper to calculate priority score
+// Helper to calculate priority score with breakdown
+interface PriorityScoreResult {
+  score: number;
+  breakdown: ScoreBreakdown;
+}
+
 function calculatePriorityScore(
   impactValue: number,
   priority: 'low' | 'normal' | 'high' | 'strategic',
   urgency: 'low' | 'medium' | 'high',
-  feasibility: Feasibility
-): number {
-  // Base score from impact (normalized to 0-40 range)
-  const impactScore = Math.min(40, impactValue / 500);
+  feasibility: Feasibility,
+  marginPercent?: number,
+  recoveryCapacity?: RecoveryCapacity
+): PriorityScoreResult {
+  const components: ScoreBreakdown['components'] = [];
   
-  // Priority multiplier (0-30 range)
-  const priorityMultipliers = { low: 5, normal: 15, high: 25, strategic: 30 };
-  const priorityScore = priorityMultipliers[priority];
+  // 1. Impact score (0-40 range) - clamped and normalized
+  // Safe handling of negative or very large values
+  const safeImpactValue = Math.max(0, impactValue);
+  const rawImpact = safeImpactValue / 500;
+  const impactScore = Math.min(40, Math.max(0, rawImpact));
+  components.push({
+    label: 'Impact financier',
+    value: Math.round(impactScore),
+    description: `${safeImpactValue.toLocaleString('fr-FR')} € potentiels`
+  });
   
-  // Urgency score (0-20 range)
-  const urgencyScores = { low: 5, medium: 10, high: 20 };
-  const urgencyScore = urgencyScores[urgency];
+  // 2. Urgency score (0-25 range)
+  const urgencyScores: Record<string, number> = { low: 5, medium: 15, high: 25 };
+  const urgencyScore = urgencyScores[urgency] ?? 5;
+  const urgencyDesc: Record<string, string> = { 
+    low: 'Peut attendre', 
+    medium: 'A traiter cette semaine', 
+    high: 'Action requise sous 48h' 
+  };
+  components.push({
+    label: 'Urgence',
+    value: urgencyScore,
+    description: urgencyDesc[urgency] ?? 'Non definie'
+  });
   
-  // Feasibility modifier (0.5-1.0 multiplier)
-  const feasibilityModifiers = { realistic: 1.0, discuss: 0.75, unrealistic: 0.5 };
+  // 3. Project priority score (0-20 range)
+  const priorityScores: Record<string, number> = { low: 3, normal: 10, high: 17, strategic: 20 };
+  const priorityScore = priorityScores[priority] ?? 10;
+  const priorityLabels: Record<string, string> = { 
+    low: 'Priorite basse', 
+    normal: 'Priorite normale', 
+    high: 'Priorite haute', 
+    strategic: 'Projet strategique' 
+  };
+  components.push({
+    label: 'Priorite projet',
+    value: priorityScore,
+    description: priorityLabels[priority] ?? 'Priorite normale'
+  });
+  
+  // 4. Margin status (0-10 range) - always reported
+  let marginBonus = 0;
+  let marginDesc = '';
+  if (marginPercent !== undefined) {
+    if (marginPercent < 0) {
+      marginBonus = Math.min(10, Math.max(0, Math.abs(marginPercent) * 0.3));
+      marginDesc = `Marge negative: ${marginPercent.toFixed(1)}%`;
+    } else if (marginPercent < 15) {
+      marginDesc = `Marge faible: ${marginPercent.toFixed(1)}%`;
+    } else {
+      marginDesc = `Marge saine: ${marginPercent.toFixed(1)}%`;
+    }
+  } else {
+    marginDesc = 'Non evaluee';
+  }
+  components.push({
+    label: 'Etat de la marge',
+    value: Math.round(marginBonus),
+    description: marginDesc
+  });
+  
+  // 5. Recovery capacity (0-10 range) - always reported
+  let recoveryBonus = 0;
+  let recoveryDesc = '';
+  if (recoveryCapacity === 'unrecoverable') {
+    recoveryBonus = 10;
+    recoveryDesc = 'Situation critique, action urgente';
+  } else if (recoveryCapacity === 'difficult') {
+    recoveryBonus = 5;
+    recoveryDesc = 'Redressement possible mais difficile';
+  } else {
+    recoveryDesc = 'Rattrapage possible';
+  }
+  components.push({
+    label: 'Capacite de redressement',
+    value: recoveryBonus,
+    description: recoveryDesc
+  });
+  
+  // Calculate raw total before feasibility modifier
+  const rawTotal = impactScore + urgencyScore + priorityScore + marginBonus + recoveryBonus;
+  
+  // 6. Feasibility modifier (reduces score if action is hard to implement) - always reported
+  const feasibilityModifiers: Record<Feasibility, number> = { 
+    realistic: 1.0, 
+    discuss: 0.8, 
+    unrealistic: 0.5 
+  };
   const feasibilityMod = feasibilityModifiers[feasibility];
+  const adjustedTotal = rawTotal * feasibilityMod;
+  const feasibilityPenalty = Math.round(rawTotal - adjustedTotal);
   
-  return Math.round((impactScore + priorityScore + urgencyScore) * feasibilityMod);
+  // Always report feasibility status
+  const feasibilityLabels: Record<Feasibility, string> = {
+    realistic: 'Action realisable',
+    discuss: 'Necessite negociation',
+    unrealistic: 'Mise en oeuvre complexe'
+  };
+  components.push({
+    label: 'Faisabilite',
+    value: feasibilityPenalty > 0 ? -feasibilityPenalty : 0,
+    description: feasibilityLabels[feasibility]
+  });
+  
+  // Final score clamped to 0-100
+  const finalScore = Math.min(100, Math.max(0, Math.round(adjustedTotal)));
+  
+  return {
+    score: finalScore,
+    breakdown: {
+      total: finalScore,
+      components
+    }
+  };
 }
 
 // Decision type labels
@@ -333,18 +451,19 @@ export function generateRecommendations(
   // ==========================================
   if (projectPriority === 'strategic' && (metrics.status === 'deficit' || metrics.status === 'at_risk')) {
     const feasibility: Feasibility = 'discuss';
-    const priorityScore = calculatePriorityScore(
-      Math.abs(metrics.margin), projectPriority, 'high', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      Math.abs(metrics.margin), projectPriority, 'high', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'high',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'protect',
       decisionLabel: DECISION_LABELS.protect,
-      issue: `Projet stratégique avec une marge de ${metrics.marginPercent.toFixed(1)}%`,
-      action: `Acceptez une marge réduite pour ce client clé, mais limitez strictement le périmètre. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      issue: `Ce projet stratégique détruit actuellement de la valeur`,
+      action: `Limitez strictement le périmètre. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       impact: `Préserver la relation client tout en limitant les pertes`,
       impactValue: Math.abs(metrics.margin),
       feasibility,
@@ -364,18 +483,19 @@ export function generateRecommendations(
   ) {
     const additionalLoss = metrics.internalDailyCost * 5; // 5 more days estimate
     const feasibility: Feasibility = 'discuss';
-    const priorityScore = calculatePriorityScore(
-      Math.abs(metrics.margin), projectPriority, 'high', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      Math.abs(metrics.margin), projectPriority, 'high', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'high',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'stop',
       decisionLabel: DECISION_LABELS.stop,
-      issue: `Projet déficitaire de ${Math.abs(metrics.margin).toLocaleString('fr-FR')} € - rattrapage irréaliste`,
-      action: `Ne cherchez plus à rattraper ce projet. Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €. Envisagez de renégocier ou clôturer rapidement.`,
+      issue: `Ce projet détruit actuellement de la valeur (${Math.abs(metrics.margin).toLocaleString('fr-FR')} € de perte)`,
+      action: `Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €. Renégociez ou clôturez rapidement.`,
       impact: `Éviter ${additionalLoss.toLocaleString('fr-FR')} € de pertes supplémentaires`,
       impactValue: additionalLoss,
       feasibility,
@@ -395,18 +515,19 @@ export function generateRecommendations(
   ) {
     const potentialSavings = dailyMarginErosion * 3;
     const feasibility: Feasibility = 'realistic';
-    const priorityScore = calculatePriorityScore(
-      potentialSavings, projectPriority, 'medium', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      potentialSavings, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'slowdown',
       decisionLabel: DECISION_LABELS.slowdown,
-      issue: `Projet de faible priorité en déficit - chaque jour creuse la perte`,
-      action: `Limitez le temps passé sur ce projet. Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      issue: `Chaque jour passé sur ce projet creuse la perte`,
+      action: `Limitez l'effort. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       impact: `Économiser jusqu'à ${potentialSavings.toLocaleString('fr-FR')} € en réduisant l'effort`,
       impactValue: potentialSavings,
       feasibility,
@@ -424,18 +545,19 @@ export function generateRecommendations(
     (metrics.status === 'profitable' || recoveryCapacity === 'recoverable')
   ) {
     const feasibility: Feasibility = 'realistic';
-    const priorityScore = calculatePriorityScore(
-      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'accelerate',
       decisionLabel: DECISION_LABELS.accelerate,
-      issue: `Projet qui traîne - marge en érosion progressive`,
-      action: `Accélérez ce projet pour limiter l'érosion de marge. Chaque jour supplémentaire réduit la marge de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      issue: `Ce projet traîne et la marge s'érode progressivement`,
+      action: `Accélérez pour limiter l'érosion. Chaque jour supplémentaire réduit la marge de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       impact: `Préserver ${dailyMarginErosion.toLocaleString('fr-FR')} € par jour gagné`,
       impactValue: dailyMarginErosion,
       feasibility,
@@ -452,8 +574,8 @@ export function generateRecommendations(
     metrics.paymentProgress < 70
   ) {
     const feasibility: Feasibility = 'realistic';
-    const priorityScore = calculatePriorityScore(
-      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     // Only add if not already a dragging project recommendation
@@ -462,10 +584,11 @@ export function generateRecommendations(
         id: `rec-${recId++}`,
         priority: 'medium',
         priorityScore,
+        scoreBreakdown,
         decisionType: 'accelerate',
         decisionLabel: DECISION_LABELS.accelerate,
-        issue: `Projet en cours avec ${metrics.paymentProgress.toFixed(0)}% du budget encaissé`,
-        action: `Accélérez pour clôturer rapidement et facturer le solde de ${metrics.remainingToPay.toLocaleString('fr-FR')} €.`,
+        issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation en attente`,
+        action: `Accélérez pour clôturer et facturer le solde rapidement.`,
         impact: `Débloquer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation`,
         impactValue: metrics.remainingToPay,
         feasibility,
@@ -490,18 +613,19 @@ export function generateRecommendations(
     const daysToReduce = metrics.internalDailyCost > 0 ? additionalNeeded / metrics.internalDailyCost : 0;
     
     const feasibility: Feasibility = marginGap < 10 ? 'realistic' : 'discuss';
-    const priorityScore = calculatePriorityScore(
-      additionalNeeded, projectPriority, 'low', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      additionalNeeded, projectPriority, 'low', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'optimize',
       decisionLabel: DECISION_LABELS.optimize,
-      issue: `Marge actuelle (${metrics.marginPercent.toFixed(1)}%) inférieure à l'objectif (${metrics.targetMarginPercent}%)`,
-      action: `Ajustez le TJM ou facturez +${additionalNeeded.toLocaleString('fr-FR')} €, ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
+      issue: `La marge actuelle (${metrics.marginPercent.toFixed(1)}%) est en-dessous de votre objectif`,
+      action: `Facturez +${additionalNeeded.toLocaleString('fr-FR')} € ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
       impact: `+${marginGap.toFixed(1)}% de marge`,
       impactValue: additionalNeeded,
       feasibility,
@@ -518,18 +642,19 @@ export function generateRecommendations(
     
     const feasibility: Feasibility = 'realistic';
     const urgency = metrics.tjmGapPercent < THRESHOLDS.TJM_GAP_CRITICAL ? 'high' : 'medium';
-    const priorityScore = calculatePriorityScore(
-      additionalRevenue, projectPriority, urgency, feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      additionalRevenue, projectPriority, urgency, feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: urgency === 'high' ? 'high' : 'medium',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'optimize',
       decisionLabel: DECISION_LABELS.optimize,
-      issue: `TJM réel (${metrics.actualTJM.toLocaleString('fr-FR')} €) inférieur au TJM cible (${metrics.targetTJM.toLocaleString('fr-FR')} €)`,
-      action: `Augmentez votre TJM de ${tjmDiff.toLocaleString('fr-FR')} € pour les prochains projets similaires.`,
+      issue: `Votre TJM réel (${metrics.actualTJM.toLocaleString('fr-FR')} €) est sous le cible`,
+      action: `Augmentez votre TJM de ${tjmDiff.toLocaleString('fr-FR')} € pour les prochains projets.`,
       impact: `+${additionalRevenue.toLocaleString('fr-FR')} € si TJM cible était appliqué`,
       impactValue: additionalRevenue,
       feasibility,
@@ -546,18 +671,19 @@ export function generateRecommendations(
     metrics.paymentProgress < 70
   ) {
     const feasibility: Feasibility = 'realistic';
-    const priorityScore = calculatePriorityScore(
-      metrics.remainingToPay, projectPriority, 'medium', feasibility
+    const { score: priorityScore, breakdown: scoreBreakdown } = calculatePriorityScore(
+      metrics.remainingToPay, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
+      scoreBreakdown,
       decisionType: 'optimize',
       decisionLabel: DECISION_LABELS.optimize,
-      issue: `Seulement ${metrics.paymentProgress.toFixed(0)}% du montant facturé a été encaissé`,
-      action: `Relancez le client pour les ${metrics.remainingToPay.toLocaleString('fr-FR')} € restants à percevoir.`,
+      issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation non encaissée`,
+      action: `Relancez le client pour récupérer ce montant rapidement.`,
       impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
       impactValue: metrics.remainingToPay,
       feasibility,
@@ -575,10 +701,16 @@ export function generateRecommendations(
       id: `rec-${recId++}`,
       priority: 'low',
       priorityScore: 10,
+      scoreBreakdown: {
+        total: 10,
+        components: [
+          { label: 'Projet rentable', value: 10, description: `Marge de ${metrics.marginPercent.toFixed(1)}%` }
+        ]
+      },
       decisionType: 'optimize',
       decisionLabel: 'Continuer',
-      issue: `Projet rentable avec une marge de ${metrics.marginPercent.toFixed(1)}%`,
-      action: `Documentez les bonnes pratiques de ce projet pour les reproduire.`,
+      issue: `Ce projet est rentable avec ${metrics.marginPercent.toFixed(1)}% de marge`,
+      action: `Documentez les bonnes pratiques pour les reproduire.`,
       impact: `Maintenir une marge supérieure à ${THRESHOLDS.PROFITABLE_MARGIN}%`,
       feasibility: 'realistic',
       feasibilityLabel: FEASIBILITY_LABELS.realistic,

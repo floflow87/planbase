@@ -59,10 +59,20 @@ interface ProfitabilityMetrics {
 type DecisionType = 'optimize' | 'accelerate' | 'slowdown' | 'stop' | 'protect';
 type Feasibility = 'realistic' | 'discuss' | 'unrealistic';
 
+interface ScoreBreakdown {
+  total: number;
+  components: {
+    label: string;
+    value: number;
+    description: string;
+  }[];
+}
+
 interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
   priorityScore: number;
+  scoreBreakdown?: ScoreBreakdown;
   decisionType: DecisionType;
   decisionLabel: string;
   issue: string;
@@ -232,6 +242,107 @@ const getFeasibilityBadge = (feasibility: Feasibility, label: string) => {
   );
 };
 
+// Score priority level helpers - 3 levels aligned with grouping
+type ScoreLevel = 'critical' | 'important' | 'suggestion';
+
+const getScoreLevel = (score: number): ScoreLevel => {
+  if (score >= 80) return 'critical';
+  if (score >= 50) return 'important';
+  return 'suggestion';
+};
+
+const getScoreLevelInfo = (level: ScoreLevel) => {
+  const info = {
+    critical: { 
+      label: 'Critique', 
+      color: 'bg-red-500 text-white',
+      barColor: 'bg-red-500',
+      borderColor: 'border-red-300',
+      bgColor: 'bg-red-50'
+    },
+    important: { 
+      label: 'Important', 
+      color: 'bg-orange-500 text-white',
+      barColor: 'bg-orange-500',
+      borderColor: 'border-orange-300',
+      bgColor: 'bg-orange-50'
+    },
+    suggestion: { 
+      label: 'Suggestion', 
+      color: 'bg-gray-500 text-white',
+      barColor: 'bg-gray-400',
+      borderColor: 'border-gray-300',
+      bgColor: 'bg-gray-50'
+    },
+  };
+  return info[level];
+};
+
+// Score badge component with tooltip showing breakdown
+function ScoreBadge({ score, breakdown }: { score: number; breakdown?: ScoreBreakdown }) {
+  const level = getScoreLevel(score);
+  const levelInfo = getScoreLevelInfo(level);
+  
+  // Get color for component value: negative=red, zero=gray, positive=green
+  const getValueColor = (value: number) => {
+    if (value < 0) return 'text-red-600';
+    if (value === 0) return 'text-gray-400';
+    return 'text-green-700';
+  };
+  
+  // Format value with appropriate sign
+  const formatValue = (value: number) => {
+    if (value > 0) return `+${value}`;
+    return value.toString();
+  };
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-2 cursor-help">
+          <Badge className={`text-xs font-bold ${levelInfo.color}`}>
+            {score}/100
+          </Badge>
+          <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className={`h-full ${levelInfo.barColor} transition-all`}
+              style={{ width: `${Math.max(score, 5)}%` }}
+            />
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-sm p-3">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-gray-900">Decomposition du score</p>
+          {breakdown && breakdown.components.length > 0 ? (
+            <div className="space-y-1.5">
+              {breakdown.components.map((comp, idx) => (
+                <div key={idx} className="text-xs">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-gray-700 font-medium">{comp.label}</span>
+                    <span className={`font-semibold ${getValueColor(comp.value)}`}>
+                      {formatValue(comp.value)} pts
+                    </span>
+                  </div>
+                  {comp.description && (
+                    <p className="text-gray-500 text-[10px] mt-0.5">{comp.description}</p>
+                  )}
+                </div>
+              ))}
+              <div className="pt-2 mt-2 border-t flex items-center justify-between text-sm font-bold">
+                <span>Score final</span>
+                <span className={getValueColor(score)}>{score}/100</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">Score base sur l'impact et l'urgence</p>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function SummaryCard({ 
   title, 
   value, 
@@ -394,11 +505,14 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 }
 
 function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+  const scoreLevel = getScoreLevel(recommendation.priorityScore);
+  const levelInfo = getScoreLevelInfo(scoreLevel);
+  
   return (
-    <Card className={`border ${getPriorityColor(recommendation.priority)}`} data-testid={`card-recommendation-${recommendation.id}`}>
+    <Card className={`border-2 ${levelInfo.borderColor} ${levelInfo.bgColor}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Header: Decision type + Priority badge */}
+          {/* Header: Decision type + Score badge */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               {getRecommendationIcon(recommendation.icon)}
@@ -406,30 +520,95 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
                 getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
               }
             </div>
-            <div className="flex items-center gap-2">
-              {recommendation.feasibility && recommendation.feasibilityLabel && 
-                getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)
-              }
-              {getPriorityBadge(recommendation.priority)}
-            </div>
+            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
           </div>
           
           {/* Block 1: Pourquoi (Issue) */}
-          <div className="bg-gray-50 rounded-lg p-3">
+          <div className="bg-white/80 rounded-lg p-3 border border-gray-100">
             <p className="text-xs text-gray-500 uppercase font-medium mb-1">Pourquoi</p>
             <p className="text-sm text-gray-700 font-medium">{recommendation.issue}</p>
           </div>
           
           {/* Block 2: Action recommandée */}
           <div>
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandée</p>
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandee</p>
             <p className="text-sm text-gray-600">{recommendation.action}</p>
           </div>
           
-          {/* Block 3: Impact */}
-          <div className="flex items-center gap-2 pt-1 border-t">
-            <Target className="w-4 h-4 text-green-500" />
-            <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
+          {/* Block 3: Impact + Feasibility */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-green-500" />
+              <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
+            </div>
+            {recommendation.feasibility && recommendation.feasibilityLabel && 
+              getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)
+            }
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Top Priority Card - Shows the #1 priority action (3 levels: critical, important, suggestion)
+function TopPriorityCard({ recommendation, projectName }: { recommendation: Recommendation; projectName: string }) {
+  const level = getScoreLevel(recommendation.priorityScore);
+  
+  // Dynamic styling based on priority level - aligned with grouping sections
+  const cardStyles: Record<ScoreLevel, string> = {
+    critical: 'border-red-400 bg-gradient-to-r from-red-50 to-orange-50',
+    important: 'border-orange-400 bg-gradient-to-r from-orange-50 to-yellow-50',
+    suggestion: 'border-gray-300 bg-gradient-to-r from-gray-50 to-slate-50'
+  };
+  
+  const iconStyles: Record<ScoreLevel, string> = {
+    critical: 'bg-red-100 text-red-600',
+    important: 'bg-orange-100 text-orange-600',
+    suggestion: 'bg-gray-100 text-gray-500'
+  };
+  
+  const badgeStyles: Record<ScoreLevel, string> = {
+    critical: 'bg-red-600 text-white',
+    important: 'bg-orange-500 text-white',
+    suggestion: 'bg-gray-500 text-white'
+  };
+  
+  const levelLabels: Record<ScoreLevel, string> = {
+    critical: 'Action critique',
+    important: 'Action importante',
+    suggestion: 'Suggestion'
+  };
+  
+  return (
+    <Card className={`border-2 ${cardStyles[level]}`} data-testid="card-top-priority">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <div className={`p-3 rounded-lg shrink-0 ${iconStyles[level]}`}>
+            {level === 'critical' ? <AlertTriangle className="w-6 h-6" /> : 
+             level === 'important' ? <Clock className="w-6 h-6" /> :
+             <Lightbulb className="w-6 h-6" />}
+          </div>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Badge className={`text-xs font-bold ${badgeStyles[level]}`}>
+                  {levelLabels[level]}
+                </Badge>
+                {recommendation.decisionType && recommendation.decisionLabel && 
+                  getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
+                }
+              </div>
+              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-gray-900">{projectName}</p>
+              <p className="text-sm text-gray-600 mt-1">{recommendation.issue}</p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Target className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">{recommendation.impact}</span>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -565,12 +744,14 @@ export default function Finance() {
 
   const allRecommendations = projects
     .flatMap(p => p.recommendations.map(r => ({ ...r, projectName: p.projectName, projectId: p.projectId })))
-    .sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
+    .sort((a, b) => b.priorityScore - a.priorityScore); // Sort by score descending
+  
+  const topPriorityRec = allRecommendations.length > 0 ? allRecommendations[0] : null;
+  const criticalRecommendations = allRecommendations.filter(r => r.priorityScore >= 80);
+  const importantRecommendations = allRecommendations.filter(r => r.priorityScore >= 50 && r.priorityScore < 80);
+  const otherRecommendations = allRecommendations.filter(r => r.priorityScore < 50);
 
-  const highPriorityCount = allRecommendations.filter(r => r.priority === 'high').length;
+  const highPriorityCount = criticalRecommendations.length;
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto h-full" data-testid="page-finance">
@@ -715,28 +896,49 @@ export default function Finance() {
             </CardContent>
           </Card>
 
-          {highPriorityCount > 0 && (
-            <Card className="border-red-200 bg-red-50">
+          {/* Top Priority Section - Always show if recommendations exist */}
+          {topPriorityRec && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">Action prioritaire</h3>
+                <Button 
+                  variant="link" 
+                  className="text-violet-600 p-0 h-auto"
+                  onClick={() => setActiveTab('recommendations')}
+                  data-testid="button-view-all-recommendations"
+                >
+                  Voir toutes les recommandations ({allRecommendations.length})
+                </Button>
+              </div>
+              <TopPriorityCard 
+                recommendation={topPriorityRec} 
+                projectName={topPriorityRec.projectName} 
+              />
+            </div>
+          )}
+
+          {highPriorityCount > 1 && (
+            <Card className="border-orange-200 bg-orange-50">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <AlertTriangle className="w-5 h-5 text-orange-500" />
                     <div>
-                      <p className="font-medium text-red-700">
-                        {highPriorityCount} action{highPriorityCount > 1 ? 's' : ''} urgente{highPriorityCount > 1 ? 's' : ''} à traiter
+                      <p className="font-medium text-orange-700">
+                        {highPriorityCount - 1} autre{highPriorityCount > 2 ? 's' : ''} action{highPriorityCount > 2 ? 's' : ''} critique{highPriorityCount > 2 ? 's' : ''}
                       </p>
-                      <p className="text-sm text-red-600">
-                        Des recommandations prioritaires nécessitent votre attention
+                      <p className="text-sm text-orange-600">
+                        Requiert une attention immédiate
                       </p>
                     </div>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="border-red-300 text-red-700 hover:bg-red-100"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
                     onClick={() => setActiveTab('recommendations')}
                     data-testid="button-view-recommendations"
                   >
-                    Voir les recommandations
+                    Voir les details
                   </Button>
                 </div>
               </CardContent>
@@ -776,75 +978,147 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="recommendations" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-500" />
-                Recommandations d'optimisation
-              </CardTitle>
-              <CardDescription>
-                Actions concrètes pour améliorer la rentabilité de vos projets
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {allRecommendations.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-gray-900">Excellent travail !</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Tous vos projets sont bien optimisés. Continuez ainsi.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {allRecommendations
-                    .filter((rec) => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
-                    .map((rec) => {
-                      const recKey = `${rec.projectId}-${rec.id}`;
-                      return (
-                        <div key={recKey}>
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-500">
-                                Projet : 
-                              </span>
-                              <Link href={`/projects/${rec.projectId}`} className="text-xs text-violet-600 hover:underline">
+          {allRecommendations.length === 0 ? (
+            <Card className="p-8 text-center">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-900">Excellent travail !</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Tous vos projets sont bien optimises. Continuez ainsi.
+              </p>
+            </Card>
+          ) : (
+            <>
+              {/* Critical recommendations */}
+              {criticalRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500" />
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Actions critiques ({criticalRecommendations.length})
+                    </h3>
+                  </div>
+                  <div className="space-y-4">
+                    {criticalRecommendations
+                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
+                      .map((rec) => {
+                        const recKey = `${rec.projectId}-${rec.id}`;
+                        return (
+                          <div key={recKey}>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
                                 {rec.projectName}
                               </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleRecommendation(recKey)}
+                                data-testid={`button-toggle-recommendation-${rec.id}`}
+                              >
+                                <Eye className="w-4 h-4 text-gray-500" />
+                              </Button>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => toggleRecommendation(recKey)}
-                              data-testid={`button-toggle-recommendation-${rec.id}`}
-                            >
-                              <Eye className="w-4 h-4 text-gray-500" />
-                            </Button>
+                            <RecommendationCard recommendation={rec} />
                           </div>
-                          <RecommendationCard recommendation={rec} />
-                        </div>
-                      );
-                    })}
-                  {hiddenRecommendations.size > 0 && (
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-muted-foreground">
-                        {hiddenRecommendations.size} recommandation{hiddenRecommendations.size > 1 ? 's' : ''} masquée{hiddenRecommendations.size > 1 ? 's' : ''} 
-                        <Button
-                          variant="link"
-                          className="h-auto p-0 ml-1 text-xs"
-                          onClick={() => setHiddenRecommendations(new Set())}
-                          data-testid="button-show-all-recommendations"
-                        >
-                          Tout afficher
-                        </Button>
-                      </p>
-                    </div>
-                  )}
+                        );
+                      })}
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+
+              {/* Important recommendations */}
+              {importantRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500" />
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Actions importantes ({importantRecommendations.length})
+                    </h3>
+                  </div>
+                  <div className="space-y-4">
+                    {importantRecommendations
+                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
+                      .map((rec) => {
+                        const recKey = `${rec.projectId}-${rec.id}`;
+                        return (
+                          <div key={recKey}>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
+                                {rec.projectName}
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleRecommendation(recKey)}
+                                data-testid={`button-toggle-recommendation-${rec.id}`}
+                              >
+                                <Eye className="w-4 h-4 text-gray-500" />
+                              </Button>
+                            </div>
+                            <RecommendationCard recommendation={rec} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Other recommendations */}
+              {otherRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Suggestions ({otherRecommendations.length})
+                    </h3>
+                  </div>
+                  <div className="space-y-4">
+                    {otherRecommendations
+                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
+                      .map((rec) => {
+                        const recKey = `${rec.projectId}-${rec.id}`;
+                        return (
+                          <div key={recKey}>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
+                                {rec.projectName}
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleRecommendation(recKey)}
+                                data-testid={`button-toggle-recommendation-${rec.id}`}
+                              >
+                                <Eye className="w-4 h-4 text-gray-500" />
+                              </Button>
+                            </div>
+                            <RecommendationCard recommendation={rec} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {hiddenRecommendations.size > 0 && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    {hiddenRecommendations.size} recommandation{hiddenRecommendations.size > 1 ? 's' : ''} masquee{hiddenRecommendations.size > 1 ? 's' : ''} 
+                    <Button
+                      variant="link"
+                      className="h-auto p-0 ml-1 text-xs"
+                      onClick={() => setHiddenRecommendations(new Set())}
+                      data-testid="button-show-all-recommendations"
+                    >
+                      Tout afficher
+                    </Button>
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

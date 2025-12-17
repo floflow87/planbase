@@ -1,0 +1,140 @@
+RANSPARENCE DU SCORE & PILOTAGE VISUEL DES PRIORITÉS”
+
+Tu es l’agent Replit chargé d’améliorer le moteur de recommandations décisionnelles sans modifier les calculs existants, mais en rendant visibles, compréhensibles et actionnables les priorités calculées.
+
+Le moteur calcule déjà un priorityScore (0–100) et trie correctement les recommandations.
+L’objectif est maintenant de montrer clairement ce score, d’expliquer ce qui le compose, et d’aider l’utilisateur à comprendre pourquoi cette action est prioritaire.
+
+1️⃣ Afficher explicitement le score de priorité
+1.1 Sur chaque carte de recommandation
+
+Ajouter un indicateur visible :
+
+Score de priorité : 87 / 100
+
+Affiché sous forme :
+
+badge (ex : 🔥 Priorité élevée)
+
+ou jauge horizontale
+
+ou barre colorée (vert → orange → rouge)
+
+Mapping recommandé :
+
+80–100 → 🔴 Critique
+
+50–79 → 🟠 Important
+
+20–49 → 🟢 À surveiller
+
+< 20 → ℹ️ Suggestion
+
+👉 Le score ne doit plus être implicite.
+
+2️⃣ Rendre le score explicable (clé de confiance)
+2.1 Décomposer le score (hover / tooltip)
+
+Au survol du score ou via une icône ℹ️, afficher :
+
+Pourquoi cette recommandation est prioritaire :
+
+Rentabilité : –2 900 € → +40 pts
+
+Projet stratégique → +25 pts
+
+Projet non rattrapable → +20 pts
+
+Risque temps élevé → +12 pts
+
+👉 Total : 97 / 100
+
+➡️ Objectif : “je comprends pourquoi c’est en haut”.
+
+3️⃣ Introduire une notion de “Top priorité du moment”
+3.1 Sur la Vue d’ensemble
+
+Ajouter un bloc clair et assumé :
+
+🔴 Priorité n°1 aujourd’hui
+Projet : Clérica – Business Plan
+Action : Stopper / Renégocier
+Risque estimé : –2 900 €
+
+Ce bloc doit :
+
+reprendre la reco avec le score le plus élevé
+
+être visible sans scroll
+
+servir de “boussole” produit
+
+4️⃣ Hiérarchiser visuellement les recommandations
+4.1 Dans l’onglet Recommandations
+
+Structurer en sections basées sur le score :
+
+🔴 Critique (score ≥ 80)
+🟠 Important (50–79)
+🟢 À surveiller (20–49)
+ℹ️ Suggestions (< 20)
+
+👉 On lit de haut en bas, sans réfléchir.
+
+5️⃣ Rendre la priorité cohérente dans “Par projet”
+5.1 Recommandation en hover (comme demandé)
+
+Dans la vue “Par projet” :
+
+afficher uniquement une icône de reco
+
+au hover :
+
+type de décision
+
+score de priorité
+
+action recommandée
+
+impact estimé
+
+Exemple :
+
+🔴 Stopper / Renégocier
+Score : 92 / 100
+Impact : –2 900 € évités
+Faisabilité : Moyenne
+
+6️⃣ Améliorer le wording (moins algorithmique)
+6.1 Interdire certains patterns
+
+❌ “Pour atteindre 30 %, facturez +X€”
+❌ “Marge actuelle inférieure à l’objectif”
+
+6.2 Préférer
+
+✅ “Ce projet détruit actuellement de la valeur”
+✅ “Chaque jour supplémentaire augmente la perte de X€”
+✅ “Action recommandée : limiter l’exposition”
+
+👉 Le produit doit oser formuler des jugements, pas des équations.
+
+7️⃣ Garder le moteur rule-based (important)
+
+Ne pas introduire d’IA ici
+
+Le score reste déterministe
+
+Mais l’architecture doit rester compatible avec une future IA (champ explanation, reasoning)
+
+8️⃣ Critères d’acceptation
+
+Le score de priorité est visible sur chaque recommandation
+
+L’utilisateur comprend pourquoi une reco est prioritaire
+
+Une “priorité n°1” est clairement affichée sur la vue d’ensemble
+
+Les recos sont lisibles en 5 secondes
+
+Aucun changement sur les calculs existants (uniquement restitution & UX)
