@@ -90,9 +90,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
-import { Loader } from "@/components/Loader";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
-import { Field } from "@/design-system/primitives";
 import {
   TASK_PRIORITIES,
   getTaskPriorityLabel,
@@ -1710,9 +1708,10 @@ export default function Tasks() {
 
         {/* Views */}
         {tasksLoading ? (
-          <div className="text-center py-12">
-            <Loader size="lg" />
-          </div>
+          <LoadingState 
+            message="Chargement des tâches..." 
+            className="py-12" 
+          />
         ) : (
           <>
             {/* List View */}

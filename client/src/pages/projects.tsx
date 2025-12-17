@@ -112,9 +112,7 @@ import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
-import { Loader } from "@/components/Loader";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
-import { Field } from "@/design-system/primitives";
 
 
 // Helper function to calculate days overdue
