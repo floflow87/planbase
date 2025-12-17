@@ -1,0 +1,199 @@
+Objectifs V1.3
+
+Étendre l’intégration DS → shadcn sur :
+
+Button (variants/intent)
+
+Alert (intent)
+
+Toast (feedback component unifié)
+
+Uniformiser tous les select/dropdown pour qu’ils aient un background blanc partout (trigger + menu), sans casser l’UX.
+
+Réduire les “classes métier” dispersées (audit drift) et pousser l’usage des primitives.
+
+0) Règles générales
+
+Pas de breaking change fonctionnel.
+
+Pas de hardcode de couleurs : utiliser tokens ou variables sémantiques.
+
+Dark mode : ne pas casser. Si le produit n’a pas de dark mode, préparer quand même une base (mais la priorité est background blanc en light).
+
+Migrations progressives : priorité aux composants globaux utilisés partout.
+
+1) Tokens & surfaces (préparation)
+
+Créer/compléter dans shared/design/tokens/ :
+
+surfaces.ts (ou colors.ts) avec des tokens clairs :
+
+surface.base (blanc)
+
+surface.elevated (blanc)
+
+surface.popover (blanc)
+
+surface.input (blanc)
+
+border.default
+
+text.default
+
+Si Tailwind : tokens peuvent retourner des classes (bg-white, etc.) ou des CSS variables.
+
+Créer une fonction helper (si utile) :
+
+getSurfaceClasses(surfaceKey).
+
+2) Uniformisation des Select / Dropdown (background blanc)
+2.1 Identifier les composants utilisés
+
+Chercher dans le repo :
+
+components/ui/select.tsx (shadcn Select)
+
+components/ui/popover.tsx, dropdown-menu.tsx, command.tsx (souvent utilisés derrière Select)
+
+tout wrapper custom (ex Select, Combobox, DropdownMenu)
+
+2.2 Règle UX attendue
+
+Tous les “sélecteurs dropdown” doivent être blancs :
+
+le trigger (le champ fermé) : fond blanc
+
+le menu : fond blanc
+
+les items : fond blanc (hover léger OK)
+
+border et shadow cohérents
+
+disabled / error states cohérents
+
+2.3 Implémentation
+A) Select (shadcn)
+
+Modifier client/src/components/ui/select.tsx :
+
+SelectTrigger doit avoir bg-white (ou token surface.input)
+
+SelectContent doit avoir bg-white (ou token surface.popover)
+
+appliquer aussi sur SelectItem si nécessaire (hover/active)
+
+éviter les classes locales dispersées : centraliser dans tokens.
+
+B) DropdownMenu / Popover / Command (si utilisés)
+
+Modifier :
+
+components/ui/dropdown-menu.tsx : DropdownMenuContent background blanc
+
+components/ui/popover.tsx : PopoverContent background blanc
+
+components/ui/command.tsx (si combobox) : surfaces blanches
+
+But : quel que soit le dropdown utilisé, l’utilisateur voit la même “matière” blanche.
+
+2.4 Migration pages
+
+Rechercher les triggers/selects où un background est forcé autrement et harmoniser.
+Ensuite exécuter audit-design-drift.ts pour vérifier que les fonds “non blancs” ne reviennent pas.
+
+3) Button : intents + tokens (shadcn alignment)
+3.1 Étendre components/ui/button.tsx
+
+Ajouter :
+
+intent?: neutral|success|warning|danger|info
+
+tone?: solid|soft|outline|ghost
+
+structure (radius/spacing/typo) depuis tokens
+
+couleurs depuis shared/design/semantics/getIntentClasses(intent)
+
+Préserver la compatibilité avec les variants shadcn existants.
+
+3.2 Migration ciblée
+
+Migrate 5–10 usages existants (pages principales) qui utilisent des classes “bg-green/bg-red” vers :
+
+<Button intent="success">
+
+<Button intent="danger" tone="outline">
+
+4) Alert : intents (shadcn alignment)
+
+Modifier/ajouter components/ui/alert.tsx (si existant) :
+
+intents via semantics
+
+surfaces cohérentes avec tokens
+
+Créer un wrapper AlertIntent si nécessaire, mais idéalement aligner directement sur shadcn.
+
+5) Toast : composant unifié + success toujours vert
+5.1 Système actuel
+
+Le wrapper toastSuccess/toastError/toastInfo existe déjà.
+
+5.2 Objectif V1.3
+
+Centraliser le style toast dans un seul endroit
+
+success = vert partout
+
+error = rouge, info = bleu/neutral, warning = jaune
+
+Si shadcn toast est utilisé :
+
+aligner Toast et ToastViewport avec tokens
+
+intent style via semantics
+
+5.3 Migration
+
+scanner le repo pour toast.success, bg-green dans les toasts
+
+remplacer par toastSuccess
+
+6) Garde-fous & audits
+
+Lancer :
+
+npx tsx scripts/audit-design-drift.ts
+
+npx tsx scripts/check-hardcoded-options.ts
+
+npx eslint client/src server shared
+
+Si audit drift remonte encore des bg-green ou des surfaces dropdown non blanches, corriger.
+
+7) Documentation
+
+Mettre à jour docs/80-design-system/ :
+
+primitives.md : Button, Select, Dropdown surfaces
+
+do-dont.md : exemples dropdown blancs
+
+ajouter une section “Surfaces & Inputs”
+
+Critères d’acceptation (concrets)
+
+✅ Tous les dropdown/selects (Select/DropdownMenu/Popover/Command) ont un background blanc (trigger + content).
+
+✅ Button supporte intents/tone alignés semantics/tokens.
+
+✅ Alert supporte intents/tone alignés semantics/tokens.
+
+✅ Toast success = vert via wrapper, et les pages n’utilisent plus toast.success direct.
+
+✅ Audit drift réduit + app stable.
+
+Important
+
+Ne pas refactor tout l’app.
+Commencer par les composants shadcn de base (Select/DropdownMenu/Popover) puis migrer seulement les pages les plus visibles.

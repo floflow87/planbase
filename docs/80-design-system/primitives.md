@@ -2,6 +2,13 @@
 
 Atomic, reusable components with intent-based styling.
 
+## Design System V1.3 Updates
+
+- **Surfaces**: All dropdowns/selects use white backgrounds
+- **Button**: Extended with `intent` and `tone` props
+- **Alert**: Extended with `intent` and `tone` props
+- **Toast**: Added `warning` and `info` variants
+
 ## Badge (shadcn with Intent Support)
 
 The shadcn Badge component has been extended to support semantic intents directly.
@@ -117,6 +124,109 @@ const sizeClass = cxVariant(size, {
   lg: "text-base",
 });
 ```
+
+## Button (shadcn with Intent Support)
+
+The shadcn Button component has been extended to support semantic intents directly.
+
+Located at `client/src/components/ui/button.tsx`
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `intent` | Intent | - | Semantic intent (success, warning, danger, info, neutral, primary, accent) |
+| `tone` | IntentVariant | "solid" | Visual tone (solid, soft, outline, ghost) - only when intent is provided |
+| `size` | string | "default" | Size (default, sm, lg, icon) |
+| `variant` | string | "default" | Legacy shadcn variant (only when intent is not provided) |
+
+### Usage
+
+```tsx
+import { Button } from "@/components/ui/button";
+
+// Intent-based (recommended for semantic actions)
+<Button intent="success">Save</Button>
+<Button intent="danger" tone="outline">Delete</Button>
+<Button intent="warning" tone="soft">Warning Action</Button>
+
+// Legacy shadcn variants (still supported)
+<Button variant="default">Default</Button>
+<Button variant="secondary">Secondary</Button>
+<Button variant="destructive">Destructive</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+```
+
+## Alert (shadcn with Intent Support)
+
+The shadcn Alert component has been extended to support semantic intents directly.
+
+Located at `client/src/components/ui/alert.tsx`
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `intent` | Intent | - | Semantic intent (success, warning, danger, info, neutral, primary, accent) |
+| `tone` | IntentVariant | "soft" | Visual tone (solid, soft, outline, ghost) - only when intent is provided |
+| `variant` | string | "default" | Legacy shadcn variant (only when intent is not provided) |
+
+### Usage
+
+```tsx
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
+// Intent-based (recommended)
+<Alert intent="success">
+  <AlertTitle>Success!</AlertTitle>
+  <AlertDescription>Your changes have been saved.</AlertDescription>
+</Alert>
+
+<Alert intent="warning" tone="outline">
+  <AlertTitle>Warning</AlertTitle>
+  <AlertDescription>This action cannot be undone.</AlertDescription>
+</Alert>
+
+// Legacy shadcn variants (still supported)
+<Alert variant="default">Default Alert</Alert>
+<Alert variant="destructive">Destructive Alert</Alert>
+```
+
+## Surface Tokens (V1.3)
+
+Centralized surface tokens for consistent backgrounds.
+
+Located at `shared/design/tokens/surfaces.ts`
+
+### Available Surfaces
+
+| Surface | Description | Light Mode | Dark Mode |
+|---------|-------------|------------|-----------|
+| `base` | Main page background | bg-background | bg-background |
+| `elevated` | Cards, modals | bg-card | bg-card |
+| `input` | Form inputs, select triggers | bg-white | bg-gray-900 |
+| `popover` | Dropdowns, menus | bg-white | bg-gray-900 |
+| `muted` | Subtle backgrounds | bg-muted | bg-muted |
+
+### Usage
+
+```tsx
+import { surfaceTokens, getSurfaceClasses } from "@shared/design/tokens";
+
+// Get surface classes
+const inputBg = surfaceTokens.input; // "bg-white dark:bg-gray-900"
+const popoverBg = getSurfaceClasses("popover"); // "bg-white dark:bg-gray-900"
+```
+
+### Components with White Backgrounds
+
+All dropdown/select components use white backgrounds (V1.3):
+
+- `Select` (trigger + content)
+- `DropdownMenu` (content + sub-content)
+- `Popover` (content)
+- `Command` (wrapper + input)
 
 ## Creating New Primitives
 

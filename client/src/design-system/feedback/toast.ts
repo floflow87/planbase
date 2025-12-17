@@ -48,7 +48,7 @@ export function toastError(options: ToastOptions) {
 }
 
 /**
- * Show an info toast (Default/Neutral)
+ * Show an info toast (BLUE)
  * Use for informational messages, updates, neutral notifications
  * 
  * @example
@@ -56,7 +56,7 @@ export function toastError(options: ToastOptions) {
  */
 export function toastInfo(options: ToastOptions) {
   return baseToast({
-    variant: "default",
+    variant: "info",
     title: options.title,
     description: options.description,
     duration: options.duration,
@@ -64,16 +64,15 @@ export function toastInfo(options: ToastOptions) {
 }
 
 /**
- * Show a warning toast
+ * Show a warning toast (YELLOW)
  * Use for warnings, cautions, important notices
- * Falls back to default styling (shadcn doesn't have warning variant by default)
  * 
  * @example
  * toastWarning({ title: "Warning", description: "This action cannot be undone." });
  */
 export function toastWarning(options: ToastOptions) {
   return baseToast({
-    variant: "default",
+    variant: "warning",
     title: options.title,
     description: options.description,
     duration: options.duration,

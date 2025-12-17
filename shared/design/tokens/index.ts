@@ -34,3 +34,13 @@ export type { ShadowKey, SemanticShadowKey } from "./shadows";
 // Component Tokens
 export { badgeTokens, getBadgeBaseClasses } from "./components";
 export type { BadgeSize } from "./components";
+
+// Surface Tokens (V1.3)
+export {
+  surfaceTokens,
+  getSurfaceClasses,
+  inputSurfaceTokens,
+  popoverSurfaceTokens,
+  getSelectSurfaceClasses,
+} from "./surfaces";
+export type { SurfaceKey } from "./surfaces";

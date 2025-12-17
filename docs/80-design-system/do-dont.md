@@ -137,18 +137,113 @@ toastError({ title: "Error!" });
 <button onClick={save} data-testid="button-save">Save</button>
 ```
 
-## shadcn Alignment Note (V1.2)
+## Surfaces & Dropdowns (V1.3)
 
-We extended the shadcn Badge component to support our intent system. This approach:
+### Do: Use White Backgrounds for Dropdowns
+
+All select/dropdown components should have white backgrounds by default.
+
+```tsx
+// DO: Use the default surface (already white in V1.3)
+<Select>
+  <SelectTrigger>Pick option</SelectTrigger>
+  <SelectContent>
+    <SelectItem value="1">Option 1</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+### Don't: Override Dropdown Backgrounds
+
+```tsx
+// DON'T: Override with custom backgrounds
+<SelectContent className="bg-gray-100">...</SelectContent>
+
+// DON'T: Use bg-popover (deprecated for dropdowns)
+<SelectTrigger className="bg-popover">...</SelectTrigger>
+```
+
+## Button Intent (V1.3)
+
+### Do: Use Button with Intent for Semantic Actions
+
+```tsx
+// DO: Use intent for semantic meaning
+<Button intent="success">Save</Button>
+<Button intent="danger" tone="outline">Delete</Button>
+<Button intent="warning">Proceed with Caution</Button>
+```
+
+### Don't: Hardcode Button Colors
+
+```tsx
+// DON'T: Hardcode colors
+<Button className="bg-green-500 text-white">Save</Button>
+
+// DO: Use intent
+<Button intent="success">Save</Button>
+```
+
+## Alert Intent (V1.3)
+
+### Do: Use Alert with Intent
+
+```tsx
+// DO: Use intent for semantic alerts
+<Alert intent="success">Operation completed</Alert>
+<Alert intent="warning">Please review before proceeding</Alert>
+<Alert intent="danger">This action is irreversible</Alert>
+```
+
+### Don't: Hardcode Alert Colors
+
+```tsx
+// DON'T: Hardcode colors
+<Alert className="bg-green-100 border-green-200">Success!</Alert>
+
+// DO: Use intent
+<Alert intent="success">Success!</Alert>
+```
+
+## Toast Variants (V1.3)
+
+### Do: Use Toast Helpers
+
+```tsx
+// DO: Use typed toast helpers (all colors are automatic)
+import { toastSuccess, toastError, toastWarning, toastInfo } from "@/design-system/feedback";
+
+toastSuccess({ title: "Saved!" });           // Green
+toastError({ title: "Failed to save" });     // Red
+toastWarning({ title: "Please review" });    // Yellow
+toastInfo({ title: "Processing..." });       // Blue
+```
+
+### Don't: Use Direct variant Calls
+
+```tsx
+// DON'T: Use variant directly (less discoverable)
+toast({ variant: "success", title: "Saved!" });
+
+// DO: Use helper functions
+toastSuccess({ title: "Saved!" });
+```
+
+## shadcn Alignment Note (V1.2 → V1.3)
+
+We extended shadcn components (Badge, Button, Alert, Toast) to support our intent system. This approach:
 
 1. **Preserves shadcn patterns** - Legacy variants (default, secondary, destructive, outline) still work
 2. **Adds intent support** - New `intent` and `tone` props for semantic styling
-3. **Uses centralized tokens** - Structural classes come from `shared/design/tokens/components.ts`
+3. **Uses centralized tokens** - Structural classes come from `shared/design/tokens/`
 4. **Consumes semantics layer** - Intent colors from `shared/design/semantics/intents.ts`
+5. **White surfaces (V1.3)** - All dropdowns use white backgrounds in light mode
 
 When to use what:
 - `<Badge intent="...">` - For semantic meaning (success/warning/danger/etc.)
-- `<Badge variant="...">` - For non-semantic styling (secondary, outline)
+- `<Button intent="...">` - For semantic actions (save=success, delete=danger)
+- `<Alert intent="...">` - For semantic messages
+- `<Badge variant="...">` / `<Button variant="...">` - For non-semantic styling
 - `<ProjectStageBadge>` etc. - For business entities with automatic label/intent mapping
 
 ## Migration Tips

@@ -22,6 +22,10 @@ const ToastViewport = React.forwardRef<
 ))
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
+/**
+ * Toast variants - Design System V1.3
+ * Aligned with semantic intents for consistency
+ */
 const toastVariants = cva(
   "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
   {
@@ -32,6 +36,10 @@ const toastVariants = cva(
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success:
           "success group border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-300",
+        warning:
+          "warning group border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+        info:
+          "info group border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300",
       },
     },
     defaultVariants: {
@@ -77,7 +85,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2 top-2 z-10 rounded-md p-1 text-foreground/50 opacity-100 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600 group-[.success]:text-green-600 group-[.success]:hover:text-green-800 group-[.success]:focus:ring-green-400 group-[.success]:focus:ring-offset-green-50 dark:group-[.success]:text-green-400 dark:group-[.success]:hover:text-green-200 dark:group-[.success]:focus:ring-green-600 dark:group-[.success]:focus:ring-offset-green-950",
+      "absolute right-2 top-2 z-10 rounded-md p-1 text-foreground/50 opacity-100 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600 group-[.success]:text-green-600 group-[.success]:hover:text-green-800 group-[.success]:focus:ring-green-400 group-[.success]:focus:ring-offset-green-50 dark:group-[.success]:text-green-400 dark:group-[.success]:hover:text-green-200 dark:group-[.success]:focus:ring-green-600 dark:group-[.success]:focus:ring-offset-green-950 group-[.warning]:text-yellow-600 group-[.warning]:hover:text-yellow-800 group-[.warning]:focus:ring-yellow-400 group-[.warning]:focus:ring-offset-yellow-50 dark:group-[.warning]:text-yellow-400 dark:group-[.warning]:hover:text-yellow-200 dark:group-[.warning]:focus:ring-yellow-600 dark:group-[.warning]:focus:ring-offset-yellow-950 group-[.info]:text-blue-600 group-[.info]:hover:text-blue-800 group-[.info]:focus:ring-blue-400 group-[.info]:focus:ring-offset-blue-50 dark:group-[.info]:text-blue-400 dark:group-[.info]:hover:text-blue-200 dark:group-[.info]:focus:ring-blue-600 dark:group-[.info]:focus:ring-offset-blue-950",
       className
     )}
     toast-close=""
