@@ -226,12 +226,12 @@ export default function Product() {
         </div>
 
         {/* Actions bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2" data-testid="container-view-toggle">
+        <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
             <Button 
               variant={viewMode === "grid" ? "secondary" : "ghost"} 
               size="icon" 
-              className="border"
+              className="rounded-r-none"
               onClick={() => setViewMode("grid")}
               data-testid="button-view-grid"
             >
@@ -240,7 +240,7 @@ export default function Product() {
             <Button 
               variant={viewMode === "list" ? "secondary" : "ghost"} 
               size="icon" 
-              className="border"
+              className="rounded-l-none"
               onClick={() => setViewMode("list")}
               data-testid="button-view-list"
             >

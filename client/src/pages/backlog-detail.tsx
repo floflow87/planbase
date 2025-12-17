@@ -1150,10 +1150,6 @@ export default function BacklogDetail() {
                 data-testid="input-ticket-search"
               />
             </div>
-            <Button size="sm" variant="outline" onClick={() => setShowEpicDialog(true)} data-testid="button-add-epic">
-              <Plus className="h-4 w-4 mr-1" />
-              Epic
-            </Button>
             <Button size="sm" variant="outline" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
               <Plus className="h-4 w-4 mr-1" />
               User Story

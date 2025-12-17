@@ -338,6 +338,51 @@ export function TicketDetailPanel({
           )}
         </div>
         
+        {/* Epic selector - directly under title for US and Task */}
+        {ticket.type !== "epic" && epics.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Epic
+            </Label>
+            <Select
+              value={ticket.epicId || "none"}
+              onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
+                epicId: value === "none" ? null : value 
+              })}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={cn("flex-1 h-8 bg-white", readOnly && "opacity-60")} data-testid="select-epic-top">
+                <SelectValue>
+                  {parentEpic ? (
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="h-2 w-2 rounded-full" 
+                        style={{ backgroundColor: parentEpic.color || "#8B5CF6" }}
+                      />
+                      {parentEpic.title}
+                    </div>
+                  ) : "Aucun"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-white">
+                <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
+                {epics.map(epic => (
+                  <SelectItem key={epic.id} value={epic.id} className="text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="h-2 w-2 rounded-full" 
+                        style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                      />
+                      {epic.title}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
         {/* Description - moved under title */}
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground">Description</Label>
@@ -550,42 +595,6 @@ export function TicketDetailPanel({
               </SelectContent>
             </Select>
           </div>
-          
-          {ticket.type === "user_story" && (
-            <div className="flex items-center justify-between">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                Epic
-              </Label>
-              <Select
-                value={ticket.epicId || "none"}
-                onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
-                  epicId: value === "none" ? null : value 
-                })}
-                disabled={readOnly}
-              >
-                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-epic">
-                  <SelectValue>
-                    {parentEpic?.title || "Aucun"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-white">
-                  <SelectItem value="none" className="text-gray-900">Aucun</SelectItem>
-                  {epics.map(epic => (
-                    <SelectItem key={epic.id} value={epic.id} className="text-gray-900">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="h-2 w-2 rounded-full" 
-                          style={{ backgroundColor: epic.color || "#8B5CF6" }}
-                        />
-                        {epic.title}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           
           {/* Read-only notice */}
           {readOnly && (
