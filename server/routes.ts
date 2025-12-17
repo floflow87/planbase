@@ -70,6 +70,7 @@ import {
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
 import { getDemoCredentials } from "./middleware/demo-helper";
+import { configService } from "./services/configService";
 import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
@@ -128,6 +129,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message });
     }
   });
+  // ============================================
+  // CONFIG REGISTRY
+  // ============================================
+
+  /**
+   * Get resolved configuration for the current user/account
+   * Merges defaults with DB-stored overrides following scope hierarchy
+   */
+  app.get("/api/config", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId;
+      const userId = req.userId;
+      const projectId = req.query.projectId as string | undefined;
+
+      const config = await configService.resolveConfig(accountId, userId, projectId);
+      
+      res.json({
+        effective: config.effective,
+        meta: config.meta,
+      });
+    } catch (error: any) {
+      console.error("Error fetching config:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * Update a specific configuration setting (admin only)
+   */
+  app.put("/api/config/:key", requireAuth, requireRole("owner"), async (req, res) => {
+    try {
+      const { key } = req.params;
+      const { value, scope = "ACCOUNT", scopeId } = req.body;
+      const accountId = req.accountId;
+      const userId = req.userId;
+
+      if (!value) {
+        return res.status(400).json({ error: "Value is required" });
+      }
+
+      const resolvedScopeId = scopeId || (scope === "ACCOUNT" ? accountId : scope === "USER" ? userId : null);
+
+      await configService.updateSetting(
+        key as any,
+        value,
+        scope,
+        resolvedScopeId,
+        userId
+      );
+
+      const updatedConfig = await configService.resolveConfig(accountId, userId);
+      
+      res.json({
+        success: true,
+        effective: updatedConfig.effective,
+      });
+    } catch (error: any) {
+      console.error("Error updating config:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // ACCOUNTS
   // ============================================

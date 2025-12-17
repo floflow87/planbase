@@ -1250,6 +1250,44 @@ export type Retro = typeof retros.$inferSelect;
 export type RetroCard = typeof retroCards.$inferSelect;
 export type TicketComment = typeof ticketComments.$inferSelect;
 
+// ============================================
+// CONFIG REGISTRY (DB-first settings)
+// ============================================
+
+/**
+ * Settings table for DB-first configurable parameters
+ * Scope hierarchy: SYSTEM -> ACCOUNT -> USER -> PROJECT
+ * Lower scopes override higher scopes
+ */
+export const settings = pgTable("settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scope: text("scope").notNull(), // SYSTEM | ACCOUNT | USER | PROJECT
+  scopeId: uuid("scope_id"), // null for SYSTEM, account_id/user_id/project_id for others
+  key: text("key").notNull(), // e.g., "project.stages", "reports.thresholds"
+  value: jsonb("value").notNull(), // The configuration value as JSONB
+  version: integer("version").notNull().default(1),
+  source: text("source").notNull().default("default"), // "default" | "customized"
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by"), // Reference to user who last updated
+}, (table) => ({
+  scopeKeyIdx: index("settings_scope_key_idx").on(table.scope, table.scopeId, table.key),
+  keyIdx: index("settings_key_idx").on(table.key),
+}));
+
+export const insertSettingsSchema = createInsertSchema(settings).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  version: true 
+});
+export type InsertSettings = z.infer<typeof insertSettingsSchema>;
+export type Settings = typeof settings.$inferSelect;
+
+// ============================================
+// CONFIGURATION OPTIONS (exported for UI)
+// ============================================
+
 // Mindmap Kind Options
 export const mindmapKindOptions = [
   { value: "generic", label: "Mindmap libre", icon: "Brain" },

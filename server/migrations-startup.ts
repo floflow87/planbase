@@ -741,6 +741,29 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Activities description and occurred_at columns added");
     
+    // Create settings table for Config Registry
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS settings (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        scope text NOT NULL,
+        scope_id uuid,
+        key text NOT NULL,
+        value jsonb NOT NULL,
+        version integer NOT NULL DEFAULT 1,
+        source text NOT NULL DEFAULT 'default',
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_by uuid
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS settings_scope_key_idx ON settings(scope, scope_id, key);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS settings_key_idx ON settings(key);
+    `);
+    console.log("✅ Settings table created for Config Registry");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

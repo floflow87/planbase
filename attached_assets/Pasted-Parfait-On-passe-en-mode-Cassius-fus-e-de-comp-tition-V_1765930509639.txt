@@ -1,0 +1,250 @@
+Parfait. On passe en mode Cassius / fusée de compétition 🚀
+Voici le prompt Replit V3, réécrit proprement, scalable, DB-first, en intégrant :
+	•	✅ Enums métier configurables en BDD (JSONB) quand c’est pertinent
+	•	✅ Fallback code pour la robustesse
+	•	✅ Zéro hardcode côté front & schema
+	•	✅ ESLint + Prettier comme garde-fous officiels
+	•	✅ Docs restructurées niveau plateforme sérieuse
+
+👉 Tu peux copier-coller ce prompt tel quel dans Replit.
+
+⸻
+
+🎯 PROMPT REPLIT V3 — PLANBASE “CONFIG REGISTRY + DOCS CLEAN”
+
+Tu es l’agent Replit chargé de faire évoluer PlanBase vers une architecture scalable et configurable, sans casser l’existant.
+
+Objectifs globaux
+	1.	Mettre en place un Config Registry DB-first (JSONB) pour les paramètres métier configurables.
+	2.	Garder une ossature code stable (fallback defaults) pour la sécurité et le typage.
+	3.	Supprimer toute duplication d’enums métier dans le code (front & schema).
+	4.	Installer ESLint + Prettier pour verrouiller la qualité.
+	5.	Réorganiser toute la documentation dans une arborescence docs/ claire et professionnelle.
+
+⸻
+
+1) Architecture cible (vision)
+
+1.1 Principe clé
+
+👉 Tout ce qui peut changer sans redeploy doit être en DB.
+👉 Tout ce qui structure le système reste en code.
+
+En DB (configurable)
+	•	project stages / pipeline stages
+	•	kanban columns / workflows
+	•	catégories & tags de temps
+	•	seuils de reporting & recommandations
+	•	labels / couleurs / ordre
+
+En code (stable)
+	•	rôles & permissions
+	•	modes (KANBAN / SCRUM)
+	•	types techniques critiques
+	•	fallback par défaut (shared/config)
+
+⸻
+
+2) Config Registry — Backend (DB-first)
+
+2.1 Créer la table settings
+
+Ajouter une table settings (Supabase / Drizzle) :
+
+settings (
+  id uuid primary key,
+  scope text not null,           -- SYSTEM | ACCOUNT | USER | PROJECT
+  scope_id uuid,                 -- nullable pour SYSTEM
+  key text not null,             -- ex: project.stages, reports.thresholds
+  value jsonb not null,
+  version int default 1,
+  updated_at timestamptz,
+  updated_by uuid
+)
+
+Index :
+	•	(scope, scope_id, key)
+
+2.2 Service backend de résolution de config
+
+Créer un service configService :
+	•	charge les defaults depuis shared/config
+	•	surcharge avec :
+	•	ACCOUNT
+	•	puis USER
+	•	retourne une config effective et typée
+
+Créer l’endpoint :
+
+GET /api/config
+
+Optionnel :
+
+PUT /api/config/:key
+
+(protégé, admin only)
+
+⸻
+
+3) shared/config — fallback code & typing
+
+Conserver et compléter :
+
+shared/config/
+  projectStages.ts
+  taskStatuses.ts
+  taskPriorities.ts
+  billingStatuses.ts
+  timeCategories.ts
+  thresholds.ts
+  index.ts
+
+Chaque config :
+	•	contient les defaults
+	•	exporte les key stables
+	•	sert de fallback si la DB est vide
+
+⚠️ Ces fichiers ne contiennent aucune logique UI (juste data + helpers).
+
+⸻
+
+4) Schema : validation alignée DB + fallback
+
+4.1 shared/schema.ts
+	•	Supprimer TOUT enum métier en dur
+	•	Importer les key depuis shared/config
+	•	Valider :
+	•	soit contre les keys DB chargées (si runtime)
+	•	soit contre les defaults (fallback)
+
+Le schema valide les clés, jamais les labels/couleurs.
+
+⸻
+
+5) Frontend : consommation via Config API
+
+5.1 Hook useConfig()
+
+Créer :
+
+client/src/hooks/useConfig.ts
+
+	•	fetch /api/config
+	•	expose :
+	•	projectStages
+	•	taskPriorities
+	•	thresholds
+	•	etc.
+
+5.2 Interdictions
+	•	❌ plus de const stages = [...]
+	•	❌ plus de <SelectItem value="..."> métier en dur
+	•	❌ plus de switch(status) basé sur string
+
+Tout passe par useConfig().
+
+⸻
+
+6) ESLint + Prettier (non négociable)
+
+6.1 Installer
+	•	eslint
+	•	eslint-config-standard / airbnb (choisir 1)
+	•	eslint-plugin-react
+	•	eslint-plugin-import
+	•	eslint-plugin-unused-imports
+	•	prettier
+	•	eslint-config-prettier
+
+6.2 Règles clés
+	•	pas de tableaux d’options métier inline
+	•	pas de z.enum([...]) en dur
+	•	pas de switch sur string métier
+
+6.3 Script anti-hardcode
+
+Ajouter :
+
+npm run check:hardcode
+
+Script qui grep :
+	•	const (stages|statuses|priorities) = [
+	•	<SelectItem value=
+	•	z.enum([
+
+Supporter // hardcode-ok comme exception.
+
+⸻
+
+7) Rework Docs — Arborescence propre
+
+Créer :
+
+docs/
+  README.md
+  00-getting-started/
+  10-architecture/
+  20-database/
+  30-security/
+  40-operations/
+  50-product/
+  60-changelog/
+  70-technical-debt/
+
+7.1 Migration
+
+Déplacer tous les .md existants depuis la racine vers docs/
+Mettre à jour tous les liens relatifs.
+
+7.2 Standard doc
+
+Chaque doc doit contenir :
+	•	But
+	•	Audience
+	•	Prérequis
+	•	Dernière mise à jour
+	•	Liens associés
+
+7.3 README racine
+	•	garder intro courte
+	•	pointer vers docs/README.md
+
+⸻
+
+8) Ordre d’exécution STRICT
+	1.	Table settings + service backend
+	2.	shared/config (fallback complet)
+	3.	schema.ts aligné
+	4.	front → useConfig()
+	5.	ESLint + scripts garde-fous
+	6.	Rework docs
+	7.	Build & lint final
+
+⸻
+
+9) Critères de réussite
+	•	Aucun enum métier configurable n’est hardcodé
+	•	Une config peut changer sans redeploy
+	•	Le front ne connaît que des configs chargées
+	•	Les docs sont navigables, indexées, propres
+	•	ESLint empêche toute régression
+
+⸻
+
+Vision finale
+
+PlanBase doit pouvoir :
+	•	ajouter une étape projet
+	•	changer un seuil
+	•	adapter un workflow
+
+👉 sans toucher au code
+👉 sans casser le typage
+👉 sans redeployer
+
+C’est ce niveau d’exigence que j’attends.
+
+⸻
+
+Si tu veux, prochaine étape :
+➡️ Prompt V4 : UI admin “Settings avancés” + audit trail + historique des configs.
