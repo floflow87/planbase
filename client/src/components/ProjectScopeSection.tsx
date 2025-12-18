@@ -21,8 +21,20 @@ import {
   Clock,
   DollarSign,
   Target,
-  Lightbulb
+  Lightbulb,
+  FileDown,
+  Copy,
+  Check
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DndContext,
   closestCenter,
@@ -206,6 +218,12 @@ interface ScopeRecommendation {
   title: string;
   why: string;
   action: string;
+  type: 'action' | 'learning';
+  impact?: {
+    amount: number;
+    unit: 'par jour' | 'par projet' | 'total';
+    direction: 'gain' | 'perte';
+  };
 }
 
 export function ProjectScopeSection({ 
@@ -221,6 +239,8 @@ export function ProjectScopeSection({
   const { toast } = useToast();
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemDays, setNewItemDays] = useState("");
+  const [showCdcDraft, setShowCdcDraft] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -342,6 +362,120 @@ export function ProjectScopeSection({
   const safeCost = isNaN(totals.estimatedCost) ? 0 : totals.estimatedCost;
   const safePrice = isNaN(totals.recommendedPrice) ? 0 : totals.recommendedPrice;
 
+  // Génération du CDC brouillon
+  const generateCdcDraft = (): string => {
+    if (!scopeData?.scopeItems || scopeData.scopeItems.length === 0) {
+      return "Aucune rubrique définie. Ajoutez des rubriques obligatoires pour générer un brouillon.";
+    }
+
+    const mandatoryItems = scopeData.scopeItems.filter(item => item.isOptional !== 1);
+    const optionalItems = scopeData.scopeItems.filter(item => item.isOptional === 1);
+
+    if (mandatoryItems.length === 0) {
+      return "Aucune rubrique obligatoire définie. Ajoutez au moins une rubrique non-optionnelle pour générer un brouillon de CDC.";
+    }
+
+    const today = new Date().toLocaleDateString('fr-FR', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    let draft = `CAHIER DES CHARGES - BROUILLON
+═══════════════════════════════════════════════════════════════
+
+⚠️ DOCUMENT À VALIDER
+Ce document est un brouillon généré automatiquement.
+Il doit être relu, complété et validé avant envoi au client.
+
+Date de génération : ${today}
+
+═══════════════════════════════════════════════════════════════
+1. PÉRIMÈTRE DU PROJET
+═══════════════════════════════════════════════════════════════
+
+`;
+
+    if (mandatoryItems.length > 0) {
+      draft += `1.1 Livrables obligatoires
+───────────────────────────────────────────────────────────────
+
+`;
+      mandatoryItems.forEach((item, index) => {
+        const days = parseFloat(item.estimatedDays?.toString() || "0");
+        draft += `${index + 1}. ${item.label}
+   Temps estimé : ${days} jour${days > 1 ? 's' : ''}
+`;
+        if (item.description) {
+          draft += `   Description : ${item.description}
+`;
+        }
+        draft += `
+`;
+      });
+    }
+
+    if (optionalItems.length > 0) {
+      draft += `1.2 Livrables optionnels
+───────────────────────────────────────────────────────────────
+
+`;
+      optionalItems.forEach((item, index) => {
+        const days = parseFloat(item.estimatedDays?.toString() || "0");
+        draft += `${index + 1}. ${item.label} (optionnel)
+   Temps estimé : ${days} jour${days > 1 ? 's' : ''}
+`;
+        if (item.description) {
+          draft += `   Description : ${item.description}
+`;
+        }
+        draft += `
+`;
+      });
+    }
+
+    draft += `═══════════════════════════════════════════════════════════════
+2. ESTIMATION PRÉVISIONNELLE
+═══════════════════════════════════════════════════════════════
+
+Temps total obligatoire : ${totals.mandatoryDays} jour${totals.mandatoryDays > 1 ? 's' : ''}
+`;
+
+    if (totals.optionalDays > 0) {
+      draft += `Temps optionnel : ${totals.optionalDays} jour${totals.optionalDays > 1 ? 's' : ''}
+`;
+    }
+
+    if (hasValidConfig) {
+      draft += `
+Prix recommandé : ${safePrice.toFixed(0)} € HT
+(Base : TJM de ${dailyRate} €/jour)
+`;
+    }
+
+    draft += `
+═══════════════════════════════════════════════════════════════
+3. CONDITIONS
+═══════════════════════════════════════════════════════════════
+
+[À compléter : modalités de paiement, délais, garanties...]
+
+═══════════════════════════════════════════════════════════════
+FIN DU DOCUMENT - BROUILLON À VALIDER
+═══════════════════════════════════════════════════════════════
+`;
+
+    return draft;
+  };
+
+  const handleCopyDraft = () => {
+    const draft = generateCdcDraft();
+    navigator.clipboard.writeText(draft);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({ title: "Brouillon copié", description: "Le texte a été copié dans le presse-papiers", variant: "success" });
+  };
+
   if (!hasValidConfig && totals.mandatoryDays > 0) {
     alerts.push({
       type: 'warning',
@@ -350,6 +484,11 @@ export function ProjectScopeSection({
       icon: AlertTriangle,
     });
   }
+
+  // Calculs pour impacts financiers contextualisés
+  const marginGap = targetMarginPercent > 0 ? (targetMarginPercent - safeMarginPercent) : 0;
+  const priceGapWithBudget = budget > 0 ? safePrice - budget : 0;
+  const dailyMarginLoss = hasValidConfig && internalDailyCost > 0 ? dailyRate - internalDailyCost : 0;
 
   if (hasValidConfig && safeMargin < 0) {
     alerts.push({
@@ -360,15 +499,29 @@ export function ProjectScopeSection({
     });
     recommendations.push({
       title: "Augmenter le prix",
-      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
-      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
+      why: "La marge actuelle est négative. Le prix ne couvre pas les coûts de production estimés.",
+      action: `Augmentez le prix d'au moins ${Math.abs(safeMargin).toFixed(0)} € pour atteindre l'équilibre sur ce projet.`,
+      type: isProjectCompleted ? 'learning' : 'action',
+      impact: {
+        amount: Math.abs(safeMargin),
+        unit: 'par projet',
+        direction: 'perte',
+      },
     });
     recommendations.push({
       title: "Rendre certaines rubriques optionnelles",
-      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
-      action: "Réduisez ou rendez optionnelles certaines rubriques pour diminuer le coût estimé.",
+      why: `Le périmètre actuel (${totals.mandatoryDays} jours) génère un coût de ${safeCost.toFixed(0)} € supérieur au prix prévu.`,
+      action: `Réduisez d'environ ${Math.ceil(Math.abs(safeMargin) / internalDailyCost)} jour(s) le périmètre obligatoire pour atteindre l'équilibre.`,
+      type: isProjectCompleted ? 'learning' : 'action',
+      impact: {
+        amount: Math.abs(safeMargin),
+        unit: 'par projet',
+        direction: 'perte',
+      },
     });
   } else if (hasValidConfig && targetMarginPercent > 0 && safeMarginPercent < targetMarginPercent) {
+    const targetMarginAmount = safeCost * (targetMarginPercent / 100);
+    const missingMargin = targetMarginAmount - safeMargin;
     alerts.push({
       type: 'warning',
       title: '🟠 Marge insuffisante',
@@ -377,12 +530,20 @@ export function ProjectScopeSection({
     });
     recommendations.push({
       title: "Augmenter le prix",
-      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
-      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
+      why: `La marge actuelle (${safeMarginPercent.toFixed(1)}%) est inférieure à votre objectif (${targetMarginPercent}%).`,
+      action: `Augmentez le prix d'environ ${missingMargin.toFixed(0)} € pour atteindre votre objectif de marge.`,
+      type: isProjectCompleted ? 'learning' : 'action',
+      impact: missingMargin > 0 ? {
+        amount: missingMargin,
+        unit: 'par projet',
+        direction: 'perte',
+      } : undefined,
     });
   }
 
   if (hasValidConfig && dailyRate < internalDailyCost * 1.2) {
+    const dailyGap = internalDailyCost * 1.2 - dailyRate;
+    const totalGap = dailyGap * totals.mandatoryDays;
     alerts.push({
       type: 'warning',
       title: '⚠️ TJM implicite faible',
@@ -391,8 +552,14 @@ export function ProjectScopeSection({
     });
     recommendations.push({
       title: "Revoir le TJM",
-      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
-      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
+      why: `Le TJM actuel (${dailyRate} €/j) ne couvre pas suffisamment votre coût interne (${internalDailyCost} €/j + 20% de marge cible).`,
+      action: `Négociez un TJM supérieur ou réduisez le nombre de jours pour limiter la perte estimée sur ce projet.`,
+      type: isProjectCompleted ? 'learning' : 'action',
+      impact: {
+        amount: totalGap,
+        unit: 'total',
+        direction: 'perte',
+      },
     });
   }
 
@@ -405,8 +572,14 @@ export function ProjectScopeSection({
     });
     recommendations.push({
       title: "Renégocier le projet",
-      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
-      action: "Renégociez le périmètre ou le budget avec le client avant validation.",
+      why: `Le prix recommandé (${safePrice.toFixed(0)} €) dépasse le budget client (${budget.toFixed(0)} €) de ${priceGapWithBudget.toFixed(0)} €.`,
+      action: "Discutez avec le client pour augmenter le budget ou réduire le périmètre avant signature.",
+      type: isProjectCompleted ? 'learning' : 'action',
+      impact: {
+        amount: priceGapWithBudget,
+        unit: 'par projet',
+        direction: 'perte',
+      },
     });
   }
 
@@ -436,9 +609,53 @@ export function ProjectScopeSection({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-violet-600" />
-            Cahier des Charges - Chiffrage
+          <CardTitle className="flex items-center justify-between gap-2 text-lg flex-wrap">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-violet-600" />
+              Cahier des Charges - Chiffrage
+            </div>
+            {scopeData?.scopeItems && scopeData.scopeItems.filter(item => item.isOptional !== 1).length > 0 && (
+              <Dialog open={showCdcDraft} onOpenChange={setShowCdcDraft}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-generate-cdc-draft">
+                    <FileDown className="h-4 w-4 mr-1" />
+                    Générer brouillon
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-violet-600" />
+                      Brouillon de Cahier des Charges
+                    </DialogTitle>
+                    <DialogDescription>
+                      Document généré automatiquement. À valider et compléter avant envoi.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-sm">
+                    <span>⚠️</span>
+                    <p className="text-amber-700 dark:text-amber-300">
+                      Ce brouillon doit être relu, adapté et validé selon votre contexte avant toute diffusion.
+                    </p>
+                  </div>
+                  <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+                    <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                      {generateCdcDraft()}
+                    </pre>
+                  </ScrollArea>
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCopyDraft}
+                      data-testid="button-copy-cdc-draft"
+                    >
+                      {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+                      {copied ? 'Copié !' : 'Copier le texte'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -618,10 +835,30 @@ export function ProjectScopeSection({
                     <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 text-xs font-bold shrink-0">
                       {index + 1}
                     </div>
-                    <div className="space-y-1">
-                      <p className="font-medium text-sm">{rec.title}</p>
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm">{rec.title}</p>
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${rec.type === 'action' ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-700' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700'}`}
+                        >
+                          {rec.type === 'action' ? '⚡ Action immédiate' : '📚 Apprentissage'}
+                        </Badge>
+                      </div>
                       <p className="text-xs text-muted-foreground"><strong>Pourquoi :</strong> {rec.why}</p>
                       <p className="text-sm text-foreground"><strong>Action :</strong> {rec.action}</p>
+                      {rec.impact && rec.impact.amount > 0 && (
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium mt-1 ${
+                          rec.impact.direction === 'gain' 
+                            ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' 
+                            : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                        }`}>
+                          {rec.impact.direction === 'gain' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          <span>
+                            {rec.impact.direction === 'gain' ? '+' : '-'}{rec.impact.amount.toFixed(0)} € {rec.impact.unit}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
