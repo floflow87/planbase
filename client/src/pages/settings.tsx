@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info, Receipt, Building2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
@@ -300,6 +300,160 @@ function TJMEditor({
   );
 }
 
+function SIRETEditor({
+  onRefetch,
+}: {
+  onRefetch: () => void;
+}) {
+  const { toast } = useToast();
+  const [siretValue, setSiretValue] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const { data: siretSetting, isLoading } = useQuery<{ value: string }>({
+    queryKey: ["/api/settings/billing.siret"],
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (siretSetting?.value !== undefined && !hasChanges) {
+      setSiretValue(siretSetting.value);
+    }
+  }, [siretSetting, hasChanges]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (value: string) => {
+      return apiRequest(`/api/settings/billing.siret`, "PUT", { value });
+    },
+    onSuccess: () => {
+      toast({
+        title: "SIRET mis à jour",
+        description: "Votre numéro SIRET a été enregistré.",
+      });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/billing.siret"] });
+      onRefetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour le SIRET",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Filter to only allow digits
+    const value = e.target.value.replace(/\D/g, '').slice(0, 14);
+    setSiretValue(value);
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (siretValue.length === 14 || siretValue.length === 0) {
+      saveMutation.mutate(siretValue);
+    }
+  };
+
+  const handleReset = () => {
+    setSiretValue(siretSetting?.value || "");
+    setHasChanges(false);
+  };
+
+  const isValid = siretValue.length === 14 || siretValue.length === 0;
+
+  // Format SIRET for display (XXX XXX XXX XXXXX)
+  const formatSiret = (siret: string) => {
+    if (!siret) return "";
+    return siret.replace(/(\d{3})(\d{3})(\d{3})(\d{5})/, "$1 $2 $3 $4");
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-md bg-blue-100 dark:bg-blue-900/30">
+              <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                SIRET
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Votre numéro SIRET (14 chiffres) est utilisé pour vos documents de facturation.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                Numéro d'identification de votre entreprise (14 chiffres)
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {hasChanges && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReset}
+                data-testid="button-reset-siret"
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Annuler
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasChanges || !isValid || saveMutation.isPending}
+              data-testid="button-save-siret"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-3 h-3 mr-1" />
+              )}
+              Enregistrer
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <div className="space-y-2 flex-1 max-w-xs">
+            <Label htmlFor="siretNumber" className="text-sm">Numéro SIRET</Label>
+            <Input
+              id="siretNumber"
+              type="text"
+              value={siretValue}
+              onChange={handleChange}
+              placeholder={isLoading ? "Chargement..." : "Ex: 12345678901234"}
+              className="max-w-[200px] font-mono"
+              data-testid="input-siret"
+            />
+          </div>
+          {siretSetting?.value && (
+            <Badge variant="secondary" className="mt-6 font-mono" data-testid="badge-siret-current">
+              {formatSiret(siretSetting.value)}
+            </Badge>
+          )}
+        </div>
+        {!isValid && siretValue && (
+          <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Le SIRET doit contenir exactement 14 chiffres
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ThresholdEditor({
   thresholds,
   onSave,
@@ -470,10 +624,14 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="account" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="account" data-testid="tab-account">
               <SettingsIcon className="w-4 h-4 mr-2" />
               Compte
+            </TabsTrigger>
+            <TabsTrigger value="billing" data-testid="tab-billing">
+              <Receipt className="w-4 h-4 mr-2" />
+              Facturation
             </TabsTrigger>
             <TabsTrigger value="config" data-testid="tab-config">
               <Palette className="w-4 h-4 mr-2" />
@@ -525,6 +683,35 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="billing">
+            {!isOwner ? (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center text-muted-foreground">
+                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">Seuls les propriétaires du compte peuvent modifier les paramètres de facturation.</p>
+                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">Paramètres de facturation</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Configurez vos informations de facturation et votre tarification
+                    </p>
+                  </div>
+                </div>
+
+                <TJMEditor onRefetch={refetchConfig} />
+
+                <SIRETEditor onRefetch={refetchConfig} />
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="config">
             {!isOwner ? (
               <Card>
@@ -549,8 +736,6 @@ export default function Settings() {
                     Portée: ACCOUNT
                   </Badge>
                 </div>
-
-                <TJMEditor onRefetch={refetchConfig} />
 
                 <ThresholdEditor
                   thresholds={config?.thresholds as ThresholdConfig}
