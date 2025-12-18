@@ -29,7 +29,10 @@ import {
   Shield,
   StopCircle,
   PauseCircle,
-  Search
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
@@ -262,45 +265,53 @@ const getPriorityLabel = (score: number): { emoji: string; label: PriorityLabel;
   return { emoji: 'ℹ️', label: 'Information', timing: 'Pour info' };
 };
 
+// Score color gradient: red (0-30), orange (31-60), yellow (61-80), green (81-100)
+const getScoreColor = (score: number): { bg: string; text: string; border: string; iconBg: string } => {
+  if (score <= 30) return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', iconBg: 'bg-red-500' };
+  if (score <= 60) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', iconBg: 'bg-orange-500' };
+  if (score <= 80) return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', iconBg: 'bg-yellow-500' };
+  return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', iconBg: 'bg-green-500' };
+};
+
 const generatePriorityAction = (rec: Recommendation): string => {
-  // Generate a short, actionable phrase based on the recommendation
+  // Generate a short, imperative phrase with clear unit and horizon
   if (rec.impactValue) {
     const amount = Math.abs(rec.impactValue);
     const isLoss = rec.impactValue < 0;
     
     if (rec.category === 'pricing') {
       return isLoss 
-        ? `Limiter une perte de ${formatCurrency(amount)} sur le prix.`
-        : `Récupérer ${formatCurrency(amount)} en ajustant le prix.`;
+        ? `Ajuster le prix pour limiter ${formatCurrency(amount)} de perte sur ce projet`
+        : `Ajuster le prix pour récupérer ${formatCurrency(amount)} sur ce projet`;
     }
     if (rec.category === 'time') {
       return isLoss 
-        ? `Éviter une perte de ${formatCurrency(amount)} par projet sur le temps.`
-        : `Économiser ${formatCurrency(amount)} par projet en optimisant le temps.`;
+        ? `Réduire le temps passé pour éviter ${formatCurrency(amount)} de surcoût par jour`
+        : `Optimiser le temps pour économiser ${formatCurrency(amount)} par jour`;
     }
     if (rec.category === 'payment') {
       return isLoss 
-        ? `Risque de ${formatCurrency(amount)} non encaissé.`
-        : `Sécuriser ${formatCurrency(amount)} en encaissement.`;
+        ? `Relancer le client pour encaisser ${formatCurrency(amount)} en attente`
+        : `Encaisser ${formatCurrency(amount)} restant sur ce projet`;
     }
     if (rec.category === 'model') {
       return isLoss 
-        ? `Corriger un modèle qui coûte ${formatCurrency(amount)} par projet.`
-        : `Optimiser le modèle pour gagner ${formatCurrency(amount)} par projet.`;
+        ? `Revoir le modèle économique : ${formatCurrency(amount)} de perte par projet`
+        : `Optimiser le modèle : ${formatCurrency(amount)} de gain par projet`;
     }
     if (rec.category === 'strategic') {
       return isLoss 
-        ? `Impact stratégique : risque de ${formatCurrency(amount)}.`
-        : `Opportunité stratégique : ${formatCurrency(amount)} potentiel.`;
+        ? `Réévaluer ce projet : ${formatCurrency(amount)} à risque`
+        : `Capitaliser sur ce projet : ${formatCurrency(amount)} de valeur future`;
     }
   }
-  // Fallback based on decision type with context
+  // Fallback based on decision type with imperative phrases
   const decisionPhrases: Record<DecisionType, string> = {
-    optimize: 'Optimiser la rentabilité de ce projet maintenant.',
-    accelerate: 'Accélérer les encaissements en priorité.',
-    slowdown: 'Revoir le rythme de travail sur ce projet.',
-    stop: 'Évaluer l\'arrêt ou la renégociation urgente.',
-    protect: 'Protéger les marges acquises sur ce projet.',
+    optimize: 'Optimiser la rentabilité de ce projet',
+    accelerate: 'Accélérer les encaissements',
+    slowdown: 'Réduire le temps passé sur ce projet',
+    stop: 'Stopper ou renégocier ce projet',
+    protect: 'Sécuriser les marges acquises',
   };
   return decisionPhrases[rec.decisionType] || rec.action;
 };
@@ -523,21 +534,53 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 
         {recommendations.length > 0 && (
           <div className="pt-2 border-t">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-yellow-500" />
-              <span className="text-xs font-medium text-gray-600">
-                {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {recommendations.slice(0, 2).map((rec) => (
-                <div 
-                  key={rec.id} 
-                  className={`p-2 rounded-lg border text-xs ${getPriorityColor(rec.priority)}`}
-                >
-                  <p className="text-gray-700 dark:text-gray-300 font-medium">{generatePriorityAction(rec)}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 mb-2 cursor-help">
+                  <Lightbulb className="w-4 h-4 text-yellow-500" />
+                  <span className="text-xs font-medium text-gray-600">
+                    {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
+                  </span>
                 </div>
-              ))}
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm p-3 bg-white dark:bg-gray-900 border shadow-lg">
+                <p className="text-sm font-medium mb-2">
+                  Ce projet est {metrics.marginPercent >= 0 ? 'rentable' : 'déficitaire'} avec {formatNumber(Math.abs(metrics.marginPercent))}% de marge
+                </p>
+                <div className="space-y-2 text-xs">
+                  {recommendations.map((rec) => {
+                    const scoreColor = getScoreColor(rec.priorityScore);
+                    const priorityInfo = getPriorityLabel(rec.priorityScore);
+                    return (
+                      <div key={rec.id} className="flex items-start gap-2">
+                        <Badge className={`text-[10px] px-1.5 py-0.5 shrink-0 ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
+                          {priorityInfo.timing}
+                        </Badge>
+                        <span className="text-gray-700 dark:text-gray-300">{generatePriorityAction(rec)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            <div className="space-y-2">
+              {recommendations.slice(0, 2).map((rec) => {
+                const scoreColor = getScoreColor(rec.priorityScore);
+                const priorityInfo = getPriorityLabel(rec.priorityScore);
+                return (
+                  <div 
+                    key={rec.id} 
+                    className={`p-2 rounded-lg text-xs ${scoreColor.bg} border ${scoreColor.border}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-bold ${scoreColor.text}`}>
+                        {priorityInfo.emoji} {priorityInfo.timing} • {rec.priorityScore}
+                      </span>
+                    </div>
+                    <p className={`font-medium ${scoreColor.text}`}>{generatePriorityAction(rec)}</p>
+                  </div>
+                );
+              })}
               {recommendations.length > 2 && (
                 <p className="text-xs text-gray-400">+{recommendations.length - 2} autres</p>
               )}
@@ -559,167 +602,99 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 }
 
 function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
-  const scoreLevel = getScoreLevel(recommendation.priorityScore);
-  const levelInfo = getScoreLevelInfo(scoreLevel);
   const priorityInfo = getPriorityLabel(recommendation.priorityScore);
   const priorityAction = generatePriorityAction(recommendation);
-  
-  // Priority badge colors based on level - 5 distinct visual treatments
-  const priorityBadgeColors: Record<PriorityLabel, { badge: string; bg: string; border: string; text: string }> = {
-    'Critique': { 
-      badge: 'bg-red-100 text-red-700 border-red-300', 
-      bg: 'bg-red-50', 
-      border: 'border-red-400',
-      text: 'text-red-700'
-    },
-    'À traiter': { 
-      badge: 'bg-orange-100 text-orange-700 border-orange-300', 
-      bg: 'bg-orange-50', 
-      border: 'border-orange-400',
-      text: 'text-orange-700'
-    },
-    'À planifier': { 
-      badge: 'bg-amber-100 text-amber-700 border-amber-300', 
-      bg: 'bg-amber-50', 
-      border: 'border-amber-400',
-      text: 'text-amber-700'
-    },
-    'Suggestion': { 
-      badge: 'bg-cyan-100 text-cyan-700 border-cyan-300', 
-      bg: 'bg-cyan-50', 
-      border: 'border-cyan-400',
-      text: 'text-cyan-700'
-    },
-    'Information': { 
-      badge: 'bg-blue-100 text-blue-700 border-blue-300', 
-      bg: 'bg-blue-50', 
-      border: 'border-blue-400',
-      text: 'text-blue-700'
-    },
-  };
-  
-  const currentStyle = priorityBadgeColors[priorityInfo.label];
+  const scoreColor = getScoreColor(recommendation.priorityScore);
   
   return (
-    <Card className={`border-l-4 ${currentStyle.border} ${currentStyle.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
+    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Ligne 1: Badges priorité + timing (lecture en 2s) */}
+          {/* Ligne 1: Temporalité + score (même couleur) */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={`text-xs font-medium border ${currentStyle.badge}`}>
-              {priorityInfo.emoji} {priorityInfo.label}
-            </Badge>
-            <Badge variant="outline" className="text-xs bg-muted/50">
-              🕐 {priorityInfo.timing}
-            </Badge>
-            {recommendation.decisionType && recommendation.decisionLabel && 
-              getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
+            <span className={`text-sm font-bold ${scoreColor.text}`}>
+              {priorityInfo.emoji} {priorityInfo.timing} • {recommendation.priorityScore}
+            </span>
+            {recommendation.feasibility && recommendation.feasibilityLabel && 
+              <span className="ml-auto">
+                {getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)}
+              </span>
             }
-            <div className="ml-auto">
-              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
-            </div>
           </div>
           
-          {/* Ligne 2: Phrase de décision prioritaire (en gras, visible immédiatement) */}
-          <p className={`font-semibold text-sm ${currentStyle.text}`}>
+          {/* Ligne 2: Phrase décisionnelle en premier (la plus visible) */}
+          <p className={`font-bold text-base ${scoreColor.text}`}>
             {priorityAction}
           </p>
           
-          {/* Ligne 3: Pourquoi (contexte rapide) */}
-          <div className="bg-white/80 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Pourquoi</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{recommendation.issue}</p>
-          </div>
+          {/* Ligne 3: Contexte (secondaire, plus discret) */}
+          <p className="text-sm text-gray-500">{recommendation.issue}</p>
           
-          {/* Ligne 4: Action recommandée */}
-          <div>
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandée</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{recommendation.action}</p>
-          </div>
-          
-          {/* Ligne 5: Impact financier avec unité explicite + Faisabilité */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t flex-wrap">
-            <div className="flex items-center gap-2">
-              {recommendation.impactValue && recommendation.impactValue > 0 ? (
-                <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>+{formatCurrency(recommendation.impactValue)} (potentiel)</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <Target className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
-                </div>
-              )}
+          {/* Ligne 4: Impact avec unité claire */}
+          {recommendation.impactValue && (
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+              recommendation.impactValue > 0 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+            }`}>
+              {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              <span>{recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
             </div>
-            {recommendation.feasibility && recommendation.feasibilityLabel && 
-              getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)
-            }
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// Top Priority Card - Shows the #1 priority action (3 levels: critical, important, suggestion)
+// Top Priority Card - Shows the #1 priority action with unified color from score
 function TopPriorityCard({ recommendation, projectName }: { recommendation: Recommendation; projectName: string }) {
-  const level = getScoreLevel(recommendation.priorityScore);
-  
-  // Dynamic styling based on priority level - aligned with grouping sections
-  const cardStyles: Record<ScoreLevel, string> = {
-    critical: 'border-red-400 bg-gradient-to-r from-red-50 to-orange-50',
-    important: 'border-orange-400 bg-gradient-to-r from-orange-50 to-yellow-50',
-    suggestion: 'border-gray-300 bg-gradient-to-r from-gray-50 to-slate-50'
-  };
-  
-  const iconStyles: Record<ScoreLevel, string> = {
-    critical: 'bg-red-100 text-red-600',
-    important: 'bg-orange-100 text-orange-600',
-    suggestion: 'bg-gray-100 text-gray-500'
-  };
-  
-  const badgeStyles: Record<ScoreLevel, string> = {
-    critical: 'bg-red-600 text-white',
-    important: 'bg-orange-500 text-white',
-    suggestion: 'bg-gray-500 text-white'
-  };
-  
-  const levelLabels: Record<ScoreLevel, string> = {
-    critical: 'Action critique',
-    important: 'Action importante',
-    suggestion: 'Suggestion'
-  };
+  const priorityInfo = getPriorityLabel(recommendation.priorityScore);
+  const priorityAction = generatePriorityAction(recommendation);
+  const scoreColor = getScoreColor(recommendation.priorityScore);
   
   return (
-    <Card className={`border-2 ${cardStyles[level]}`} data-testid="card-top-priority">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-lg shrink-0 ${iconStyles[level]}`}>
-            {level === 'critical' ? <AlertTriangle className="w-6 h-6" /> : 
-             level === 'important' ? <Clock className="w-6 h-6" /> :
-             <Lightbulb className="w-6 h-6" />}
+    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg} shadow-lg overflow-hidden`} data-testid="card-top-priority">
+      <CardContent className="p-0">
+        <div className="flex">
+          {/* Left: Icon indicator with same color */}
+          <div className={`p-4 flex items-center justify-center ${scoreColor.iconBg}`}>
+            {recommendation.priorityScore <= 30 ? <AlertTriangle className="w-8 h-8 text-white" /> : 
+             recommendation.priorityScore <= 60 ? <Clock className="w-8 h-8 text-white" /> :
+             <Lightbulb className="w-8 h-8 text-white" />}
           </div>
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Badge className={`text-xs font-bold ${badgeStyles[level]}`}>
-                  {levelLabels[level]}
-                </Badge>
-                {recommendation.decisionType && recommendation.decisionLabel && 
-                  getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
-                }
+          
+          {/* Right: Content */}
+          <div className="flex-1 p-4 space-y-3">
+            {/* Ligne 1: Temporalité + score (même couleur) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-sm font-bold ${scoreColor.text}`}>
+                {priorityInfo.emoji} {priorityInfo.timing} • {recommendation.priorityScore}
+              </span>
+              <Link href={`/projects/${recommendation.projectId}`} className="ml-auto text-sm font-medium text-violet-600 hover:underline">
+                {projectName}
+              </Link>
+            </div>
+            
+            {/* Ligne 2: Phrase impérative principale (la plus visible) */}
+            <p className={`text-lg font-bold ${scoreColor.text}`}>
+              {priorityAction}
+            </p>
+            
+            {/* Ligne 3: Contexte (secondaire) */}
+            <p className="text-sm text-gray-500">{recommendation.issue}</p>
+            
+            {/* Ligne 4: Impact avec unité claire */}
+            {recommendation.impactValue && (
+              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                recommendation.impactValue > 0 
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                <span>{recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
               </div>
-              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-gray-900">{projectName}</p>
-              <p className="text-sm text-gray-600 mt-1">{recommendation.issue}</p>
-            </div>
-            <div className="flex items-center gap-2 pt-2">
-              <Target className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">{recommendation.impact}</span>
-            </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -786,6 +761,7 @@ function EmptyState() {
 export default function Finance() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [activeTab, setActiveTab] = useState('overview');
   const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
 
@@ -849,15 +825,20 @@ export default function Finance() {
 
   const { aggregate, projects } = summary;
 
-  const filteredProjects = projects.filter(p => {
-    // Filter by search query
-    if (searchQuery && !p.projectName.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    // Filter by status
-    if (selectedFilter === 'all') return true;
-    return p.metrics.status === selectedFilter;
-  });
+  const filteredProjects = projects
+    .filter(p => {
+      // Filter by search query
+      if (searchQuery && !p.projectName.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      // Filter by status
+      if (selectedFilter === 'all') return true;
+      return p.metrics.status === selectedFilter;
+    })
+    .sort((a, b) => sortOrder === 'desc' 
+      ? b.metrics.marginPercent - a.metrics.marginPercent 
+      : a.metrics.marginPercent - b.metrics.marginPercent
+    );
 
   const allRecommendations = projects
     .flatMap(p => p.recommendations.map(r => ({ ...r, projectName: p.projectName, projectId: p.projectId })))
@@ -1078,6 +1059,16 @@ export default function Finance() {
                 <SelectItem value="deficit">Déficitaires</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+              className="gap-2"
+              data-testid="button-sort-margin"
+            >
+              {sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+              Marge {sortOrder === 'desc' ? '↓' : '↑'}
+            </Button>
             <p className="text-sm text-gray-500 ml-auto">
               {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
             </p>
