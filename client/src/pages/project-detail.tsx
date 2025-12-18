@@ -2373,6 +2373,7 @@ export default function ProjectDetail() {
                 internalDailyCost={parseFloat(project?.internalDailyCost?.toString() || "0")}
                 targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
                 budget={parseFloat(project?.budget?.toString() || "0")}
+                projectStage={project?.stage || 'prospection'}
               />
             </div>
 

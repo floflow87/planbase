@@ -48,7 +48,16 @@ interface ProjectScopeSectionProps {
   internalDailyCost: number;
   targetMarginPercent: number;
   budget: number;
+  projectStage?: string;
 }
+
+const stageBadges: Record<string, { emoji: string; label: string }> = {
+  prospection: { emoji: '🔵', label: 'Prospection' },
+  en_cours: { emoji: '🟣', label: 'En cours' },
+  termine: { emoji: '🟢', label: 'Terminé' },
+  en_attente: { emoji: '🟡', label: 'En attente' },
+  archive: { emoji: '⚫', label: 'Archivé' },
+};
 
 interface ScopeItemRowProps {
   item: ProjectScopeItem;
@@ -204,8 +213,11 @@ export function ProjectScopeSection({
   dailyRate, 
   internalDailyCost, 
   targetMarginPercent,
-  budget
+  budget,
+  projectStage = 'prospection'
 }: ProjectScopeSectionProps) {
+  const currentStageBadge = stageBadges[projectStage] || stageBadges.prospection;
+  const isProjectCompleted = projectStage === 'termine' || projectStage === 'archive';
   const { toast } = useToast();
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemDays, setNewItemDays] = useState("");
@@ -580,12 +592,25 @@ export function ProjectScopeSection({
       {recommendations.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-4 w-4 text-amber-500" />
-              Recommandations pré-vente
+            <CardTitle className="flex items-center justify-between gap-2 text-base flex-wrap">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-500" />
+                Recommandations {isProjectCompleted ? '' : 'pré-vente'}
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {currentStageBadge.emoji} {currentStageBadge.label}
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {isProjectCompleted && (
+              <div className="flex items-start gap-2 p-2 mb-3 rounded-lg bg-muted/50 border border-muted text-sm">
+                <span>📚</span>
+                <p className="text-muted-foreground">
+                  Apprentissage pour les prochains projets. Ces recommandations ne sont pas actionnables immédiatement.
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
               {recommendations.map((rec, index) => (
                 <div key={index} className="p-3 rounded-lg bg-muted/50 border border-muted">
