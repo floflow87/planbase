@@ -610,11 +610,12 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
     <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Ligne 1: Temporalité + score (même couleur) */}
+          {/* Ligne 1: Temporalité + score avec tooltip de décomposition */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-sm font-bold ${scoreColor.text}`}>
-              {priorityInfo.emoji} {priorityInfo.timing} • {recommendation.priorityScore}
+              {priorityInfo.emoji} {priorityInfo.timing}
             </span>
+            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
             {recommendation.feasibility && recommendation.feasibilityLabel && 
               <span className="ml-auto">
                 {getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)}
@@ -666,11 +667,12 @@ function TopPriorityCard({ recommendation, projectName }: { recommendation: Reco
           
           {/* Right: Content */}
           <div className="flex-1 p-4 space-y-3">
-            {/* Ligne 1: Temporalité + score (même couleur) */}
+            {/* Ligne 1: Temporalité + score avec tooltip de décomposition */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-sm font-bold ${scoreColor.text}`}>
-                {priorityInfo.emoji} {priorityInfo.timing} • {recommendation.priorityScore}
+                {priorityInfo.emoji} {priorityInfo.timing}
               </span>
+              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
               <Link href={`/projects/${recommendation.projectId}`} className="ml-auto text-sm font-medium text-violet-600 hover:underline">
                 {projectName}
               </Link>

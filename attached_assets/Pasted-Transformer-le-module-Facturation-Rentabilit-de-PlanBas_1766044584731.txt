@@ -1,0 +1,198 @@
+Transformer le module Facturation & Rentabilité de PlanBase en outil d’aide à la décision clair, actionnable et non ambigu, capable de répondre explicitement à ces questions :
+
+👉 Qu’est-ce que j’ai perdu ou gagné ?
+
+👉 Pourquoi ?
+
+👉 Qu’est-ce que je peux encore faire maintenant ?
+
+👉 Qu’est-ce que je dois faire en priorité ?
+
+Aucune recommandation ne doit laisser place à l’interprétation.
+
+1️⃣ Clarifier définitivement les gains / pertes affichés
+Règle absolue
+
+👉 Un montant (€) doit TOUJOURS être accompagné :
+
+de sa condition
+
+de sa période
+
+d’une action concrète possible maintenant
+
+Format obligatoire pour toute recommandation
+Bloc “Constat passé”
+
+💰 Impact constaté : +80 €
+(si le TJM cible avait été appliqué sur les jours déjà réalisés)
+
+➡️ Ce bloc explique le pourquoi, même si l’action est passée.
+
+Bloc “Ce que cela implique aujourd’hui”
+
+⛔ Cette opportunité est passée pour ce projet
+
+OU
+
+🔁 Ce levier reste exploitable sur :
+
+les jours restants
+
+les projets similaires
+
+les prochains projets
+
+Bloc “Action concrète maintenant”
+
+👉 Action recommandée :
+
+Augmenter le TJM à 800 € pour les prochains projets
+
+OU renégocier le périmètre restant
+
+OU réduire le temps estimé restant de X jours
+
+➡️ Aucune reco ne doit s’arrêter à “ce qui aurait dû être fait”.
+
+2️⃣ Supprimer définitivement les labels flous
+❌ À bannir
+
+Quand possible
+
+Pour info
+
+✅ Nouveau système de labels décisionnels
+Label	Signification
+🚨 À traiter maintenant	Impact direct sur trésorerie ou perte immédiate
+⚠️ À traiter rapidement	Risque financier si laissé en l’état
+📅 À optimiser prochainement	Opportunité de gain futur
+💡 Levier identifié	Insight exploitable
+✅ Situation saine	Aucune action requise
+
+➡️ Ces labels doivent être visibles dans l’Action prioritaire, les cartes, et les tooltips.
+
+3️⃣ Réécriture explicite des phrases clés (EXEMPLE)
+❌ Avant
+
++80 € sur ce projet
+
+✅ Après
+
+💰 Impact constaté : +80 €
+(si le TJM cible avait été appliqué sur les jours déjà réalisés)
+
+👉 Action possible maintenant :
+Appliquer ce TJM sur les prochains projets similaires
+ou renégocier le périmètre restant
+
+4️⃣ Action prioritaire : logique business stricte
+Exclure les projets internes
+
+Ajouter une propriété projet :
+
+project.businessType = "client" | "internal" | "prospect"
+
+
+Règles :
+
+❌ Les projets internal :
+
+exclus de l’Action prioritaire
+
+exclus du ranking global
+
+✅ Toujours visibles dans les vues détaillées
+
+Affichage UI :
+
+🔕 Projet interne — non pris en compte dans la priorisation business
+
+5️⃣ Mécanique “Passer à l’action suivante”
+
+Sur la carte Action prioritaire, ajouter :
+
+✅ Marquer comme traitée
+
+⏭ Ignorer pour l’instant
+
+Effets
+
+L’action est soit :
+
+resolved
+
+snoozed (7 / 14 / 30 jours)
+
+L’UI affiche automatiquement la prochaine action la plus prioritaire
+
+Historique conservé (audit & confiance)
+
+6️⃣ Rendre le score compréhensible sans effort
+Affichage minimal sur chaque carte
+Priorité : 40 / 100
+Impact : Moyen
+Urgence : Faible
+Faisabilité : Élevée
+
+Hover (décomposition)
+
+Impact financier
+
+Urgence temporelle
+
+Priorité stratégique du projet
+
+Capacité de redressement
+
+Faisabilité
+
+➡️ L’utilisateur doit sentir la priorité sans lire.
+
+7️⃣ Ajouter une lecture “maintenant / ensuite / plus tard” (V1.5)
+
+Ajouter un mode “Aujourd’hui” :
+
+🎯 Voici les 3 décisions qui auront le plus d’impact cette semaine
+
+Ajouter un toggle d’intention :
+
+💰 Argent
+
+⏱ Temps
+
+⚠️ Risque
+
+➡️ La priorisation s’adapte au mindset du moment.
+
+8️⃣ Vision V2 (préparer le terrain)
+
+Prévoir l’architecture pour :
+
+Historique des décisions prises
+
+Impact cumulé :
+
+Grâce à ces décisions, vous avez gagné +X € ce mois-ci
+
+Lien avec :
+
+Cahier des charges
+
+Chiffrage
+
+TJM global (paramètres → projet → override)
+
+Résultat attendu
+
+À la fin de ce rework :
+
+Plus aucune ambiguïté sur les chiffres
+
+Chaque recommandation répond à :
+
+Qu’est-ce que je fais maintenant ?
+
+Le module devient un assistant financier, pas un dashboard passif
+
+PlanBase dépasse Cassius en qualité décisionnelle
