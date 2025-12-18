@@ -1,0 +1,138 @@
+Objectif
+Clarifier définitivement la lecture financière et opérationnelle de chaque projet, quel que soit le mode de facturation (TJM, forfait ou hybride), afin de rendre la marge compréhensible, explicable et actionnable.
+
+1️⃣ Principe fondamental (non négociable)
+
+Chaque projet doit être lisible selon deux axes complémentaires :
+
+Axe 1 — Flux financier (macro) : ce que le projet rapporte réellement
+
+Axe 2 — Performance opérationnelle (micro) : à quel rythme il rapporte et s’il est sain
+
+👉 Aucun axe ne remplace l’autre.
+👉 Les deux doivent toujours coexister.
+
+2️⃣ Structure UI obligatoire d’une card projet
+🔹 Bloc 1 — Flux financier (toujours affiché)
+
+Afficher systématiquement :
+
+Facturé     XXX €
+Encaissé    XXX €
+
+
+Règles :
+
+Indépendant du mode de facturation (TJM ou forfait)
+
+Source de vérité business & cash
+
+Sert de socle à toute analyse globale (dashboard, recommandations, score)
+
+🔹 Bloc 2 — Performance opérationnelle (toujours affiché)
+
+Afficher systématiquement :
+
+Valeur / jour facturée     XXX €
+Coût journalier cible      XXX €
+Jours passés               X,X j
+Marge                      XXX € (XX,X %)
+
+
+Règles :
+
+Valeur / jour facturée
+
+Calculée a posteriori : facturé / jours passés
+
+Fonctionne aussi bien pour un forfait que pour un TJM
+
+Coût journalier cible
+
+Seuil interne de rentabilité
+
+Sert de référence pour le calcul de marge et les recommandations
+
+Marge
+
+Toujours dérivée de la différence entre valeur/jour et coût cible
+
+Exprimée en € et en %
+
+3️⃣ Wording officiel (à figer)
+
+❌ Interdits :
+
+“TJM réel”
+
+“TJM facturé”
+
+“TJM historique”
+
+✅ Remplacés définitivement par :
+
+Valeur / jour facturée
+
+Coût journalier cible
+
+👉 Ces termes couvrent tous les cas sans ambiguïté.
+
+4️⃣ Règles de cohérence métier
+
+La marge ne doit jamais être calculée sur un TJM “théorique” non visible
+
+Tout chiffre de marge doit être traçable visuellement
+
+Un projet rentable doit toujours apparaître comme tel, indépendamment :
+
+de l’absence de recommandations
+
+de la non-activation de certains leviers
+
+5️⃣ Impacts sur les recommandations
+
+Toute recommandation doit désormais expliciter :
+
+Constat passé
+
+“Si le coût journalier cible avait été respecté sur les jours déjà réalisés…”
+
+Implication actuelle (réalité)
+
+“Ce levier n’est plus applicable sur ce projet.”
+
+Action concrète (ce qu’on fait maintenant)
+
+“Appliquer le coût journalier cible sur les prochains projets”
+“Renégocier un avenant”
+“Accélérer la clôture / facturation”
+
+👉 Aucune recommandation ne doit laisser planer un doute entre :
+
+gain théorique passé
+
+action future possible
+
+6️⃣ Score & lecture globale
+
+Le score de santé d’un projet doit prioriser la réalité financière
+
+Un projet rentable (> objectif de marge) ne peut pas avoir un score faible
+
+Les critères non applicables ne doivent ni pénaliser, ni surévaluer
+
+La performance journalière doit avoir un poids central dans le score
+
+7️⃣ Résultat attendu
+
+À la lecture d’une card projet, l’utilisateur doit pouvoir répondre en 3 secondes à :
+
+Combien ce projet a rapporté ?
+
+Est-ce qu’il est sain ?
+
+À quel rythme il rapporte ?
+
+Est-ce que je dois agir maintenant, plus tard, ou rien faire ?
+
+Si une de ces réponses n’est pas évidente → c’est un bug produit.
