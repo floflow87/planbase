@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1089,6 +1089,19 @@ export default function ProjectDetail() {
   }
   const { data: paymentsData } = useQuery<PaymentsResponse>({
     queryKey: ['/api/projects', id, 'payments'],
+    enabled: !!id,
+  });
+
+  // Fetch effective TJM (project override ?? global default)
+  interface EffectiveTJMResponse {
+    effectiveTJM: number | null;
+    source: 'project' | 'global' | null;
+    projectTJM: number | null;
+    globalTJM: number | null;
+    hasTJM: boolean;
+  }
+  const { data: effectiveTJMData } = useQuery<EffectiveTJMResponse>({
+    queryKey: ['/api/projects', id, 'effective-tjm'],
     enabled: !!id,
   });
 
@@ -2240,11 +2253,34 @@ export default function ProjectDetail() {
                 {project?.billingType === "time" && (
                   <>
                     <div>
-                      <Label htmlFor="billing-rate">Taux de facturation</Label>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="billing-rate" className="mb-0">TJM projet</Label>
+                        {effectiveTJMData?.source === 'global' && !billingRateValue && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 cursor-help">
+                                <Info className="h-3 w-3 mr-1" />
+                                Global: {effectiveTJMData.globalTJM} €
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="text-xs">
+                                Ce projet utilise le TJM global défini dans les paramètres de votre compte. 
+                                Définissez un TJM projet ici pour le personnaliser.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {effectiveTJMData?.source === 'project' && (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                            Personnalisé
+                          </Badge>
+                        )}
+                      </div>
                       <Input
                         id="billing-rate"
                         type="number"
-                        placeholder="150"
+                        placeholder={effectiveTJMData?.globalTJM ? `${effectiveTJMData.globalTJM} (global)` : "450"}
                         value={billingRateValue}
                         onChange={(e) => setBillingRateValue(e.target.value)}
                         onBlur={async () => {
@@ -2261,6 +2297,7 @@ export default function ProjectDetail() {
                                 billingRate: trimmedValue === "" ? null : trimmedValue,
                               });
                               queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'effective-tjm'] });
                               queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
                             } catch (error: any) {
                               toast({
@@ -2276,7 +2313,9 @@ export default function ProjectDetail() {
                         data-testid="input-billing-rate"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Taux horaire ou journalier en euros
+                        {!billingRateValue && effectiveTJMData?.globalTJM 
+                          ? "Laissez vide pour utiliser le TJM global"
+                          : "TJM spécifique à ce projet (override le global)"}
                       </p>
                     </div>
 
@@ -2419,11 +2458,12 @@ export default function ProjectDetail() {
             <div className="mt-4">
               <ProjectScopeSection
                 projectId={id!}
-                dailyRate={parseFloat(project?.dailyRate?.toString() || "0")}
+                dailyRate={effectiveTJMData?.effectiveTJM || 0}
                 internalDailyCost={parseFloat(project?.internalDailyCost?.toString() || "0")}
                 targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
                 budget={parseFloat(project?.budget?.toString() || "0")}
                 projectStage={project?.stage || 'prospection'}
+                tjmSource={effectiveTJMData?.source}
               />
             </div>
 

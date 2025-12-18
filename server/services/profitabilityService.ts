@@ -197,7 +197,8 @@ function getProjectStatus(marginPercent: number): { status: ProfitabilityMetrics
 export function calculateMetrics(
   project: Project,
   timeEntries: TimeEntry[],
-  payments: ProjectPayment[]
+  payments: ProjectPayment[],
+  globalTJM?: number // TJM global from account settings
 ): ProfitabilityMetrics {
   // Time metrics
   const actualDaysWorked = calculateActualDays(timeEntries);
@@ -215,7 +216,9 @@ export function calculateMetrics(
   const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
   
   // TJM metrics - Based on actual revenue received
-  const targetTJM = parseFloat(project.billingRate?.toString() || '0');
+  // Effective TJM: project billingRate ?? global TJM from account settings
+  const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
+  const targetTJM = projectTJM ?? globalTJM ?? 0;
   const actualTJM = actualDaysWorked > 0 ? totalPaid / actualDaysWorked : 0;
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
   const tjmGapPercent = targetTJM > 0 ? (tjmGap / targetTJM) * 100 : 0;
@@ -1181,9 +1184,10 @@ export function generateRecommendations(
 export function generateProfitabilityAnalysis(
   project: Project,
   timeEntries: TimeEntry[],
-  payments: ProjectPayment[]
+  payments: ProjectPayment[],
+  globalTJM?: number // TJM global from account settings
 ): ProfitabilityAnalysis {
-  const metrics = calculateMetrics(project, timeEntries, payments);
+  const metrics = calculateMetrics(project, timeEntries, payments, globalTJM);
   const recommendations = generateRecommendations(
     metrics, 
     project.stage || undefined,

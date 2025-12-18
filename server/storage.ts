@@ -35,11 +35,12 @@ import {
   type MindmapNode, type InsertMindmapNode,
   type MindmapEdge, type InsertMindmapEdge,
   type EntityLink, type InsertEntityLink,
+  type Settings, type InsertSettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
-  mindmaps, mindmapNodes, mindmapEdges, entityLinks,
+  mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, isNull, inArray, gte, lte, asc } from "drizzle-orm";
@@ -315,6 +316,12 @@ export interface IStorage {
   getEntityLinksByAccountId(accountId: string): Promise<EntityLink[]>;
   createEntityLink(link: InsertEntityLink): Promise<EntityLink>;
   deleteEntityLink(accountId: string, id: string): Promise<boolean>;
+
+  // Settings
+  getSetting(scope: string, scopeId: string | null, key: string): Promise<Settings | undefined>;
+  getSettingsByScope(scope: string, scopeId: string | null): Promise<Settings[]>;
+  upsertSetting(setting: InsertSettings): Promise<Settings>;
+  deleteSetting(scope: string, scopeId: string | null, key: string): Promise<boolean>;
 }
 
 // Supabase PostgreSQL implementation using Drizzle ORM
@@ -1864,6 +1871,61 @@ export class DatabaseStorage implements IStorage {
       .delete(entityLinks)
       .where(and(eq(entityLinks.id, id), eq(entityLinks.accountId, accountId)))
       .returning();
+    return result.length > 0;
+  }
+
+  // Settings
+  async getSetting(scope: string, scopeId: string | null, key: string): Promise<Settings | undefined> {
+    const conditions = scopeId 
+      ? and(eq(settings.scope, scope), eq(settings.scopeId, scopeId), eq(settings.key, key))
+      : and(eq(settings.scope, scope), isNull(settings.scopeId), eq(settings.key, key));
+    
+    const [setting] = await db.select().from(settings).where(conditions);
+    return setting || undefined;
+  }
+
+  async getSettingsByScope(scope: string, scopeId: string | null): Promise<Settings[]> {
+    const conditions = scopeId 
+      ? and(eq(settings.scope, scope), eq(settings.scopeId, scopeId))
+      : and(eq(settings.scope, scope), isNull(settings.scopeId));
+    
+    return await db.select().from(settings).where(conditions);
+  }
+
+  async upsertSetting(setting: InsertSettings): Promise<Settings> {
+    const existing = await this.getSetting(setting.scope, setting.scopeId || null, setting.key);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(settings)
+        .set({ 
+          value: setting.value, 
+          version: existing.version + 1,
+          source: setting.source || 'customized',
+          updatedAt: new Date(),
+          updatedBy: setting.updatedBy
+        })
+        .where(eq(settings.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(settings)
+        .values({
+          ...setting,
+          source: setting.source || 'customized'
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async deleteSetting(scope: string, scopeId: string | null, key: string): Promise<boolean> {
+    const conditions = scopeId 
+      ? and(eq(settings.scope, scope), eq(settings.scopeId, scopeId), eq(settings.key, key))
+      : and(eq(settings.scope, scope), isNull(settings.scopeId), eq(settings.key, key));
+    
+    const result = await db.delete(settings).where(conditions).returning();
     return result.length > 0;
   }
 }

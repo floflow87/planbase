@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Account {
   id: string;
@@ -138,6 +139,160 @@ function ConfigEditor({
           <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
             JSON invalide
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface TJMSetting {
+  value: number;
+}
+
+function TJMEditor({
+  onRefetch,
+}: {
+  onRefetch: () => void;
+}) {
+  const { toast } = useToast();
+  const [tjmValue, setTjmValue] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const { data: tjmSetting, isLoading } = useQuery<{ value: number }>({
+    queryKey: ["/api/settings/billing.defaultTJM"],
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (tjmSetting?.value !== undefined && !hasChanges) {
+      setTjmValue(String(tjmSetting.value));
+    }
+  }, [tjmSetting, hasChanges]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (value: number) => {
+      return apiRequest(`/api/settings/billing.defaultTJM`, "PUT", { value });
+    },
+    onSuccess: () => {
+      toast({
+        title: "TJM mis à jour",
+        description: "Le taux journalier par défaut a été enregistré.",
+      });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/billing.defaultTJM"] });
+      onRefetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour le TJM",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTjmValue(e.target.value);
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    const value = parseFloat(tjmValue);
+    if (!isNaN(value) && value > 0) {
+      saveMutation.mutate(value);
+    }
+  };
+
+  const handleReset = () => {
+    setTjmValue(tjmSetting?.value ? String(tjmSetting.value) : "");
+    setHasChanges(false);
+  };
+
+  const isValid = !isNaN(parseFloat(tjmValue)) && parseFloat(tjmValue) > 0;
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-md bg-green-100 dark:bg-green-900/30">
+              <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                TJM par défaut
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Ce taux journalier sera utilisé par défaut pour tous les projets.
+                      Vous pouvez définir un TJM spécifique sur chaque projet pour l'overrider.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                Taux journalier moyen utilisé pour le chiffrage et les calculs de rentabilité
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {hasChanges && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReset}
+                data-testid="button-reset-tjm"
+              >
+                <RotateCcw className="w-3 h-3 mr-1" />
+                Annuler
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasChanges || !isValid || saveMutation.isPending}
+              data-testid="button-save-tjm"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-3 h-3 mr-1" />
+              )}
+              Enregistrer
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <div className="space-y-2 flex-1 max-w-xs">
+            <Label htmlFor="tjmDefault" className="text-sm">Montant (€/jour)</Label>
+            <Input
+              id="tjmDefault"
+              type="number"
+              min="0"
+              step="10"
+              value={tjmValue}
+              onChange={handleChange}
+              placeholder={isLoading ? "Chargement..." : "Ex: 500"}
+              className="max-w-[200px]"
+              data-testid="input-tjm-default"
+            />
+          </div>
+          {tjmSetting?.value && (
+            <Badge variant="secondary" className="mt-6">
+              Actuel: {tjmSetting.value}€/jour
+            </Badge>
+          )}
+        </div>
+        {!isValid && tjmValue && (
+          <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Le TJM doit être un nombre positif
           </p>
         )}
       </CardContent>
@@ -394,6 +549,8 @@ export default function Settings() {
                     Portée: ACCOUNT
                   </Badge>
                 </div>
+
+                <TJMEditor onRefetch={refetchConfig} />
 
                 <ThresholdEditor
                   thresholds={config?.thresholds as ThresholdConfig}

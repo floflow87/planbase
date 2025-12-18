@@ -1454,9 +1454,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get payments for the project
       const payments = await storage.getPaymentsByProjectId(req.params.projectId);
 
+      // Get global TJM from account settings
+      const globalTJMSetting = await storage.getSetting('ACCOUNT', req.accountId!, 'billing.defaultTJM');
+      const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : undefined;
+
       // Import and use profitability service
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
-      const analysis = generateProfitabilityAnalysis(project, timeEntries, payments);
+      const analysis = generateProfitabilityAnalysis(project, timeEntries, payments, globalTJM);
 
       res.json(analysis);
     } catch (error: any) {
@@ -1470,6 +1474,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const projects = await storage.getProjectsByAccountId(req.accountId!);
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
+      
+      // Get global TJM from account settings
+      const globalTJMSetting = await storage.getSetting('ACCOUNT', req.accountId!, 'billing.defaultTJM');
+      const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : undefined;
       
       // Séparer les projets par type: client (facturable) vs interne (non facturable)
       const clientProjects = projects.filter(p => p.businessType !== 'internal');
@@ -1489,7 +1497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeProjects.map(async (project) => {
           const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, project.id);
           const payments = await storage.getPaymentsByProjectId(project.id);
-          return generateProfitabilityAnalysis(project, timeEntries, payments);
+          return generateProfitabilityAnalysis(project, timeEntries, payments, globalTJM);
         })
       );
 
@@ -5792,6 +5800,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Card not found" });
       }
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // SETTINGS (Account-level configuration)
+  // ============================================
+
+  // Get a specific setting by key for account
+  app.get("/api/settings/:key", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { key } = req.params;
+      
+      const setting = await storage.getSetting('ACCOUNT', accountId, key);
+      if (!setting) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json(setting);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get all settings for account
+  app.get("/api/settings", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const settingsList = await storage.getSettingsByScope('ACCOUNT', accountId);
+      res.json(settingsList);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Upsert a setting (create or update)
+  app.put("/api/settings/:key", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { key } = req.params;
+      const { value } = req.body;
+      
+      if (value === undefined) {
+        return res.status(400).json({ error: "Value is required" });
+      }
+      
+      const setting = await storage.upsertSetting({
+        scope: 'ACCOUNT',
+        scopeId: accountId,
+        key,
+        value,
+        updatedBy: userId,
+      });
+      
+      res.json(setting);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a setting
+  app.delete("/api/settings/:key", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { key } = req.params;
+      
+      const deleted = await storage.deleteSetting('ACCOUNT', accountId, key);
+      if (!deleted) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get effective TJM for a project (project override ?? global)
+  app.get("/api/projects/:projectId/effective-tjm", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { projectId } = req.params;
+      
+      // Get project
+      const project = await storage.getProject(projectId);
+      if (!project || project.accountId !== accountId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Project TJM (billingRate) has priority
+      const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
+      
+      // Get global TJM from settings
+      const globalSetting = await storage.getSetting('ACCOUNT', accountId, 'billing.defaultTJM');
+      const globalTJM = globalSetting?.value ? parseFloat(String(globalSetting.value)) : null;
+      
+      // Effective TJM: project ?? global
+      const effectiveTJM = projectTJM ?? globalTJM;
+      
+      res.json({
+        effectiveTJM,
+        source: projectTJM !== null ? 'project' : (globalTJM !== null ? 'global' : null),
+        projectTJM,
+        globalTJM,
+        hasTJM: effectiveTJM !== null && effectiveTJM > 0
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

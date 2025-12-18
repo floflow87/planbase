@@ -61,6 +61,7 @@ interface ProjectScopeSectionProps {
   targetMarginPercent: number;
   budget: number;
   projectStage?: string;
+  tjmSource?: 'project' | 'global' | null; // Source of the TJM (project override or global default)
 }
 
 const stageBadges: Record<string, { emoji: string; label: string }> = {
@@ -245,6 +246,7 @@ export function ProjectScopeSection({
   internalDailyCost, 
   targetMarginPercent,
   budget,
+  tjmSource,
   projectStage = 'prospection'
 }: ProjectScopeSectionProps) {
   const currentStageBadge = stageBadges[projectStage] || stageBadges.prospection;
@@ -489,11 +491,22 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     toast({ title: "Brouillon copié", description: "Le texte a été copié dans le presse-papiers", variant: "success" });
   };
 
-  if (!hasValidConfig && totals.mandatoryDays > 0) {
+  // Message spécifique si TJM manquant
+  const hasTJM = dailyRate > 0;
+  const tjmSourceLabel = tjmSource === 'project' ? 'projet' : tjmSource === 'global' ? 'global' : null;
+  
+  if (!hasTJM && totals.mandatoryDays > 0) {
+    alerts.push({
+      type: 'error',
+      title: 'TJM non défini',
+      message: 'Aucun TJM n\'est défini pour ce projet. Définissez un TJM dans les paramètres du projet ou un TJM par défaut dans les paramètres du compte.',
+      icon: AlertTriangle,
+    });
+  } else if (!hasValidConfig && totals.mandatoryDays > 0) {
     alerts.push({
       type: 'warning',
-      title: '⚠️ Configuration incomplète',
-      message: 'Certains paramètres nécessaires au chiffrage (TJM ou coût interne) ne sont pas encore définis.',
+      title: 'Configuration incomplète',
+      message: 'Le coût interne journalier n\'est pas défini. Complétez la configuration du projet pour activer le chiffrage.',
       icon: AlertTriangle,
     });
   }
@@ -794,7 +807,9 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
             </div>
             <p className="text-2xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
             <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `TJM ${dailyRate} €/j × ${totals.mandatoryDays} j estimés` : 'TJM non défini'}
+              {hasValidConfig 
+                ? `TJM ${dailyRate} €/j × ${totals.mandatoryDays} j estimés${tjmSourceLabel ? ` (${tjmSourceLabel})` : ''}`
+                : hasTJM ? 'Coût interne non défini' : 'TJM non défini'}
             </p>
           </CardContent>
         </Card>
