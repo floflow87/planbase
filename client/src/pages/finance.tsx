@@ -140,11 +140,23 @@ interface RecommendationActionData {
   createdAt: string;
 }
 
+interface HealthScoreBreakdown {
+  total: number;
+  components: {
+    label: string;
+    value: number;
+    maxValue: number;
+    description: string;
+  }[];
+}
+
 interface ProfitabilityAnalysis {
   projectId: string;
   projectName: string;
   metrics: ProfitabilityMetrics;
   recommendations: Recommendation[];
+  healthScore: number;
+  healthScoreBreakdown: HealthScoreBreakdown;
   generatedAt: string;
 }
 
@@ -516,17 +528,59 @@ function SummaryCard({
   );
 }
 
+// Helper to get health score color (higher = better)
+const getHealthScoreColor = (score: number): { bg: string; text: string; border: string; iconBg: string } => {
+  if (score >= 80) return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', iconBg: 'bg-emerald-500' };
+  if (score >= 60) return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', iconBg: 'bg-green-500' };
+  if (score >= 40) return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', iconBg: 'bg-amber-500' };
+  if (score >= 20) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', iconBg: 'bg-orange-500' };
+  return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', iconBg: 'bg-red-500' };
+};
+
+// Health Score Badge component with detailed breakdown
+function HealthScoreBadge({ score, breakdown }: { score: number; breakdown: HealthScoreBreakdown }) {
+  const healthColor = getHealthScoreColor(score);
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-2 cursor-help">
+          <div className={`w-3 h-3 rounded-full ${healthColor.iconBg}`} />
+          <Progress value={score} className="w-16 h-1.5" />
+          <span className="text-xs text-gray-500">{score}/100</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg p-3">
+        <p className="font-medium mb-2">Score de santé : {score}/100</p>
+        <div className="space-y-1.5">
+          {breakdown.components.map((component, idx) => (
+            <div key={idx} className="flex items-center justify-between gap-3">
+              <span className="text-gray-500">{component.label}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-12 bg-gray-200 rounded-full h-1.5">
+                  <div 
+                    className={`h-1.5 rounded-full ${component.value >= component.maxValue * 0.7 ? 'bg-emerald-500' : component.value >= component.maxValue * 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
+                    style={{ width: `${(component.value / component.maxValue) * 100}%` }}
+                  />
+                </div>
+                <span className="text-gray-700 font-medium w-8 text-right">{component.value}/{component.maxValue}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-muted-foreground text-[10px]">
+          {score >= 80 ? 'Projet en excellente santé' :
+           score >= 60 ? 'Projet en bonne santé' :
+           score >= 40 ? 'Points d\'attention à traiter' :
+           'Actions urgentes requises'}
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysis }) {
-  const { metrics, recommendations, projectName, projectId } = analysis;
-  
-  // Calcul du score global du projet (moyenne des scores des recommandations)
-  const avgScore = recommendations.length > 0 
-    ? Math.round(recommendations.reduce((sum, r) => sum + r.priorityScore, 0) / recommendations.length)
-    : 100;
-  const scoreColor = getScoreColor(avgScore);
-  
-  // Total des gains potentiels
-  const totalPotentialGain = recommendations.reduce((sum, r) => sum + (r.impactValue || 0), 0);
+  const { metrics, recommendations, projectName, projectId, healthScore, healthScoreBreakdown } = analysis;
   
   return (
     <Card className="transition-colors hover:border-violet-200 flex flex-col" data-testid={`card-project-${projectId}`}>
@@ -592,29 +646,12 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
         )}
       </CardContent>
       
-      {/* ZONE BASSE (fixe, alignée): Score + Badge recommandations + Bouton */}
+      {/* ZONE BASSE (fixe, alignée): Health Score + Badge recommandations + Bouton */}
       <div className="px-6 pb-4 pt-2 border-t mt-auto space-y-3">
-        {/* Score visuel + Badge recommandations */}
+        {/* Health Score visuel + Badge recommandations */}
         <div className="flex items-center justify-between gap-2">
-          {/* Score gradient avec légende */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-2 cursor-help">
-                <div className={`w-3 h-3 rounded-full ${scoreColor.iconBg}`} />
-                <Progress value={avgScore} className="w-16 h-1.5" />
-                <span className="text-xs text-gray-500">{avgScore}/100</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
-              <p className="font-medium mb-1">Score de santé : {avgScore}/100</p>
-              <p className="text-muted-foreground">
-                {avgScore >= 80 ? 'Projet en excellente santé' :
-                 avgScore >= 60 ? 'Projet en bonne santé, quelques améliorations possibles' :
-                 avgScore >= 40 ? 'Points d\'attention à traiter rapidement' :
-                 'Actions urgentes requises'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          {/* Health Score avec breakdown détaillé */}
+          <HealthScoreBadge score={healthScore} breakdown={healthScoreBreakdown} />
           
           {/* Badge recommandations avec mini-list hover */}
           {recommendations.length > 0 ? (
