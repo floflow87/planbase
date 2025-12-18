@@ -132,6 +132,9 @@ export interface Recommendation {
   // New decision label system
   decision: DecisionLabel;
   decisionInfo: DecisionLabelInfo;
+  // Horizon system - Determines actionability
+  horizon: RecommendationHorizon;
+  horizonInfo: HorizonInfo;
   issue: string; // "Pourquoi"
   action: string; // Action recommandée (kept for backward compatibility)
   // New 3-block structure
@@ -581,6 +584,36 @@ function analyzeProjectDynamics(metrics: ProfitabilityMetrics, projectStage?: st
   return 'advancing';
 }
 
+// Axe E: Recommendation Horizon - Determines if action is possible on THIS project
+interface HorizonResult {
+  horizon: RecommendationHorizon;
+  horizonInfo: HorizonInfo;
+}
+
+function determineProjectHorizon(projectStage?: string, metrics?: ProfitabilityMetrics): HorizonResult {
+  // Normalize stage to lowercase for comparison
+  const stage = (projectStage || '').toLowerCase();
+  
+  // LEARNING: Archived or cancelled projects - no action possible
+  const archivedStages = ['archive', 'archived', 'annule', 'annulé', 'cancelled', 'closed'];
+  if (archivedStages.some(s => stage.includes(s))) {
+    return { horizon: 'learning', horizonInfo: HORIZON_LABELS.learning };
+  }
+  
+  // IMMEDIATE: In-progress projects with payment not complete
+  const inProgressStages = ['en_cours', 'production', 'livraison', 'in_progress', 'ongoing', 'started'];
+  const isInProgress = inProgressStages.some(s => stage.includes(s)) || stage === '';
+  const hasRemainingPayment = metrics ? metrics.paymentProgress < 100 : true;
+  
+  if (isInProgress && hasRemainingPayment) {
+    return { horizon: 'immediate', horizonInfo: HORIZON_LABELS.immediate };
+  }
+  
+  // STRATEGIC: Completed, signed, or fully paid - insights for future projects
+  // Includes: prospect, signe, termine, livre, paye
+  return { horizon: 'strategic', horizonInfo: HORIZON_LABELS.strategic };
+}
+
 // Helper to calculate priority score with breakdown
 interface PriorityScoreResult {
   score: number;
@@ -765,12 +798,15 @@ export function generateRecommendations(
   const recommendations: Recommendation[] = [];
   let recId = 1;
   
-  // Analyze 4 axes
+  // Analyze 5 axes
   const recoveryCapacity = analyzeRecoveryCapacity(metrics);
   const projectPriority = projectData 
     ? inferProjectPriority(projectData as Project)
     : 'normal';
   const dynamics = analyzeProjectDynamics(metrics, projectStage);
+  
+  // Axe E: Determine base horizon for this project
+  const baseHorizon = determineProjectHorizon(projectStage, metrics);
   
   // Daily margin erosion cost
   const dailyMarginErosion = metrics.internalDailyCost;
@@ -794,6 +830,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.protect,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `Ce projet stratégique détruit actuellement de la valeur`,
       action: `Limitez strictement le périmètre. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       blocks: {
@@ -845,6 +883,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.stop,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `Ce projet détruit actuellement de la valeur (${Math.abs(metrics.margin).toLocaleString('fr-FR')} € de perte)`,
       action: `Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €. Renégociez ou clôturez rapidement.`,
       blocks: {
@@ -896,6 +936,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.slowdown,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `Chaque jour passé sur ce projet creuse la perte`,
       action: `Limitez l'effort. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       blocks: {
@@ -945,6 +987,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.accelerate,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `Ce projet traîne et la marge s'érode progressivement`,
       action: `Accélérez pour limiter l'érosion. Chaque jour supplémentaire réduit la marge de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
       blocks: {
@@ -995,6 +1039,8 @@ export function generateRecommendations(
         decisionLabel: DECISION_TYPE_LABELS.accelerate,
         decision,
         decisionInfo,
+        horizon: baseHorizon.horizon,
+        horizonInfo: baseHorizon.horizonInfo,
         issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation en attente`,
         action: `Accélérez pour clôturer et facturer le solde rapidement.`,
         blocks: {
@@ -1051,6 +1097,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.optimize,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `La marge actuelle (${metrics.marginPercent.toFixed(1)}%) est en-dessous de votre objectif`,
       action: `Facturez +${additionalNeeded.toLocaleString('fr-FR')} € ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
       blocks: {
@@ -1099,6 +1147,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.optimize,
       decision,
       decisionInfo,
+      horizon: 'strategic',
+      horizonInfo: HORIZON_LABELS.strategic,
       issue: `Votre TJM réel (${metrics.actualTJM.toLocaleString('fr-FR')} €) est sous le cible`,
       action: `Augmentez votre TJM de ${tjmDiff.toLocaleString('fr-FR')} € pour les prochains projets.`,
       blocks: {
@@ -1147,6 +1197,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.optimize,
       decision,
       decisionInfo,
+      horizon: baseHorizon.horizon,
+      horizonInfo: baseHorizon.horizonInfo,
       issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation non encaissée`,
       action: `Relancez le client pour récupérer ce montant rapidement.`,
       blocks: {
@@ -1193,6 +1245,8 @@ export function generateRecommendations(
       decisionLabel: DECISION_TYPE_LABELS.optimize,
       decision,
       decisionInfo,
+      horizon: 'strategic',
+      horizonInfo: HORIZON_LABELS.strategic,
       issue: `Ce projet est rentable avec ${metrics.marginPercent.toFixed(1)}% de marge`,
       action: `Documentez les bonnes pratiques pour les reproduire.`,
       blocks: {
