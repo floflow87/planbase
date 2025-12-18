@@ -766,6 +766,11 @@ export default function Finance() {
   const [sortOrder, setSortOrder] = useState<'none' | 'desc' | 'asc'>('none');
   const [activeTab, setActiveTab] = useState('overview');
   const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
+  
+  // États pour l'onglet Recommandations
+  const [recoSearchQuery, setRecoSearchQuery] = useState('');
+  const [recoSortBy, setRecoSortBy] = useState<'score' | 'gain'>('score');
+  const [recoSortOrder, setRecoSortOrder] = useState<'desc' | 'asc'>('desc');
 
   const toggleRecommendation = (recKey: string) => {
     setHiddenRecommendations(prev => {
@@ -1161,124 +1166,89 @@ export default function Finance() {
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <p className="text-lg font-medium text-gray-900">Excellent travail !</p>
               <p className="text-sm text-gray-500 mt-1">
-                Tous vos projets sont bien optimises. Continuez ainsi.
+                Tous vos projets sont bien optimisés. Continuez ainsi.
               </p>
             </Card>
           ) : (
             <>
-              {/* Critical recommendations */}
-              {criticalRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <h3 className="text-base font-semibold text-gray-900">
-                      Actions critiques ({criticalRecommendations.length})
-                    </h3>
-                  </div>
-                  <div className="space-y-4">
-                    {criticalRecommendations
-                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
-                      .map((rec) => {
-                        const recKey = `${rec.projectId}-${rec.id}`;
-                        return (
-                          <div key={recKey}>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
-                                {rec.projectName}
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => toggleRecommendation(recKey)}
-                                data-testid={`button-toggle-recommendation-${rec.id}`}
-                              >
-                                <Eye className="w-4 h-4 text-gray-500" />
-                              </Button>
-                            </div>
-                            <RecommendationCard recommendation={rec} />
-                          </div>
-                        );
-                      })}
-                  </div>
+              {/* Barre de recherche et tri */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Rechercher par projet..."
+                    value={recoSearchQuery}
+                    onChange={(e) => setRecoSearchQuery(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-search-recommendations"
+                  />
                 </div>
-              )}
+                <Select value={recoSortBy} onValueChange={(v) => setRecoSortBy(v as 'score' | 'gain')}>
+                  <SelectTrigger className="w-[140px] bg-white" data-testid="select-reco-sort-by">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="score">Trier par score</SelectItem>
+                    <SelectItem value="gain">Trier par gain</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRecoSortOrder(recoSortOrder === 'desc' ? 'asc' : 'desc')}
+                  className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
+                  data-testid="button-reco-sort-order"
+                >
+                  {recoSortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                  {recoSortOrder === 'desc' ? 'Décroissant' : 'Croissant'}
+                </Button>
+                <p className="text-sm text-gray-500 ml-auto">
+                  {(() => {
+                    const filtered = allRecommendations
+                      .filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`))
+                      .filter(r => !recoSearchQuery || r.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()));
+                    return `${filtered.length} recommandation${filtered.length > 1 ? 's' : ''}`;
+                  })()}
+                </p>
+              </div>
 
-              {/* Important recommendations */}
-              {importantRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-orange-500" />
-                    <h3 className="text-base font-semibold text-gray-900">
-                      Actions importantes ({importantRecommendations.length})
-                    </h3>
-                  </div>
-                  <div className="space-y-4">
-                    {importantRecommendations
-                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
-                      .map((rec) => {
-                        const recKey = `${rec.projectId}-${rec.id}`;
-                        return (
-                          <div key={recKey}>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
-                                {rec.projectName}
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => toggleRecommendation(recKey)}
-                                data-testid={`button-toggle-recommendation-${rec.id}`}
-                              >
-                                <Eye className="w-4 h-4 text-gray-500" />
-                              </Button>
-                            </div>
-                            <RecommendationCard recommendation={rec} />
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-
-              {/* Other recommendations */}
-              {otherRecommendations.filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`)).length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <h3 className="text-base font-semibold text-gray-900">
-                      Suggestions ({otherRecommendations.length})
-                    </h3>
-                  </div>
-                  <div className="space-y-4">
-                    {otherRecommendations
-                      .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
-                      .map((rec) => {
-                        const recKey = `${rec.projectId}-${rec.id}`;
-                        return (
-                          <div key={recKey}>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
-                                {rec.projectName}
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => toggleRecommendation(recKey)}
-                                data-testid={`button-toggle-recommendation-${rec.id}`}
-                              >
-                                <Eye className="w-4 h-4 text-gray-500" />
-                              </Button>
-                            </div>
-                            <RecommendationCard recommendation={rec} />
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
+              {/* Liste des recommandations triées */}
+              <div className="space-y-4">
+                {allRecommendations
+                  .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
+                  .filter(rec => !recoSearchQuery || rec.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()))
+                  .sort((a, b) => {
+                    if (recoSortBy === 'score') {
+                      return recoSortOrder === 'desc' ? b.priorityScore - a.priorityScore : a.priorityScore - b.priorityScore;
+                    } else {
+                      const gainA = a.impactValue || 0;
+                      const gainB = b.impactValue || 0;
+                      return recoSortOrder === 'desc' ? gainB - gainA : gainA - gainB;
+                    }
+                  })
+                  .map((rec) => {
+                    const recKey = `${rec.projectId}-${rec.id}`;
+                    return (
+                      <div key={recKey}>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <Link href={`/projects/${rec.projectId}`} className="text-sm font-medium text-violet-600 hover:underline">
+                            {rec.projectName}
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => toggleRecommendation(recKey)}
+                            data-testid={`button-toggle-recommendation-${rec.id}`}
+                          >
+                            <Eye className="w-4 h-4 text-gray-500" />
+                          </Button>
+                        </div>
+                        <RecommendationCard recommendation={rec} />
+                      </div>
+                    );
+                  })}
+              </div>
 
               {hiddenRecommendations.size > 0 && (
                 <div className="pt-2 border-t">
