@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +194,9 @@ export default function Dashboard() {
   const [activityFilter, setActivityFilter] = useState<"all" | "crm" | "projets" | "product" | "taches" | "whiteboards" | "notes" | "documents">("all");
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
   const [showTaskReminder, setShowTaskReminder] = useState(false);
+  const [isPriorityActionDismissed, setIsPriorityActionDismissed] = useState(() => {
+    return sessionStorage.getItem('priorityActionDismissed') === 'true';
+  });
   const [projectFormData, setProjectFormData] = useState({
     name: "",
     description: "",
@@ -1225,8 +1228,8 @@ export default function Dashboard() {
         </div>
 
         {/* Priority Action Card */}
-        {topPriorityAction && (
-          <Card className={`border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30`} data-testid="card-priority-action">
+        {topPriorityAction && !isPriorityActionDismissed && (
+          <Card className={`border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action">
             <CardContent className="p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {/* Left: Icon + Content */}
@@ -1266,7 +1269,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 
-                {/* Right: Action */}
+                {/* Right: Action + Dismiss */}
                 <div className="flex items-center gap-2 shrink-0">
                   <Button 
                     variant="outline" 
@@ -1277,6 +1280,18 @@ export default function Dashboard() {
                   >
                     Voir toutes les actions
                     <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      sessionStorage.setItem('priorityActionDismissed', 'true');
+                      setIsPriorityActionDismissed(true);
+                    }}
+                    data-testid="button-dismiss-priority-action"
+                  >
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
