@@ -4574,7 +4574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         db.select().from(epics).where(eq(epics.backlogId, backlogId)).orderBy(asc(epics.order)),
         db.select().from(userStories).where(eq(userStories.backlogId, backlogId)).orderBy(asc(userStories.order)),
         db.select().from(backlogTasks).where(eq(backlogTasks.backlogId, backlogId)).orderBy(asc(backlogTasks.order)),
-        db.select().from(sprints).where(eq(sprints.backlogId, backlogId)).orderBy(asc(sprints.startDate)),
+        db.select().from(sprints).where(eq(sprints.backlogId, backlogId)).orderBy(asc(sprints.position), asc(sprints.createdAt)),
         db.select().from(backlogColumns).where(eq(backlogColumns.backlogId, backlogId)).orderBy(asc(backlogColumns.order)),
       ]);
       
@@ -5066,7 +5066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await db.select().from(sprints)
         .where(and(eq(sprints.backlogId, backlogId), eq(sprints.accountId, accountId)))
-        .orderBy(asc(sprints.startDate));
+        .orderBy(asc(sprints.position), asc(sprints.createdAt));
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
