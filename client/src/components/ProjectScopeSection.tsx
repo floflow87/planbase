@@ -195,8 +195,8 @@ interface ScopeAlert {
 
 interface ScopeRecommendation {
   title: string;
-  description: string;
-  action?: string;
+  why: string;
+  action: string;
 }
 
 export function ProjectScopeSection({ 
@@ -332,9 +332,9 @@ export function ProjectScopeSection({
 
   if (!hasValidConfig && totals.mandatoryDays > 0) {
     alerts.push({
-      type: 'info',
-      title: 'Configuration incomplète',
-      message: 'Définissez le TJM et le coût interne journalier dans l\'onglet Facturation pour voir les calculs de rentabilité',
+      type: 'warning',
+      title: '⚠️ Configuration incomplète',
+      message: 'Certains paramètres nécessaires au chiffrage (TJM ou coût interne) ne sont pas encore définis.',
       icon: AlertTriangle,
     });
   }
@@ -342,60 +342,59 @@ export function ProjectScopeSection({
   if (hasValidConfig && safeMargin < 0) {
     alerts.push({
       type: 'error',
-      title: 'Marge négative',
-      message: `Le projet générerait une perte de ${Math.abs(safeMargin).toFixed(0)} €`,
+      title: '🔴 Rentabilité non atteinte',
+      message: 'À ce stade, ce projet n\'atteint pas votre objectif de rentabilité.',
       icon: AlertTriangle,
     });
     recommendations.push({
       title: "Augmenter le prix",
-      description: `Prix minimum pour rentabilité : ${safeCost.toFixed(0)} €`,
-      action: "increase_price",
+      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
+      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
     });
     recommendations.push({
-      title: "Réduire le périmètre",
-      description: "Passez certaines rubriques en optionnel pour réduire les jours obligatoires",
-      action: "reduce_scope",
+      title: "Rendre certaines rubriques optionnelles",
+      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
+      action: "Réduisez ou rendez optionnelles certaines rubriques pour diminuer le coût estimé.",
     });
   } else if (hasValidConfig && targetMarginPercent > 0 && safeMarginPercent < targetMarginPercent) {
     alerts.push({
       type: 'warning',
-      title: 'Marge insuffisante',
-      message: `Marge de ${safeMarginPercent.toFixed(1)}% vs objectif de ${targetMarginPercent}%`,
+      title: '🟠 Marge insuffisante',
+      message: 'La marge prévisionnelle est inférieure à votre objectif. Une adaptation du prix ou du périmètre est recommandée.',
       icon: TrendingDown,
     });
-    const targetPrice = safeCost / (1 - targetMarginPercent / 100);
     recommendations.push({
-      title: "Prix recommandé pour objectif",
-      description: `Augmenter à ${targetPrice.toFixed(0)} € pour atteindre ${targetMarginPercent}% de marge`,
-      action: "target_price",
+      title: "Augmenter le prix",
+      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
+      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
     });
   }
 
   if (hasValidConfig && dailyRate < internalDailyCost * 1.2) {
     alerts.push({
       type: 'warning',
-      title: 'TJM trop faible',
-      message: `Votre TJM (${dailyRate} €) est proche de votre coût interne (${internalDailyCost} €)`,
+      title: '⚠️ TJM implicite faible',
+      message: 'Le TJM implicite de ce projet est inférieur à votre TJM cible.',
       icon: AlertTriangle,
     });
     recommendations.push({
       title: "Revoir le TJM",
-      description: `TJM recommandé pour 30% de marge : ${(internalDailyCost * 1.43).toFixed(0)} €`,
-      action: "review_rate",
+      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
+      action: "Augmentez le prix proposé afin d'atteindre une marge prévisionnelle conforme à votre objectif.",
     });
   }
 
   if (budget > 0 && safePrice > budget) {
     alerts.push({
       type: 'info',
-      title: 'Écart avec budget',
-      message: `Le chiffrage (${safePrice.toFixed(0)} €) dépasse le budget (${budget.toFixed(0)} €)`,
+      title: 'ℹ️ Écart avec budget client',
+      message: 'Le prix recommandé dépasse le budget client renseigné. Une discussion ou un ajustement du périmètre peut être nécessaire.',
       icon: TrendingUp,
     });
     recommendations.push({
-      title: "Renégocier le budget",
-      description: `Écart de ${(safePrice - budget).toFixed(0)} € à combler`,
-      action: "negotiate",
+      title: "Renégocier le projet",
+      why: "Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d'atteindre votre objectif de marge.",
+      action: "Renégociez le périmètre ou le budget avec le client avant validation.",
     });
   }
 
@@ -414,11 +413,20 @@ export function ProjectScopeSection({
 
   return (
     <div className="space-y-4">
+      {/* Texte de cadrage global */}
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-sm">
+        <span className="shrink-0">💡</span>
+        <p className="text-muted-foreground">
+          Les estimations et recommandations fournies ici constituent une aide à la décision.<br />
+          Elles doivent être adaptées à votre contexte, à votre client et validées selon votre expertise.
+        </p>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-violet-600" />
-            Cahier des Charges - Estimation
+            Cahier des Charges - Chiffrage
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -489,7 +497,7 @@ export function ProjectScopeSection({
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <Clock className="h-4 w-4" />
-              <span>Temps obligatoire</span>
+              <span>Temps total estimé</span>
             </div>
             <p className="text-2xl font-bold">{totals.mandatoryDays} j</p>
             {totals.optionalDays > 0 && (
@@ -506,7 +514,7 @@ export function ProjectScopeSection({
             </div>
             <p className="text-2xl font-bold">{hasValidConfig ? `${safeCost.toFixed(0)} €` : '-'}</p>
             <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `${internalDailyCost} €/j × ${totals.mandatoryDays} j` : 'Coût interne non défini'}
+              {hasValidConfig ? `Coût estimé sur ${totals.mandatoryDays} jours travaillés` : 'Coût interne non défini'}
             </p>
           </CardContent>
         </Card>
@@ -519,7 +527,7 @@ export function ProjectScopeSection({
             </div>
             <p className="text-2xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
             <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `${dailyRate} €/j × ${totals.mandatoryDays} j` : 'TJM non défini'}
+              {hasValidConfig ? `TJM ${dailyRate} €/j × ${totals.mandatoryDays} j estimés` : 'TJM non défini'}
             </p>
           </CardContent>
         </Card>
@@ -534,7 +542,7 @@ export function ProjectScopeSection({
               {hasValidConfig ? `${safeMargin.toFixed(0)} €` : '-'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `${safeMarginPercent.toFixed(1)}% de marge` : 'Configuration requise'}
+              {hasValidConfig ? `${safeMarginPercent.toFixed(1)}% de marge prévisionnelle` : 'Configuration requise'}
             </p>
           </CardContent>
         </Card>
@@ -578,15 +586,18 @@ export function ProjectScopeSection({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {recommendations.map((rec, index) => (
-                <div key={index} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
-                  <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 text-xs font-bold shrink-0">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{rec.title}</p>
-                    <p className="text-sm text-muted-foreground">{rec.description}</p>
+                <div key={index} className="p-3 rounded-lg bg-muted/50 border border-muted">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 text-xs font-bold shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">{rec.title}</p>
+                      <p className="text-xs text-muted-foreground"><strong>Pourquoi :</strong> {rec.why}</p>
+                      <p className="text-sm text-foreground"><strong>Action :</strong> {rec.action}</p>
+                    </div>
                   </div>
                 </div>
               ))}

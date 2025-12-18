@@ -1,0 +1,188 @@
+Module “Cahier des Charges & Chiffrage” + Rentabilité
+
+Tu es l’agent Replit chargé de finaliser les textes UX, labels et messages du module Cahier des Charges structuré avec allocation de temps et des recommandations associées, afin de garantir clarté, responsabilité et confiance utilisateur avant publication.
+
+Aucun calcul ne doit être modifié.
+Il s’agit uniquement d’un travail de wording, de clarification et de garde-fous UX.
+
+⸻
+
+1️⃣ Texte de cadrage global (obligatoire)
+
+À afficher en haut du module CDC (discret, info-box ou tooltip ℹ️)
+
+Texte exact :
+
+💡 Les estimations et recommandations fournies ici constituent une aide à la décision.
+Elles doivent être adaptées à votre contexte, à votre client et validées selon votre expertise.
+
+Ce texte doit :
+	•	être visible sans être bloquant
+	•	rassurer sans dévaloriser l’outil
+
+⸻
+
+2️⃣ Clarification systématique du caractère prévisionnel
+
+Règle stricte
+
+Tous les indicateurs du module CDC doivent être explicitement prévisionnels.
+
+Libellés à utiliser (textes exacts)
+	•	Temps total estimé
+	•	Coût estimé
+	•	Prix recommandé
+	•	Marge prévisionnelle
+	•	TJM théorique requis
+
+❌ Ne jamais afficher :
+	•	“Coût”
+	•	“Marge”
+	•	“Prix”
+sans qualificatif
+
+⸻
+
+3️⃣ Alertes intelligentes — wording final
+
+3.1 Configuration incomplète
+
+Texte exact :
+
+⚠️ Configuration incomplète
+Certains paramètres nécessaires au chiffrage (TJM ou coût interne) ne sont pas encore définis.
+
+⸻
+
+3.2 Marge négative (pré-vente)
+
+❌ Ancien ton trop brutal
+
+Marge négative
+
+✅ Texte exact à utiliser :
+
+🔴 À ce stade, ce projet n’atteint pas votre objectif de rentabilité.
+
+⸻
+
+3.3 Marge insuffisante vs objectif
+
+Texte exact :
+
+🟠 La marge prévisionnelle est inférieure à votre objectif.
+Une adaptation du prix ou du périmètre est recommandée.
+
+⸻
+
+3.4 TJM trop faible
+
+Texte exact :
+
+⚠️ Le TJM implicite de ce projet est inférieur à votre TJM cible.
+
+⸻
+
+3.5 Écart avec budget client
+
+Texte exact :
+
+ℹ️ Le prix recommandé dépasse le budget client renseigné.
+Une discussion ou un ajustement du périmètre peut être nécessaire.
+
+⸻
+
+4️⃣ Recommandations pré-vente — textes standards
+
+Chaque recommandation doit suivre cette structure exacte :
+
+4.1 Titre (verbe clair)
+	•	Augmenter le prix
+	•	Réduire le périmètre
+	•	Renégocier le projet
+	•	Refuser le projet
+	•	Rendre certaines rubriques optionnelles
+
+⸻
+
+4.2 Pourquoi (texte exact)
+
+Sur la base du périmètre et du temps estimé, le prix actuel ne permet pas d’atteindre votre objectif de marge.
+
+⸻
+
+4.3 Action recommandée (texte exact)
+
+Exemples selon le cas :
+	•	Augmentez le prix proposé afin d’atteindre une marge prévisionnelle conforme à votre objectif.
+	•	Réduisez ou rendez optionnelles certaines rubriques pour diminuer le coût estimé.
+	•	Renégociez le périmètre ou le budget avec le client avant validation.
+	•	À ce prix, ce projet n’est pas viable économiquement.
+
+⸻
+
+5️⃣ Clarification des impacts financiers (OBLIGATOIRE)
+
+Règle UX stricte
+
+Aucun montant ne doit être affiché sans unité et contexte.
+
+Textes exacts à utiliser
+
+❌ Interdit
+
++80 €
+
+✅ Autorisé (choisir le bon cas) :
+	•	+80 € de marge estimée par jour travaillé
+	•	+800 € de marge estimée sur un projet de 10 jours
+	•	–600 € de perte estimée par jour supplémentaire
+	•	+1 200 € de marge prévisionnelle si le prix recommandé est appliqué
+
+⸻
+
+6️⃣ Badge d’état du projet sur les recommandations
+
+Ajouter systématiquement un badge d’étape projet :
+	•	🟣 En cours
+	•	🟢 Terminé
+	•	🟡 En attente
+	•	🔵 Prospection
+	•	⚫ Archivé
+
+⸻
+
+Cas projet terminé — texte exact
+
+📚 Apprentissage pour les prochains projets.
+
+👉 Ces recommandations ne doivent pas être présentées comme actionnables immédiatement.
+
+⸻
+
+7️⃣ Génération du CDC (draft) — cadrage clair
+
+Texte exact à afficher lors de la génération
+
+📝 Ce document est un brouillon de cahier des charges généré à partir de votre chiffrage.
+Il doit être relu, ajusté et validé avant envoi au client.
+
+⸻
+
+Ton du document généré
+	•	neutre
+	•	professionnel
+	•	factuel
+	•	basé uniquement sur les rubriques renseignées
+	•	aucune extrapolation
+
+⸻
+
+8️⃣ Critères d’acceptation finaux
+
+La tâche est validée si :
+	•	Tous les textes ci-dessus sont implémentés à l’identique
+	•	Aucun chiffre ambigu n’est affiché
+	•	Le caractère prévisionnel est clair partout
+	•	Les alertes sont fermes mais non anxiogènes
+	•	Le module inspire confiance sans se substituer à l’expertise utilisateur
