@@ -46,6 +46,24 @@ export type RecoveryCapacity = 'recoverable' | 'difficult' | 'unrecoverable';
 // Project dynamics
 export type ProjectDynamics = 'advancing' | 'stagnating' | 'dragging';
 
+// Decision labels - New system (no more "Quand possible" or "Pour info")
+export type DecisionLabel = 'critical' | 'urgent' | 'plan' | 'insight' | 'healthy';
+
+export interface DecisionLabelInfo {
+  emoji: string;
+  label: string;
+  timing: string;
+  description: string;
+}
+
+export const DECISION_LABELS: Record<DecisionLabel, DecisionLabelInfo> = {
+  critical: { emoji: '🚨', label: 'À traiter maintenant', timing: 'Aujourd\'hui', description: 'Impact direct sur trésorerie ou perte immédiate' },
+  urgent: { emoji: '⚠️', label: 'À traiter rapidement', timing: 'Rapidement', description: 'Risque financier si laissé en l\'état' },
+  plan: { emoji: '⏰', label: 'Cette semaine', timing: 'Cette semaine', description: 'Opportunité de gain à planifier' },
+  insight: { emoji: '💡', label: 'À planifier', timing: 'À planifier', description: 'Insight exploitable prochainement' },
+  healthy: { emoji: 'ℹ️', label: 'Information', timing: 'Information', description: 'Aucune action urgente requise' },
+};
+
 // Score breakdown for transparency
 export interface ScoreBreakdown {
   total: number;
@@ -56,6 +74,27 @@ export interface ScoreBreakdown {
   }[];
 }
 
+// 3-block structure for clear recommendations
+export interface RecommendationBlocks {
+  // Block 1: Past observation - "What happened"
+  pastImpact: {
+    amount: number;
+    condition: string; // e.g., "si le TJM cible avait été appliqué"
+    period: string; // e.g., "sur les jours déjà réalisés"
+  };
+  // Block 2: Current implication - "What it means now"
+  currentImplication: {
+    isPast: boolean; // true = opportunity passed, false = still actionable
+    message: string; // e.g., "Ce levier reste exploitable sur les jours restants"
+    actionableOn?: string[]; // e.g., ["jours restants", "projets similaires", "prochains projets"]
+  };
+  // Block 3: Concrete action - "What to do now"
+  concreteAction: {
+    primary: string; // Main action
+    alternatives?: string[]; // Alternative actions
+  };
+}
+
 export interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
@@ -63,8 +102,13 @@ export interface Recommendation {
   scoreBreakdown: ScoreBreakdown; // Detailed breakdown for UI transparency
   decisionType: DecisionType;
   decisionLabel: string; // "Optimiser", "Accélérer", "Ralentir", "Stopper", "Protéger"
+  // New decision label system
+  decision: DecisionLabel;
+  decisionInfo: DecisionLabelInfo;
   issue: string; // "Pourquoi"
-  action: string; // Action recommandée
+  action: string; // Action recommandée (kept for backward compatibility)
+  // New 3-block structure
+  blocks?: RecommendationBlocks;
   impact: string;
   impactValue?: number;
   feasibility: Feasibility;
@@ -410,8 +454,8 @@ function calculatePriorityScore(
   };
 }
 
-// Decision type labels
-const DECISION_LABELS: Record<DecisionType, string> = {
+// Decision type labels (action verb)
+const DECISION_TYPE_LABELS: Record<DecisionType, string> = {
   optimize: 'Optimiser',
   accelerate: 'Accélérer',
   slowdown: 'Ralentir',
@@ -424,6 +468,32 @@ const FEASIBILITY_LABELS: Record<Feasibility, string> = {
   discuss: 'À discuter',
   unrealistic: 'Peu réaliste'
 };
+
+// Helper to determine decision label based on priority score and context
+function getDecisionLabel(
+  priorityScore: number, 
+  marginPercent: number, 
+  recoveryCapacity: RecoveryCapacity
+): { decision: DecisionLabel; decisionInfo: DecisionLabelInfo } {
+  // Critical: score >= 80 OR unrecoverable deficit
+  if (priorityScore >= 80 || (marginPercent < -15 && recoveryCapacity === 'unrecoverable')) {
+    return { decision: 'critical', decisionInfo: DECISION_LABELS.critical };
+  }
+  // Urgent: score 60-79 OR at_risk with difficult recovery
+  if (priorityScore >= 60 || (marginPercent < 0 && recoveryCapacity === 'difficult')) {
+    return { decision: 'urgent', decisionInfo: DECISION_LABELS.urgent };
+  }
+  // Plan: score 40-59
+  if (priorityScore >= 40) {
+    return { decision: 'plan', decisionInfo: DECISION_LABELS.plan };
+  }
+  // Insight: score 20-39
+  if (priorityScore >= 20) {
+    return { decision: 'insight', decisionInfo: DECISION_LABELS.insight };
+  }
+  // Healthy: score < 20
+  return { decision: 'healthy', decisionInfo: DECISION_LABELS.healthy };
+}
 
 // ==========================================
 // MAIN RECOMMENDATION ENGINE
@@ -455,15 +525,34 @@ export function generateRecommendations(
       Math.abs(metrics.margin), projectPriority, 'high', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'high',
       priorityScore,
       scoreBreakdown,
       decisionType: 'protect',
-      decisionLabel: DECISION_LABELS.protect,
+      decisionLabel: DECISION_TYPE_LABELS.protect,
+      decision,
+      decisionInfo,
       issue: `Ce projet stratégique détruit actuellement de la valeur`,
       action: `Limitez strictement le périmètre. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      blocks: {
+        pastImpact: {
+          amount: Math.abs(metrics.margin),
+          condition: 'perte constatée à date',
+          period: 'sur les jours déjà réalisés'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Ce levier reste exploitable',
+          actionableOn: ['périmètre restant', 'prochains projets']
+        },
+        concreteAction: {
+          primary: `Limiter strictement le périmètre restant`,
+          alternatives: ['Renégocier le budget', 'Réduire le temps restant']
+        }
+      },
       impact: `Préserver la relation client tout en limitant les pertes`,
       impactValue: Math.abs(metrics.margin),
       feasibility,
@@ -487,15 +576,34 @@ export function generateRecommendations(
       Math.abs(metrics.margin), projectPriority, 'high', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'high',
       priorityScore,
       scoreBreakdown,
       decisionType: 'stop',
-      decisionLabel: DECISION_LABELS.stop,
+      decisionLabel: DECISION_TYPE_LABELS.stop,
+      decision,
+      decisionInfo,
       issue: `Ce projet détruit actuellement de la valeur (${Math.abs(metrics.margin).toLocaleString('fr-FR')} € de perte)`,
       action: `Chaque jour supplémentaire augmente la perte de ${dailyMarginErosion.toLocaleString('fr-FR')} €. Renégociez ou clôturez rapidement.`,
+      blocks: {
+        pastImpact: {
+          amount: Math.abs(metrics.margin),
+          condition: 'perte cumulée à date',
+          period: 'sur les jours déjà réalisés'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Chaque jour supplémentaire aggrave la perte',
+          actionableOn: ['clôture rapide', 'renégociation']
+        },
+        concreteAction: {
+          primary: `Renégocier ou clôturer le projet`,
+          alternatives: ['Facturer un avenant', 'Arrêter les travaux']
+        }
+      },
       impact: `Éviter ${additionalLoss.toLocaleString('fr-FR')} € de pertes supplémentaires`,
       impactValue: additionalLoss,
       feasibility,
@@ -519,15 +627,34 @@ export function generateRecommendations(
       potentialSavings, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
       scoreBreakdown,
       decisionType: 'slowdown',
-      decisionLabel: DECISION_LABELS.slowdown,
+      decisionLabel: DECISION_TYPE_LABELS.slowdown,
+      decision,
+      decisionInfo,
       issue: `Chaque jour passé sur ce projet creuse la perte`,
       action: `Limitez l'effort. Chaque jour supplémentaire coûte ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      blocks: {
+        pastImpact: {
+          amount: potentialSavings,
+          condition: 'si l\'effort avait été réduit plus tôt',
+          period: 'sur les 3 derniers jours'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Ce levier reste exploitable sur le temps restant',
+          actionableOn: ['jours restants', 'prochains projets']
+        },
+        concreteAction: {
+          primary: `Limiter l'effort sur ce projet`,
+          alternatives: ['Réduire le périmètre', 'Déléguer les tâches']
+        }
+      },
       impact: `Économiser jusqu'à ${potentialSavings.toLocaleString('fr-FR')} € en réduisant l'effort`,
       impactValue: potentialSavings,
       feasibility,
@@ -549,15 +676,34 @@ export function generateRecommendations(
       metrics.remainingToPay, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
       scoreBreakdown,
       decisionType: 'accelerate',
-      decisionLabel: DECISION_LABELS.accelerate,
+      decisionLabel: DECISION_TYPE_LABELS.accelerate,
+      decision,
+      decisionInfo,
       issue: `Ce projet traîne et la marge s'érode progressivement`,
       action: `Accélérez pour limiter l'érosion. Chaque jour supplémentaire réduit la marge de ${dailyMarginErosion.toLocaleString('fr-FR')} €.`,
+      blocks: {
+        pastImpact: {
+          amount: dailyMarginErosion * 2,
+          condition: 'si le projet avait avancé plus vite',
+          period: 'sur la semaine écoulée'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Ce levier reste exploitable',
+          actionableOn: ['jours restants', 'livraison rapide']
+        },
+        concreteAction: {
+          primary: `Accélérer pour livrer plus vite`,
+          alternatives: ['Augmenter les ressources', 'Simplifier le périmètre']
+        }
+      },
       impact: `Préserver ${dailyMarginErosion.toLocaleString('fr-FR')} € par jour gagné`,
       impactValue: dailyMarginErosion,
       feasibility,
@@ -580,15 +726,34 @@ export function generateRecommendations(
     
     // Only add if not already a dragging project recommendation
     if (dynamics !== 'dragging') {
+      const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
       recommendations.push({
         id: `rec-${recId++}`,
         priority: 'medium',
         priorityScore,
         scoreBreakdown,
         decisionType: 'accelerate',
-        decisionLabel: DECISION_LABELS.accelerate,
+        decisionLabel: DECISION_TYPE_LABELS.accelerate,
+        decision,
+        decisionInfo,
         issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation en attente`,
         action: `Accélérez pour clôturer et facturer le solde rapidement.`,
+        blocks: {
+          pastImpact: {
+            amount: metrics.remainingToPay,
+            condition: 'facturation bloquée',
+            period: 'depuis le début du projet'
+          },
+          currentImplication: {
+            isPast: false,
+            message: 'Ce montant peut encore être facturé',
+            actionableOn: ['clôture du projet', 'facturation intermédiaire']
+          },
+          concreteAction: {
+            primary: `Clôturer et facturer le solde`,
+            alternatives: ['Facturer un acompte', 'Relancer le client']
+          }
+        },
         impact: `Débloquer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation`,
         impactValue: metrics.remainingToPay,
         feasibility,
@@ -617,15 +782,34 @@ export function generateRecommendations(
       additionalNeeded, projectPriority, 'low', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
       scoreBreakdown,
       decisionType: 'optimize',
-      decisionLabel: DECISION_LABELS.optimize,
+      decisionLabel: DECISION_TYPE_LABELS.optimize,
+      decision,
+      decisionInfo,
       issue: `La marge actuelle (${metrics.marginPercent.toFixed(1)}%) est en-dessous de votre objectif`,
       action: `Facturez +${additionalNeeded.toLocaleString('fr-FR')} € ou réduisez de ${daysToReduce.toFixed(1)} jours.`,
+      blocks: {
+        pastImpact: {
+          amount: additionalNeeded,
+          condition: 'si la marge cible avait été atteinte',
+          period: 'sur ce projet'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Ce levier reste exploitable',
+          actionableOn: ['facturation additionnelle', 'réduction du temps restant']
+        },
+        concreteAction: {
+          primary: `Facturer ${additionalNeeded.toLocaleString('fr-FR')} € supplémentaires`,
+          alternatives: [`Réduire de ${daysToReduce.toFixed(1)} jours`, 'Renégocier le périmètre']
+        }
+      },
       impact: `+${marginGap.toFixed(1)}% de marge`,
       impactValue: additionalNeeded,
       feasibility,
@@ -646,15 +830,34 @@ export function generateRecommendations(
       additionalRevenue, projectPriority, urgency, feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: urgency === 'high' ? 'high' : 'medium',
       priorityScore,
       scoreBreakdown,
       decisionType: 'optimize',
-      decisionLabel: DECISION_LABELS.optimize,
+      decisionLabel: DECISION_TYPE_LABELS.optimize,
+      decision,
+      decisionInfo,
       issue: `Votre TJM réel (${metrics.actualTJM.toLocaleString('fr-FR')} €) est sous le cible`,
       action: `Augmentez votre TJM de ${tjmDiff.toLocaleString('fr-FR')} € pour les prochains projets.`,
+      blocks: {
+        pastImpact: {
+          amount: additionalRevenue,
+          condition: 'si le TJM cible avait été appliqué',
+          period: 'sur ce projet'
+        },
+        currentImplication: {
+          isPast: true,
+          message: 'Ce levier n\'est plus exploitable sur ce projet',
+          actionableOn: ['prochains projets', 'renégociations futures']
+        },
+        concreteAction: {
+          primary: `Appliquer le TJM cible sur les prochains projets`,
+          alternatives: ['Négocier des avenants', 'Revoir la grille tarifaire']
+        }
+      },
       impact: `+${additionalRevenue.toLocaleString('fr-FR')} € si TJM cible était appliqué`,
       impactValue: additionalRevenue,
       feasibility,
@@ -675,15 +878,34 @@ export function generateRecommendations(
       metrics.remainingToPay, projectPriority, 'medium', feasibility, metrics.marginPercent, recoveryCapacity
     );
     
+    const { decision, decisionInfo } = getDecisionLabel(priorityScore, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'medium',
       priorityScore,
       scoreBreakdown,
       decisionType: 'optimize',
-      decisionLabel: DECISION_LABELS.optimize,
+      decisionLabel: DECISION_TYPE_LABELS.optimize,
+      decision,
+      decisionInfo,
       issue: `${metrics.remainingToPay.toLocaleString('fr-FR')} € de facturation non encaissée`,
       action: `Relancez le client pour récupérer ce montant rapidement.`,
+      blocks: {
+        pastImpact: {
+          amount: metrics.remainingToPay,
+          condition: 'facturation réalisée mais non encaissée',
+          period: 'depuis la livraison'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Ce montant peut encore être récupéré',
+          actionableOn: ['relance client', 'mise en demeure']
+        },
+        concreteAction: {
+          primary: `Relancer le client pour encaissement`,
+          alternatives: ['Envoyer un rappel', 'Contacter par téléphone']
+        }
+      },
       impact: `Récupérer ${metrics.remainingToPay.toLocaleString('fr-FR')} € de trésorerie`,
       impactValue: metrics.remainingToPay,
       feasibility,
@@ -697,6 +919,7 @@ export function generateRecommendations(
   // POSITIVE REINFORCEMENT
   // ==========================================
   if (metrics.status === 'profitable' && recommendations.length === 0) {
+    const { decision, decisionInfo } = getDecisionLabel(10, metrics.marginPercent, recoveryCapacity);
     recommendations.push({
       id: `rec-${recId++}`,
       priority: 'low',
@@ -708,9 +931,27 @@ export function generateRecommendations(
         ]
       },
       decisionType: 'optimize',
-      decisionLabel: 'Continuer',
+      decisionLabel: DECISION_TYPE_LABELS.optimize,
+      decision,
+      decisionInfo,
       issue: `Ce projet est rentable avec ${metrics.marginPercent.toFixed(1)}% de marge`,
       action: `Documentez les bonnes pratiques pour les reproduire.`,
+      blocks: {
+        pastImpact: {
+          amount: 0,
+          condition: 'aucune perte',
+          period: 'sur ce projet'
+        },
+        currentImplication: {
+          isPast: false,
+          message: 'Projet performant - à reproduire',
+          actionableOn: ['prochains projets', 'bonnes pratiques']
+        },
+        concreteAction: {
+          primary: `Documenter les bonnes pratiques`,
+          alternatives: ['Répliquer sur d\'autres projets', 'Partager avec l\'équipe']
+        }
+      },
       impact: `Maintenir une marge supérieure à ${THRESHOLDS.PROFITABLE_MARGIN}%`,
       feasibility: 'realistic',
       feasibilityLabel: FEASIBILITY_LABELS.realistic,

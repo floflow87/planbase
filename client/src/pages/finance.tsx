@@ -73,13 +73,43 @@ interface ScoreBreakdown {
   }[];
 }
 
+interface DecisionLabel {
+  emoji: string;
+  label: string;
+  timing: string;
+}
+
+interface RecommendationBlocks {
+  pastImpact: {
+    amount: number;
+    condition: string;
+    period: string;
+  };
+  currentImplication: {
+    isPast: boolean;
+    message: string;
+    actionableOn: string[];
+  };
+  concreteAction: {
+    primary: string;
+    alternatives: string[];
+  };
+}
+
 interface Recommendation {
   id: string;
   priority: 'high' | 'medium' | 'low';
   priorityScore: number;
   scoreBreakdown?: ScoreBreakdown;
   decisionType: DecisionType;
-  decisionLabel: string;
+  decisionLabel: string | DecisionLabel;
+  decision?: string;
+  decisionInfo?: {
+    emoji: string;
+    label: string;
+    timing: string;
+  };
+  blocks?: RecommendationBlocks;
   issue: string;
   action: string;
   impact: string;
@@ -606,14 +636,19 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
   const priorityAction = generatePriorityAction(recommendation);
   const scoreColor = getScoreColor(recommendation.priorityScore);
   
+  // Use new decision label if available
+  const decisionEmoji = recommendation.decisionInfo?.emoji || priorityInfo.emoji;
+  const decisionTiming = recommendation.decisionInfo?.timing || priorityInfo.timing;
+  const decisionLabelText = recommendation.decisionInfo?.label || (typeof recommendation.decisionLabel === 'string' ? recommendation.decisionLabel : recommendation.decisionLabel.label);
+  
   return (
     <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Ligne 1: Temporalité + score avec tooltip de décomposition */}
+          {/* Ligne 1: Label décisionnel + score avec tooltip de décomposition */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-sm font-bold ${scoreColor.text}`}>
-              {priorityInfo.emoji} {priorityInfo.timing}
+              {decisionEmoji} {decisionTiming}
             </span>
             <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
             {recommendation.feasibility && recommendation.feasibilityLabel && 
@@ -623,15 +658,57 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
             }
           </div>
           
-          {/* Ligne 2: Phrase décisionnelle en premier (la plus visible) */}
+          {/* Ligne 2: Action concrète en premier (la plus visible) */}
           <p className={`font-bold text-base ${scoreColor.text}`}>
-            {priorityAction}
+            {recommendation.blocks?.concreteAction?.primary || priorityAction}
           </p>
           
-          {/* Ligne 3: Contexte (secondaire, plus discret) */}
-          <p className="text-sm text-gray-500">{recommendation.issue}</p>
+          {/* 3 Blocs: Passé / Présent / Futur */}
+          {recommendation.blocks && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+              {/* Bloc 1: Constat passé */}
+              <div className="p-2 rounded bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-500 mb-1 font-medium">Constat passé</p>
+                <p className="text-gray-700 dark:text-gray-300">
+                  {formatCurrency(recommendation.blocks.pastImpact.amount)} {recommendation.blocks.pastImpact.condition}
+                </p>
+                <p className="text-gray-400 text-[10px]">{recommendation.blocks.pastImpact.period}</p>
+              </div>
+              
+              {/* Bloc 2: Implication actuelle */}
+              <div className={`p-2 rounded border ${
+                recommendation.blocks.currentImplication.isPast 
+                  ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600' 
+                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+              }`}>
+                <p className="text-gray-500 mb-1 font-medium">Implication actuelle</p>
+                <p className={`${recommendation.blocks.currentImplication.isPast ? 'text-gray-500' : 'text-green-700 dark:text-green-400'}`}>
+                  {recommendation.blocks.currentImplication.message}
+                </p>
+                <p className="text-gray-400 text-[10px]">
+                  Applicable sur : {recommendation.blocks.currentImplication.actionableOn.join(', ')}
+                </p>
+              </div>
+              
+              {/* Bloc 3: Action concrète */}
+              <div className={`p-2 rounded border ${scoreColor.bg} ${scoreColor.border}`}>
+                <p className="text-gray-500 mb-1 font-medium">Action concrète</p>
+                <p className={`font-medium ${scoreColor.text}`}>{recommendation.blocks.concreteAction.primary}</p>
+                {recommendation.blocks.concreteAction.alternatives.length > 0 && (
+                  <p className="text-gray-400 text-[10px]">
+                    Alternatives : {recommendation.blocks.concreteAction.alternatives.join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           
-          {/* Ligne 4: Impact avec unité claire */}
+          {/* Fallback: Ancien affichage si pas de blocks */}
+          {!recommendation.blocks && (
+            <p className="text-sm text-gray-500">{recommendation.issue}</p>
+          )}
+          
+          {/* Impact avec unité claire */}
           {recommendation.impactValue && (
             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
               recommendation.impactValue > 0 
@@ -654,6 +731,10 @@ function TopPriorityCard({ recommendation, projectName }: { recommendation: Reco
   const priorityAction = generatePriorityAction(recommendation);
   const scoreColor = getScoreColor(recommendation.priorityScore);
   
+  // Use new decision label if available
+  const decisionEmoji = recommendation.decisionInfo?.emoji || priorityInfo.emoji;
+  const decisionTiming = recommendation.decisionInfo?.timing || priorityInfo.timing;
+  
   return (
     <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg} shadow-lg overflow-hidden`} data-testid="card-top-priority">
       <CardContent className="p-0">
@@ -667,10 +748,10 @@ function TopPriorityCard({ recommendation, projectName }: { recommendation: Reco
           
           {/* Right: Content */}
           <div className="flex-1 p-4 space-y-3">
-            {/* Ligne 1: Temporalité + score avec tooltip de décomposition */}
+            {/* Ligne 1: Label décisionnel + score avec tooltip de décomposition */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-sm font-bold ${scoreColor.text}`}>
-                {priorityInfo.emoji} {priorityInfo.timing}
+                {decisionEmoji} {decisionTiming}
               </span>
               <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
               <Link href={`/projects/${recommendation.projectId}`} className="ml-auto text-sm font-medium text-violet-600 hover:underline">
@@ -678,15 +759,42 @@ function TopPriorityCard({ recommendation, projectName }: { recommendation: Reco
               </Link>
             </div>
             
-            {/* Ligne 2: Phrase impérative principale (la plus visible) */}
+            {/* Ligne 2: Action concrète principale (la plus visible) */}
             <p className={`text-lg font-bold ${scoreColor.text}`}>
-              {priorityAction}
+              {recommendation.blocks?.concreteAction?.primary || priorityAction}
             </p>
             
-            {/* Ligne 3: Contexte (secondaire) */}
-            <p className="text-sm text-gray-500">{recommendation.issue}</p>
+            {/* 3 Blocs: Passé / Présent / Futur (format compact pour Top Priority) */}
+            {recommendation.blocks && (
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="p-2 rounded bg-gray-50/50 dark:bg-gray-800/30">
+                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Constat</p>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium">
+                    {formatCurrency(recommendation.blocks.pastImpact.amount)}
+                  </p>
+                  <p className="text-gray-400 text-[9px]">{recommendation.blocks.pastImpact.condition}</p>
+                </div>
+                <div className={`p-2 rounded ${recommendation.blocks.currentImplication.isPast ? 'bg-gray-100/50' : 'bg-green-50/50'}`}>
+                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Implication</p>
+                  <p className={`text-xs ${recommendation.blocks.currentImplication.isPast ? 'text-gray-500' : 'text-green-700 dark:text-green-400'}`}>
+                    {recommendation.blocks.currentImplication.isPast ? 'Levier passé' : 'Exploitable'}
+                  </p>
+                </div>
+                <div className={`p-2 rounded ${scoreColor.bg}`}>
+                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Action</p>
+                  <p className={`text-xs font-medium ${scoreColor.text} line-clamp-2`}>
+                    {recommendation.blocks.concreteAction.primary}
+                  </p>
+                </div>
+              </div>
+            )}
             
-            {/* Ligne 4: Impact avec unité claire */}
+            {/* Fallback: Ancien affichage si pas de blocks */}
+            {!recommendation.blocks && (
+              <p className="text-sm text-gray-500">{recommendation.issue}</p>
+            )}
+            
+            {/* Impact avec unité claire */}
             {recommendation.impactValue && (
               <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
                 recommendation.impactValue > 0 
