@@ -242,13 +242,65 @@ const getFeasibilityBadge = (feasibility: Feasibility, label: string) => {
   );
 };
 
-// Score priority level helpers - 3 levels aligned with grouping
+// Score priority level helpers - 5 levels for better UX clarity
 type ScoreLevel = 'critical' | 'important' | 'suggestion';
+type PriorityLabel = 'Critique' | 'À traiter' | 'À planifier' | 'Suggestion' | 'Information';
 
 const getScoreLevel = (score: number): ScoreLevel => {
   if (score >= 80) return 'critical';
   if (score >= 50) return 'important';
   return 'suggestion';
+};
+
+const getPriorityLabel = (score: number): { emoji: string; label: PriorityLabel; timing: string } => {
+  if (score >= 90) return { emoji: '🚨', label: 'Critique', timing: 'Maintenant' };
+  if (score >= 70) return { emoji: '⚡', label: 'À traiter', timing: 'Cette semaine' };
+  if (score >= 50) return { emoji: '📅', label: 'À planifier', timing: 'Ce mois' };
+  if (score >= 30) return { emoji: '💡', label: 'Suggestion', timing: 'Quand possible' };
+  return { emoji: 'ℹ️', label: 'Information', timing: 'Pour info' };
+};
+
+const generatePriorityAction = (rec: Recommendation): string => {
+  // Generate a short, actionable phrase based on the recommendation
+  if (rec.impactValue) {
+    const amount = Math.abs(rec.impactValue);
+    const isLoss = rec.impactValue < 0;
+    
+    if (rec.category === 'pricing') {
+      return isLoss 
+        ? `Limiter une perte de ${formatCurrency(amount)} sur le prix.`
+        : `Récupérer ${formatCurrency(amount)} en ajustant le prix.`;
+    }
+    if (rec.category === 'time') {
+      return isLoss 
+        ? `Éviter une perte de ${formatCurrency(amount)} par projet sur le temps.`
+        : `Économiser ${formatCurrency(amount)} par projet en optimisant le temps.`;
+    }
+    if (rec.category === 'payment') {
+      return isLoss 
+        ? `Risque de ${formatCurrency(amount)} non encaissé.`
+        : `Sécuriser ${formatCurrency(amount)} en encaissement.`;
+    }
+    if (rec.category === 'model') {
+      return isLoss 
+        ? `Corriger un modèle qui coûte ${formatCurrency(amount)} par projet.`
+        : `Optimiser le modèle pour gagner ${formatCurrency(amount)} par projet.`;
+    }
+    if (rec.category === 'strategic') {
+      return isLoss 
+        ? `Impact stratégique : risque de ${formatCurrency(amount)}.`
+        : `Opportunité stratégique : ${formatCurrency(amount)} potentiel.`;
+    }
+  }
+  // Fallback based on decision type with context
+  const decisionPhrases: Record<DecisionType, string> = {
+    optimize: 'Optimiser la rentabilité de ce projet maintenant.',
+    accelerate: 'Accélérer les encaissements en priorité.',
+    slowdown: 'Revoir le rythme de travail sur ce projet.',
+    stop: 'Évaluer l\'arrêt ou la renégociation urgente.',
+    protect: 'Protéger les marges acquises sur ce projet.',
+  };
+  return decisionPhrases[rec.decisionType] || rec.action;
 };
 
 const getScoreLevelInfo = (level: ScoreLevel) => {
@@ -507,39 +559,96 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
   const scoreLevel = getScoreLevel(recommendation.priorityScore);
   const levelInfo = getScoreLevelInfo(scoreLevel);
+  const priorityInfo = getPriorityLabel(recommendation.priorityScore);
+  const priorityAction = generatePriorityAction(recommendation);
+  
+  // Priority badge colors based on level - 5 distinct visual treatments
+  const priorityBadgeColors: Record<PriorityLabel, { badge: string; bg: string; border: string; text: string }> = {
+    'Critique': { 
+      badge: 'bg-red-100 text-red-700 border-red-300', 
+      bg: 'bg-red-50', 
+      border: 'border-red-400',
+      text: 'text-red-700'
+    },
+    'À traiter': { 
+      badge: 'bg-orange-100 text-orange-700 border-orange-300', 
+      bg: 'bg-orange-50', 
+      border: 'border-orange-400',
+      text: 'text-orange-700'
+    },
+    'À planifier': { 
+      badge: 'bg-amber-100 text-amber-700 border-amber-300', 
+      bg: 'bg-amber-50', 
+      border: 'border-amber-400',
+      text: 'text-amber-700'
+    },
+    'Suggestion': { 
+      badge: 'bg-cyan-100 text-cyan-700 border-cyan-300', 
+      bg: 'bg-cyan-50', 
+      border: 'border-cyan-400',
+      text: 'text-cyan-700'
+    },
+    'Information': { 
+      badge: 'bg-blue-100 text-blue-700 border-blue-300', 
+      bg: 'bg-blue-50', 
+      border: 'border-blue-400',
+      text: 'text-blue-700'
+    },
+  };
+  
+  const currentStyle = priorityBadgeColors[priorityInfo.label];
   
   return (
-    <Card className={`border-2 ${levelInfo.borderColor} ${levelInfo.bgColor}`} data-testid={`card-recommendation-${recommendation.id}`}>
+    <Card className={`border-l-4 ${currentStyle.border} ${currentStyle.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Header: Decision type + Score badge */}
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              {getRecommendationIcon(recommendation.icon)}
-              {recommendation.decisionType && recommendation.decisionLabel && 
-                getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
-              }
+          {/* Ligne 1: Badges priorité + timing (lecture en 2s) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`text-xs font-medium border ${currentStyle.badge}`}>
+              {priorityInfo.emoji} {priorityInfo.label}
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-muted/50">
+              🕐 {priorityInfo.timing}
+            </Badge>
+            {recommendation.decisionType && recommendation.decisionLabel && 
+              getDecisionBadge(recommendation.decisionType, recommendation.decisionLabel)
+            }
+            <div className="ml-auto">
+              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
             </div>
-            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
           </div>
           
-          {/* Block 1: Pourquoi (Issue) */}
-          <div className="bg-white/80 rounded-lg p-3 border border-gray-100">
+          {/* Ligne 2: Phrase de décision prioritaire (en gras, visible immédiatement) */}
+          <p className={`font-semibold text-sm ${currentStyle.text}`}>
+            {priorityAction}
+          </p>
+          
+          {/* Ligne 3: Pourquoi (contexte rapide) */}
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
             <p className="text-xs text-gray-500 uppercase font-medium mb-1">Pourquoi</p>
-            <p className="text-sm text-gray-700 font-medium">{recommendation.issue}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{recommendation.issue}</p>
           </div>
           
-          {/* Block 2: Action recommandée */}
+          {/* Ligne 4: Action recommandée */}
           <div>
-            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandee</p>
-            <p className="text-sm text-gray-600">{recommendation.action}</p>
+            <p className="text-xs text-gray-500 uppercase font-medium mb-1">Action recommandée</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{recommendation.action}</p>
           </div>
           
-          {/* Block 3: Impact + Feasibility */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+          {/* Ligne 5: Impact financier avec unité explicite + Faisabilité */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t flex-wrap">
             <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
+              {recommendation.impactValue && recommendation.impactValue > 0 ? (
+                <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>+{formatCurrency(recommendation.impactValue)} (potentiel)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Target className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium text-green-600">{recommendation.impact}</span>
+                </div>
+              )}
             </div>
             {recommendation.feasibility && recommendation.feasibilityLabel && 
               getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)
@@ -783,10 +892,39 @@ export default function Finance() {
               <BarChart3 className="w-4 h-4" />
               Vue d'ensemble
             </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
-              <PieChart className="w-4 h-4" />
-              Par projet
-            </TabsTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
+                  <PieChart className="w-4 h-4" />
+                  Par projet
+                  {allRecommendations.length > 0 && (
+                    <Badge variant="outline" className="ml-1 text-xs">
+                      {allRecommendations.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs p-3">
+                {allRecommendations.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">{allRecommendations.length} recommandation{allRecommendations.length > 1 ? 's' : ''} active{allRecommendations.length > 1 ? 's' : ''}</p>
+                    <div className="space-y-1 text-xs">
+                      {criticalRecommendations.length > 0 && (
+                        <p className="text-red-600">🚨 {criticalRecommendations.length} critique{criticalRecommendations.length > 1 ? 's' : ''}</p>
+                      )}
+                      {importantRecommendations.length > 0 && (
+                        <p className="text-orange-600">⚡ {importantRecommendations.length} important{importantRecommendations.length > 1 ? 'es' : 'e'}</p>
+                      )}
+                      {otherRecommendations.length > 0 && (
+                        <p className="text-gray-600">💡 {otherRecommendations.length} suggestion{otherRecommendations.length > 1 ? 's' : ''}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm">Aucune recommandation active</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
             <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
               <Lightbulb className="w-4 h-4" />
               Recommandations
