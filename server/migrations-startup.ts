@@ -834,12 +834,6 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Recommendation actions table created");
     
-    // Add position column to sprints for ordering
-    await db.execute(sql`
-      ALTER TABLE sprints ADD COLUMN IF NOT EXISTS position integer DEFAULT 0;
-    `);
-    console.log("✅ Sprints position column added");
-    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -4574,7 +4574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         db.select().from(epics).where(eq(epics.backlogId, backlogId)).orderBy(asc(epics.order)),
         db.select().from(userStories).where(eq(userStories.backlogId, backlogId)).orderBy(asc(userStories.order)),
         db.select().from(backlogTasks).where(eq(backlogTasks.backlogId, backlogId)).orderBy(asc(backlogTasks.order)),
-        db.select().from(sprints).where(eq(sprints.backlogId, backlogId)).orderBy(asc(sprints.position), asc(sprints.createdAt)),
+        db.select().from(sprints).where(eq(sprints.backlogId, backlogId)).orderBy(asc(sprints.startDate)),
         db.select().from(backlogColumns).where(eq(backlogColumns.backlogId, backlogId)).orderBy(asc(backlogColumns.order)),
       ]);
       
@@ -5066,7 +5066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await db.select().from(sprints)
         .where(and(eq(sprints.backlogId, backlogId), eq(sprints.accountId, accountId)))
-        .orderBy(asc(sprints.position), asc(sprints.createdAt));
+        .orderBy(asc(sprints.startDate));
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -5257,92 +5257,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  // Move sprint position (up or down)
-  app.patch("/api/sprints/:id/move", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
-    try {
-      const accountId = req.accountId!;
-      const id = req.params.id;
-      const { direction } = req.body; // 'up' or 'down'
-      
-      console.log(`🔄 Moving sprint ${id} ${direction}`);
-      
-      if (direction !== 'up' && direction !== 'down') {
-        return res.status(400).json({ error: "Direction must be 'up' or 'down'" });
-      }
-      
-      // Get the sprint
-      const [sprint] = await db.select().from(sprints)
-        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)));
-      
-      if (!sprint) {
-        return res.status(404).json({ error: "Sprint not found" });
-      }
-      
-      // Get all sprints for this backlog ordered by position, then createdAt
-      let allSprints = await db.select().from(sprints)
-        .where(and(eq(sprints.backlogId, sprint.backlogId), eq(sprints.accountId, accountId)))
-        .orderBy(sprints.createdAt);
-      
-      // Sort by position if available, otherwise by createdAt order
-      allSprints = allSprints.sort((a, b) => {
-        const posA = a.position ?? 999;
-        const posB = b.position ?? 999;
-        if (posA !== posB) return posA - posB;
-        return new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime();
-      });
-      
-      // Initialize positions if needed (any sprint has null position)
-      const needsInit = allSprints.some(s => s.position === null);
-      if (needsInit) {
-        console.log('📍 Initializing sprint positions...');
-        for (let i = 0; i < allSprints.length; i++) {
-          await db.update(sprints)
-            .set({ position: i })
-            .where(eq(sprints.id, allSprints[i].id));
-          allSprints[i].position = i;
-        }
-      }
-      
-      // Find current index
-      const currentIndex = allSprints.findIndex(s => s.id === id);
-      console.log(`📊 Current index: ${currentIndex}, Total sprints: ${allSprints.length}`);
-      console.log(`📊 Sprint positions: ${allSprints.map(s => `${s.name}:${s.position}`).join(', ')}`);
-      
-      // Calculate new index
-      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-      
-      // Validate bounds
-      if (newIndex < 0 || newIndex >= allSprints.length) {
-        return res.status(400).json({ error: "Cannot move sprint further in this direction" });
-      }
-      
-      // Get the current sprint and the one we're swapping with
-      const currentSprint = allSprints[currentIndex];
-      const otherSprint = allSprints[newIndex];
-      
-      // Use index-based positions for the swap (more reliable)
-      const currentPosition = currentIndex;
-      const otherPosition = newIndex;
-      
-      console.log(`🔀 Swapping positions: ${currentPosition} <-> ${otherPosition}`);
-      
-      // Update both sprints
-      await db.update(sprints)
-        .set({ position: otherPosition, updatedAt: new Date() })
-        .where(eq(sprints.id, id));
-      
-      await db.update(sprints)
-        .set({ position: currentPosition, updatedAt: new Date() })
-        .where(eq(sprints.id, otherSprint.id));
-      
-      console.log('✅ Sprint moved successfully');
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('❌ Error moving sprint:', error);
       res.status(400).json({ error: error.message });
     }
   });
