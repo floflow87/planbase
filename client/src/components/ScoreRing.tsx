@@ -111,7 +111,7 @@ export function ScoreRing({
       </TooltipTrigger>
       <TooltipContent 
         side="top" 
-        className="bg-white dark:bg-gray-900 border shadow-lg p-3 max-w-xs"
+        className="bg-white dark:bg-gray-900 border shadow-lg p-3 max-w-sm"
       >
         <p className="font-medium text-sm mb-2">
           {label || 'Décomposition du score'} : {score}/100

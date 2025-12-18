@@ -643,16 +643,18 @@ function RecommendationCard({
           <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
             {decisionEmoji} {decisionLabel}
           </Badge>
-          <ScoreRing 
-            score={recommendation.priorityScore} 
-            size={32}
-            strokeWidth={3}
-            breakdown={recommendation.scoreBreakdown?.components}
-            label="Score de priorité"
-          />
           <Badge variant="outline" className={`text-xs ${categoryTag.color}`}>
             {categoryTag.label}
           </Badge>
+          <div className="ml-2">
+            <ScoreRing 
+              score={recommendation.priorityScore} 
+              size={32}
+              strokeWidth={3}
+              breakdown={recommendation.scoreBreakdown?.components}
+              label="Score de priorité"
+            />
+          </div>
           {recommendation.projectName && (
             <Link 
               href={`/projects/${recommendation.projectId}`}
@@ -698,11 +700,11 @@ function RecommendationCard({
                 <p className="text-slate-500 text-xs font-medium mb-1.5 flex items-center gap-1">
                   <span className="text-amber-500">1.</span> Constat passé
                 </p>
-                <p className="text-slate-700 font-medium">
-                  {formatCurrency(recommendation.blocks.pastImpact.amount)}
-                  {recommendation.impactValue && recommendation.impactValue > 0 && (
-                    <span className="text-emerald-600 ml-1">(+{formatCurrency(recommendation.impactValue)} potentiel)</span>
-                  )}
+                <p className="text-emerald-600 font-medium">
+                  {recommendation.impactValue && recommendation.impactValue > 0 
+                    ? `+${formatCurrency(recommendation.impactValue)} potentiel`
+                    : formatCurrency(recommendation.blocks.pastImpact.amount)
+                  }
                 </p>
                 <p className="text-slate-500 text-xs mt-1">{recommendation.blocks.pastImpact.condition}</p>
               </div>
