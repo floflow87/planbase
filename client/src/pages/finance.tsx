@@ -87,6 +87,14 @@ interface DecisionLabel {
   timing: string;
 }
 
+type RecommendationHorizon = 'immediate' | 'strategic' | 'learning';
+
+interface HorizonInfo {
+  label: string;
+  description: string;
+  isActionable: boolean;
+}
+
 interface RecommendationBlocks {
   pastImpact: {
     amount: number;
@@ -117,6 +125,8 @@ interface Recommendation {
     label: string;
     timing: string;
   };
+  horizon?: RecommendationHorizon;
+  horizonInfo?: HorizonInfo;
   blocks?: RecommendationBlocks;
   issue: string;
   action: string;
