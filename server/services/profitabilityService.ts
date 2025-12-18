@@ -594,14 +594,21 @@ function determineProjectHorizon(projectStage?: string, metrics?: ProfitabilityM
   // Normalize stage to lowercase for comparison
   const stage = (projectStage || '').toLowerCase();
   
-  // LEARNING: Archived or cancelled projects - no action possible
-  const archivedStages = ['archive', 'archived', 'annule', 'annulé', 'cancelled', 'closed'];
+  // LEARNING: Archived or cancelled projects - no action possible (check FIRST)
+  const archivedStages = ['archive', 'archived', 'annule', 'annulé', 'cancelled', 'closed', 'abandonne', 'abandonné'];
   if (archivedStages.some(s => stage.includes(s))) {
     return { horizon: 'learning', horizonInfo: HORIZON_LABELS.learning };
   }
   
-  // IMMEDIATE: In-progress projects with payment not complete
-  const inProgressStages = ['en_cours', 'production', 'livraison', 'in_progress', 'ongoing', 'started'];
+  // STRATEGIC: Completed, delivered, signed, paid projects - insights for future projects (check BEFORE immediate)
+  // These are no longer actionable on the current project, regardless of payment status
+  const completedStages = ['termine', 'completed', 'livre', 'delivered', 'signe', 'signed', 'paye', 'paid', 'facture', 'invoiced'];
+  if (completedStages.some(s => stage.includes(s))) {
+    return { horizon: 'strategic', horizonInfo: HORIZON_LABELS.strategic };
+  }
+  
+  // IMMEDIATE: In-progress projects with payment not complete - action possible NOW
+  const inProgressStages = ['en_cours', 'production', 'livraison_partielle', 'in_progress', 'ongoing', 'started', 'actif', 'active'];
   const isInProgress = inProgressStages.some(s => stage.includes(s)) || stage === '';
   const hasRemainingPayment = metrics ? metrics.paymentProgress < 100 : true;
   
@@ -609,8 +616,7 @@ function determineProjectHorizon(projectStage?: string, metrics?: ProfitabilityM
     return { horizon: 'immediate', horizonInfo: HORIZON_LABELS.immediate };
   }
   
-  // STRATEGIC: Completed, signed, or fully paid - insights for future projects
-  // Includes: prospect, signe, termine, livre, paye
+  // Default to STRATEGIC: Prospect or other stages - insights for future projects
   return { horizon: 'strategic', horizonInfo: HORIZON_LABELS.strategic };
 }
 

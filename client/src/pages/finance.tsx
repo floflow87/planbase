@@ -766,7 +766,7 @@ function RecommendationCard({
         
         {/* FOOTER: Impact chiffré + Boutons */}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 flex-wrap">
-          {/* Impact financier */}
+          {/* Impact financier - Wording adapté selon l'horizon */}
           {recommendation.impactValue ? (
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
               recommendation.impactValue > 0 
@@ -774,14 +774,19 @@ function RecommendationCard({
                 : 'bg-rose-50 text-rose-700 border border-rose-200'
             }`}>
               {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              <span>Impact potentiel : {recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
+              <span>
+                {recommendation.horizon === 'immediate' 
+                  ? `Impact potentiel : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur ce projet`
+                  : `Impact potentiel estimé : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur projets futurs similaires`
+                }
+              </span>
             </div>
           ) : (
             <div />
           )}
           
-          {/* Boutons Traité / Ignorer */}
-          {!actionStatus && onMarkTreated && onMarkIgnored && (
+          {/* Boutons Traité / Ignorer - Only for immediate horizon (actionable) */}
+          {!actionStatus && onMarkTreated && onMarkIgnored && recommendation.horizon === 'immediate' && (
             <div className="flex items-center gap-2">
               <Button
                 variant="default"
@@ -805,6 +810,24 @@ function RecommendationCard({
                 <X className="w-4 h-4" />
                 Ignorer
               </Button>
+            </div>
+          )}
+          
+          {/* CTA for strategic/learning horizon */}
+          {recommendation.horizon === 'strategic' && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-violet-600 border-violet-300 bg-violet-50">
+                <Lightbulb className="w-3 h-3 mr-1" />
+                Insight pour projets futurs
+              </Badge>
+            </div>
+          )}
+          {recommendation.horizon === 'learning' && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50">
+                <Info className="w-3 h-3 mr-1" />
+                Apprentissage
+              </Badge>
             </div>
           )}
         </div>
@@ -881,7 +904,7 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
             {recommendation.blocks?.concreteAction?.primary || priorityAction}
           </h3>
           
-          {/* Impact financier clair */}
+          {/* Impact financier clair - Wording adapté selon l'horizon */}
           {recommendation.impactValue && (
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
               recommendation.impactValue > 0 
@@ -889,21 +912,43 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
                 : 'bg-rose-50 text-rose-700 border border-rose-200'
             }`}>
               {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              <span>Impact potentiel : {recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
+              <span>
+                {recommendation.horizon === 'immediate' 
+                  ? `Impact potentiel : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur ce projet`
+                  : `Impact potentiel estimé : ${recommendation.impactValue > 0 ? '+' : ''}${formatCurrency(recommendation.impactValue)} sur projets futurs similaires`
+                }
+              </span>
             </div>
           )}
           
-          {/* Délai recommandé */}
-          <p className="text-sm text-gray-600 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-400" />
-            Délai recommandé : <span className="font-medium">{getRecommendedDelay()}</span>
-          </p>
+          {/* Délai recommandé - Only for immediate horizon */}
+          {recommendation.horizon === 'immediate' && (
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" />
+              Délai recommandé : <span className="font-medium">{getRecommendedDelay()}</span>
+            </p>
+          )}
+          
+          {/* Horizon badge for non-immediate */}
+          {recommendation.horizon === 'strategic' && (
+            <Badge variant="outline" className="text-violet-600 border-violet-300 bg-violet-50">
+              <Lightbulb className="w-3 h-3 mr-1" />
+              Insight pour projets futurs
+            </Badge>
+          )}
+          {recommendation.horizon === 'learning' && (
+            <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50">
+              <Info className="w-3 h-3 mr-1" />
+              Apprentissage
+            </Badge>
+          )}
         </div>
         
         {/* FOOTER: Boutons + Lien projet */}
         <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 flex-wrap">
           <div className="flex items-center gap-2">
-            {onMarkTreated && (
+            {/* Boutons Traité/Ignorer - Only for immediate horizon */}
+            {recommendation.horizon === 'immediate' && onMarkTreated && (
               <Button
                 variant="default"
                 size="sm"
@@ -915,7 +960,7 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
                 Traité
               </Button>
             )}
-            {onMarkIgnored && (
+            {recommendation.horizon === 'immediate' && onMarkIgnored && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -1407,31 +1452,40 @@ export default function Finance() {
                                 </div>
                               )}
                               
-                              {/* Action buttons - horizontal sur mobile */}
-                              <div className="flex flex-row gap-2 pl-11 md:pl-0 md:absolute md:top-5 md:right-5">
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm"
-                                  onClick={() => handleMarkTreated(rec.projectId || '', rec.id)}
-                                  disabled={createActionMutation.isPending}
-                                  data-testid={`button-today-mark-treated-${index + 1}`}
-                                >
-                                  <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                  Traité
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm text-gray-500"
-                                  onClick={() => handleMarkIgnored(rec.projectId || '', rec.id)}
-                                  disabled={createActionMutation.isPending}
-                                  data-testid={`button-today-mark-ignored-${index + 1}`}
-                                >
-                                  <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                  Ignorer
-                                </Button>
-                              </div>
+                              {/* Action buttons - only for immediate horizon (actionable projects) */}
+                              {rec.horizon === 'immediate' ? (
+                                <div className="flex flex-row gap-2 pl-11 md:pl-0 md:absolute md:top-5 md:right-5">
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm"
+                                    onClick={() => handleMarkTreated(rec.projectId || '', rec.id)}
+                                    disabled={createActionMutation.isPending}
+                                    data-testid={`button-today-mark-treated-${index + 1}`}
+                                  >
+                                    <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    Traité
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm text-gray-500"
+                                    onClick={() => handleMarkIgnored(rec.projectId || '', rec.id)}
+                                    disabled={createActionMutation.isPending}
+                                    data-testid={`button-today-mark-ignored-${index + 1}`}
+                                  >
+                                    <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    Ignorer
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="pl-11 md:pl-0 md:absolute md:top-5 md:right-5">
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Lightbulb className="w-3 h-3 mr-1" />
+                                    {rec.horizon === 'strategic' ? 'Insight' : 'Apprentissage'}
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
