@@ -788,6 +788,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Projects priority column added");
     
+    // Add business_type column to projects table for internal/client distinction
+    await db.execute(sql`
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS business_type text DEFAULT 'client';
+    `);
+    console.log("✅ Projects business_type column added");
+    
     // Create project_scope_items table for CDC/Statement of Work
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS project_scope_items (

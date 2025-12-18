@@ -1471,16 +1471,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projects = await storage.getProjectsByAccountId(req.accountId!);
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
       
-      // Séparer les projets en prospection (CA potentiel) des autres (CA réel)
-      const prospectionProjects = projects.filter(p => p.stage === 'prospection');
-      const activeProjects = projects.filter(p => p.stage !== 'prospection');
+      // Séparer les projets par type: client (facturable) vs interne (non facturable)
+      const clientProjects = projects.filter(p => p.businessType !== 'internal');
+      const internalProjects = projects.filter(p => p.businessType === 'internal');
+      
+      // Séparer les projets clients en prospection (CA potentiel) des autres (CA réel)
+      const prospectionProjects = clientProjects.filter(p => p.stage === 'prospection');
+      const activeProjects = clientProjects.filter(p => p.stage !== 'prospection');
       
       // Calculer le CA potentiel (projets en prospection)
       const potentialRevenue = prospectionProjects.reduce((sum, p) => {
         return sum + parseFloat(p.budget?.toString() || '0');
       }, 0);
       
-      // Générer les analyses uniquement pour les projets actifs (hors prospection)
+      // Générer les analyses uniquement pour les projets clients actifs (hors prospection et internes)
       const summaries = await Promise.all(
         activeProjects.map(async (project) => {
           const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, project.id);
@@ -1489,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Calculate aggregate metrics (uniquement sur projets actifs)
+      // Calculate aggregate metrics (uniquement sur projets clients actifs)
       const totalBilled = summaries.reduce((sum, s) => sum + s.metrics.totalBilled, 0);
       const totalPaid = summaries.reduce((sum, s) => sum + s.metrics.totalPaid, 0);
       const totalMargin = summaries.reduce((sum, s) => sum + s.metrics.margin, 0);
@@ -1513,6 +1517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           atRiskCount,
           deficitCount,
           projectCount: summaries.length,
+          internalProjectCount: internalProjects.length, // Nombre de projets internes exclus
         },
         generatedAt: new Date().toISOString(),
       });

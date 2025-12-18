@@ -2144,6 +2144,52 @@ export default function ProjectDetail() {
                 )}
 
                 <div>
+                  <Label htmlFor="business-type">Type de projet</Label>
+                  <Select
+                    value={project?.businessType || "client"}
+                    onValueChange={async (value) => {
+                      try {
+                        await apiRequest(`/api/projects/${id}`, "PATCH", {
+                          businessType: value,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/profitability/summary'] });
+                        toast({
+                          title: "Mise à jour réussie",
+                          description: value === 'internal' 
+                            ? "Projet marqué comme interne (exclu de la rentabilité)"
+                            : "Projet marqué comme client (inclus dans la rentabilité)",
+                          variant: "success",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="business-type" data-testid="select-business-type">
+                      <SelectValue placeholder="Sélectionner un type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client" data-testid="option-business-client">
+                        Projet client
+                      </SelectItem>
+                      <SelectItem value="internal" data-testid="option-business-internal">
+                        Projet interne
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {project?.businessType === "internal" 
+                      ? "Projet interne : exclu des calculs de rentabilité"
+                      : "Projet client : facturable et inclus dans les analyses de rentabilité"}
+                  </p>
+                </div>
+
+                <div>
                   <Label htmlFor="billing-type">Type de facturation</Label>
                   <Select
                     value={project?.billingType || "time"}

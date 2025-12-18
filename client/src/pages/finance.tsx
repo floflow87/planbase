@@ -142,6 +142,7 @@ interface ProfitabilitySummary {
     atRiskCount: number;
     deficitCount: number;
     projectCount: number;
+    internalProjectCount?: number;
   };
   generatedAt: string;
 }
@@ -976,7 +977,12 @@ export default function Finance() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Facturation & Rentabilité</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Analyse financière de {aggregate.projectCount} projet{aggregate.projectCount > 1 ? 's' : ''}
+            Analyse financière de {aggregate.projectCount} projet{aggregate.projectCount > 1 ? 's' : ''} client{aggregate.projectCount > 1 ? 's' : ''}
+            {aggregate.internalProjectCount && aggregate.internalProjectCount > 0 && (
+              <span className="text-muted-foreground ml-1">
+                ({aggregate.internalProjectCount} projet{aggregate.internalProjectCount > 1 ? 's' : ''} interne{aggregate.internalProjectCount > 1 ? 's' : ''} exclu{aggregate.internalProjectCount > 1 ? 's' : ''})
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">

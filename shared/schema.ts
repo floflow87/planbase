@@ -156,6 +156,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   stage: text("stage").default("prospection"), // 'prospection', 'en_cours', 'termine'
   priority: text("priority").default("normal"), // 'low', 'normal', 'high', 'strategic' - Priorité/importance du projet
+  businessType: text("business_type").default("client"), // 'client' (projet client facturable) or 'internal' (projet interne non facturable)
   category: text("category"),
   startDate: date("start_date"),
   endDate: date("end_date"),
@@ -1063,6 +1064,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true,
   billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+  businessType: z.enum(['client', 'internal']).default('client').optional(),
 });
 export const insertProjectCategorySchema = createInsertSchema(projectCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectPaymentSchema = createInsertSchema(projectPayments).omit({ id: true, createdAt: true, updatedAt: true }).extend({
