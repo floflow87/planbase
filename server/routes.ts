@@ -1528,6 +1528,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // RECOMMENDATION ACTIONS - Protected Routes
+  // ============================================
+
+  // Get all recommendation actions for the authenticated account
+  app.get("/api/recommendation-actions", requireAuth, async (req, res) => {
+    try {
+      const actions = await storage.getRecommendationActionsByAccountId(req.accountId!);
+      res.json(actions);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get recommendation actions for a specific project
+  app.get("/api/projects/:projectId/recommendation-actions", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const actions = await storage.getRecommendationActionsByProjectId(req.params.projectId);
+      res.json(actions);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create or update a recommendation action (mark as treated or ignored)
+  app.post("/api/recommendation-actions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { insertRecommendationActionSchema } = await import("@shared/schema");
+      const data = insertRecommendationActionSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        createdBy: req.userId!,
+      });
+      
+      // Verify project access
+      const project = await storage.getProject(data.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const action = await storage.upsertRecommendationAction(data);
+      res.json(action);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a recommendation action (undo treated/ignored status)
+  app.delete("/api/recommendation-actions/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      await storage.deleteRecommendationAction(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // TASKS - Protected Routes
   // ============================================
 

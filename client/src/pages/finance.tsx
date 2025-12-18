@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,13 @@ import {
   Search,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Check,
+  X,
+  EyeOff,
+  RotateCcw,
+  CalendarCheck,
+  Flame
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
@@ -118,6 +125,19 @@ interface Recommendation {
   feasibilityLabel: string;
   category: 'pricing' | 'time' | 'payment' | 'model' | 'strategic';
   icon: string;
+  projectId?: string;
+  projectName?: string;
+}
+
+interface RecommendationActionData {
+  id: string;
+  accountId: string;
+  projectId: string;
+  recommendationKey: string;
+  action: 'treated' | 'ignored';
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
 }
 
 interface ProfitabilityAnalysis {
@@ -632,7 +652,23 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
   );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+interface RecommendationCardProps {
+  recommendation: Recommendation;
+  actionStatus?: RecommendationActionData | null;
+  onMarkTreated?: (recommendationKey: string) => void;
+  onMarkIgnored?: (recommendationKey: string) => void;
+  onUndoAction?: (actionId: string) => void;
+  isPending?: boolean;
+}
+
+function RecommendationCard({ 
+  recommendation, 
+  actionStatus, 
+  onMarkTreated, 
+  onMarkIgnored, 
+  onUndoAction,
+  isPending 
+}: RecommendationCardProps) {
   const priorityInfo = getPriorityLabel(recommendation.priorityScore);
   const priorityAction = generatePriorityAction(recommendation);
   const scoreColor = getScoreColor(recommendation.priorityScore);
@@ -642,8 +678,11 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
   const decisionTiming = recommendation.decisionInfo?.timing || priorityInfo.timing;
   const decisionLabelText = recommendation.decisionInfo?.label || (typeof recommendation.decisionLabel === 'string' ? recommendation.decisionLabel : recommendation.decisionLabel.label);
   
+  // Use recommendation ID as stable key
+  const recommendationKey = recommendation.id;
+  
   return (
-    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg}`} data-testid={`card-recommendation-${recommendation.id}`}>
+    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg} ${actionStatus ? 'opacity-60' : ''}`} data-testid={`card-recommendation-${recommendation.id}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
           {/* Ligne 1: Label décisionnel + score avec tooltip de décomposition */}
@@ -658,6 +697,32 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
               </span>
             }
           </div>
+          
+          {/* Status badge if already treated/ignored */}
+          {actionStatus && (
+            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+              actionStatus.action === 'treated'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+            }`}>
+              {actionStatus.action === 'treated' ? (
+                <><Check className="w-3 h-3" /> Traité</>
+              ) : (
+                <><EyeOff className="w-3 h-3" /> Ignoré</>
+              )}
+              {onUndoAction && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-4 w-4 ml-1 hover:bg-white/50"
+                  onClick={() => onUndoAction(actionStatus.id)}
+                  data-testid={`button-undo-action-${recommendation.id}`}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+          )}
           
           {/* Ligne 2: Action concrète en premier (la plus visible) */}
           <p className={`font-bold text-base ${scoreColor.text}`}>
@@ -718,6 +783,34 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
             }`}>
               {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span>{recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
+            </div>
+          )}
+          
+          {/* Action buttons if not already treated/ignored */}
+          {!actionStatus && onMarkTreated && onMarkIgnored && (
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300"
+                onClick={() => onMarkTreated(recommendationKey)}
+                disabled={isPending}
+                data-testid={`button-mark-treated-${recommendation.id}`}
+              >
+                <Check className="w-4 h-4" />
+                Traité
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1.5 text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                onClick={() => onMarkIgnored(recommendationKey)}
+                disabled={isPending}
+                data-testid={`button-mark-ignored-${recommendation.id}`}
+              >
+                <EyeOff className="w-4 h-4" />
+                Ignorer
+              </Button>
             </div>
           )}
         </div>
@@ -873,8 +966,9 @@ export default function Finance() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'none' | 'desc' | 'asc'>('none');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('today');
   const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
+  const [showTreatedIgnored, setShowTreatedIgnored] = useState(false);
   
   // États pour l'onglet Recommandations
   const [recoSearchQuery, setRecoSearchQuery] = useState('');
@@ -896,6 +990,60 @@ export default function Finance() {
   const { data: summary, isLoading, error } = useQuery<ProfitabilitySummary>({
     queryKey: ['/api/profitability/summary'],
   });
+  
+  // Fetch recommendation actions
+  const { data: recommendationActions = [] } = useQuery<RecommendationActionData[]>({
+    queryKey: ['/api/recommendation-actions'],
+  });
+  
+  // Create action map for quick lookup
+  const actionMap = new Map<string, RecommendationActionData>();
+  recommendationActions.forEach(action => {
+    const key = `${action.projectId}_${action.recommendationKey}`;
+    actionMap.set(key, action);
+  });
+  
+  // Mutations for recommendation actions
+  const createActionMutation = useMutation({
+    mutationFn: async (data: { projectId: string; recommendationKey: string; action: 'treated' | 'ignored' }) => {
+      return apiRequest('/api/recommendation-actions', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
+    },
+  });
+  
+  const deleteActionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/recommendation-actions/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
+    },
+  });
+  
+  const handleMarkTreated = (projectId: string, recommendationKey: string) => {
+    createActionMutation.mutate({ projectId, recommendationKey, action: 'treated' });
+  };
+  
+  const handleMarkIgnored = (projectId: string, recommendationKey: string) => {
+    createActionMutation.mutate({ projectId, recommendationKey, action: 'ignored' });
+  };
+  
+  const handleUndoAction = (actionId: string) => {
+    deleteActionMutation.mutate(actionId);
+  };
+  
+  // Helper to get action status for a recommendation
+  const getActionStatus = (projectId: string, recommendationId: string): RecommendationActionData | null => {
+    const key = `${projectId}_${recommendationId}`;
+    return actionMap.get(key) || null;
+  };
 
   if (isLoading) {
     return (
@@ -1002,6 +1150,10 @@ export default function Finance() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList>
+            <TabsTrigger value="today" className="gap-2" data-testid="tab-today">
+              <Flame className="w-4 h-4" />
+              Aujourd'hui
+            </TabsTrigger>
             <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
               <BarChart3 className="w-4 h-4" />
               Vue d'ensemble
@@ -1034,6 +1186,224 @@ export default function Finance() {
             </p>
           )}
         </div>
+
+        {/* Mode Aujourd'hui - Top 3 décisions prioritaires */}
+        <TabsContent value="today" className="space-y-6">
+          {(() => {
+            // Get top 3 priority recommendations (not treated/ignored)
+            const urgencyOrder = ['🚨', '⚠️', '⏰', '💡', 'ℹ️'];
+            const top3Recommendations = allRecommendations
+              .filter(rec => {
+                const actionStatus = getActionStatus(rec.projectId || '', rec.id);
+                return !actionStatus;
+              })
+              .sort((a, b) => {
+                // Sort by urgency label first
+                const aEmoji = a.decisionInfo?.emoji || '💡';
+                const bEmoji = b.decisionInfo?.emoji || '💡';
+                const aUrgencyIndex = urgencyOrder.indexOf(aEmoji);
+                const bUrgencyIndex = urgencyOrder.indexOf(bEmoji);
+                if (aUrgencyIndex !== bUrgencyIndex) {
+                  return aUrgencyIndex - bUrgencyIndex;
+                }
+                // Then by priority score
+                return b.priorityScore - a.priorityScore;
+              })
+              .slice(0, 3);
+
+            const getTodayDate = () => {
+              const today = new Date();
+              return today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            };
+
+            return (
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <CalendarCheck className="w-5 h-5 text-violet-600" />
+                      Vos 3 décisions du jour
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1 capitalize">
+                      {getTodayDate()} - Concentrez-vous sur ces actions prioritaires
+                    </p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => setActiveTab('recommendations')}
+                    data-testid="button-view-all-recommendations"
+                  >
+                    Voir toutes les recommandations
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {top3Recommendations.length === 0 ? (
+                  <Card className="p-8 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="p-4 bg-green-200 rounded-full">
+                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-green-800">Tout est sous contrôle !</h3>
+                        <p className="text-sm text-green-600 mt-1">
+                          Aucune décision urgente à prendre aujourd'hui. Tous vos projets sont en bonne santé.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {top3Recommendations.map((rec, index) => {
+                      const actionStatus = getActionStatus(rec.projectId || '', rec.id);
+                      return (
+                        <Card 
+                          key={`today-${rec.projectId}-${rec.id}`}
+                          className={`overflow-hidden border-l-4 ${
+                            index === 0 ? 'border-l-red-500 bg-gradient-to-r from-red-50/50 to-white' : 
+                            index === 1 ? 'border-l-orange-500 bg-gradient-to-r from-orange-50/50 to-white' : 
+                            'border-l-yellow-500 bg-gradient-to-r from-yellow-50/50 to-white'
+                          }`}
+                          data-testid={`card-today-decision-${index + 1}`}
+                        >
+                          <CardContent className="p-5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-4 flex-1">
+                                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold ${
+                                  index === 0 ? 'bg-red-100 text-red-600' : 
+                                  index === 1 ? 'bg-orange-100 text-orange-600' : 
+                                  'bg-yellow-100 text-yellow-600'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                                    <Link 
+                                      href={`/projects/${rec.projectId}`} 
+                                      className="text-sm font-semibold text-violet-600 hover:underline"
+                                    >
+                                      {rec.projectName}
+                                    </Link>
+                                    <Badge variant="outline" className="text-xs">
+                                      {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
+                                    </Badge>
+                                    {rec.impactValue && rec.impactValue > 0 && (
+                                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
+                                        +{formatCurrency(rec.impactValue)}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Format 3 blocs */}
+                                  <div className="space-y-2 text-sm">
+                                    {rec.threeBlockFormat ? (
+                                      <>
+                                        <p className="text-gray-600">
+                                          <span className="font-medium text-gray-700">Constat : </span>
+                                          {rec.threeBlockFormat.pastObservation}
+                                        </p>
+                                        <p className="text-gray-600">
+                                          <span className="font-medium text-gray-700">Implication : </span>
+                                          {rec.threeBlockFormat.currentImplication}
+                                        </p>
+                                        <p className="text-gray-900 font-medium bg-violet-50 p-2 rounded-md border-l-2 border-violet-400">
+                                          <span className="font-semibold">Action : </span>
+                                          {rec.threeBlockFormat.concreteAction}
+                                        </p>
+                                      </>
+                                    ) : (
+                                      <p className="text-gray-700">{rec.actionSuggested}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Action buttons */}
+                              <div className="flex flex-col gap-2">
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="gap-2"
+                                  onClick={() => handleMarkTreated(rec.projectId || '', rec.id)}
+                                  disabled={createActionMutation.isPending}
+                                  data-testid={`button-today-mark-treated-${index + 1}`}
+                                >
+                                  <Check className="w-4 h-4" />
+                                  Traité
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-2 text-gray-500"
+                                  onClick={() => handleMarkIgnored(rec.projectId || '', rec.id)}
+                                  disabled={createActionMutation.isPending}
+                                  data-testid={`button-today-mark-ignored-${index + 1}`}
+                                >
+                                  <X className="w-4 h-4" />
+                                  Ignorer
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                    
+                    {/* Quick stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                      <Card className="p-4 bg-gradient-to-br from-violet-50 to-white border-violet-100">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-violet-100 rounded-full">
+                            <Lightbulb className="w-5 h-5 text-violet-600" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold text-violet-700">
+                              {allRecommendations.filter(r => !getActionStatus(r.projectId || '', r.id)).length}
+                            </p>
+                            <p className="text-xs text-violet-600">Recommandations actives</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card className="p-4 bg-gradient-to-br from-green-50 to-white border-green-100">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 rounded-full">
+                            <Check className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold text-green-700">
+                              {recommendationActions.filter(a => a.action === 'treated').length}
+                            </p>
+                            <p className="text-xs text-green-600">Traitées ce mois</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card className="p-4 bg-gradient-to-br from-cyan-50 to-white border-cyan-100">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-cyan-100 rounded-full">
+                            <Euro className="w-5 h-5 text-cyan-600" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold text-cyan-700">
+                              {formatCurrency(
+                                allRecommendations
+                                  .filter(r => !getActionStatus(r.projectId || '', r.id) && r.impactValue)
+                                  .reduce((sum, r) => sum + (r.impactValue || 0), 0)
+                              )}
+                            </p>
+                            <p className="text-xs text-cyan-600">Gains potentiels</p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1316,12 +1686,28 @@ export default function Finance() {
                   {recoSortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
                   {recoSortOrder === 'desc' ? 'Décroissant' : 'Croissant'}
                 </Button>
+                <Button
+                  variant={showTreatedIgnored ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowTreatedIgnored(!showTreatedIgnored)}
+                  className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
+                  data-testid="button-toggle-treated-ignored"
+                >
+                  {showTreatedIgnored ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  {showTreatedIgnored ? 'Afficher tout' : 'Masquer traités'}
+                </Button>
                 <p className="text-sm text-gray-500 ml-auto">
                   {(() => {
                     const filtered = allRecommendations
                       .filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`))
-                      .filter(r => !recoSearchQuery || r.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()));
-                    return `${filtered.length} recommandation${filtered.length > 1 ? 's' : ''}`;
+                      .filter(r => !recoSearchQuery || r.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()))
+                      .filter(r => {
+                        if (!showTreatedIgnored) return true;
+                        const actionStatus = getActionStatus(r.projectId || '', r.id);
+                        return !actionStatus;
+                      });
+                    const treatedCount = recommendationActions.length;
+                    return `${filtered.length} recommandation${filtered.length > 1 ? 's' : ''}${treatedCount > 0 ? ` (${treatedCount} traitée${treatedCount > 1 ? 's' : ''})` : ''}`;
                   })()}
                 </p>
               </div>
@@ -1331,7 +1717,18 @@ export default function Finance() {
                 {allRecommendations
                   .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
                   .filter(rec => !recoSearchQuery || rec.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()))
+                  .filter(rec => {
+                    if (!showTreatedIgnored) return true;
+                    const actionStatus = getActionStatus(rec.projectId || '', rec.id);
+                    return !actionStatus;
+                  })
                   .sort((a, b) => {
+                    // Sort treated/ignored to the bottom
+                    const aStatus = getActionStatus(a.projectId || '', a.id);
+                    const bStatus = getActionStatus(b.projectId || '', b.id);
+                    if (aStatus && !bStatus) return 1;
+                    if (!aStatus && bStatus) return -1;
+                    
                     if (recoSortBy === 'score') {
                       return recoSortOrder === 'desc' ? b.priorityScore - a.priorityScore : a.priorityScore - b.priorityScore;
                     } else {
@@ -1342,6 +1739,7 @@ export default function Finance() {
                   })
                   .map((rec) => {
                     const recKey = `${rec.projectId}-${rec.id}`;
+                    const actionStatus = getActionStatus(rec.projectId || '', rec.id);
                     return (
                       <div key={recKey}>
                         <div className="flex items-center justify-between gap-2 mb-2">
@@ -1358,7 +1756,14 @@ export default function Finance() {
                             <Eye className="w-4 h-4 text-gray-500" />
                           </Button>
                         </div>
-                        <RecommendationCard recommendation={rec} />
+                        <RecommendationCard 
+                          recommendation={rec} 
+                          actionStatus={actionStatus}
+                          onMarkTreated={(key) => handleMarkTreated(rec.projectId || '', key)}
+                          onMarkIgnored={(key) => handleMarkIgnored(rec.projectId || '', key)}
+                          onUndoAction={handleUndoAction}
+                          isPending={createActionMutation.isPending || deleteActionMutation.isPending}
+                        />
                       </div>
                     );
                   })}

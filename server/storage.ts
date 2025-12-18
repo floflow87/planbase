@@ -12,6 +12,7 @@ import {
   type ProjectCategory, type InsertProjectCategory,
   type ProjectPayment, type InsertProjectPayment,
   type ProjectScopeItem, type InsertProjectScopeItem,
+  type RecommendationAction, type InsertRecommendationAction,
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
@@ -35,7 +36,7 @@ import {
   type MindmapEdge, type InsertMindmapEdge,
   type EntityLink, type InsertEntityLink,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, projectPayments, projectScopeItems, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks,
@@ -131,6 +132,13 @@ export interface IStorage {
   updateScopeItem(id: string, scopeItem: Partial<InsertProjectScopeItem>): Promise<ProjectScopeItem | undefined>;
   deleteScopeItem(id: string): Promise<boolean>;
   reorderScopeItems(projectId: string, orders: { id: string; order: number }[]): Promise<void>;
+
+  // Recommendation Actions
+  getRecommendationActionsByAccountId(accountId: string): Promise<RecommendationAction[]>;
+  getRecommendationActionsByProjectId(projectId: string): Promise<RecommendationAction[]>;
+  getRecommendationAction(accountId: string, projectId: string, recommendationKey: string): Promise<RecommendationAction | undefined>;
+  upsertRecommendationAction(action: InsertRecommendationAction): Promise<RecommendationAction>;
+  deleteRecommendationAction(id: string): Promise<boolean>;
 
   // Task Columns
   getTaskColumn(id: string): Promise<TaskColumn | undefined>;
@@ -724,6 +732,57 @@ export class DatabaseStorage implements IStorage {
         .set({ order, updatedAt: new Date() })
         .where(and(eq(projectScopeItems.id, id), eq(projectScopeItems.projectId, projectId)));
     }
+  }
+
+  // Recommendation Actions
+  async getRecommendationActionsByAccountId(accountId: string): Promise<RecommendationAction[]> {
+    return await db
+      .select()
+      .from(recommendationActions)
+      .where(eq(recommendationActions.accountId, accountId))
+      .orderBy(desc(recommendationActions.createdAt));
+  }
+
+  async getRecommendationActionsByProjectId(projectId: string): Promise<RecommendationAction[]> {
+    return await db
+      .select()
+      .from(recommendationActions)
+      .where(eq(recommendationActions.projectId, projectId))
+      .orderBy(desc(recommendationActions.createdAt));
+  }
+
+  async getRecommendationAction(accountId: string, projectId: string, recommendationKey: string): Promise<RecommendationAction | undefined> {
+    const [action] = await db
+      .select()
+      .from(recommendationActions)
+      .where(and(
+        eq(recommendationActions.accountId, accountId),
+        eq(recommendationActions.projectId, projectId),
+        eq(recommendationActions.recommendationKey, recommendationKey)
+      ));
+    return action || undefined;
+  }
+
+  async upsertRecommendationAction(actionData: InsertRecommendationAction): Promise<RecommendationAction> {
+    const [result] = await db
+      .insert(recommendationActions)
+      .values(actionData)
+      .onConflictDoUpdate({
+        target: [recommendationActions.accountId, recommendationActions.projectId, recommendationActions.recommendationKey],
+        set: {
+          action: actionData.action,
+          note: actionData.note,
+          createdBy: actionData.createdBy,
+          createdAt: new Date(),
+        }
+      })
+      .returning();
+    return result;
+  }
+
+  async deleteRecommendationAction(id: string): Promise<boolean> {
+    const result = await db.delete(recommendationActions).where(eq(recommendationActions.id, id));
+    return result.length > 0;
   }
 
   // Task Columns

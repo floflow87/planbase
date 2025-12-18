@@ -815,6 +815,25 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project scope items table created");
     
+    // Create recommendation_actions table for tracking treated/ignored recommendations
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS recommendation_actions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        recommendation_key text NOT NULL,
+        action text NOT NULL,
+        note text,
+        created_by uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS recommendation_actions_account_project_key_idx 
+      ON recommendation_actions(account_id, project_id, recommendation_key);
+    `);
+    console.log("✅ Recommendation actions table created");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

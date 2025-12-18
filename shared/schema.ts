@@ -224,6 +224,20 @@ export const projectScopeItems = pgTable("project_scope_items", {
   accountProjectIdx: index().on(table.accountId, table.projectId),
 }));
 
+// Recommendation Actions (for tracking "treated" or "ignored" recommendations)
+export const recommendationActions = pgTable("recommendation_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  recommendationKey: text("recommendation_key").notNull(), // Recommendation ID (e.g. "rec-1", "rec-2")
+  action: text("action").notNull(), // 'treated' or 'ignored'
+  note: text("note"), // Optional note explaining the action
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }), // Nullable to allow ON DELETE SET NULL
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectKeyIdx: uniqueIndex().on(table.accountId, table.projectId, table.recommendationKey),
+}));
+
 // Task Columns (for Kanban board customization)
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1075,6 +1089,9 @@ export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems
   isOptional: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
 });
 export const updateProjectScopeItemSchema = insertProjectScopeItemSchema.omit({ accountId: true, projectId: true }).partial();
+export const insertRecommendationActionSchema = createInsertSchema(recommendationActions).omit({ id: true, createdAt: true }).extend({
+  action: z.enum(['treated', 'ignored']),
+});
 export const insertTaskColumnSchema = createInsertSchema(taskColumns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
@@ -1244,6 +1261,8 @@ export type Project = typeof projects.$inferSelect;
 export type ProjectCategory = typeof projectCategories.$inferSelect;
 export type ProjectPayment = typeof projectPayments.$inferSelect;
 export type ProjectScopeItem = typeof projectScopeItems.$inferSelect;
+export type RecommendationAction = typeof recommendationActions.$inferSelect;
+export type InsertRecommendationAction = z.infer<typeof insertRecommendationActionSchema>;
 export type TaskColumn = typeof taskColumns.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
