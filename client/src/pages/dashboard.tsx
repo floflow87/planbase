@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +121,67 @@ const getActivityUrl = (subjectType: string, subjectId: string): string | null =
   return routes[subjectType] || null;
 };
 
+// Types pour le résumé de profitabilité
+interface RecommendationBlocks {
+  pastImpact: { amount: number; condition: string };
+  currentImplication: { message: string; isPast?: boolean };
+  concreteAction: { primary: string; alternatives: string[] };
+}
+
+interface Recommendation {
+  id: string;
+  priority: 'high' | 'medium' | 'low';
+  priorityScore: number;
+  decisionInfo?: { emoji: string; label: string; timing: string };
+  blocks?: RecommendationBlocks;
+  issue: string;
+  action: string;
+  impact: string;
+  impactValue?: number;
+  category: 'pricing' | 'time' | 'payment' | 'model' | 'strategic';
+  projectId?: string;
+  projectName?: string;
+}
+
+interface ProfitabilityAnalysis {
+  projectId: string;
+  projectName: string;
+  recommendations: Recommendation[];
+  healthScore: number;
+}
+
+interface ProfitabilitySummary {
+  projects: ProfitabilityAnalysis[];
+  generatedAt: string;
+}
+
+// Helpers for priority colors
+const getPriorityScoreColor = (score: number) => {
+  if (score >= 80) return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-l-red-500' };
+  if (score >= 60) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-l-orange-500' };
+  if (score >= 40) return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-l-amber-500' };
+  if (score >= 20) return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-l-blue-500' };
+  return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-l-gray-400' };
+};
+
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'pricing': return DollarSign;
+    case 'time': return Clock;
+    case 'payment': return CreditCard;
+    default: return Zap;
+  }
+};
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('fr-FR', { 
+    style: 'currency', 
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0 
+  }).format(value);
+};
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -175,6 +236,34 @@ export default function Dashboard() {
     queryKey: ["/api/accounts", accountId, "users"],
     enabled: !!accountId,
   });
+
+  // Fetch profitability summary for priority actions
+  const { data: profitabilitySummary } = useQuery<ProfitabilitySummary>({
+    queryKey: ['/api/profitability/summary'],
+    enabled: !!accountId,
+  });
+
+  // Get top priority recommendation across all projects
+  const topPriorityAction = useMemo(() => {
+    if (!profitabilitySummary?.projects) return null;
+    
+    const allRecommendations: (Recommendation & { projectName: string; projectId: string })[] = [];
+    
+    for (const project of profitabilitySummary.projects) {
+      for (const rec of project.recommendations) {
+        allRecommendations.push({
+          ...rec,
+          projectName: project.projectName,
+          projectId: project.projectId,
+        });
+      }
+    }
+    
+    if (allRecommendations.length === 0) return null;
+    
+    // Sort by priority score descending and return the top one
+    return allRecommendations.sort((a, b) => b.priorityScore - a.priorityScore)[0];
+  }, [profitabilitySummary]);
 
   // Get ALL task columns (including global and project-specific)
   const { data: allTaskColumns = [] } = useQuery<TaskColumn[]>({
@@ -1135,6 +1224,65 @@ export default function Dashboard() {
           })}
         </div>
 
+        {/* Priority Action Card */}
+        {topPriorityAction && (
+          <Card className={`border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30`} data-testid="card-priority-action">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Left: Icon + Content */}
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className={`p-2.5 rounded-lg shrink-0 ${getPriorityScoreColor(topPriorityAction.priorityScore).bg}`}>
+                    {(() => {
+                      const CategoryIcon = getCategoryIcon(topPriorityAction.category);
+                      return <CategoryIcon className={`w-5 h-5 ${getPriorityScoreColor(topPriorityAction.priorityScore).text}`} />;
+                    })()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Badge className={`${getPriorityScoreColor(topPriorityAction.priorityScore).bg} ${getPriorityScoreColor(topPriorityAction.priorityScore).text} border-0 text-xs`}>
+                        {topPriorityAction.decisionInfo?.emoji} {topPriorityAction.decisionInfo?.label || 'Action prioritaire'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Score: {topPriorityAction.priorityScore}
+                      </span>
+                    </div>
+                    <p className="font-medium text-sm text-foreground line-clamp-1">
+                      {topPriorityAction.blocks?.concreteAction.primary || topPriorityAction.action}
+                    </p>
+                    {topPriorityAction.projectName && (
+                      <Link 
+                        href={`/projects/${topPriorityAction.projectId}`}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1 mt-1"
+                      >
+                        {topPriorityAction.projectName}
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    )}
+                    {topPriorityAction.impactValue && topPriorityAction.impactValue > 0 && (
+                      <p className="text-xs text-emerald-600 font-medium mt-1">
+                        +{formatCurrency(topPriorityAction.impactValue)} potentiel
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Right: Action */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation('/finance')}
+                    className="text-xs"
+                    data-testid="button-view-all-actions"
+                  >
+                    Voir toutes les actions
+                    <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
