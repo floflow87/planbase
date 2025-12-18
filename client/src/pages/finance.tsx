@@ -363,7 +363,7 @@ function ScoreBadge({ score, breakdown }: { score: number; breakdown?: ScoreBrea
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-sm p-3">
+      <TooltipContent side="left" className="max-w-sm p-3 bg-white dark:bg-gray-900 border shadow-lg">
         <div className="space-y-2">
           <p className="text-sm font-semibold text-gray-900">Decomposition du score</p>
           {breakdown && breakdown.components.length > 0 ? (
@@ -521,19 +521,36 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 
         {recommendations.length > 0 && (
           <div className="pt-2 border-t">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-yellow-500" />
-              <span className="text-xs font-medium text-gray-600">
-                {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
-              </span>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 mb-2 cursor-help">
+                  <Lightbulb className="w-4 h-4 text-yellow-500" />
+                  <span className="text-xs font-medium text-gray-600">
+                    {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs p-3 bg-white dark:bg-gray-900 border shadow-lg">
+                <p className="text-sm font-medium mb-2">
+                  Ce projet est {metrics.marginPercent >= 0 ? 'rentable' : 'déficitaire'} avec {formatNumber(Math.abs(metrics.marginPercent))}% de marge
+                </p>
+                <div className="space-y-1 text-xs">
+                  {recommendations.map((rec) => (
+                    <div key={rec.id} className="flex items-start gap-2">
+                      <span>{rec.priority === 'critical' ? '🚨' : rec.priority === 'high' ? '⚡' : '💡'}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{rec.issue}</span>
+                    </div>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
             <div className="space-y-2">
               {recommendations.slice(0, 2).map((rec) => (
                 <div 
                   key={rec.id} 
                   className={`p-2 rounded-lg border text-xs ${getPriorityColor(rec.priority)}`}
                 >
-                  <p className="text-gray-700 font-medium">{rec.issue}</p>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium">{rec.issue}</p>
                 </div>
               ))}
               {recommendations.length > 2 && (
@@ -878,7 +895,7 @@ export default function Finance() {
                 <Info className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
+            <TooltipContent className="max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
               <p>Les calculs sont basés sur le temps enregistré, les montants facturés et votre coût journalier interne.</p>
             </TooltipContent>
           </Tooltip>
@@ -904,7 +921,7 @@ export default function Finance() {
                   )}
                 </TabsTrigger>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs p-3">
+              <TooltipContent side="bottom" className="max-w-xs p-3 bg-white dark:bg-gray-900 border shadow-lg">
                 {allRecommendations.length > 0 ? (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">{allRecommendations.length} recommandation{allRecommendations.length > 1 ? 's' : ''} active{allRecommendations.length > 1 ? 's' : ''}</p>
