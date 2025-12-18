@@ -214,14 +214,27 @@ interface ScopeAlert {
   icon: typeof AlertTriangle;
 }
 
+type PriorityLevel = 'information' | 'suggestion' | 'a_planifier' | 'a_traiter' | 'critique';
+
+const priorityConfig: Record<PriorityLevel, { emoji: string; label: string; color: string; bgColor: string; borderColor: string }> = {
+  information: { emoji: 'ℹ️', label: 'Information', color: 'text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-50 dark:bg-blue-900/20', borderColor: 'border-blue-200 dark:border-blue-700' },
+  suggestion: { emoji: '💡', label: 'Suggestion', color: 'text-cyan-700 dark:text-cyan-300', bgColor: 'bg-cyan-50 dark:bg-cyan-900/20', borderColor: 'border-cyan-200 dark:border-cyan-700' },
+  a_planifier: { emoji: '📅', label: 'À planifier', color: 'text-amber-700 dark:text-amber-300', bgColor: 'bg-amber-50 dark:bg-amber-900/20', borderColor: 'border-amber-200 dark:border-amber-700' },
+  a_traiter: { emoji: '⚡', label: 'À traiter', color: 'text-orange-700 dark:text-orange-300', bgColor: 'bg-orange-50 dark:bg-orange-900/20', borderColor: 'border-orange-200 dark:border-orange-700' },
+  critique: { emoji: '🚨', label: 'Critique', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-50 dark:bg-red-900/20', borderColor: 'border-red-200 dark:border-red-700' },
+};
+
 interface ScopeRecommendation {
   title: string;
+  priorityAction: string; // Phrase de décision prioritaire
   why: string;
   action: string;
   type: 'action' | 'learning';
+  priority: PriorityLevel;
+  timing: 'maintenant' | 'avant_signature' | 'plus_tard' | 'retrospective';
   impact?: {
     amount: number;
-    unit: 'par jour' | 'par projet' | 'total';
+    unit: 'par jour' | 'par projet' | 'potentiel' | 'futur';
     direction: 'gain' | 'perte';
   };
 }
@@ -499,9 +512,14 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     });
     recommendations.push({
       title: "Augmenter le prix",
+      priorityAction: isProjectCompleted 
+        ? `Retenir : ce projet a généré une perte de ${Math.abs(safeMargin).toFixed(0)} € par projet.`
+        : `Augmenter le prix de ${Math.abs(safeMargin).toFixed(0)} € avant signature.`,
       why: "La marge actuelle est négative. Le prix ne couvre pas les coûts de production estimés.",
       action: `Augmentez le prix d'au moins ${Math.abs(safeMargin).toFixed(0)} € pour atteindre l'équilibre sur ce projet.`,
       type: isProjectCompleted ? 'learning' : 'action',
+      priority: isProjectCompleted ? 'information' : 'critique',
+      timing: isProjectCompleted ? 'retrospective' : 'maintenant',
       impact: {
         amount: Math.abs(safeMargin),
         unit: 'par projet',
@@ -510,9 +528,14 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     });
     recommendations.push({
       title: "Rendre certaines rubriques optionnelles",
+      priorityAction: isProjectCompleted 
+        ? `Retenir : réduire le périmètre de ${Math.ceil(Math.abs(safeMargin) / internalDailyCost)} jour(s) aurait équilibré ce projet.`
+        : `Réduire le périmètre de ${Math.ceil(Math.abs(safeMargin) / internalDailyCost)} jour(s) pour équilibrer.`,
       why: `Le périmètre actuel (${totals.mandatoryDays} jours) génère un coût de ${safeCost.toFixed(0)} € supérieur au prix prévu.`,
       action: `Réduisez d'environ ${Math.ceil(Math.abs(safeMargin) / internalDailyCost)} jour(s) le périmètre obligatoire pour atteindre l'équilibre.`,
       type: isProjectCompleted ? 'learning' : 'action',
+      priority: isProjectCompleted ? 'suggestion' : 'a_traiter',
+      timing: isProjectCompleted ? 'retrospective' : 'avant_signature',
       impact: {
         amount: Math.abs(safeMargin),
         unit: 'par projet',
@@ -530,12 +553,17 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     });
     recommendations.push({
       title: "Augmenter le prix",
+      priorityAction: isProjectCompleted 
+        ? `Retenir : ajouter ${missingMargin.toFixed(0)} € aurait atteint votre objectif de marge.`
+        : `Ajouter ${missingMargin.toFixed(0)} € au prix pour atteindre votre objectif de marge.`,
       why: `La marge actuelle (${safeMarginPercent.toFixed(1)}%) est inférieure à votre objectif (${targetMarginPercent}%).`,
       action: `Augmentez le prix d'environ ${missingMargin.toFixed(0)} € pour atteindre votre objectif de marge.`,
       type: isProjectCompleted ? 'learning' : 'action',
+      priority: isProjectCompleted ? 'suggestion' : 'a_traiter',
+      timing: isProjectCompleted ? 'retrospective' : 'avant_signature',
       impact: missingMargin > 0 ? {
         amount: missingMargin,
-        unit: 'par projet',
+        unit: 'potentiel',
         direction: 'perte',
       } : undefined,
     });
@@ -552,12 +580,17 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     });
     recommendations.push({
       title: "Revoir le TJM",
+      priorityAction: isProjectCompleted 
+        ? `Retenir : un TJM trop faible a coûté ${totalGap.toFixed(0)} € sur ce projet.`
+        : `Négocier un TJM supérieur ou réduire le scope pour limiter la perte.`,
       why: `Le TJM actuel (${dailyRate} €/j) ne couvre pas suffisamment votre coût interne (${internalDailyCost} €/j + 20% de marge cible).`,
       action: `Négociez un TJM supérieur ou réduisez le nombre de jours pour limiter la perte estimée sur ce projet.`,
       type: isProjectCompleted ? 'learning' : 'action',
+      priority: isProjectCompleted ? 'information' : 'a_planifier',
+      timing: isProjectCompleted ? 'retrospective' : 'avant_signature',
       impact: {
         amount: totalGap,
-        unit: 'total',
+        unit: 'par projet',
         direction: 'perte',
       },
     });
@@ -572,12 +605,17 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
     });
     recommendations.push({
       title: "Renégocier le projet",
+      priorityAction: isProjectCompleted 
+        ? `Retenir : l'écart de ${priceGapWithBudget.toFixed(0)} € avec le budget client a impacté ce projet.`
+        : `Discuter avec le client pour combler l'écart de ${priceGapWithBudget.toFixed(0)} € avant signature.`,
       why: `Le prix recommandé (${safePrice.toFixed(0)} €) dépasse le budget client (${budget.toFixed(0)} €) de ${priceGapWithBudget.toFixed(0)} €.`,
       action: "Discutez avec le client pour augmenter le budget ou réduire le périmètre avant signature.",
       type: isProjectCompleted ? 'learning' : 'action',
+      priority: isProjectCompleted ? 'information' : 'a_traiter',
+      timing: isProjectCompleted ? 'retrospective' : 'avant_signature',
       impact: {
         amount: priceGapWithBudget,
-        unit: 'par projet',
+        unit: 'potentiel',
         direction: 'perte',
       },
     });
@@ -828,41 +866,81 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
                 </p>
               </div>
             )}
-            <div className="space-y-3">
-              {recommendations.map((rec, index) => (
-                <div key={index} className="p-3 rounded-lg bg-muted/50 border border-muted">
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 text-xs font-bold shrink-0">
-                      {index + 1}
+            <div className="space-y-4">
+              {recommendations.map((rec, index) => {
+                const priorityStyle = priorityConfig[rec.priority];
+                const timingLabels: Record<string, { emoji: string; label: string }> = {
+                  maintenant: { emoji: '🔥', label: 'Maintenant' },
+                  avant_signature: { emoji: '✍️', label: 'Avant signature' },
+                  plus_tard: { emoji: '📅', label: 'Plus tard' },
+                  retrospective: { emoji: '📖', label: 'Rétrospective' },
+                };
+                const timingStyle = timingLabels[rec.timing] || timingLabels.maintenant;
+
+                return (
+                  <div 
+                    key={index} 
+                    className={`p-4 rounded-lg border-l-4 ${priorityStyle.bgColor} ${priorityStyle.borderColor}`}
+                    data-testid={`recommendation-card-${index}`}
+                  >
+                    {/* Ligne 1 : Badges priorité + timing + étape projet */}
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs font-medium ${priorityStyle.bgColor} ${priorityStyle.color} ${priorityStyle.borderColor}`}
+                      >
+                        {priorityStyle.emoji} {priorityStyle.label}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-muted/50">
+                        {timingStyle.emoji} {timingStyle.label}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs bg-muted/50">
+                        {currentStageBadge.emoji} {currentStageBadge.label}
+                      </Badge>
                     </div>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm">{rec.title}</p>
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${rec.type === 'action' ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-700' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700'}`}
-                        >
-                          {rec.type === 'action' ? '⚡ Action immédiate' : '📚 Apprentissage'}
-                        </Badge>
+
+                    {/* Ligne 2 : Phrase de décision prioritaire (en gras, visible immédiatement) */}
+                    <p className={`font-semibold text-sm mb-2 ${priorityStyle.color}`}>
+                      {rec.priorityAction}
+                    </p>
+
+                    {/* Ligne 3 : Titre + Type action/learning */}
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <p className="font-medium text-sm text-foreground">{rec.title}</p>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${rec.type === 'action' ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-700' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700'}`}
+                      >
+                        {rec.type === 'action' ? '⚡ Action' : '📚 Apprentissage'}
+                      </Badge>
+                    </div>
+
+                    {/* Ligne 4 : Pourquoi (contexte) */}
+                    <p className="text-xs text-muted-foreground mb-1">
+                      <strong>Pourquoi :</strong> {rec.why}
+                    </p>
+
+                    {/* Ligne 5 : Action détaillée */}
+                    <p className="text-sm text-foreground mb-2">
+                      <strong>Action :</strong> {rec.action}
+                    </p>
+
+                    {/* Ligne 6 : Impact financier avec unité explicite */}
+                    {rec.impact && rec.impact.amount > 0 && (
+                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                        rec.impact.direction === 'gain' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                      }`}>
+                        {rec.impact.direction === 'gain' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        <span>
+                          {rec.impact.direction === 'gain' ? '+' : '-'}{rec.impact.amount.toFixed(0)} € ({rec.impact.unit})
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground"><strong>Pourquoi :</strong> {rec.why}</p>
-                      <p className="text-sm text-foreground"><strong>Action :</strong> {rec.action}</p>
-                      {rec.impact && rec.impact.amount > 0 && (
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium mt-1 ${
-                          rec.impact.direction === 'gain' 
-                            ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' 
-                            : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
-                        }`}>
-                          {rec.impact.direction === 'gain' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                          <span>
-                            {rec.impact.direction === 'gain' ? '+' : '-'}{rec.impact.amount.toFixed(0)} € {rec.impact.unit}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
