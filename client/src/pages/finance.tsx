@@ -143,11 +143,15 @@ interface RecommendationActionData {
 
 interface HealthScoreBreakdown {
   total: number;
+  isEvaluable?: boolean;
+  completenessPercent?: number;
+  missingData?: string[];
   components: {
     label: string;
     value: number;
     maxValue: number;
     description: string;
+    hasData?: boolean;
   }[];
 }
 
@@ -538,7 +542,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
             score={healthScore} 
             size={40}
             strokeWidth={4}
-            breakdown={healthScoreBreakdown.components}
+            breakdown={healthScoreBreakdown}
             label="Score de santé"
           />
           

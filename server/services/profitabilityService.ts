@@ -120,11 +120,15 @@ export interface Recommendation {
 // Health Score breakdown for project health transparency
 export interface HealthScoreBreakdown {
   total: number;
+  isEvaluable: boolean; // False if minimal data is missing
+  completenessPercent: number; // 0-100, how much data is available
+  missingData: string[]; // List of missing data for UI
   components: {
     label: string;
     value: number;
     maxValue: number;
     description: string;
+    hasData: boolean; // Whether this component has actual data
   }[];
 }
 
@@ -266,55 +270,80 @@ interface HealthScoreResult {
 
 export function calculateHealthScore(metrics: ProfitabilityMetrics): HealthScoreResult {
   const components: HealthScoreBreakdown['components'] = [];
+  const missingData: string[] = [];
+  
+  // Detect available data
+  const hasMarginData = metrics.totalBilled > 0 || metrics.totalPaid > 0 || metrics.actualDaysWorked > 0;
+  const hasTJMData = metrics.targetTJM > 0;
+  const hasPaymentData = metrics.totalBilled > 0;
+  const hasTimeData = metrics.theoreticalDays > 0 && metrics.actualDaysWorked > 0;
+  
+  // Count available axes for completeness
+  const dataAxes = [hasMarginData, hasTJMData, hasPaymentData, hasTimeData];
+  const availableAxes = dataAxes.filter(Boolean).length;
+  const completenessPercent = Math.round((availableAxes / 4) * 100);
+  
+  // Build missing data list
+  if (!hasMarginData) missingData.push('Facturation ou temps de travail');
+  if (!hasTJMData) missingData.push('TJM cible');
+  if (!hasPaymentData) missingData.push('Facturation');
+  if (!hasTimeData) missingData.push('Budget temps ou temps travaillé');
+  
+  // Project is evaluable if at least 2 data axes are present (50% minimum)
+  const isEvaluable = availableAxes >= 2;
   
   // 1. Marge (0-30 points) - Plus la marge est haute, mieux c'est
-  // Marge cible = 30%, on normalise entre -20% et +50%
   let marginScore = 0;
-  if (metrics.marginPercent >= 30) {
-    marginScore = 30; // Excellente marge
-  } else if (metrics.marginPercent >= 15) {
-    marginScore = 20 + ((metrics.marginPercent - 15) / 15) * 10; // 20-30
-  } else if (metrics.marginPercent >= 0) {
-    marginScore = 10 + (metrics.marginPercent / 15) * 10; // 10-20
-  } else if (metrics.marginPercent >= -20) {
-    marginScore = Math.max(0, 10 + (metrics.marginPercent / 20) * 10); // 0-10
-  } else {
-    marginScore = 0; // Très déficitaire
+  if (hasMarginData) {
+    if (metrics.marginPercent >= 30) {
+      marginScore = 30;
+    } else if (metrics.marginPercent >= 15) {
+      marginScore = 20 + ((metrics.marginPercent - 15) / 15) * 10;
+    } else if (metrics.marginPercent >= 0) {
+      marginScore = 10 + (metrics.marginPercent / 15) * 10;
+    } else if (metrics.marginPercent >= -20) {
+      marginScore = Math.max(0, 10 + (metrics.marginPercent / 20) * 10);
+    } else {
+      marginScore = 0;
+    }
   }
+  // No data = 0 points (not neutral)
   
   components.push({
     label: 'Marge',
     value: Math.round(marginScore),
     maxValue: 30,
-    description: metrics.marginPercent >= 15 
-      ? `Rentable (${metrics.marginPercent.toFixed(1)}%)`
-      : metrics.marginPercent >= 0 
-        ? `À risque (${metrics.marginPercent.toFixed(1)}%)`
-        : `Déficitaire (${metrics.marginPercent.toFixed(1)}%)`
+    hasData: hasMarginData,
+    description: hasMarginData 
+      ? (metrics.marginPercent >= 15 
+          ? `Rentable (${metrics.marginPercent.toFixed(1)}%)`
+          : metrics.marginPercent >= 0 
+            ? `À risque (${metrics.marginPercent.toFixed(1)}%)`
+            : `Déficitaire (${metrics.marginPercent.toFixed(1)}%)`)
+      : 'Données manquantes'
   });
   
   // 2. TJM (0-25 points) - Écart par rapport au TJM cible
   let tjmScore = 0;
-  if (metrics.targetTJM > 0) {
+  if (hasTJMData) {
     if (metrics.tjmGapPercent >= 0) {
-      tjmScore = 25; // TJM atteint ou dépassé
+      tjmScore = 25;
     } else if (metrics.tjmGapPercent >= -10) {
-      tjmScore = 20 + ((10 + metrics.tjmGapPercent) / 10) * 5; // 20-25
+      tjmScore = 20 + ((10 + metrics.tjmGapPercent) / 10) * 5;
     } else if (metrics.tjmGapPercent >= -25) {
-      tjmScore = 10 + ((25 + metrics.tjmGapPercent) / 15) * 10; // 10-20
+      tjmScore = 10 + ((25 + metrics.tjmGapPercent) / 15) * 10;
     } else {
-      tjmScore = Math.max(0, 10 + (metrics.tjmGapPercent + 25) / 25 * 10); // 0-10
+      tjmScore = Math.max(0, 10 + (metrics.tjmGapPercent + 25) / 25 * 10);
     }
-  } else {
-    // Pas de TJM cible défini - on donne un score neutre
-    tjmScore = 15;
   }
+  // No TJM target = 0 points (not neutral)
   
   components.push({
     label: 'TJM effectif',
     value: Math.round(tjmScore),
     maxValue: 25,
-    description: metrics.targetTJM > 0
+    hasData: hasTJMData,
+    description: hasTJMData
       ? (metrics.tjmGapPercent >= 0 
           ? `TJM atteint (${metrics.actualTJM.toLocaleString('fr-FR')} €/j)`
           : `TJM sous cible (${metrics.tjmGapPercent.toFixed(1)}%)`)
@@ -323,70 +352,99 @@ export function calculateHealthScore(metrics: ProfitabilityMetrics): HealthScore
   
   // 3. Encaissement (0-25 points) - Progression des paiements
   let paymentScore = 0;
-  if (metrics.totalBilled > 0) {
-    // On normalise sur la progression des paiements
+  if (hasPaymentData) {
     if (metrics.paymentProgress >= 100) {
-      paymentScore = 25; // Tout encaissé
+      paymentScore = 25;
     } else if (metrics.paymentProgress >= 75) {
-      paymentScore = 20 + ((metrics.paymentProgress - 75) / 25) * 5; // 20-25
+      paymentScore = 20 + ((metrics.paymentProgress - 75) / 25) * 5;
     } else if (metrics.paymentProgress >= 50) {
-      paymentScore = 15 + ((metrics.paymentProgress - 50) / 25) * 5; // 15-20
+      paymentScore = 15 + ((metrics.paymentProgress - 50) / 25) * 5;
     } else if (metrics.paymentProgress >= 25) {
-      paymentScore = 10 + ((metrics.paymentProgress - 25) / 25) * 5; // 10-15
+      paymentScore = 10 + ((metrics.paymentProgress - 25) / 25) * 5;
     } else {
-      paymentScore = (metrics.paymentProgress / 25) * 10; // 0-10
+      paymentScore = (metrics.paymentProgress / 25) * 10;
     }
-  } else {
-    paymentScore = 15; // Pas encore facturé - score neutre
   }
+  // No billing = 0 points (not neutral)
   
   components.push({
     label: 'Encaissement',
     value: Math.round(paymentScore),
     maxValue: 25,
-    description: metrics.totalBilled > 0
+    hasData: hasPaymentData,
+    description: hasPaymentData
       ? (metrics.paymentProgress >= 100 
           ? 'Tout encaissé'
           : `${metrics.paymentProgress.toFixed(0)}% encaissé`)
-      : 'Pas encore facturé'
+      : 'Pas de facturation'
   });
   
   // 4. Dérive temps (0-20 points) - Respect du budget temps
   let timeScore = 0;
-  if (metrics.theoreticalDays > 0) {
+  if (hasTimeData) {
     if (metrics.timeOverrunPercent <= 0) {
-      timeScore = 20; // Dans les temps ou en avance
+      timeScore = 20;
     } else if (metrics.timeOverrunPercent <= 10) {
-      timeScore = 15 + ((10 - metrics.timeOverrunPercent) / 10) * 5; // 15-20
+      timeScore = 15 + ((10 - metrics.timeOverrunPercent) / 10) * 5;
     } else if (metrics.timeOverrunPercent <= 25) {
-      timeScore = 10 + ((25 - metrics.timeOverrunPercent) / 15) * 5; // 10-15
+      timeScore = 10 + ((25 - metrics.timeOverrunPercent) / 15) * 5;
     } else if (metrics.timeOverrunPercent <= 50) {
-      timeScore = 5 + ((50 - metrics.timeOverrunPercent) / 25) * 5; // 5-10
+      timeScore = 5 + ((50 - metrics.timeOverrunPercent) / 25) * 5;
     } else {
-      timeScore = Math.max(0, 5 - (metrics.timeOverrunPercent - 50) / 50 * 5); // 0-5
+      timeScore = Math.max(0, 5 - (metrics.timeOverrunPercent - 50) / 50 * 5);
     }
-  } else {
-    timeScore = 15; // Pas de budget temps défini - score neutre
   }
+  // No time budget = 0 points (not neutral)
   
   components.push({
     label: 'Respect temps',
     value: Math.round(timeScore),
     maxValue: 20,
-    description: metrics.theoreticalDays > 0
+    hasData: hasTimeData,
+    description: hasTimeData
       ? (metrics.timeOverrunPercent <= 0 
           ? 'Dans les temps'
           : `Dépassement +${metrics.timeOverrunPercent.toFixed(0)}%`)
       : 'Budget temps non défini'
   });
   
-  // Total Health Score (0-100)
-  const totalScore = Math.round(marginScore + tjmScore + paymentScore + timeScore);
+  // Calculate weighted score based on available data
+  // If not evaluable, score is 0
+  let totalScore = 0;
+  let maxPossibleScore = 0;
+  
+  if (isEvaluable) {
+    // Sum actual scores and max scores for available axes only
+    if (hasMarginData) {
+      totalScore += marginScore;
+      maxPossibleScore += 30;
+    }
+    if (hasTJMData) {
+      totalScore += tjmScore;
+      maxPossibleScore += 25;
+    }
+    if (hasPaymentData) {
+      totalScore += paymentScore;
+      maxPossibleScore += 25;
+    }
+    if (hasTimeData) {
+      totalScore += timeScore;
+      maxPossibleScore += 20;
+    }
+    
+    // Normalize to 0-100 scale based on available data
+    if (maxPossibleScore > 0) {
+      totalScore = Math.round((totalScore / maxPossibleScore) * 100);
+    }
+  }
   
   return {
-    score: Math.min(100, Math.max(0, totalScore)),
+    score: isEvaluable ? Math.min(100, Math.max(0, totalScore)) : 0,
     breakdown: {
       total: totalScore,
+      isEvaluable,
+      completenessPercent,
+      missingData,
       components
     }
   };
