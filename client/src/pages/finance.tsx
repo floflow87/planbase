@@ -1129,32 +1129,38 @@ export default function Finance() {
   const highPriorityCount = criticalRecommendations.length;
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto h-full" data-testid="page-finance">
+    <div className="p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden h-full" data-testid="page-finance">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="today" className="gap-2" data-testid="tab-today">
-              <Flame className="w-4 h-4" />
-              Aujourd'hui
-            </TabsTrigger>
-            <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
-              <BarChart3 className="w-4 h-4" />
-              Vue d'ensemble
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
-              <PieChart className="w-4 h-4" />
-              Par projet
-            </TabsTrigger>
-            <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
-              <Lightbulb className="w-4 h-4" />
-              Recommandations
-              {highPriorityCount > 0 && (
-                <Badge variant="destructive" className="ml-1 text-xs">
-                  {highPriorityCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto w-full md:w-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="w-max">
+              <TabsTrigger value="today" className="gap-1.5 text-xs md:text-sm" data-testid="tab-today">
+                <Flame className="w-4 h-4" />
+                <span className="hidden sm:inline">Aujourd'hui</span>
+                <span className="sm:hidden">Jour</span>
+              </TabsTrigger>
+              <TabsTrigger value="overview" className="gap-1.5 text-xs md:text-sm" data-testid="tab-overview">
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Vue d'ensemble</span>
+                <span className="sm:hidden">Global</span>
+              </TabsTrigger>
+              <TabsTrigger value="projects" className="gap-1.5 text-xs md:text-sm" data-testid="tab-projects">
+                <PieChart className="w-4 h-4" />
+                <span className="hidden sm:inline">Par projet</span>
+                <span className="sm:hidden">Projets</span>
+              </TabsTrigger>
+              <TabsTrigger value="recommendations" className="gap-1.5 text-xs md:text-sm" data-testid="tab-recommendations">
+                <Lightbulb className="w-4 h-4" />
+                <span className="hidden sm:inline">Recommandations</span>
+                <span className="sm:hidden">Recos</span>
+                {highPriorityCount > 0 && (
+                  <Badge variant="destructive" className="ml-1 text-xs">
+                    {highPriorityCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
           {hiddenRecommendations.size > 0 && (
             <p className="text-xs text-muted-foreground">
               {hiddenRecommendations.size} recommandation{hiddenRecommendations.size > 1 ? 's' : ''} masquée{hiddenRecommendations.size > 1 ? 's' : ''} 
@@ -1311,109 +1317,108 @@ export default function Finance() {
                           className={`overflow-hidden border-l-4 ${style.border} ${style.bg}`}
                           data-testid={`card-today-decision-${index + 1}`}
                         >
-                          <CardContent className="p-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-start gap-4 flex-1">
-                                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold ${style.badge}`}>
+                          <CardContent className="p-3 md:p-5">
+                            <div className="flex flex-col gap-3 md:gap-4">
+                              <div className="flex items-start gap-3">
+                                <div className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-base md:text-xl font-bold ${style.badge}`}>
                                   {index + 1}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  {/* Header avec action principale en titre fort */}
-                                  <div className="mb-3">
-                                    <h3 className="text-base font-bold text-gray-900 mb-1">
-                                      {rec.threeBlockFormat?.concreteAction || rec.actionSuggested || rec.action}
-                                    </h3>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <Link 
-                                        href={`/projects/${rec.projectId}`} 
-                                        className="text-sm text-violet-600 hover:underline"
-                                      >
-                                        {rec.projectName}
-                                      </Link>
-                                      <Badge variant="outline" className="text-xs">
-                                        {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Format 3 blocs bien structurés */}
-                                  <div className="space-y-3 text-sm">
-                                    {rec.threeBlockFormat ? (
-                                      <>
-                                        {/* Bloc 1: Constat passé */}
-                                        <div className="flex items-start gap-2">
-                                          <span className="text-amber-500 mt-0.5">1.</span>
-                                          <div>
-                                            <span className="font-medium text-gray-700">Constat passé : </span>
-                                            <span className="text-gray-600">
-                                              {rec.threeBlockFormat.pastObservation}
-                                              {rec.impactValue && rec.impactValue > 0 && (
-                                                <span className="text-emerald-600 font-medium ml-1">(+{formatCurrency(rec.impactValue)} potentiel)</span>
-                                              )}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Bloc 2: Implication actuelle */}
-                                        <div className="flex items-start gap-2">
-                                          <span className="text-amber-500 mt-0.5">2.</span>
-                                          <div>
-                                            <span className="font-medium text-gray-700">Ce que ça implique : </span>
-                                            <span className="text-gray-600">{rec.threeBlockFormat.currentImplication}</span>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Bloc 3: Action concrète - très visible */}
-                                        <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
-                                          <div className="flex items-start gap-2">
-                                            <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
-                                            <div>
-                                              <p className="font-semibold text-violet-800">
-                                                Action recommandée : {rec.threeBlockFormat.concreteAction}
-                                              </p>
-                                              {rec.threeBlockFormat.alternatives && rec.threeBlockFormat.alternatives.length > 0 && (
-                                                <p className="text-xs text-violet-600 mt-1">
-                                                  Alternatives : {rec.threeBlockFormat.alternatives.join(', ')}
-                                                </p>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
-                                        <div className="flex items-start gap-2">
-                                          <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
-                                          <p className="font-semibold text-violet-800">{rec.actionSuggested || rec.action}</p>
-                                        </div>
-                                      </div>
-                                    )}
+                                  <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 line-clamp-2">
+                                    {rec.threeBlockFormat?.concreteAction || rec.actionSuggested || rec.action}
+                                  </h3>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Link 
+                                      href={`/projects/${rec.projectId}`} 
+                                      className="text-xs md:text-sm text-violet-600 hover:underline"
+                                    >
+                                      {rec.projectName}
+                                    </Link>
+                                    <Badge variant="outline" className="text-xs">
+                                      {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
+                                    </Badge>
                                   </div>
                                 </div>
                               </div>
                               
-                              {/* Action buttons */}
-                              <div className="flex flex-col gap-2">
+                              {/* Format 3 blocs - masqué sur mobile */}
+                              <div className="hidden md:block space-y-3 text-sm pl-11 md:pl-14">
+                                {rec.threeBlockFormat ? (
+                                  <>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-amber-500 mt-0.5">1.</span>
+                                      <div>
+                                        <span className="font-medium text-gray-700">Constat passé : </span>
+                                        <span className="text-gray-600">
+                                          {rec.threeBlockFormat.pastObservation}
+                                          {rec.impactValue && rec.impactValue > 0 && (
+                                            <span className="text-emerald-600 font-medium ml-1">(+{formatCurrency(rec.impactValue)} potentiel)</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-amber-500 mt-0.5">2.</span>
+                                      <div>
+                                        <span className="font-medium text-gray-700">Ce que ça implique : </span>
+                                        <span className="text-gray-600">{rec.threeBlockFormat.currentImplication}</span>
+                                      </div>
+                                    </div>
+                                    <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
+                                      <div className="flex items-start gap-2">
+                                        <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="font-semibold text-violet-800">
+                                            Action recommandée : {rec.threeBlockFormat.concreteAction}
+                                          </p>
+                                          {rec.threeBlockFormat.alternatives && rec.threeBlockFormat.alternatives.length > 0 && (
+                                            <p className="text-xs text-violet-600 mt-1">
+                                              Alternatives : {rec.threeBlockFormat.alternatives.join(', ')}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
+                                    <div className="flex items-start gap-2">
+                                      <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                                      <p className="font-semibold text-violet-800">{rec.actionSuggested || rec.action}</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Impact mobile visible */}
+                              {rec.impactValue && rec.impactValue > 0 && (
+                                <div className="md:hidden text-xs text-emerald-600 font-medium pl-11">
+                                  +{formatCurrency(rec.impactValue)} potentiel
+                                </div>
+                              )}
+                              
+                              {/* Action buttons - horizontal sur mobile */}
+                              <div className="flex flex-row gap-2 pl-11 md:pl-0 md:absolute md:top-5 md:right-5">
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  className="gap-2"
+                                  className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm"
                                   onClick={() => handleMarkTreated(rec.projectId || '', rec.id)}
                                   disabled={createActionMutation.isPending}
                                   data-testid={`button-today-mark-treated-${index + 1}`}
                                 >
-                                  <Check className="w-4 h-4" />
+                                  <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                   Traité
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="gap-2 text-gray-500"
+                                  className="gap-1.5 flex-1 md:flex-none text-xs md:text-sm text-gray-500"
                                   onClick={() => handleMarkIgnored(rec.projectId || '', rec.id)}
                                   disabled={createActionMutation.isPending}
                                   data-testid={`button-today-mark-ignored-${index + 1}`}
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                   Ignorer
                                 </Button>
                               </div>
@@ -1616,46 +1621,48 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Rechercher un projet..."
+                placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
                 data-testid="input-search-project"
               />
             </div>
-            <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as any)}>
-              <SelectTrigger className="w-48" data-testid="select-filter">
-                <SelectValue placeholder="Filtrer par statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les projets</SelectItem>
-                <SelectItem value="profitable">Rentables</SelectItem>
-                <SelectItem value="at_risk">À risque</SelectItem>
-                <SelectItem value="deficit">Déficitaires</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (sortOrder === 'none') setSortOrder('desc');
-                else if (sortOrder === 'desc') setSortOrder('asc');
-                else setSortOrder('none');
-              }}
-              className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
-              data-testid="button-sort-margin"
-            >
-              {sortOrder === 'none' ? <ArrowUpDown className="w-4 h-4 text-gray-400" /> : 
-               sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
-              {sortOrder === 'none' ? 'Tri: Date' : `Marge ${sortOrder === 'desc' ? '↓' : '↑'}`}
-            </Button>
-            <p className="text-sm text-gray-500 ml-auto">
-              {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as any)}>
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-filter">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="profitable">Rentables</SelectItem>
+                  <SelectItem value="at_risk">À risque</SelectItem>
+                  <SelectItem value="deficit">Déficitaires</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (sortOrder === 'none') setSortOrder('desc');
+                  else if (sortOrder === 'desc') setSortOrder('asc');
+                  else setSortOrder('none');
+                }}
+                className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
+                data-testid="button-sort-margin"
+              >
+                {sortOrder === 'none' ? <ArrowUpDown className="w-4 h-4 text-gray-400" /> : 
+                 sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                <span className="hidden sm:inline">{sortOrder === 'none' ? 'Tri: Date' : `Marge ${sortOrder === 'desc' ? '↓' : '↑'}`}</span>
+              </Button>
+              <p className="text-xs sm:text-sm text-gray-500 ml-auto">
+                {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
 
           {filteredProjects.length === 0 ? (
@@ -1683,60 +1690,62 @@ export default function Finance() {
           ) : (
             <>
               {/* Barre de recherche et tri */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+                <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="Rechercher par projet..."
+                    placeholder="Rechercher..."
                     value={recoSearchQuery}
                     onChange={(e) => setRecoSearchQuery(e.target.value)}
                     className="pl-9"
                     data-testid="input-search-recommendations"
                   />
                 </div>
-                <Select value={recoFilterType} onValueChange={(v) => setRecoFilterType(v as typeof recoFilterType)}>
-                  <SelectTrigger className="w-[130px] bg-white" data-testid="select-reco-filter-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous types</SelectItem>
-                    <SelectItem value="pricing">Pricing</SelectItem>
-                    <SelectItem value="time">Temps</SelectItem>
-                    <SelectItem value="payment">Paiement</SelectItem>
-                    <SelectItem value="strategic">Stratégique</SelectItem>
-                    <SelectItem value="model">Modèle</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={recoSortBy} onValueChange={(v) => setRecoSortBy(v as 'score' | 'gain')}>
-                  <SelectTrigger className="w-[140px] bg-white" data-testid="select-reco-sort-by">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="score">Trier par score</SelectItem>
-                    <SelectItem value="gain">Trier par gain</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRecoSortOrder(recoSortOrder === 'desc' ? 'asc' : 'desc')}
-                  className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
-                  data-testid="button-reco-sort-order"
-                >
-                  {recoSortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
-                  {recoSortOrder === 'desc' ? 'Décroissant' : 'Croissant'}
-                </Button>
-                <Button
-                  variant={showTreatedIgnored ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowTreatedIgnored(!showTreatedIgnored)}
-                  className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
-                  data-testid="button-toggle-treated-ignored"
-                >
-                  {showTreatedIgnored ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  {showTreatedIgnored ? 'Afficher tout' : 'Masquer traités'}
-                </Button>
-                <p className="text-sm text-gray-500 ml-auto">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={recoFilterType} onValueChange={(v) => setRecoFilterType(v as typeof recoFilterType)}>
+                    <SelectTrigger className="w-[100px] sm:w-[130px] bg-white text-xs sm:text-sm" data-testid="select-reco-filter-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="pricing">Prix</SelectItem>
+                      <SelectItem value="time">Temps</SelectItem>
+                      <SelectItem value="payment">Paiement</SelectItem>
+                      <SelectItem value="strategic">Stratégie</SelectItem>
+                      <SelectItem value="model">Modèle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={recoSortBy} onValueChange={(v) => setRecoSortBy(v as 'score' | 'gain')}>
+                    <SelectTrigger className="w-[90px] sm:w-[140px] bg-white text-xs sm:text-sm" data-testid="select-reco-sort-by">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="score">Score</SelectItem>
+                      <SelectItem value="gain">Gain</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRecoSortOrder(recoSortOrder === 'desc' ? 'asc' : 'desc')}
+                    className="gap-1 bg-white hover:bg-gray-50 border border-gray-200 px-2 sm:px-3"
+                    data-testid="button-reco-sort-order"
+                  >
+                    {recoSortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{recoSortOrder === 'desc' ? 'Décrois.' : 'Crois.'}</span>
+                  </Button>
+                  <Button
+                    variant={showTreatedIgnored ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setShowTreatedIgnored(!showTreatedIgnored)}
+                    className="gap-1 bg-white hover:bg-gray-50 border border-gray-200 px-2 sm:px-3"
+                    data-testid="button-toggle-treated-ignored"
+                  >
+                    {showTreatedIgnored ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{showTreatedIgnored ? 'Tout' : 'Masquer'}</span>
+                  </Button>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-500 sm:ml-auto">
                   {(() => {
                     const filtered = allRecommendations
                       .filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`))
