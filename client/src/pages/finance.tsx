@@ -680,12 +680,13 @@ function RecommendationCard({
             {onUndoAction && (
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-4 w-4 ml-1 hover:bg-white/50"
+                size="sm"
+                className="h-5 px-1.5 ml-1.5 text-xs hover:bg-white/50 gap-1"
                 onClick={() => onUndoAction(actionStatus.id)}
                 data-testid={`button-undo-action-${recommendation.id}`}
               >
                 <RotateCcw className="w-3 h-3" />
+                Annuler
               </Button>
             )}
           </div>
