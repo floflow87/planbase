@@ -231,7 +231,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
       </div>
       
-      <span className="flex-1 truncate text-sm font-medium" data-testid={`ticket-title-${ticket.id}`}>
+      <span className="flex-1 truncate text-xs font-medium" data-testid={`ticket-title-${ticket.id}`}>
         {ticket.title}
       </span>
       
@@ -794,6 +794,10 @@ interface SprintSectionProps {
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
+  onMoveSprintUp?: (sprintId: string) => void;
+  onMoveSprintDown?: (sprintId: string) => void;
+  isFirstSprint?: boolean;
+  isLastSprint?: boolean;
 }
 
 export function SprintSection({ 
@@ -813,7 +817,11 @@ export function SprintSection({
   onUpdateState,
   onUpdateField,
   onTicketAction,
-  selectedTicketId
+  selectedTicketId,
+  onMoveSprintUp,
+  onMoveSprintDown,
+  isFirstSprint,
+  isLastSprint
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -920,6 +928,31 @@ export function SprintSection({
                   <Pencil className="h-4 w-4 mr-2" />
                   Modifier le sprint
                 </DropdownMenuItem>
+              )}
+              {(onMoveSprintUp || onMoveSprintDown) && (
+                <>
+                  <DropdownMenuSeparator />
+                  {onMoveSprintUp && !isFirstSprint && (
+                    <DropdownMenuItem 
+                      onClick={() => onMoveSprintUp(sprint.id)} 
+                      className="text-gray-900"
+                      data-testid={`button-move-sprint-up-${sprint.id}`}
+                    >
+                      <ArrowUp className="h-4 w-4 mr-2" />
+                      Déplacer vers le haut
+                    </DropdownMenuItem>
+                  )}
+                  {onMoveSprintDown && !isLastSprint && (
+                    <DropdownMenuItem 
+                      onClick={() => onMoveSprintDown(sprint.id)} 
+                      className="text-gray-900"
+                      data-testid={`button-move-sprint-down-${sprint.id}`}
+                    >
+                      <ArrowDown className="h-4 w-4 mr-2" />
+                      Déplacer vers le bas
+                    </DropdownMenuItem>
+                  )}
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
