@@ -221,8 +221,12 @@ export function calculateMetrics(
   
   // Coût journalier cible = TJM projet (override) ?? TJM global (paramètres)
   // C'est le seuil interne de rentabilité utilisé pour calculer la marge
+  // IMPORTANT: Ne JAMAIS utiliser project.internalDailyCost - uniquement TJM projet ou global
   const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
-  const targetTJM = projectTJM ?? globalTJM ?? 0;
+  const targetTJM = projectTJM ?? (globalTJM && globalTJM > 0 ? globalTJM : 0);
+  
+  // Debug logging pour vérifier les valeurs
+  console.log(`📊 PROFITABILITY [${project.name}]: projectTJM=${projectTJM}, globalTJM=${globalTJM}, targetTJM=${targetTJM}`);
   
   // Écart entre valeur/jour réelle et coût cible
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
@@ -230,8 +234,8 @@ export function calculateMetrics(
   
   // Profitability metrics - Based on actual revenue received (CA encaissé)
   // Marge = (Valeur/jour - Coût cible) * jours = CA encaissé - (Coût cible * jours)
-  // Le coût cible est le TJM cible (global ou projet)
-  const internalDailyCost = targetTJM > 0 ? targetTJM : parseFloat(project.internalDailyCost?.toString() || THRESHOLDS.DEFAULT_INTERNAL_COST.toString());
+  // Le coût cible est UNIQUEMENT le TJM cible (global ou projet) - jamais internalDailyCost du projet
+  const internalDailyCost = targetTJM;
   const totalCost = actualDaysWorked * internalDailyCost;
   const margin = totalPaid - totalCost;
   const marginPercent = totalPaid > 0 ? (margin / totalPaid) * 100 : 0;
