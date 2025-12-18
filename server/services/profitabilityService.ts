@@ -220,14 +220,22 @@ export function calculateMetrics(
   // Valeur / jour facturée = CA encaissé / jours passés (calculé a posteriori)
   const actualTJM = actualDaysWorked > 0 ? totalPaid / actualDaysWorked : 0;
   
-  // Coût journalier cible = TJM projet (override) ?? TJM global (paramètres)
-  // C'est le seuil interne de rentabilité utilisé pour calculer la marge
-  // IMPORTANT: Ne JAMAIS utiliser project.internalDailyCost - uniquement TJM projet ou global
+  // Coût journalier cible - Hiérarchie :
+  // 1. TJM projet (billingRate) si défini
+  // 2. Pour les forfaits : budget / numberOfDays si les deux sont définis
+  // 3. TJM global (paramètres) sinon
   const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
-  const targetTJM = projectTJM ?? (globalTJM && globalTJM > 0 ? globalTJM : 0);
+  
+  // Calculer le TJM effectif pour les projets au forfait (budget / jours)
+  const forfaitTJM = (totalBilled > 0 && theoreticalDays > 0) 
+    ? totalBilled / theoreticalDays 
+    : null;
+  
+  // Appliquer la hiérarchie : billingRate > forfait calculé > global
+  const targetTJM = projectTJM ?? forfaitTJM ?? (globalTJM && globalTJM > 0 ? globalTJM : 0);
   
   // Debug logging pour vérifier les valeurs
-  console.log(`📊 PROFITABILITY [${project.name}]: projectTJM=${projectTJM}, globalTJM=${globalTJM}, targetTJM=${targetTJM}`);
+  console.log(`📊 PROFITABILITY [${project.name}]: projectTJM=${projectTJM}, forfaitTJM=${forfaitTJM}, globalTJM=${globalTJM}, targetTJM=${targetTJM}`);
   
   // Écart entre valeur/jour réelle et coût cible
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
