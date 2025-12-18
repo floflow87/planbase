@@ -46,6 +46,33 @@ export type RecoveryCapacity = 'recoverable' | 'difficult' | 'unrecoverable';
 // Project dynamics
 export type ProjectDynamics = 'advancing' | 'stagnating' | 'dragging';
 
+// Recommendation horizon - Determines if action is possible on this project
+export type RecommendationHorizon = 'immediate' | 'strategic' | 'learning';
+
+export interface HorizonInfo {
+  label: string;
+  description: string;
+  isActionable: boolean;
+}
+
+export const HORIZON_LABELS: Record<RecommendationHorizon, HorizonInfo> = {
+  immediate: { 
+    label: 'Action immédiate', 
+    description: 'Projet en cours, action possible maintenant',
+    isActionable: true
+  },
+  strategic: { 
+    label: 'Décision stratégique', 
+    description: 'Insight pour améliorer les prochains projets',
+    isActionable: false
+  },
+  learning: { 
+    label: 'Apprentissage', 
+    description: 'Historique - aucune action possible',
+    isActionable: false
+  },
+};
+
 // Decision labels - New system (no more "Quand possible" or "Pour info")
 export type DecisionLabel = 'critical' | 'urgent' | 'plan' | 'insight' | 'healthy';
 
