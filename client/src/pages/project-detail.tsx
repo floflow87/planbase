@@ -1623,53 +1623,6 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-          {project.description && (
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-[12px]" data-testid="project-description">
-                  {project.description}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className={!project.description ? "lg:col-span-3" : ""}>
-            <CardHeader className="pb-3">
-              <CardTitle className="tracking-tight font-semibold text-[#17171c] text-[16px]">Période</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-[12px]">Début:</span>
-                    <span className="text-[12px]" data-testid="project-start-date">
-                      {project.startDate 
-                        ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                        : "Non définie"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-[12px]">Fin:</span>
-                    <span className="text-[12px]" data-testid="project-end-date">
-                      {project.endDate 
-                        ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
-                        : "Non définie"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {totalTasksCount > 0 && (
           <Card className="mb-6">
             <CardHeader className="pb-3">
@@ -1700,10 +1653,18 @@ export default function ProjectDetail() {
             </TabsTrigger>
             <TabsTrigger value="activities" className="gap-2 text-xs sm:text-sm" data-testid="tab-activities">
               <MessageSquare className="h-4 w-4" />
-              Activité
+              Activités
               <Badge variant="secondary" className="ml-1" data-testid="activities-count">
                 {projectActivities.length}
               </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="gap-2 text-xs sm:text-sm" data-testid="tab-billing">
+              <DollarSign className="h-4 w-4" />
+              Facturation
+            </TabsTrigger>
+            <TabsTrigger value="time" className="gap-2 text-xs sm:text-sm" data-testid="tab-time">
+              <Timer className="h-4 w-4" />
+              Temps
             </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-2 text-xs sm:text-sm">
               <Users className="h-4 w-4" />
@@ -1732,14 +1693,6 @@ export default function ProjectDetail() {
               <Badge variant="secondary" className="ml-1" data-testid="backlogs-count">
                 {projectBacklogs.length}
               </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-2 text-xs sm:text-sm" data-testid="tab-billing">
-              <DollarSign className="h-4 w-4" />
-              Facturation
-            </TabsTrigger>
-            <TabsTrigger value="time" className="gap-2 text-xs sm:text-sm" data-testid="tab-time">
-              <Timer className="h-4 w-4" />
-              Temps
             </TabsTrigger>
           </TabsList>
 

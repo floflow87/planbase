@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
+import { ScoreRing } from "@/components/ScoreRing";
 import type { Project } from "@shared/schema";
 
 interface ProfitabilityMetrics {
@@ -407,73 +408,6 @@ const getScoreLevelInfo = (level: ScoreLevel) => {
   return info[level];
 };
 
-// Score badge component with tooltip showing breakdown
-function ScoreBadge({ score, breakdown }: { score: number; breakdown?: ScoreBreakdown }) {
-  const scoreColor = getScoreColor(score);
-  
-  // Get color for component value based on gradient
-  const getComponentColor = (value: number, maxValue: number = 20) => {
-    const normalizedScore = Math.max(0, Math.min(100, (value / maxValue) * 100));
-    return getScoreColor(normalizedScore);
-  };
-  
-  // Format value with appropriate sign
-  const formatValue = (value: number) => {
-    if (value > 0) return `+${value}`;
-    return value.toString();
-  };
-  
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-2 cursor-help">
-          <Badge className={`text-xs font-bold ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
-            {score}/100
-          </Badge>
-          <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className={`h-full ${scoreColor.iconBg} transition-all`}
-              style={{ width: `${Math.max(score, 5)}%` }}
-            />
-          </div>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="left" className="w-80 p-4 bg-white dark:bg-gray-900 border shadow-xl">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-base font-bold text-gray-900">Décomposition du score</p>
-            <Badge className={`text-sm font-bold ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
-              {score}/100
-            </Badge>
-          </div>
-          {breakdown && breakdown.components.length > 0 ? (
-            <div className="space-y-2">
-              {breakdown.components.map((comp, idx) => {
-                const compColor = getComponentColor(comp.value);
-                return (
-                  <div key={idx} className={`p-2 rounded-lg ${compColor.bg} border ${compColor.border}`}>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className={`text-sm font-medium ${compColor.text}`}>{comp.label}</span>
-                      <span className={`font-bold ${compColor.text}`}>
-                        {formatValue(comp.value)} pts
-                      </span>
-                    </div>
-                    {comp.description && (
-                      <p className="text-xs text-gray-500 mt-1">{comp.description}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">Score basé sur l'impact et l'urgence</p>
-          )}
-        </div>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 function SummaryCard({ 
   title, 
   value, 
@@ -525,57 +459,6 @@ function SummaryCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-// Helper to get health score color (higher = better)
-const getHealthScoreColor = (score: number): { bg: string; text: string; border: string; iconBg: string } => {
-  if (score >= 80) return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', iconBg: 'bg-emerald-500' };
-  if (score >= 60) return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', iconBg: 'bg-green-500' };
-  if (score >= 40) return { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', iconBg: 'bg-amber-500' };
-  if (score >= 20) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', iconBg: 'bg-orange-500' };
-  return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', iconBg: 'bg-red-500' };
-};
-
-// Health Score Badge component with detailed breakdown
-function HealthScoreBadge({ score, breakdown }: { score: number; breakdown: HealthScoreBreakdown }) {
-  const healthColor = getHealthScoreColor(score);
-  
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-2 cursor-help">
-          <div className={`w-3 h-3 rounded-full ${healthColor.iconBg}`} />
-          <Progress value={score} className="w-16 h-1.5" />
-          <span className="text-xs text-gray-500">{score}/100</span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg p-3">
-        <p className="font-medium mb-2">Score de santé : {score}/100</p>
-        <div className="space-y-1.5">
-          {breakdown.components.map((component, idx) => (
-            <div key={idx} className="flex items-center justify-between gap-3">
-              <span className="text-gray-500">{component.label}</span>
-              <div className="flex items-center gap-2">
-                <div className="w-12 bg-gray-200 rounded-full h-1.5">
-                  <div 
-                    className={`h-1.5 rounded-full ${component.value >= component.maxValue * 0.7 ? 'bg-emerald-500' : component.value >= component.maxValue * 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
-                    style={{ width: `${(component.value / component.maxValue) * 100}%` }}
-                  />
-                </div>
-                <span className="text-gray-700 font-medium w-8 text-right">{component.value}/{component.maxValue}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-muted-foreground text-[10px]">
-          {score >= 80 ? 'Projet en excellente santé' :
-           score >= 60 ? 'Projet en bonne santé' :
-           score >= 40 ? 'Points d\'attention à traiter' :
-           'Actions urgentes requises'}
-        </p>
-      </TooltipContent>
-    </Tooltip>
   );
 }
 
@@ -650,8 +533,14 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
       <div className="px-6 pb-4 pt-2 border-t mt-auto space-y-3">
         {/* Health Score visuel + Badge recommandations */}
         <div className="flex items-center justify-between gap-2">
-          {/* Health Score avec breakdown détaillé */}
-          <HealthScoreBadge score={healthScore} breakdown={healthScoreBreakdown} />
+          {/* Health Score avec ScoreRing */}
+          <ScoreRing 
+            score={healthScore} 
+            size={40}
+            strokeWidth={4}
+            breakdown={healthScoreBreakdown.components}
+            label="Score de santé"
+          />
           
           {/* Badge recommandations avec mini-list hover */}
           {recommendations.length > 0 ? (
@@ -754,7 +643,13 @@ function RecommendationCard({
           <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
             {decisionEmoji} {decisionLabel}
           </Badge>
-          <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
+          <ScoreRing 
+            score={recommendation.priorityScore} 
+            size={32}
+            strokeWidth={3}
+            breakdown={recommendation.scoreBreakdown?.components}
+            label="Score de priorité"
+          />
           <Badge variant="outline" className={`text-xs ${categoryTag.color}`}>
             {categoryTag.label}
           </Badge>
@@ -934,7 +829,13 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
             <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
               {decisionEmoji} {decisionLabel}
             </Badge>
-            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
+            <ScoreRing 
+            score={recommendation.priorityScore} 
+            size={32}
+            strokeWidth={3}
+            breakdown={recommendation.scoreBreakdown?.components}
+            label="Score de priorité"
+          />
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
