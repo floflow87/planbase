@@ -216,15 +216,22 @@ export function calculateMetrics(
   const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
   
   // TJM metrics - Based on actual revenue received
-  // Effective TJM: project billingRate ?? global TJM from account settings
+  // Valeur / jour facturée = CA encaissé / jours passés (calculé a posteriori)
+  const actualTJM = actualDaysWorked > 0 ? totalPaid / actualDaysWorked : 0;
+  
+  // Coût journalier cible = TJM projet (override) ?? TJM global (paramètres)
+  // C'est le seuil interne de rentabilité utilisé pour calculer la marge
   const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
   const targetTJM = projectTJM ?? globalTJM ?? 0;
-  const actualTJM = actualDaysWorked > 0 ? totalPaid / actualDaysWorked : 0;
+  
+  // Écart entre valeur/jour réelle et coût cible
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
   const tjmGapPercent = targetTJM > 0 ? (tjmGap / targetTJM) * 100 : 0;
   
   // Profitability metrics - Based on actual revenue received (CA encaissé)
-  const internalDailyCost = parseFloat(project.internalDailyCost?.toString() || THRESHOLDS.DEFAULT_INTERNAL_COST.toString());
+  // Marge = (Valeur/jour - Coût cible) * jours = CA encaissé - (Coût cible * jours)
+  // Le coût cible est le TJM cible (global ou projet)
+  const internalDailyCost = targetTJM > 0 ? targetTJM : parseFloat(project.internalDailyCost?.toString() || THRESHOLDS.DEFAULT_INTERNAL_COST.toString());
   const totalCost = actualDaysWorked * internalDailyCost;
   const margin = totalPaid - totalCost;
   const marginPercent = totalPaid > 0 ? (margin / totalPaid) * 100 : 0;
