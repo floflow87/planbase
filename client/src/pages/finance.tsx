@@ -562,17 +562,33 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
               {formatCurrency(metrics.margin)} ({formatNumber(metrics.marginPercent)}%)
             </span>
           </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">TJM réel</span>
+            <span className="font-medium">{metrics.actualTJM ? formatCurrency(metrics.actualTJM) : '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Jours passés</span>
+            <span className="font-medium">{metrics.actualDaysWorked ? `${formatNumber(metrics.actualDaysWorked, 1)} j` : '-'}</span>
+          </div>
         </div>
 
         {/* Barre de paiement si pertinente */}
         {metrics.paymentProgress < 100 && metrics.totalBilled > 0 && (
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Paiement</span>
-              <span className="font-medium">{formatNumber(metrics.paymentProgress, 0)}%</span>
-            </div>
-            <Progress value={metrics.paymentProgress} className="h-1.5" />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="space-y-1 cursor-help">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Paiement</span>
+                  <span className="font-medium">{formatNumber(metrics.paymentProgress, 0)}%</span>
+                </div>
+                <Progress value={metrics.paymentProgress} className="h-1.5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              <p>{formatCurrency(metrics.totalPaid)} encaissé sur {formatCurrency(metrics.totalBilled)} facturé</p>
+              <p className="text-muted-foreground">Reste à encaisser : {formatCurrency(metrics.totalBilled - metrics.totalPaid)}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </CardContent>
       
@@ -580,11 +596,25 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
       <div className="px-6 pb-4 pt-2 border-t mt-auto space-y-3">
         {/* Score visuel + Badge recommandations */}
         <div className="flex items-center justify-between gap-2">
-          {/* Score gradient */}
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${scoreColor.iconBg}`} />
-            <Progress value={avgScore} className="w-16 h-1.5" />
-          </div>
+          {/* Score gradient avec légende */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 cursor-help">
+                <div className={`w-3 h-3 rounded-full ${scoreColor.iconBg}`} />
+                <Progress value={avgScore} className="w-16 h-1.5" />
+                <span className="text-xs text-gray-500">{avgScore}/100</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-xs">
+              <p className="font-medium mb-1">Score de santé : {avgScore}/100</p>
+              <p className="text-muted-foreground">
+                {avgScore >= 80 ? 'Projet en excellente santé' :
+                 avgScore >= 60 ? 'Projet en bonne santé, quelques améliorations possibles' :
+                 avgScore >= 40 ? 'Points d\'attention à traiter rapidement' :
+                 'Actions urgentes requises'}
+              </p>
+            </TooltipContent>
+          </Tooltip>
           
           {/* Badge recommandations avec mini-list hover */}
           {recommendations.length > 0 ? (
@@ -738,6 +768,9 @@ function RecommendationCard({
                 </p>
                 <p className="text-slate-700 font-medium">
                   {formatCurrency(recommendation.blocks.pastImpact.amount)}
+                  {recommendation.impactValue && recommendation.impactValue > 0 && (
+                    <span className="text-emerald-600 ml-1">(+{formatCurrency(recommendation.impactValue)} potentiel)</span>
+                  )}
                 </p>
                 <p className="text-slate-500 text-xs mt-1">{recommendation.blocks.pastImpact.condition}</p>
               </div>
@@ -866,10 +899,23 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
             </Badge>
             <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
           </div>
-          <Progress 
-            value={100 - recommendation.priorityScore} 
-            className="w-24 h-2"
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2 cursor-help">
+                <Progress 
+                  value={100 - recommendation.priorityScore} 
+                  className="w-24 h-2"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-xs">
+              <p className="font-medium mb-1">Urgence : {100 - recommendation.priorityScore}%</p>
+              <p className="text-muted-foreground">
+                Plus la barre est remplie, plus l'action est urgente.
+                Score inversé : 100 = urgent, 0 = peut attendre.
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         
         {/* CORPS: Action principale + Impact + Délai */}
@@ -1007,6 +1053,7 @@ export default function Finance() {
   const [recoSearchQuery, setRecoSearchQuery] = useState('');
   const [recoSortBy, setRecoSortBy] = useState<'score' | 'gain'>('score');
   const [recoSortOrder, setRecoSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [recoFilterType, setRecoFilterType] = useState<'all' | 'pricing' | 'time' | 'payment' | 'strategic' | 'model'>('all');
 
   const toggleRecommendation = (recKey: string) => {
     setHiddenRecommendations(prev => {
@@ -1400,7 +1447,12 @@ export default function Finance() {
                                           <span className="text-amber-500 mt-0.5">1.</span>
                                           <div>
                                             <span className="font-medium text-gray-700">Constat passé : </span>
-                                            <span className="text-gray-600">{rec.threeBlockFormat.pastObservation}</span>
+                                            <span className="text-gray-600">
+                                              {rec.threeBlockFormat.pastObservation}
+                                              {rec.impactValue && rec.impactValue > 0 && (
+                                                <span className="text-emerald-600 font-medium ml-1">(+{formatCurrency(rec.impactValue)} potentiel)</span>
+                                              )}
+                                            </span>
                                           </div>
                                         </div>
                                         
@@ -1744,6 +1796,19 @@ export default function Finance() {
                     data-testid="input-search-recommendations"
                   />
                 </div>
+                <Select value={recoFilterType} onValueChange={(v) => setRecoFilterType(v as typeof recoFilterType)}>
+                  <SelectTrigger className="w-[130px] bg-white" data-testid="select-reco-filter-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous types</SelectItem>
+                    <SelectItem value="pricing">Pricing</SelectItem>
+                    <SelectItem value="time">Temps</SelectItem>
+                    <SelectItem value="payment">Paiement</SelectItem>
+                    <SelectItem value="strategic">Stratégique</SelectItem>
+                    <SelectItem value="model">Modèle</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={recoSortBy} onValueChange={(v) => setRecoSortBy(v as 'score' | 'gain')}>
                   <SelectTrigger className="w-[140px] bg-white" data-testid="select-reco-sort-by">
                     <SelectValue />
@@ -1778,6 +1843,7 @@ export default function Finance() {
                     const filtered = allRecommendations
                       .filter(r => !hiddenRecommendations.has(`${r.projectId}-${r.id}`))
                       .filter(r => !recoSearchQuery || r.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()))
+                      .filter(r => recoFilterType === 'all' || r.category === recoFilterType)
                       .filter(r => {
                         if (!showTreatedIgnored) return true;
                         const actionStatus = getActionStatus(r.projectId || '', r.id);
@@ -1794,6 +1860,7 @@ export default function Finance() {
                 {allRecommendations
                   .filter(rec => !hiddenRecommendations.has(`${rec.projectId}-${rec.id}`))
                   .filter(rec => !recoSearchQuery || rec.projectName?.toLowerCase().includes(recoSearchQuery.toLowerCase()))
+                  .filter(rec => recoFilterType === 'all' || rec.category === recoFilterType)
                   .filter(rec => {
                     if (!showTreatedIgnored) return true;
                     const actionStatus = getActionStatus(rec.projectId || '', rec.id);
