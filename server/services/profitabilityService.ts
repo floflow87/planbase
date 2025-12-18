@@ -156,7 +156,8 @@ const THRESHOLDS = {
   
   PAYMENT_DELAY_WARNING: 30, // 30% unpaid triggers warning
   
-  DEFAULT_INTERNAL_COST: 600, // Default internal daily cost if not specified
+  // Note: Le coût journalier cible vient UNIQUEMENT du TJM (projet ou global)
+  // Plus de constante DEFAULT_INTERNAL_COST codée en dur
   DEFAULT_TARGET_MARGIN: 30, // Default target margin 30%
 };
 
