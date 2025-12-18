@@ -318,10 +318,11 @@ const getPriorityLabel = (score: number): { emoji: string; label: PriorityLabel;
 
 // Score color gradient: red (0-30), orange (31-60), yellow (61-80), green (81-100)
 const getScoreColor = (score: number): { bg: string; text: string; border: string; iconBg: string } => {
-  if (score <= 30) return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', iconBg: 'bg-red-500' };
-  if (score <= 60) return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', iconBg: 'bg-orange-500' };
-  if (score <= 80) return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', iconBg: 'bg-yellow-500' };
-  return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', iconBg: 'bg-green-500' };
+  // Palette douce - pas de rouge sauf pour pertes réelles
+  if (score <= 30) return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', iconBg: 'bg-rose-400' };
+  if (score <= 60) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', iconBg: 'bg-amber-400' };
+  if (score <= 80) return { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', iconBg: 'bg-violet-400' };
+  return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', iconBg: 'bg-emerald-400' };
 };
 
 const generatePriorityAction = (rec: Recommendation): string => {
@@ -518,136 +519,122 @@ function SummaryCard({
 function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysis }) {
   const { metrics, recommendations, projectName, projectId } = analysis;
   
+  // Calcul du score global du projet (moyenne des scores des recommandations)
+  const avgScore = recommendations.length > 0 
+    ? Math.round(recommendations.reduce((sum, r) => sum + r.priorityScore, 0) / recommendations.length)
+    : 100;
+  const scoreColor = getScoreColor(avgScore);
+  
+  // Total des gains potentiels
+  const totalPotentialGain = recommendations.reduce((sum, r) => sum + (r.impactValue || 0), 0);
+  
   return (
-    <Card className="transition-colors hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:border-violet-200" data-testid={`card-project-${projectId}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Link href={`/projects/${projectId}`} className="font-semibold text-gray-900 hover:text-violet-600 truncate">
-              {projectName}
-            </Link>
-            <Badge className={`shrink-0 ${getStatusColor(metrics.status)}`}>
-              {getStatusIcon(metrics.status)}
-              <span className="ml-1">{metrics.statusLabel}</span>
-            </Badge>
+    <Card className="transition-colors hover:border-violet-200 flex flex-col" data-testid={`card-project-${projectId}`}>
+      {/* ZONE HAUTE: Nom + Badges statut */}
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 truncate mb-2">{projectName}</h3>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge className={`text-xs shrink-0 ${getStatusColor(metrics.status)}`}>
+                {getStatusIcon(metrics.status)}
+                <span className="ml-1">{metrics.statusLabel}</span>
+              </Badge>
+            </div>
           </div>
-          <span className={`text-2xl font-bold ${
-            metrics.marginPercent >= 15 ? 'text-green-600' : 
-            metrics.marginPercent >= 0 ? 'text-orange-600' : 'text-red-600'
-          }`}>
-            {formatNumber(metrics.marginPercent)}%
-          </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Facturé</span>
-              <span className="font-medium">{formatCurrency(metrics.totalBilled)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Encaissé</span>
-              <span className="font-medium text-green-600">{formatCurrency(metrics.totalPaid)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Marge</span>
-              <span className={`font-medium ${metrics.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(metrics.margin)}
-              </span>
-            </div>
+      
+      {/* ZONE CENTRALE: KPIs essentiels + barre paiement */}
+      <CardContent className="space-y-3 flex-1">
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Facturé</span>
+            <span className="font-medium">{formatCurrency(metrics.totalBilled)}</span>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-500">TJM réel</span>
-              <span className={`font-medium ${metrics.tjmGap >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(metrics.actualTJM)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Jours passés</span>
-              <span className="font-medium">{formatNumber(metrics.actualDaysWorked)} j</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Coût total</span>
-              <span className="font-medium text-gray-700">{formatCurrency(metrics.totalCost)}</span>
-            </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Encaissé</span>
+            <span className="font-medium text-emerald-600">{formatCurrency(metrics.totalPaid)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Marge</span>
+            <span className={`font-medium ${metrics.margin >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {formatCurrency(metrics.margin)} ({formatNumber(metrics.marginPercent)}%)
+            </span>
           </div>
         </div>
 
+        {/* Barre de paiement si pertinente */}
         {metrics.paymentProgress < 100 && metrics.totalBilled > 0 && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">Paiement</span>
               <span className="font-medium">{formatNumber(metrics.paymentProgress, 0)}%</span>
             </div>
-            <Progress value={metrics.paymentProgress} className="h-2" />
+            <Progress value={metrics.paymentProgress} className="h-1.5" />
           </div>
         )}
-
-        {recommendations.length > 0 && (
-          <div className="pt-2 border-t">
+      </CardContent>
+      
+      {/* ZONE BASSE (fixe, alignée): Score + Badge recommandations + Bouton */}
+      <div className="px-6 pb-4 pt-2 border-t mt-auto space-y-3">
+        {/* Score visuel + Badge recommandations */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Score gradient */}
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${scoreColor.iconBg}`} />
+            <Progress value={avgScore} className="w-16 h-1.5" />
+          </div>
+          
+          {/* Badge recommandations avec mini-list hover */}
+          {recommendations.length > 0 ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 mb-2 cursor-help">
-                  <Lightbulb className="w-4 h-4 text-yellow-500" />
-                  <span className="text-xs font-medium text-gray-600">
-                    {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
-                  </span>
-                </div>
+                <Badge variant="outline" className="cursor-help text-xs gap-1">
+                  <Lightbulb className="w-3 h-3" />
+                  {recommendations.length}
+                </Badge>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                <p className="text-sm font-medium mb-2">
-                  Ce projet est {metrics.marginPercent >= 0 ? 'rentable' : 'déficitaire'} avec {formatNumber(Math.abs(metrics.marginPercent))}% de marge
-                </p>
-                <div className="space-y-2 text-xs">
-                  {recommendations.map((rec) => {
-                    const scoreColor = getScoreColor(rec.priorityScore);
-                    return (
-                      <div key={rec.id} className="flex items-start gap-2">
-                        <Badge className={`text-[10px] px-1.5 py-0.5 shrink-0 ${scoreColor.iconBg} text-white`}>
-                          {rec.priorityScore}
-                        </Badge>
-                        <span className="text-gray-700 dark:text-gray-300">{generatePriorityAction(rec)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+              <TooltipContent side="top" className="max-w-xs p-2 bg-white dark:bg-gray-900 border shadow-lg">
+                <ul className="space-y-1 text-xs">
+                  {recommendations.slice(0, 3).map((rec) => (
+                    <li key={rec.id} className="flex items-center gap-2 text-gray-700">
+                      <span className="text-gray-400">•</span>
+                      <span className="line-clamp-1">
+                        {generatePriorityAction(rec)}
+                        {rec.impactValue && rec.impactValue > 0 && (
+                          <span className="text-emerald-600 ml-1">(+{formatCurrency(rec.impactValue)})</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                  {recommendations.length > 3 && (
+                    <li className="text-gray-400 text-[10px]">+{recommendations.length - 3} autres</li>
+                  )}
+                </ul>
               </TooltipContent>
             </Tooltip>
-            <div className="space-y-2">
-              {recommendations.slice(0, 2).map((rec) => {
-                const scoreColor = getScoreColor(rec.priorityScore);
-                return (
-                  <div 
-                    key={rec.id} 
-                    className={`p-2 rounded-lg text-xs ${scoreColor.bg} border ${scoreColor.border}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge className={`text-[10px] font-bold px-1.5 py-0.5 ${scoreColor.iconBg} text-white shrink-0`}>
-                        {rec.priorityScore}
-                      </Badge>
-                      <p className={`font-medium ${scoreColor.text}`}>{generatePriorityAction(rec)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-              {recommendations.length > 2 && (
-                <p className="text-xs text-gray-400">+{recommendations.length - 2} autres</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="pt-2">
-          <Link href={`/projects/${projectId}`}>
-            <Button variant="ghost" size="sm" className="w-full justify-between text-violet-600 hover:text-violet-700 hover:bg-violet-50" data-testid={`button-view-project-${projectId}`}>
-              Voir le projet
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          ) : (
+            <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200">
+              <Check className="w-3 h-3 mr-1" />
+              OK
+            </Badge>
+          )}
         </div>
-      </CardContent>
+        
+        {/* Bouton Voir le projet (toujours au même endroit) */}
+        <Link href={`/projects/${projectId}`}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-between text-violet-600 hover:text-violet-700 hover:bg-violet-50" 
+            data-testid={`button-view-project-${projectId}`}
+          >
+            Voir le projet
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </Link>
+      </div>
     </Card>
   );
 }
@@ -675,124 +662,149 @@ function RecommendationCard({
   
   // Use new decision label if available
   const decisionEmoji = recommendation.decisionInfo?.emoji || priorityInfo.emoji;
-  const decisionTiming = recommendation.decisionInfo?.timing || priorityInfo.timing;
-  const decisionLabelText = recommendation.decisionInfo?.label || (typeof recommendation.decisionLabel === 'string' ? recommendation.decisionLabel : recommendation.decisionLabel.label);
+  const decisionLabel = recommendation.decisionInfo?.label || priorityInfo.label;
+  
+  // Category tag mapping
+  const getCategoryTag = () => {
+    switch (recommendation.category) {
+      case 'pricing': return { label: 'Pricing', color: 'bg-violet-100 text-violet-700 border-violet-200' };
+      case 'time': return { label: 'Temps', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+      case 'payment': return { label: 'Paiement', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      case 'strategic': return { label: 'Stratégique', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
+      default: return { label: 'Autre', color: 'bg-gray-100 text-gray-700 border-gray-200' };
+    }
+  };
+  const categoryTag = getCategoryTag();
   
   // Use recommendation ID as stable key
   const recommendationKey = recommendation.id;
   
   return (
-    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg} ${actionStatus ? 'opacity-60' : ''}`} data-testid={`card-recommendation-${recommendation.id}`}>
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          {/* Ligne 1: Label décisionnel + score avec tooltip de décomposition */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-sm font-bold ${scoreColor.text}`}>
-              {decisionEmoji} {decisionTiming}
-            </span>
-            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
-            {recommendation.feasibility && recommendation.feasibilityLabel && 
-              <span className="ml-auto">
-                {getFeasibilityBadge(recommendation.feasibility, recommendation.feasibilityLabel)}
-              </span>
-            }
-          </div>
-          
-          {/* Status badge if already treated/ignored */}
-          {actionStatus && (
-            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
-              actionStatus.action === 'treated'
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-            }`}>
-              {actionStatus.action === 'treated' ? (
-                <><Check className="w-3 h-3" /> Traité</>
-              ) : (
-                <><EyeOff className="w-3 h-3" /> Ignoré</>
-              )}
-              {onUndoAction && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-4 w-4 ml-1 hover:bg-white/50"
-                  onClick={() => onUndoAction(actionStatus.id)}
-                  data-testid={`button-undo-action-${recommendation.id}`}
-                >
-                  <RotateCcw className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
+    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-white to-gray-50/30 ${actionStatus ? 'opacity-60' : ''}`} data-testid={`card-recommendation-${recommendation.id}`}>
+      <CardContent className="p-5 space-y-4">
+        {/* HEADER: Badge priorité + Score + Tag type */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
+            {decisionEmoji} {decisionLabel}
+          </Badge>
+          <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
+          <Badge variant="outline" className={`text-xs ${categoryTag.color}`}>
+            {categoryTag.label}
+          </Badge>
+          {recommendation.projectName && (
+            <Link 
+              href={`/projects/${recommendation.projectId}`}
+              className="ml-auto text-sm text-violet-600 hover:underline"
+            >
+              {recommendation.projectName}
+            </Link>
           )}
-          
-          {/* Ligne 2: Action concrète en premier (la plus visible) */}
-          <p className={`font-bold text-base ${scoreColor.text}`}>
-            {recommendation.blocks?.concreteAction?.primary || priorityAction}
-          </p>
-          
-          {/* 3 Blocs: Passé / Présent / Futur */}
-          {recommendation.blocks && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+        </div>
+        
+        {/* Status badge if already treated/ignored */}
+        {actionStatus && (
+          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${
+            actionStatus.action === 'treated'
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-gray-100 text-gray-600'
+          }`}>
+            {actionStatus.action === 'treated' ? (
+              <><Check className="w-3 h-3" /> Traité</>
+            ) : (
+              <><EyeOff className="w-3 h-3" /> Ignoré</>
+            )}
+            {onUndoAction && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 ml-1 hover:bg-white/50"
+                onClick={() => onUndoAction(actionStatus.id)}
+                data-testid={`button-undo-action-${recommendation.id}`}
+              >
+                <RotateCcw className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        )}
+        
+        {/* CORPS: 3 blocs fixes */}
+        <div className="space-y-3">
+          {recommendation.blocks ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               {/* Bloc 1: Constat passé */}
-              <div className="p-2 rounded bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                <p className="text-gray-500 mb-1 font-medium">Constat passé</p>
-                <p className="text-gray-700 dark:text-gray-300">
-                  {formatCurrency(recommendation.blocks.pastImpact.amount)} {recommendation.blocks.pastImpact.condition}
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <p className="text-slate-500 text-xs font-medium mb-1.5 flex items-center gap-1">
+                  <span className="text-amber-500">1.</span> Constat passé
                 </p>
-                <p className="text-gray-400 text-[10px]">{recommendation.blocks.pastImpact.period}</p>
+                <p className="text-slate-700 font-medium">
+                  {formatCurrency(recommendation.blocks.pastImpact.amount)}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">{recommendation.blocks.pastImpact.condition}</p>
               </div>
               
               {/* Bloc 2: Implication actuelle */}
-              <div className={`p-2 rounded border ${
+              <div className={`p-3 rounded-lg border ${
                 recommendation.blocks.currentImplication.isPast 
-                  ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600' 
-                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  ? 'bg-slate-100 border-slate-300' 
+                  : 'bg-emerald-50 border-emerald-200'
               }`}>
-                <p className="text-gray-500 mb-1 font-medium">Implication actuelle</p>
-                <p className={`${recommendation.blocks.currentImplication.isPast ? 'text-gray-500' : 'text-green-700 dark:text-green-400'}`}>
-                  {recommendation.blocks.currentImplication.message}
+                <p className="text-slate-500 text-xs font-medium mb-1.5 flex items-center gap-1">
+                  <span className="text-amber-500">2.</span> Implication actuelle
                 </p>
-                <p className="text-gray-400 text-[10px]">
-                  Applicable sur : {recommendation.blocks.currentImplication.actionableOn.join(', ')}
+                <p className={`font-medium ${recommendation.blocks.currentImplication.isPast ? 'text-slate-500' : 'text-emerald-700'}`}>
+                  {recommendation.blocks.currentImplication.message}
                 </p>
               </div>
               
               {/* Bloc 3: Action concrète */}
-              <div className={`p-2 rounded border ${scoreColor.bg} ${scoreColor.border}`}>
-                <p className="text-gray-500 mb-1 font-medium">Action concrète</p>
-                <p className={`font-medium ${scoreColor.text}`}>{recommendation.blocks.concreteAction.primary}</p>
+              <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
+                <p className="text-violet-600 text-xs font-medium mb-1.5 flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> Action concrète
+                </p>
+                <p className="font-semibold text-violet-800">
+                  {recommendation.blocks.concreteAction.primary}
+                </p>
                 {recommendation.blocks.concreteAction.alternatives.length > 0 && (
-                  <p className="text-gray-400 text-[10px]">
+                  <p className="text-violet-500 text-xs mt-1">
                     Alternatives : {recommendation.blocks.concreteAction.alternatives.join(', ')}
                   </p>
                 )}
               </div>
             </div>
-          )}
-          
-          {/* Fallback: Ancien affichage si pas de blocks */}
-          {!recommendation.blocks && (
-            <p className="text-sm text-gray-500">{recommendation.issue}</p>
-          )}
-          
-          {/* Impact avec unité claire */}
-          {recommendation.impactValue && (
-            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-              recommendation.impactValue > 0 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-            }`}>
-              {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              <span>{recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
+          ) : (
+            /* Fallback: Simple action display */
+            <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
+              <p className="font-semibold text-violet-800">{priorityAction}</p>
+              {recommendation.issue && (
+                <p className="text-slate-600 text-sm mt-1">{recommendation.issue}</p>
+              )}
             </div>
           )}
+        </div>
+        
+        {/* FOOTER: Impact chiffré + Boutons */}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 flex-wrap">
+          {/* Impact financier */}
+          {recommendation.impactValue ? (
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
+              recommendation.impactValue > 0 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border border-rose-200'
+            }`}>
+              {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span>Impact potentiel : {recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
+            </div>
+          ) : (
+            <div />
+          )}
           
-          {/* Action buttons if not already treated/ignored */}
+          {/* Boutons Traité / Ignorer */}
           {!actionStatus && onMarkTreated && onMarkIgnored && (
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
-                className="flex-1 gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300"
+                className="gap-1.5"
                 onClick={() => onMarkTreated(recommendationKey)}
                 disabled={isPending}
                 data-testid={`button-mark-treated-${recommendation.id}`}
@@ -801,14 +813,14 @@ function RecommendationCard({
                 Traité
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="flex-1 gap-1.5 text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                className="gap-1.5 text-gray-500"
                 onClick={() => onMarkIgnored(recommendationKey)}
                 disabled={isPending}
                 data-testid={`button-mark-ignored-${recommendation.id}`}
               >
-                <EyeOff className="w-4 h-4" />
+                <X className="w-4 h-4" />
                 Ignorer
               </Button>
             </div>
@@ -820,86 +832,107 @@ function RecommendationCard({
 }
 
 // Top Priority Card - Shows the #1 priority action with unified color from score
-function TopPriorityCard({ recommendation, projectName }: { recommendation: Recommendation; projectName: string }) {
+function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgnored }: { 
+  recommendation: Recommendation; 
+  projectName: string;
+  onMarkTreated?: () => void;
+  onMarkIgnored?: () => void;
+}) {
   const priorityInfo = getPriorityLabel(recommendation.priorityScore);
   const priorityAction = generatePriorityAction(recommendation);
   const scoreColor = getScoreColor(recommendation.priorityScore);
   
   // Use new decision label if available
   const decisionEmoji = recommendation.decisionInfo?.emoji || priorityInfo.emoji;
+  const decisionLabel = recommendation.decisionInfo?.label || priorityInfo.label;
   const decisionTiming = recommendation.decisionInfo?.timing || priorityInfo.timing;
   
+  // Délai recommandé basé sur le score
+  const getRecommendedDelay = () => {
+    if (recommendation.priorityScore <= 30) return 'à traiter immédiatement';
+    if (recommendation.priorityScore <= 50) return 'à traiter sous 3 jours';
+    if (recommendation.priorityScore <= 70) return 'à traiter sous 7 jours';
+    return 'à planifier ce mois';
+  };
+  
   return (
-    <Card className={`border-l-4 ${scoreColor.border} ${scoreColor.bg} shadow-lg overflow-hidden`} data-testid="card-top-priority">
-      <CardContent className="p-0">
-        <div className="flex">
-          {/* Left: Icon indicator with same color */}
-          <div className={`p-4 flex items-center justify-center ${scoreColor.iconBg}`}>
-            {recommendation.priorityScore <= 30 ? <AlertTriangle className="w-8 h-8 text-white" /> : 
-             recommendation.priorityScore <= 60 ? <Clock className="w-8 h-8 text-white" /> :
-             <Lightbulb className="w-8 h-8 text-white" />}
+    <Card className={`border-l-4 ${scoreColor.border} bg-gradient-to-r from-white to-gray-50/50`} data-testid="card-top-priority">
+      <CardContent className="p-5 space-y-4">
+        {/* HEADER: Badge priorité + Score visuel */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${scoreColor.bg} ${scoreColor.text} border-0`}>
+              {decisionEmoji} {decisionLabel}
+            </Badge>
+            <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
           </div>
+          <Progress 
+            value={100 - recommendation.priorityScore} 
+            className="w-24 h-2"
+          />
+        </div>
+        
+        {/* CORPS: Action principale + Impact + Délai */}
+        <div className="space-y-3">
+          {/* Action principale (1 phrase claire, très visible) */}
+          <h3 className="text-lg font-bold text-gray-900">
+            {recommendation.blocks?.concreteAction?.primary || priorityAction}
+          </h3>
           
-          {/* Right: Content */}
-          <div className="flex-1 p-4 space-y-3">
-            {/* Ligne 1: Label décisionnel + score avec tooltip de décomposition */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-sm font-bold ${scoreColor.text}`}>
-                {decisionEmoji} {decisionTiming}
-              </span>
-              <ScoreBadge score={recommendation.priorityScore} breakdown={recommendation.scoreBreakdown} />
-              <Link href={`/projects/${recommendation.projectId}`} className="ml-auto text-sm font-medium text-violet-600 hover:underline">
-                {projectName}
-              </Link>
+          {/* Impact financier clair */}
+          {recommendation.impactValue && (
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
+              recommendation.impactValue > 0 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-rose-50 text-rose-700 border border-rose-200'
+            }`}>
+              {recommendation.impactValue > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span>Impact potentiel : {recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
             </div>
-            
-            {/* Ligne 2: Action concrète principale (la plus visible) */}
-            <p className={`text-lg font-bold ${scoreColor.text}`}>
-              {recommendation.blocks?.concreteAction?.primary || priorityAction}
-            </p>
-            
-            {/* 3 Blocs: Passé / Présent / Futur (format compact pour Top Priority) */}
-            {recommendation.blocks && (
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="p-2 rounded bg-gray-50/50 dark:bg-gray-800/30">
-                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Constat</p>
-                  <p className="text-gray-700 dark:text-gray-300 font-medium">
-                    {formatCurrency(recommendation.blocks.pastImpact.amount)}
-                  </p>
-                  <p className="text-gray-400 text-[9px]">{recommendation.blocks.pastImpact.condition}</p>
-                </div>
-                <div className={`p-2 rounded ${recommendation.blocks.currentImplication.isPast ? 'bg-gray-100/50' : 'bg-green-50/50'}`}>
-                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Implication</p>
-                  <p className={`text-xs ${recommendation.blocks.currentImplication.isPast ? 'text-gray-500' : 'text-green-700 dark:text-green-400'}`}>
-                    {recommendation.blocks.currentImplication.isPast ? 'Levier passé' : 'Exploitable'}
-                  </p>
-                </div>
-                <div className={`p-2 rounded ${scoreColor.bg}`}>
-                  <p className="text-gray-500 font-medium text-[10px] mb-0.5">Action</p>
-                  <p className={`text-xs font-medium ${scoreColor.text} line-clamp-2`}>
-                    {recommendation.blocks.concreteAction.primary}
-                  </p>
-                </div>
-              </div>
+          )}
+          
+          {/* Délai recommandé */}
+          <p className="text-sm text-gray-600 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gray-400" />
+            Délai recommandé : <span className="font-medium">{getRecommendedDelay()}</span>
+          </p>
+        </div>
+        
+        {/* FOOTER: Boutons + Lien projet */}
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 flex-wrap">
+          <div className="flex items-center gap-2">
+            {onMarkTreated && (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-2"
+                onClick={onMarkTreated}
+                data-testid="button-overview-mark-treated"
+              >
+                <Check className="w-4 h-4" />
+                Traité
+              </Button>
             )}
-            
-            {/* Fallback: Ancien affichage si pas de blocks */}
-            {!recommendation.blocks && (
-              <p className="text-sm text-gray-500">{recommendation.issue}</p>
-            )}
-            
-            {/* Impact avec unité claire */}
-            {recommendation.impactValue && (
-              <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                recommendation.impactValue > 0 
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {recommendation.impactValue > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                <span>{recommendation.impactValue > 0 ? '+' : ''}{formatCurrency(recommendation.impactValue)} sur ce projet</span>
-              </div>
+            {onMarkIgnored && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-gray-500"
+                onClick={onMarkIgnored}
+                data-testid="button-overview-mark-ignored"
+              >
+                <X className="w-4 h-4" />
+                Ignorer
+              </Button>
             )}
           </div>
+          <Link 
+            href={`/projects/${recommendation.projectId}`} 
+            className="text-sm text-violet-600 hover:underline flex items-center gap-1"
+          >
+            {projectName}
+            <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
       </CardContent>
     </Card>
@@ -1216,6 +1249,15 @@ export default function Finance() {
               return today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
             };
 
+            // Calcul des KPIs pour l'onglet Aujourd'hui
+            const activeRecommendationsCount = allRecommendations.filter(r => !getActionStatus(r.projectId || '', r.id)).length;
+            const totalPotentialGains = allRecommendations
+              .filter(r => !getActionStatus(r.projectId || '', r.id) && r.impactValue)
+              .reduce((sum, r) => sum + (r.impactValue || 0), 0);
+            const amountAtRisk = aggregate.totalBilled - aggregate.totalPaid + 
+              projects.filter(p => p.metrics.status === 'deficit').reduce((sum, p) => sum + Math.abs(p.metrics.margin), 0);
+            const treatedThisMonth = recommendationActions.filter(a => a.action === 'treated').length;
+
             return (
               <div className="space-y-6">
                 {/* Header */}
@@ -1241,6 +1283,52 @@ export default function Finance() {
                   </Button>
                 </div>
 
+                {/* KPIs synthèse en haut - expliquent pourquoi ces décisions existent */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="p-4 bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100 rounded-full">
+                        <Euro className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-emerald-700">
+                          {formatCurrency(totalPotentialGains)}
+                        </p>
+                        <p className="text-xs text-emerald-600">Gains potentiels activables</p>
+                        <p className="text-[10px] text-emerald-500">sur les décisions non traitées</p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 bg-gradient-to-br from-amber-50 to-white border-amber-200">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-100 rounded-full">
+                        <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-amber-700">
+                          {formatCurrency(amountAtRisk)}
+                        </p>
+                        <p className="text-xs text-amber-600">Montant à risque</p>
+                        <p className="text-[10px] text-amber-500">facturé non encaissé + déficits</p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 bg-gradient-to-br from-violet-50 to-white border-violet-200">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-violet-100 rounded-full">
+                        <Lightbulb className="w-5 h-5 text-violet-600" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-violet-700">
+                          {activeRecommendationsCount}
+                        </p>
+                        <p className="text-xs text-violet-600">Décisions actives</p>
+                        <p className="text-[10px] text-violet-500">{treatedThisMonth} traitées ce mois</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
                 {top3Recommendations.length === 0 ? (
                   <Card className="p-8 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                     <div className="flex flex-col items-center gap-4">
@@ -1259,63 +1347,96 @@ export default function Finance() {
                   <div className="space-y-4">
                     {top3Recommendations.map((rec, index) => {
                       const actionStatus = getActionStatus(rec.projectId || '', rec.id);
+                      // Palette douce : violet/indigo/slate au lieu de rouge/orange/jaune
+                      const cardStyles = [
+                        { border: 'border-l-violet-500', bg: 'bg-gradient-to-r from-violet-50/60 to-white', badge: 'bg-violet-100 text-violet-700' },
+                        { border: 'border-l-indigo-400', bg: 'bg-gradient-to-r from-indigo-50/50 to-white', badge: 'bg-indigo-100 text-indigo-700' },
+                        { border: 'border-l-slate-400', bg: 'bg-gradient-to-r from-slate-50/50 to-white', badge: 'bg-slate-100 text-slate-700' }
+                      ];
+                      const style = cardStyles[index] || cardStyles[2];
+                      
                       return (
                         <Card 
                           key={`today-${rec.projectId}-${rec.id}`}
-                          className={`overflow-hidden border-l-4 ${
-                            index === 0 ? 'border-l-red-500 bg-gradient-to-r from-red-50/50 to-white' : 
-                            index === 1 ? 'border-l-orange-500 bg-gradient-to-r from-orange-50/50 to-white' : 
-                            'border-l-yellow-500 bg-gradient-to-r from-yellow-50/50 to-white'
-                          }`}
+                          className={`overflow-hidden border-l-4 ${style.border} ${style.bg}`}
                           data-testid={`card-today-decision-${index + 1}`}
                         >
                           <CardContent className="p-5">
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex items-start gap-4 flex-1">
-                                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold ${
-                                  index === 0 ? 'bg-red-100 text-red-600' : 
-                                  index === 1 ? 'bg-orange-100 text-orange-600' : 
-                                  'bg-yellow-100 text-yellow-600'
-                                }`}>
+                                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold ${style.badge}`}>
                                   {index + 1}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                                    <Link 
-                                      href={`/projects/${rec.projectId}`} 
-                                      className="text-sm font-semibold text-violet-600 hover:underline"
-                                    >
-                                      {rec.projectName}
-                                    </Link>
-                                    <Badge variant="outline" className="text-xs">
-                                      {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
-                                    </Badge>
-                                    {rec.impactValue && rec.impactValue > 0 && (
-                                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
-                                        +{formatCurrency(rec.impactValue)}
+                                  {/* Header avec action principale en titre fort */}
+                                  <div className="mb-3">
+                                    <h3 className="text-base font-bold text-gray-900 mb-1">
+                                      {rec.threeBlockFormat?.concreteAction || rec.actionSuggested || rec.action}
+                                    </h3>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Link 
+                                        href={`/projects/${rec.projectId}`} 
+                                        className="text-sm text-violet-600 hover:underline"
+                                      >
+                                        {rec.projectName}
+                                      </Link>
+                                      <Badge variant="outline" className="text-xs">
+                                        {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
                                       </Badge>
-                                    )}
+                                      {rec.impactValue && rec.impactValue > 0 && (
+                                        <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">
+                                          +{formatCurrency(rec.impactValue)}
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </div>
                                   
-                                  {/* Format 3 blocs */}
-                                  <div className="space-y-2 text-sm">
+                                  {/* Format 3 blocs bien structurés */}
+                                  <div className="space-y-3 text-sm">
                                     {rec.threeBlockFormat ? (
                                       <>
-                                        <p className="text-gray-600">
-                                          <span className="font-medium text-gray-700">Constat : </span>
-                                          {rec.threeBlockFormat.pastObservation}
-                                        </p>
-                                        <p className="text-gray-600">
-                                          <span className="font-medium text-gray-700">Implication : </span>
-                                          {rec.threeBlockFormat.currentImplication}
-                                        </p>
-                                        <p className="text-gray-900 font-medium bg-violet-50 p-2 rounded-md border-l-2 border-violet-400">
-                                          <span className="font-semibold">Action : </span>
-                                          {rec.threeBlockFormat.concreteAction}
-                                        </p>
+                                        {/* Bloc 1: Constat passé */}
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-amber-500 mt-0.5">1.</span>
+                                          <div>
+                                            <span className="font-medium text-gray-700">Constat passé : </span>
+                                            <span className="text-gray-600">{rec.threeBlockFormat.pastObservation}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Bloc 2: Implication actuelle */}
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-amber-500 mt-0.5">2.</span>
+                                          <div>
+                                            <span className="font-medium text-gray-700">Ce que ça implique : </span>
+                                            <span className="text-gray-600">{rec.threeBlockFormat.currentImplication}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Bloc 3: Action concrète - très visible */}
+                                        <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
+                                          <div className="flex items-start gap-2">
+                                            <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                                            <div>
+                                              <p className="font-semibold text-violet-800">
+                                                Action recommandée : {rec.threeBlockFormat.concreteAction}
+                                              </p>
+                                              {rec.threeBlockFormat.alternatives && rec.threeBlockFormat.alternatives.length > 0 && (
+                                                <p className="text-xs text-violet-600 mt-1">
+                                                  Alternatives : {rec.threeBlockFormat.alternatives.join(', ')}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
                                       </>
                                     ) : (
-                                      <p className="text-gray-700">{rec.actionSuggested}</p>
+                                      <div className="bg-violet-50 p-3 rounded-lg border border-violet-200">
+                                        <div className="flex items-start gap-2">
+                                          <Zap className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                                          <p className="font-semibold text-violet-800">{rec.actionSuggested || rec.action}</p>
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
@@ -1352,52 +1473,6 @@ export default function Finance() {
                       );
                     })}
                     
-                    {/* Quick stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-                      <Card className="p-4 bg-gradient-to-br from-violet-50 to-white border-violet-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-violet-100 rounded-full">
-                            <Lightbulb className="w-5 h-5 text-violet-600" />
-                          </div>
-                          <div>
-                            <p className="text-2xl font-bold text-violet-700">
-                              {allRecommendations.filter(r => !getActionStatus(r.projectId || '', r.id)).length}
-                            </p>
-                            <p className="text-xs text-violet-600">Recommandations actives</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card className="p-4 bg-gradient-to-br from-green-50 to-white border-green-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-100 rounded-full">
-                            <Check className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-2xl font-bold text-green-700">
-                              {recommendationActions.filter(a => a.action === 'treated').length}
-                            </p>
-                            <p className="text-xs text-green-600">Traitées ce mois</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card className="p-4 bg-gradient-to-br from-cyan-50 to-white border-cyan-100">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-cyan-100 rounded-full">
-                            <Euro className="w-5 h-5 text-cyan-600" />
-                          </div>
-                          <div>
-                            <p className="text-2xl font-bold text-cyan-700">
-                              {formatCurrency(
-                                allRecommendations
-                                  .filter(r => !getActionStatus(r.projectId || '', r.id) && r.impactValue)
-                                  .reduce((sum, r) => sum + (r.impactValue || 0), 0)
-                              )}
-                            </p>
-                            <p className="text-xs text-cyan-600">Gains potentiels</p>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
                   </div>
                 )}
               </div>
@@ -1554,7 +1629,9 @@ export default function Finance() {
               </div>
               <TopPriorityCard 
                 recommendation={topPriorityRec} 
-                projectName={topPriorityRec.projectName} 
+                projectName={topPriorityRec.projectName}
+                onMarkTreated={() => handleMarkTreated(topPriorityRec.projectId || '', topPriorityRec.id)}
+                onMarkIgnored={() => handleMarkIgnored(topPriorityRec.projectId || '', topPriorityRec.id)}
               />
             </div>
           )}

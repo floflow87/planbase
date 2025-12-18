@@ -1,0 +1,260 @@
+Module Facturation & Rentabilité (PlanBase)
+🎯 Objectif
+
+Finaliser le module Facturation & Rentabilité pour en faire un véritable cockpit de décision, clair, cohérent et immédiatement exploitable, en corrigeant :
+
+les incohérences UI entre onglets,
+
+les wording encore ambigus,
+
+la hiérarchie visuelle des informations,
+
+l’absence explicite de “quoi faire maintenant”.
+
+Le moteur de calcul est considéré comme déjà fonctionnel.
+Le travail porte sur UX, hiérarchisation, lisibilité et décision.
+
+1️⃣ Onglet Aujourd’hui — 
+
+Dans l’onglet Par projet, conserver la zone centrale affichant :
+
+TJM réel
+
+Jours passés
+
+Coût total
+
+Ces informations constituent le socle factuel du projet et doivent rester visibles.
+
+En revanche, séparer clairement :
+
+les données opérationnelles (zone centrale)
+
+la lecture décisionnelle (zone basse : score + nombre de recommandations + CTA “Voir le projet”).
+
+Les recommandations ne doivent pas masquer ni dupliquer ces données, mais s’appuyer dessus implicitement.“Vos 3 décisions du jour”
+Problèmes identifiés
+
+L’action à mener n’est pas assez visible dans chaque panneau
+
+Les KPIs arrivent après les décisions → incohérence mentale
+
+Les KPIs affichés ne sont pas explicitement reliés aux décisions
+
+Rework demandé
+Ordre des blocs (obligatoire)
+
+KPIs synthèse du jour
+
+Les 3 décisions prioritaires
+
+KPIs à afficher (3 maximum)
+
+Ces KPIs doivent expliquer pourquoi ces décisions existent :
+
+💰 Gains potentiels activables (somme des impacts des décisions non traitées)
+
+⚠️ Montant à risque (facturé non encaissé + projets déficitaires)
+
+📊 Décisions actives (nombre)
+
+👉 Éviter les KPIs purement descriptifs ici (CA total, marge globale).
+
+Cartes “Décision du jour”
+
+Chaque carte DOIT afficher clairement :
+
+Action principale (titre fort)
+
+Ex : Appliquer le TJM cible sur les prochains projets
+
+Pourquoi (constat passé)
+
+80 € auraient été gagnés si le TJM cible avait été appliqué sur les jours déjà réalisés
+
+Ce que ça implique aujourd’hui
+
+Ce levier n’est plus applicable sur ce projet, mais reste exploitable sur les projets futurs
+
+Action concrète maintenant (bloc dédié, très visible)
+
+👉 Action recommandée : appliquer le TJM cible sur les prochains projets similaires
+Alternatives : renégociation, avenant, ajustement de périmètre
+
+➡️ L’utilisateur ne doit jamais se demander quoi faire.
+
+2️⃣ Onglet Vue d’ensemble
+Problèmes identifiés
+
+L’action prioritaire est trop criarde
+
+Bonne amélioration de la décomposition du score, mais la carte peut encore gagner en clarté
+
+Rework demandé
+Action prioritaire
+
+Utiliser la même palette douce que l’onglet Aujourd’hui
+
+Réduire les contrastes agressifs (rouge/orange trop saturés)
+
+Structurer la carte comme suit :
+
+Header
+
+Badge priorité (ex : À traiter cette semaine)
+
+Score visuel (progress bar + /100)
+
+Corps
+
+Action principale (1 phrase claire)
+
+Impact financier clair (ex : +800 € activables)
+
+Délai recommandé (ex : à traiter sous 7 jours)
+
+Footer
+
+Boutons : Traité / Ignorer
+
+Lien discret vers le projet
+
+➡️ La carte doit donner envie d’agir, pas d’alerter.
+
+3️⃣ Onglet Par projet
+Problèmes identifiés
+
+La reco en tooltip hover n’est pas pertinente
+
+Le wording du score n’apporte pas de valeur
+
+Manque d’alignement visuel entre les cards
+
+Rework demandé
+Structure standard de chaque card projet
+
+Zone haute
+
+Nom du projet
+
+Badge statut (Rentable / À risque / Déficitaire)
+
+Badge étape projet (En cours / Livré / Terminé)
+
+Zone centrale
+
+KPI essentiels uniquement (Facturé, Encaissé, Marge)
+
+Barre de paiement si pertinente
+
+Zone basse (fixe, alignée sur toutes les cards)
+
+Score visuel sans texte explicatif
+
+pastille / barre / gradient couleur
+
+Bouton “Voir le projet” (toujours au même endroit)
+
+Recommandations
+
+Supprimer la tooltip actuelle
+
+À la place :
+
+afficher un badge “X recommandations”
+
+hover → mini-list très courte :
+
+• Ajuster le prix (+800 €)
+• Clôturer et facturer le solde
+
+➡️ Le détail reste dans l’onglet Recommandations.
+
+4️⃣ Onglet Recommandations
+Problèmes identifiés
+
+Trop de variations visuelles
+
+Couleurs parfois confuses
+
+Wording encore perfectible
+
+Rework demandé
+Structure unique pour toutes les recommandations
+
+Header
+
+Badge priorité (À traiter maintenant / Cette semaine / À planifier)
+
+Score visuel (/100)
+
+Tag type : Pricing / Temps / Paiement / Stratégique
+
+Corps (3 blocs fixes)
+
+Constat passé
+
+Implication actuelle
+
+Action concrète maintenant
+
+Footer
+
+Impact chiffré clair :
+
+💰 Impact potentiel : +800 € sur ce projet
+
+Boutons : Traité / Ignorer
+
+Couleurs
+
+Palette alignée avec “Aujourd’hui”
+
+Une couleur = une intention
+
+Pas de rouge sauf pour pertes réelles
+
+5️⃣ Règles globales de wording (non négociables)
+Montants €
+
+Toujours préciser :
+
+sur quoi (projet / jour / futur)
+
+à quelle condition
+
+si c’est passé ou encore activable
+
+Exemple correct
+
+💰 Impact constaté : +80 €
+(si le TJM cible avait été appliqué sur les jours déjà réalisés)
+
+👉 Action possible maintenant :
+appliquer ce TJM sur les prochains projets similaires
+
+6️⃣ Exclusion des projets internes
+
+Les projets internal :
+
+exclus de l’Action prioritaire
+
+exclus du “Aujourd’hui”
+
+Toujours visibles ailleurs avec mention :
+
+Projet interne — non priorisé financièrement
+
+7️⃣ Finalité produit
+
+À l’issue de ce rework :
+
+Chaque onglet a un rôle clair
+
+Chaque recommandation répond à :
+
+Qu’est-ce que je fais maintenant ?
+
+Le module devient un assistant décisionnel, pas un dashboard
+
+PlanBase se positionne comme un copilote financier opérationnel
