@@ -605,7 +605,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
                 <span className="text-xs text-gray-500">{avgScore}/100</span>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs max-w-xs">
+            <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
               <p className="font-medium mb-1">Score de santé : {avgScore}/100</p>
               <p className="text-muted-foreground">
                 {avgScore >= 80 ? 'Projet en excellente santé' :
@@ -901,14 +901,15 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-2 cursor-help">
+              <div className="flex flex-col items-end gap-1 cursor-help">
                 <Progress 
                   value={100 - recommendation.priorityScore} 
                   className="w-24 h-2"
                 />
+                <span className="text-[10px] text-gray-500">Niveau d'urgence</span>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs max-w-xs">
+            <TooltipContent side="top" className="text-xs max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
               <p className="font-medium mb-1">Urgence : {100 - recommendation.priorityScore}%</p>
               <p className="text-muted-foreground">
                 Plus la barre est remplie, plus l'action est urgente.
@@ -1086,10 +1087,7 @@ export default function Finance() {
   // Mutations for recommendation actions
   const createActionMutation = useMutation({
     mutationFn: async (data: { projectId: string; recommendationKey: string; action: 'treated' | 'ignored' }) => {
-      return apiRequest('/api/recommendation-actions', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('/api/recommendation-actions', 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
@@ -1098,9 +1096,7 @@ export default function Finance() {
   
   const deleteActionMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/recommendation-actions/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest(`/api/recommendation-actions/${id}`, 'DELETE');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
@@ -1128,12 +1124,6 @@ export default function Finance() {
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Facturation & Rentabilité</h1>
-            <p className="text-sm text-gray-500 mt-1">Analyse financière et recommandations</p>
-          </div>
-        </div>
         <LoadingState />
       </div>
     );
@@ -1156,12 +1146,6 @@ export default function Finance() {
   if (!summary || summary.projects.length === 0) {
     return (
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Facturation & Rentabilité</h1>
-            <p className="text-sm text-gray-500 mt-1">Analyse financière et recommandations</p>
-          </div>
-        </div>
         <EmptyState />
       </div>
     );
@@ -1201,32 +1185,6 @@ export default function Finance() {
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto h-full" data-testid="page-finance">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Facturation & Rentabilité</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Analyse financière de {aggregate.projectCount} projet{aggregate.projectCount > 1 ? 's' : ''} client{aggregate.projectCount > 1 ? 's' : ''}
-            {aggregate.internalProjectCount && aggregate.internalProjectCount > 0 && (
-              <span className="text-muted-foreground ml-1">
-                ({aggregate.internalProjectCount} projet{aggregate.internalProjectCount > 1 ? 's' : ''} interne{aggregate.internalProjectCount > 1 ? 's' : ''} exclu{aggregate.internalProjectCount > 1 ? 's' : ''})
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" data-testid="button-info">
-                <Info className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs bg-white dark:bg-gray-900 border shadow-lg">
-              <p>Les calculs sont basés sur le temps enregistré, les montants facturés et votre coût journalier interne.</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList>
@@ -1430,11 +1388,6 @@ export default function Finance() {
                                       <Badge variant="outline" className="text-xs">
                                         {rec.decisionInfo?.emoji} {rec.decisionInfo?.label}
                                       </Badge>
-                                      {rec.impactValue && rec.impactValue > 0 && (
-                                        <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">
-                                          +{formatCurrency(rec.impactValue)}
-                                        </Badge>
-                                      )}
                                     </div>
                                   </div>
                                   
