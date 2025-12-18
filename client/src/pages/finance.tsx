@@ -345,14 +345,12 @@ const getScoreLevelInfo = (level: ScoreLevel) => {
 
 // Score badge component with tooltip showing breakdown
 function ScoreBadge({ score, breakdown }: { score: number; breakdown?: ScoreBreakdown }) {
-  const level = getScoreLevel(score);
-  const levelInfo = getScoreLevelInfo(level);
+  const scoreColor = getScoreColor(score);
   
-  // Get color for component value: negative=red, zero=gray, positive=green
-  const getValueColor = (value: number) => {
-    if (value < 0) return 'text-red-600';
-    if (value === 0) return 'text-gray-400';
-    return 'text-green-700';
+  // Get color for component value based on gradient
+  const getComponentColor = (value: number, maxValue: number = 20) => {
+    const normalizedScore = Math.max(0, Math.min(100, (value / maxValue) * 100));
+    return getScoreColor(normalizedScore);
   };
   
   // Format value with appropriate sign
@@ -365,42 +363,46 @@ function ScoreBadge({ score, breakdown }: { score: number; breakdown?: ScoreBrea
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex items-center gap-2 cursor-help">
-          <Badge className={`text-xs font-bold ${levelInfo.color}`}>
+          <Badge className={`text-xs font-bold ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
             {score}/100
           </Badge>
           <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div 
-              className={`h-full ${levelInfo.barColor} transition-all`}
+              className={`h-full ${scoreColor.iconBg} transition-all`}
               style={{ width: `${Math.max(score, 5)}%` }}
             />
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-sm p-3 bg-white dark:bg-gray-900 border shadow-lg">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-gray-900">Decomposition du score</p>
+      <TooltipContent side="left" className="w-80 p-4 bg-white dark:bg-gray-900 border shadow-xl">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-base font-bold text-gray-900">Décomposition du score</p>
+            <Badge className={`text-sm font-bold ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
+              {score}/100
+            </Badge>
+          </div>
           {breakdown && breakdown.components.length > 0 ? (
-            <div className="space-y-1.5">
-              {breakdown.components.map((comp, idx) => (
-                <div key={idx} className="text-xs">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-gray-700 font-medium">{comp.label}</span>
-                    <span className={`font-semibold ${getValueColor(comp.value)}`}>
-                      {formatValue(comp.value)} pts
-                    </span>
+            <div className="space-y-2">
+              {breakdown.components.map((comp, idx) => {
+                const compColor = getComponentColor(comp.value);
+                return (
+                  <div key={idx} className={`p-2 rounded-lg ${compColor.bg} border ${compColor.border}`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className={`text-sm font-medium ${compColor.text}`}>{comp.label}</span>
+                      <span className={`font-bold ${compColor.text}`}>
+                        {formatValue(comp.value)} pts
+                      </span>
+                    </div>
+                    {comp.description && (
+                      <p className="text-xs text-gray-500 mt-1">{comp.description}</p>
+                    )}
                   </div>
-                  {comp.description && (
-                    <p className="text-gray-500 text-[10px] mt-0.5">{comp.description}</p>
-                  )}
-                </div>
-              ))}
-              <div className="pt-2 mt-2 border-t flex items-center justify-between text-sm font-bold">
-                <span>Score final</span>
-                <span className={getValueColor(score)}>{score}/100</span>
-              </div>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Score base sur l'impact et l'urgence</p>
+            <p className="text-sm text-gray-500">Score basé sur l'impact et l'urgence</p>
           )}
         </div>
       </TooltipContent>
@@ -550,11 +552,10 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
                 <div className="space-y-2 text-xs">
                   {recommendations.map((rec) => {
                     const scoreColor = getScoreColor(rec.priorityScore);
-                    const priorityInfo = getPriorityLabel(rec.priorityScore);
                     return (
                       <div key={rec.id} className="flex items-start gap-2">
-                        <Badge className={`text-[10px] px-1.5 py-0.5 shrink-0 ${scoreColor.bg} ${scoreColor.text} border ${scoreColor.border}`}>
-                          {priorityInfo.timing}
+                        <Badge className={`text-[10px] px-1.5 py-0.5 shrink-0 ${scoreColor.iconBg} text-white`}>
+                          {rec.priorityScore}
                         </Badge>
                         <span className="text-gray-700 dark:text-gray-300">{generatePriorityAction(rec)}</span>
                       </div>
@@ -566,18 +567,17 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
             <div className="space-y-2">
               {recommendations.slice(0, 2).map((rec) => {
                 const scoreColor = getScoreColor(rec.priorityScore);
-                const priorityInfo = getPriorityLabel(rec.priorityScore);
                 return (
                   <div 
                     key={rec.id} 
                     className={`p-2 rounded-lg text-xs ${scoreColor.bg} border ${scoreColor.border}`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[10px] font-bold ${scoreColor.text}`}>
-                        {priorityInfo.emoji} {priorityInfo.timing} • {rec.priorityScore}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`text-[10px] font-bold px-1.5 py-0.5 ${scoreColor.iconBg} text-white shrink-0`}>
+                        {rec.priorityScore}
+                      </Badge>
+                      <p className={`font-medium ${scoreColor.text}`}>{generatePriorityAction(rec)}</p>
                     </div>
-                    <p className={`font-medium ${scoreColor.text}`}>{generatePriorityAction(rec)}</p>
                   </div>
                 );
               })}
@@ -761,7 +761,7 @@ function EmptyState() {
 export default function Finance() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [sortOrder, setSortOrder] = useState<'none' | 'desc' | 'asc'>('none');
   const [activeTab, setActiveTab] = useState('overview');
   const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
 
@@ -835,10 +835,14 @@ export default function Finance() {
       if (selectedFilter === 'all') return true;
       return p.metrics.status === selectedFilter;
     })
-    .sort((a, b) => sortOrder === 'desc' 
-      ? b.metrics.marginPercent - a.metrics.marginPercent 
-      : a.metrics.marginPercent - b.metrics.marginPercent
-    );
+    .sort((a, b) => {
+      if (sortOrder === 'none') {
+        return 0; // Keep original order (by date, most recent first)
+      }
+      return sortOrder === 'desc' 
+        ? b.metrics.marginPercent - a.metrics.marginPercent 
+        : a.metrics.marginPercent - b.metrics.marginPercent;
+    });
 
   const allRecommendations = projects
     .flatMap(p => p.recommendations.map(r => ({ ...r, projectName: p.projectName, projectId: p.projectId })))
@@ -952,38 +956,95 @@ export default function Finance() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200" data-testid="status-profitable">
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-green-700">{aggregate.profitableCount}</p>
-                <p className="text-sm text-green-600">Projets rentables</p>
-                <p className="text-xs text-green-500">Marge &gt; 15%</p>
-              </div>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200 cursor-help transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md" data-testid="status-profitable">
+                  <div className="p-3 bg-green-200 rounded-full">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-700">{aggregate.profitableCount}</p>
+                    <p className="text-sm text-green-600">Projets rentables</p>
+                    <p className="text-xs text-green-500">Marge &gt; 15%</p>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
+                <p className="text-sm font-semibold text-green-700 mb-2">Projets rentables</p>
+                {projects.filter(p => p.metrics.status === 'profitable').length > 0 ? (
+                  <ul className="space-y-1">
+                    {projects.filter(p => p.metrics.status === 'profitable').map(p => (
+                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                        <span className="truncate">{p.projectName}</span>
+                        <span className="text-green-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-500">Aucun projet rentable</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
 
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-orange-50 border border-orange-200" data-testid="status-at-risk">
-              <div className="p-3 bg-orange-100 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-orange-700">{aggregate.atRiskCount}</p>
-                <p className="text-sm text-orange-600">Projets à risque</p>
-                <p className="text-xs text-orange-500">Marge 0-15%</p>
-              </div>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 cursor-help transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md" data-testid="status-at-risk">
+                  <div className="p-3 bg-orange-200 rounded-full">
+                    <AlertTriangle className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-700">{aggregate.atRiskCount}</p>
+                    <p className="text-sm text-orange-600">Projets à risque</p>
+                    <p className="text-xs text-orange-500">Marge 0-15%</p>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
+                <p className="text-sm font-semibold text-orange-700 mb-2">Projets à risque</p>
+                {projects.filter(p => p.metrics.status === 'at_risk').length > 0 ? (
+                  <ul className="space-y-1">
+                    {projects.filter(p => p.metrics.status === 'at_risk').map(p => (
+                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                        <span className="truncate">{p.projectName}</span>
+                        <span className="text-orange-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-500">Aucun projet à risque</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
 
-            <div className="flex items-center gap-4 p-4 rounded-lg bg-red-50 border border-red-200" data-testid="status-deficit">
-              <div className="p-3 bg-red-100 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-red-700">{aggregate.deficitCount}</p>
-                <p className="text-sm text-red-600">Projets déficitaires</p>
-                <p className="text-xs text-red-500">Marge &lt; 0%</p>
-              </div>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-red-50 to-red-100 border border-red-200 cursor-help transition-all hover:from-red-100 hover:to-red-200 hover:shadow-md" data-testid="status-deficit">
+                  <div className="p-3 bg-red-200 rounded-full">
+                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-700">{aggregate.deficitCount}</p>
+                    <p className="text-sm text-red-600">Projets déficitaires</p>
+                    <p className="text-xs text-red-500">Marge &lt; 0%</p>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="w-64 p-3 bg-white dark:bg-gray-900 border shadow-lg">
+                <p className="text-sm font-semibold text-red-700 mb-2">Projets déficitaires</p>
+                {projects.filter(p => p.metrics.status === 'deficit').length > 0 ? (
+                  <ul className="space-y-1">
+                    {projects.filter(p => p.metrics.status === 'deficit').map(p => (
+                      <li key={p.projectId} className="text-xs text-gray-700 flex justify-between">
+                        <span className="truncate">{p.projectName}</span>
+                        <span className="text-red-600 font-medium">{formatNumber(p.metrics.marginPercent)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-500">Aucun projet déficitaire</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Top Priority Section - Always show if recommendations exist */}
@@ -1060,14 +1121,19 @@ export default function Finance() {
               </SelectContent>
             </Select>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-              className="gap-2"
+              onClick={() => {
+                if (sortOrder === 'none') setSortOrder('desc');
+                else if (sortOrder === 'desc') setSortOrder('asc');
+                else setSortOrder('none');
+              }}
+              className="gap-2 bg-white hover:bg-gray-50 border border-gray-200"
               data-testid="button-sort-margin"
             >
-              {sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
-              Marge {sortOrder === 'desc' ? '↓' : '↑'}
+              {sortOrder === 'none' ? <ArrowUpDown className="w-4 h-4 text-gray-400" /> : 
+               sortOrder === 'desc' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+              {sortOrder === 'none' ? 'Tri: Date' : `Marge ${sortOrder === 'desc' ? '↓' : '↑'}`}
             </Button>
             <p className="text-sm text-gray-500 ml-auto">
               {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
