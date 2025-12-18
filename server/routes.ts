@@ -5310,6 +5310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find current index
       const currentIndex = allSprints.findIndex(s => s.id === id);
       console.log(`📊 Current index: ${currentIndex}, Total sprints: ${allSprints.length}`);
+      console.log(`📊 Sprint positions: ${allSprints.map(s => `${s.name}:${s.position}`).join(', ')}`);
       
       // Calculate new index
       const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
@@ -5319,10 +5320,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Cannot move sprint further in this direction" });
       }
       
-      // Swap positions
+      // Get the current sprint and the one we're swapping with
+      const currentSprint = allSprints[currentIndex];
       const otherSprint = allSprints[newIndex];
-      const currentPosition = allSprints[currentIndex].position!;
-      const otherPosition = otherSprint.position!;
+      
+      // Use index-based positions for the swap (more reliable)
+      const currentPosition = currentIndex;
+      const otherPosition = newIndex;
       
       console.log(`🔀 Swapping positions: ${currentPosition} <-> ${otherPosition}`);
       
