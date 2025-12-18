@@ -117,11 +117,24 @@ export interface Recommendation {
   icon: string;
 }
 
+// Health Score breakdown for project health transparency
+export interface HealthScoreBreakdown {
+  total: number;
+  components: {
+    label: string;
+    value: number;
+    maxValue: number;
+    description: string;
+  }[];
+}
+
 export interface ProfitabilityAnalysis {
   projectId: string;
   projectName: string;
   metrics: ProfitabilityMetrics;
   recommendations: Recommendation[];
+  healthScore: number; // 0-100, higher = healthier project
+  healthScoreBreakdown: HealthScoreBreakdown;
   generatedAt: string;
 }
 
@@ -238,6 +251,144 @@ export function calculateMetrics(
     status: statusInfo.status,
     statusLabel: statusInfo.label,
     statusColor: statusInfo.color,
+  };
+}
+
+// ==========================================
+// HEALTH SCORE CALCULATION
+// Score de santé du projet basé sur 4 axes objectifs
+// ==========================================
+
+interface HealthScoreResult {
+  score: number;
+  breakdown: HealthScoreBreakdown;
+}
+
+export function calculateHealthScore(metrics: ProfitabilityMetrics): HealthScoreResult {
+  const components: HealthScoreBreakdown['components'] = [];
+  
+  // 1. Marge (0-30 points) - Plus la marge est haute, mieux c'est
+  // Marge cible = 30%, on normalise entre -20% et +50%
+  let marginScore = 0;
+  if (metrics.marginPercent >= 30) {
+    marginScore = 30; // Excellente marge
+  } else if (metrics.marginPercent >= 15) {
+    marginScore = 20 + ((metrics.marginPercent - 15) / 15) * 10; // 20-30
+  } else if (metrics.marginPercent >= 0) {
+    marginScore = 10 + (metrics.marginPercent / 15) * 10; // 10-20
+  } else if (metrics.marginPercent >= -20) {
+    marginScore = Math.max(0, 10 + (metrics.marginPercent / 20) * 10); // 0-10
+  } else {
+    marginScore = 0; // Très déficitaire
+  }
+  
+  components.push({
+    label: 'Marge',
+    value: Math.round(marginScore),
+    maxValue: 30,
+    description: metrics.marginPercent >= 15 
+      ? `Rentable (${metrics.marginPercent.toFixed(1)}%)`
+      : metrics.marginPercent >= 0 
+        ? `À risque (${metrics.marginPercent.toFixed(1)}%)`
+        : `Déficitaire (${metrics.marginPercent.toFixed(1)}%)`
+  });
+  
+  // 2. TJM (0-25 points) - Écart par rapport au TJM cible
+  let tjmScore = 0;
+  if (metrics.targetTJM > 0) {
+    if (metrics.tjmGapPercent >= 0) {
+      tjmScore = 25; // TJM atteint ou dépassé
+    } else if (metrics.tjmGapPercent >= -10) {
+      tjmScore = 20 + ((10 + metrics.tjmGapPercent) / 10) * 5; // 20-25
+    } else if (metrics.tjmGapPercent >= -25) {
+      tjmScore = 10 + ((25 + metrics.tjmGapPercent) / 15) * 10; // 10-20
+    } else {
+      tjmScore = Math.max(0, 10 + (metrics.tjmGapPercent + 25) / 25 * 10); // 0-10
+    }
+  } else {
+    // Pas de TJM cible défini - on donne un score neutre
+    tjmScore = 15;
+  }
+  
+  components.push({
+    label: 'TJM effectif',
+    value: Math.round(tjmScore),
+    maxValue: 25,
+    description: metrics.targetTJM > 0
+      ? (metrics.tjmGapPercent >= 0 
+          ? `TJM atteint (${metrics.actualTJM.toLocaleString('fr-FR')} €/j)`
+          : `TJM sous cible (${metrics.tjmGapPercent.toFixed(1)}%)`)
+      : 'TJM cible non défini'
+  });
+  
+  // 3. Encaissement (0-25 points) - Progression des paiements
+  let paymentScore = 0;
+  if (metrics.totalBilled > 0) {
+    // On normalise sur la progression des paiements
+    if (metrics.paymentProgress >= 100) {
+      paymentScore = 25; // Tout encaissé
+    } else if (metrics.paymentProgress >= 75) {
+      paymentScore = 20 + ((metrics.paymentProgress - 75) / 25) * 5; // 20-25
+    } else if (metrics.paymentProgress >= 50) {
+      paymentScore = 15 + ((metrics.paymentProgress - 50) / 25) * 5; // 15-20
+    } else if (metrics.paymentProgress >= 25) {
+      paymentScore = 10 + ((metrics.paymentProgress - 25) / 25) * 5; // 10-15
+    } else {
+      paymentScore = (metrics.paymentProgress / 25) * 10; // 0-10
+    }
+  } else {
+    paymentScore = 15; // Pas encore facturé - score neutre
+  }
+  
+  components.push({
+    label: 'Encaissement',
+    value: Math.round(paymentScore),
+    maxValue: 25,
+    description: metrics.totalBilled > 0
+      ? (metrics.paymentProgress >= 100 
+          ? 'Tout encaissé'
+          : `${metrics.paymentProgress.toFixed(0)}% encaissé`)
+      : 'Pas encore facturé'
+  });
+  
+  // 4. Dérive temps (0-20 points) - Respect du budget temps
+  let timeScore = 0;
+  if (metrics.theoreticalDays > 0) {
+    if (metrics.timeOverrunPercent <= 0) {
+      timeScore = 20; // Dans les temps ou en avance
+    } else if (metrics.timeOverrunPercent <= 10) {
+      timeScore = 15 + ((10 - metrics.timeOverrunPercent) / 10) * 5; // 15-20
+    } else if (metrics.timeOverrunPercent <= 25) {
+      timeScore = 10 + ((25 - metrics.timeOverrunPercent) / 15) * 5; // 10-15
+    } else if (metrics.timeOverrunPercent <= 50) {
+      timeScore = 5 + ((50 - metrics.timeOverrunPercent) / 25) * 5; // 5-10
+    } else {
+      timeScore = Math.max(0, 5 - (metrics.timeOverrunPercent - 50) / 50 * 5); // 0-5
+    }
+  } else {
+    timeScore = 15; // Pas de budget temps défini - score neutre
+  }
+  
+  components.push({
+    label: 'Respect temps',
+    value: Math.round(timeScore),
+    maxValue: 20,
+    description: metrics.theoreticalDays > 0
+      ? (metrics.timeOverrunPercent <= 0 
+          ? 'Dans les temps'
+          : `Dépassement +${metrics.timeOverrunPercent.toFixed(0)}%`)
+      : 'Budget temps non défini'
+  });
+  
+  // Total Health Score (0-100)
+  const totalScore = Math.round(marginScore + tjmScore + paymentScore + timeScore);
+  
+  return {
+    score: Math.min(100, Math.max(0, totalScore)),
+    breakdown: {
+      total: totalScore,
+      components
+    }
   };
 }
 
@@ -981,11 +1132,16 @@ export function generateProfitabilityAnalysis(
     { priority: project.priority || undefined, budget: project.budget }
   );
   
+  // Calculate Health Score (objective project health)
+  const healthScoreResult = calculateHealthScore(metrics);
+  
   return {
     projectId: project.id,
     projectName: project.name,
     metrics,
     recommendations,
+    healthScore: healthScoreResult.score,
+    healthScoreBreakdown: healthScoreResult.breakdown,
     generatedAt: new Date().toISOString(),
   };
 }
