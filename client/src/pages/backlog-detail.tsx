@@ -1476,7 +1476,7 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Epics tab */}
-        <TabsContent value="epics" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
+        <TabsContent value="epics" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <div className="space-y-4">
             {/* Header with Create button */}
             <div className="flex items-center justify-between">
@@ -1601,7 +1601,7 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Tickets terminés tab */}
-        <TabsContent value="done" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
+        <TabsContent value="done" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <div className="relative h-full">
             <CompletedTicketsView 
               tickets={flatTickets.filter(t => t.state === "termine")}
@@ -1637,7 +1637,7 @@ export default function BacklogDetail() {
         </TabsContent>
 
         {/* Rétrospective tab */}
-        <TabsContent value="retrospective" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
+        <TabsContent value="retrospective" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <RetrospectiveView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
       </Tabs>
