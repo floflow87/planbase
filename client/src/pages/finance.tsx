@@ -523,36 +523,19 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
 
         {recommendations.length > 0 && (
           <div className="pt-2 border-t">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 mb-2 cursor-help">
-                  <Lightbulb className="w-4 h-4 text-yellow-500" />
-                  <span className="text-xs font-medium text-gray-600">
-                    {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                <p className="text-sm font-medium mb-2">
-                  Ce projet est {metrics.marginPercent >= 0 ? 'rentable' : 'déficitaire'} avec {formatNumber(Math.abs(metrics.marginPercent))}% de marge
-                </p>
-                <div className="space-y-1 text-xs">
-                  {recommendations.map((rec) => (
-                    <div key={rec.id} className="flex items-start gap-2">
-                      <span>{rec.priority === 'critical' ? '🚨' : rec.priority === 'high' ? '⚡' : '💡'}</span>
-                      <span className="text-gray-600 dark:text-gray-400">{generatePriorityAction(rec)}</span>
-                    </div>
-                  ))}
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-yellow-500" />
+              <span className="text-xs font-medium text-gray-600">
+                {recommendations.length} recommandation{recommendations.length > 1 ? 's' : ''}
+              </span>
+            </div>
             <div className="space-y-2">
               {recommendations.slice(0, 2).map((rec) => (
                 <div 
                   key={rec.id} 
                   className={`p-2 rounded-lg border text-xs ${getPriorityColor(rec.priority)}`}
                 >
-                  <p className="text-gray-700 dark:text-gray-300 font-medium">{rec.issue}</p>
+                  <p className="text-gray-700 dark:text-gray-300 font-medium">{generatePriorityAction(rec)}</p>
                 </div>
               ))}
               {recommendations.length > 2 && (
@@ -920,11 +903,6 @@ export default function Finance() {
             <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
               <PieChart className="w-4 h-4" />
               Par projet
-              {allRecommendations.length > 0 && (
-                <Badge variant="outline" className="ml-1 text-xs">
-                  {allRecommendations.length}
-                </Badge>
-              )}
             </TabsTrigger>
             <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
               <Lightbulb className="w-4 h-4" />
@@ -992,48 +970,40 @@ export default function Finance() {
             />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Répartition des projets</CardTitle>
-              <CardDescription>Statut de rentabilité de vos projets</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200" data-testid="status-profitable">
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-700">{aggregate.profitableCount}</p>
-                    <p className="text-sm text-green-600">Projets rentables</p>
-                    <p className="text-xs text-green-500">Marge &gt; 15%</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-orange-50 border border-orange-200" data-testid="status-at-risk">
-                  <div className="p-3 bg-orange-100 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-orange-700">{aggregate.atRiskCount}</p>
-                    <p className="text-sm text-orange-600">Projets à risque</p>
-                    <p className="text-xs text-orange-500">Marge 0-15%</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-red-50 border border-red-200" data-testid="status-deficit">
-                  <div className="p-3 bg-red-100 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-700">{aggregate.deficitCount}</p>
-                    <p className="text-sm text-red-600">Projets déficitaires</p>
-                    <p className="text-xs text-red-500">Marge &lt; 0%</p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200" data-testid="status-profitable">
+              <div className="p-3 bg-green-100 rounded-full">
+                <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-2xl font-bold text-green-700">{aggregate.profitableCount}</p>
+                <p className="text-sm text-green-600">Projets rentables</p>
+                <p className="text-xs text-green-500">Marge &gt; 15%</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-orange-50 border border-orange-200" data-testid="status-at-risk">
+              <div className="p-3 bg-orange-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-orange-700">{aggregate.atRiskCount}</p>
+                <p className="text-sm text-orange-600">Projets à risque</p>
+                <p className="text-xs text-orange-500">Marge 0-15%</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-red-50 border border-red-200" data-testid="status-deficit">
+              <div className="p-3 bg-red-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-700">{aggregate.deficitCount}</p>
+                <p className="text-sm text-red-600">Projets déficitaires</p>
+                <p className="text-xs text-red-500">Marge &lt; 0%</p>
+              </div>
+            </div>
+          </div>
 
           {/* Top Priority Section - Always show if recommendations exist */}
           {topPriorityRec && (
