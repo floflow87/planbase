@@ -351,6 +351,16 @@ export default function BacklogDetail() {
     onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
+  const moveSprintMutation = useMutation({
+    mutationFn: async ({ sprintId, direction }: { sprintId: string; direction: 'up' | 'down' }) => 
+      apiRequest(`/api/sprints/${sprintId}/move`, "PATCH", { direction }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      toastSuccess({ title: "Sprint déplacé" });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
   const closeSprintMutation = useMutation({
     mutationFn: async ({ sprintId, redirectTo }: { sprintId: string; redirectTo?: string }) => 
       apiRequest(`/api/sprints/${sprintId}/close`, "PATCH", { redirectTo }),
@@ -1363,16 +1373,23 @@ export default function BacklogDetail() {
                 </div>
 
                 {/* Sprint Sections */}
-                {backlog.sprints
-                  .filter(s => !hideFinishedSprints || s.status !== "termine")
-                  .sort((a, b) => {
-                    if (a.status === "en_cours" && b.status !== "en_cours") return -1;
-                    if (b.status === "en_cours" && a.status !== "en_cours") return 1;
-                    if (a.status === "preparation" && b.status === "termine") return -1;
-                    if (b.status === "preparation" && a.status === "termine") return 1;
-                    return 0;
-                  })
-                  .map(sprint => (
+                {(() => {
+                  const sortedSprints = backlog.sprints
+                    .filter(s => !hideFinishedSprints || s.status !== "termine")
+                    .sort((a, b) => {
+                      // Sort by position first
+                      const posA = a.position ?? 0;
+                      const posB = b.position ?? 0;
+                      if (posA !== posB) return posA - posB;
+                      // Then by status
+                      if (a.status === "en_cours" && b.status !== "en_cours") return -1;
+                      if (b.status === "en_cours" && a.status !== "en_cours") return 1;
+                      if (a.status === "preparation" && b.status === "termine") return -1;
+                      if (b.status === "preparation" && a.status === "termine") return 1;
+                      return 0;
+                    });
+                  
+                  return sortedSprints.map((sprint, index) => (
                     <SprintSection
                       key={sprint.id}
                       sprint={sprint}
@@ -1392,8 +1409,13 @@ export default function BacklogDetail() {
                       onUpdateField={handleInlineFieldUpdate}
                       onTicketAction={handleTicketAction}
                       selectedTicketId={selectedTicket?.id}
+                      onMoveSprintUp={(sprintId) => moveSprintMutation.mutate({ sprintId, direction: 'up' })}
+                      onMoveSprintDown={(sprintId) => moveSprintMutation.mutate({ sprintId, direction: 'down' })}
+                      isFirstSprint={index === 0}
+                      isLastSprint={index === sortedSprints.length - 1}
                     />
-                  ))}
+                  ));
+                })()}
 
                 {/* Add Sprint Button */}
                 <Button

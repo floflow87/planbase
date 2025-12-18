@@ -961,6 +961,7 @@ export const sprints = pgTable("sprints", {
   completedAt: timestamp("completed_at", { withTimezone: true }), // Actual completion date
   daysSaved: real("days_saved"), // Days saved when completing early
   status: text("status").notNull().default("preparation"), // 'preparation', 'en_cours', 'termine'
+  position: integer("position").default(0), // Position for ordering sprints
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
