@@ -28,8 +28,10 @@ import {
   Zap,
   Shield,
   StopCircle,
-  PauseCircle
+  PauseCircle,
+  Search
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import type { Project } from "@shared/schema";
 
@@ -453,7 +455,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
   const { metrics, recommendations, projectName, projectId } = analysis;
   
   return (
-    <Card className="hover-elevate" data-testid={`card-project-${projectId}`}>
+    <Card className="transition-colors hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:border-violet-200" data-testid={`card-project-${projectId}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -538,7 +540,7 @@ function ProjectProfitabilityCard({ analysis }: { analysis: ProfitabilityAnalysi
                   {recommendations.map((rec) => (
                     <div key={rec.id} className="flex items-start gap-2">
                       <span>{rec.priority === 'critical' ? '🚨' : rec.priority === 'high' ? '⚡' : '💡'}</span>
-                      <span className="text-gray-600 dark:text-gray-400">{rec.issue}</span>
+                      <span className="text-gray-600 dark:text-gray-400">{generatePriorityAction(rec)}</span>
                     </div>
                   ))}
                 </div>
@@ -800,6 +802,7 @@ function EmptyState() {
 
 export default function Finance() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [hiddenRecommendations, setHiddenRecommendations] = useState<Set<string>>(new Set());
 
@@ -864,6 +867,11 @@ export default function Finance() {
   const { aggregate, projects } = summary;
 
   const filteredProjects = projects.filter(p => {
+    // Filter by search query
+    if (searchQuery && !p.projectName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    // Filter by status
     if (selectedFilter === 'all') return true;
     return p.metrics.status === selectedFilter;
   });
@@ -909,39 +917,15 @@ export default function Finance() {
               <BarChart3 className="w-4 h-4" />
               Vue d'ensemble
             </TabsTrigger>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
-                  <PieChart className="w-4 h-4" />
-                  Par projet
-                  {allRecommendations.length > 0 && (
-                    <Badge variant="outline" className="ml-1 text-xs">
-                      {allRecommendations.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs p-3 bg-white dark:bg-gray-900 border shadow-lg">
-                {allRecommendations.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold">{allRecommendations.length} recommandation{allRecommendations.length > 1 ? 's' : ''} active{allRecommendations.length > 1 ? 's' : ''}</p>
-                    <div className="space-y-1 text-xs">
-                      {criticalRecommendations.length > 0 && (
-                        <p className="text-red-600">🚨 {criticalRecommendations.length} critique{criticalRecommendations.length > 1 ? 's' : ''}</p>
-                      )}
-                      {importantRecommendations.length > 0 && (
-                        <p className="text-orange-600">⚡ {importantRecommendations.length} important{importantRecommendations.length > 1 ? 'es' : 'e'}</p>
-                      )}
-                      {otherRecommendations.length > 0 && (
-                        <p className="text-gray-600">💡 {otherRecommendations.length} suggestion{otherRecommendations.length > 1 ? 's' : ''}</p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm">Aucune recommandation active</p>
-                )}
-              </TooltipContent>
-            </Tooltip>
+            <TabsTrigger value="projects" className="gap-2" data-testid="tab-projects">
+              <PieChart className="w-4 h-4" />
+              Par projet
+              {allRecommendations.length > 0 && (
+                <Badge variant="outline" className="ml-1 text-xs">
+                  {allRecommendations.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="recommendations" className="gap-2" data-testid="tab-recommendations">
               <Lightbulb className="w-4 h-4" />
               Recommandations
@@ -1102,7 +1086,17 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Rechercher un projet..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-project"
+              />
+            </div>
             <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as any)}>
               <SelectTrigger className="w-48" data-testid="select-filter">
                 <SelectValue placeholder="Filtrer par statut" />
@@ -1114,7 +1108,7 @@ export default function Finance() {
                 <SelectItem value="deficit">Déficitaires</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 ml-auto">
               {filteredProjects.length} projet{filteredProjects.length > 1 ? 's' : ''}
             </p>
           </div>
