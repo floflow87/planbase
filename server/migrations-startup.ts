@@ -854,6 +854,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Time entries scope_item_id and task_id columns added");
     
+    // Add sprint_id column to time_entries for sprint linking
+    await db.execute(sql`
+      ALTER TABLE time_entries 
+      ADD COLUMN IF NOT EXISTS sprint_id uuid;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS time_entries_sprint_idx ON time_entries(sprint_id);
+    `);
+    console.log("✅ Time entries sprint_id column added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

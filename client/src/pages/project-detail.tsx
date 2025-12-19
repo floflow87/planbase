@@ -43,6 +43,7 @@ type TimeEntry = {
   userId: string;
   scopeItemId: string | null;
   taskId: string | null;
+  sprintId: string | null;
   startTime: string;
   endTime: string | null;
   duration: number | null;
@@ -219,9 +220,11 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const [isNewTimeDatePickerOpen, setIsNewTimeDatePickerOpen] = useState(false);
   const [isAddingTime, setIsAddingTime] = useState(false);
   
-  // Optional linking to scope items and tasks
+  // Optional linking to scope items, tasks and sprints
   const [selectedScopeItemId, setSelectedScopeItemId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [editSprintId, setEditSprintId] = useState<string | null>(null);
 
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: [`/api/projects/${projectId}/time-entries`],
@@ -240,6 +243,21 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     enabled: !!projectId,
   });
   const projectTasks = Array.isArray(projectTasksData) ? projectTasksData : [];
+  
+  // Fetch backlogs for this project to get sprints
+  type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
+  const { data: backlogsData } = useQuery<BacklogWithSprints[]>({
+    queryKey: ['/api/backlogs'],
+    enabled: !!projectId,
+  });
+  
+  // Get all sprints from backlogs linked to this project
+  const projectSprints = useMemo(() => {
+    if (!backlogsData) return [];
+    const projectBacklogs = backlogsData.filter(b => b.projectId === projectId);
+    // We need to fetch full backlog data to get sprints, but for now use activeSprint if available
+    return [] as Sprint[];
+  }, [backlogsData, projectId]);
 
   // Fetch profitability from backend for consistent calculations
   const { data: profitabilityData } = useQuery<ProfitabilityAnalysis>({

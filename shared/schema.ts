@@ -286,6 +286,7 @@ export const timeEntries = pgTable("time_entries", {
   userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
   scopeItemId: uuid("scope_item_id").references(() => projectScopeItems.id, { onDelete: "set null" }), // Optional: link to CDC/scope item
   taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }), // Optional: link to task/ticket
+  sprintId: uuid("sprint_id"), // Optional: link to sprint (FK added after sprints table creation)
   description: text("description"),
   startTime: timestamp("start_time", { withTimezone: true }),
   endTime: timestamp("end_time", { withTimezone: true }),
@@ -297,6 +298,7 @@ export const timeEntries = pgTable("time_entries", {
 }, (table) => ({
   accountProjectIdx: index().on(table.accountId, table.projectId),
   accountUserIdx: index().on(table.accountId, table.userId),
+  sprintIdx: index().on(table.sprintId),
 }));
 
 export const deals = pgTable("deals", {

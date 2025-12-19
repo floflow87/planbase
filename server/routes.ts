@@ -2089,7 +2089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { insertTimeEntrySchema } = await import("@shared/schema");
       
-      const { startTime, endTime, duration, projectId, description, scopeItemId, taskId } = req.body;
+      const { startTime, endTime, duration, projectId, description, scopeItemId, taskId, sprintId } = req.body;
       
       // Validate required fields
       if (!startTime || !duration || duration <= 0) {
@@ -2117,6 +2117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: description || null,
         scopeItemId: scopeItemId || null,
         taskId: taskId || null,
+        sprintId: sprintId || null,
         startTime: parsedStartTime,
         endTime: parsedEndTime,
         duration: duration,
