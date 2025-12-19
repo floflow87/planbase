@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -3774,6 +3774,12 @@ export default function ProjectDetail() {
                           call: "Appel",
                           meeting: "Réunion",
                           note: "Note",
+                          task: "Tâche",
+                          created: "Création",
+                          updated: "Mise à jour",
+                          deleted: "Suppression",
+                          file: "Fichier",
+                          time_tracked: "Temps",
                           custom: "Autre",
                         };
                         return labels[kind] || kind;
@@ -3784,6 +3790,12 @@ export default function ProjectDetail() {
                           call: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
                           meeting: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
                           note: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                          task: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+                          created: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+                          updated: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+                          deleted: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                          file: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+                          time_tracked: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
                           custom: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
                         };
                         return colors[kind] || colors.custom;
@@ -3794,8 +3806,37 @@ export default function ProjectDetail() {
                           case "call": return <Phone className="h-3 w-3" />;
                           case "meeting": return <Video className="h-3 w-3" />;
                           case "note": return <StickyNote className="h-3 w-3" />;
+                          case "task": return <CheckCircle2 className="h-3 w-3" />;
+                          case "created": return <PlusCircle className="h-3 w-3" />;
+                          case "updated": return <RefreshCw className="h-3 w-3" />;
+                          case "deleted": return <XCircle className="h-3 w-3" />;
+                          case "file": return <File className="h-3 w-3" />;
+                          case "time_tracked": return <Clock className="h-3 w-3" />;
                           default: return <MoreHorizontal className="h-3 w-3" />;
                         }
+                      };
+                      const getUpdateDetails = (activity: Activity) => {
+                        if (activity.kind !== 'updated' || !activity.payload) return null;
+                        const payload = activity.payload as Record<string, unknown>;
+                        const changes: string[] = [];
+                        if (payload.changedFields && Array.isArray(payload.changedFields)) {
+                          const fieldLabels: Record<string, string> = {
+                            name: "nom",
+                            title: "titre",
+                            description: "description",
+                            stage: "étape",
+                            status: "statut",
+                            priority: "priorité",
+                            dueDate: "date d'échéance",
+                            budget: "budget",
+                            billingStatus: "statut de facturation",
+                            assignedTo: "assignation",
+                          };
+                          payload.changedFields.forEach((field: string) => {
+                            changes.push(fieldLabels[field] || field);
+                          });
+                        }
+                        return changes.length > 0 ? changes.join(", ") : null;
                       };
 
                       return (
@@ -3806,23 +3847,35 @@ export default function ProjectDetail() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <Badge className={cn("text-xs flex items-center gap-1", getKindColor(activity.kind))}>
                                   {getKindIcon(activity.kind)}
                                   {getKindLabel(activity.kind)}
                                 </Badge>
-                                {activity.occurredAt && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(activity.occurredAt), "dd MMM yyyy", { locale: fr })}
+                                {activity.kind === 'updated' && getUpdateDetails(activity) && (
+                                  <span className="text-xs text-muted-foreground italic">
+                                    ({getUpdateDetails(activity)})
                                   </span>
                                 )}
                               </div>
                               <p className="text-xs">{activity.description}</p>
-                              {user && (
-                                <p className="text-[10px] text-muted-foreground mt-2">
-                                  Par {user.firstName} {user.lastName}
-                                </p>
-                              )}
+                              <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                                {user && (
+                                  <span>Par {user.firstName} {user.lastName}</span>
+                                )}
+                                {activity.createdAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-2.5 w-2.5" />
+                                    {format(new Date(activity.createdAt), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
+                                  </span>
+                                )}
+                                {activity.occurredAt && activity.occurredAt !== activity.createdAt && (
+                                  <span className="flex items-center gap-1">
+                                    <CalendarIcon className="h-2.5 w-2.5" />
+                                    {format(new Date(activity.occurredAt), "dd MMM yyyy", { locale: fr })}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-1">
                               <Button
