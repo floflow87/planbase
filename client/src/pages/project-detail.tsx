@@ -861,7 +861,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         <SelectItem value="none">Aucune</SelectItem>
                         {scopeItems.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
-                            {item.title}
+                            {item.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1292,7 +1292,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
               horizon: "immediate",
               type: "drift",
               title: "Étape(s) critique(s) à ce rythme",
-              description: `À ce rythme, ${criticalItems.length} étape(s) dépasseront leur enveloppe dans moins de 3 jours: ${criticalItems.map(i => `"${i.item.title}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}`,
+              description: `À ce rythme, ${criticalItems.length} étape(s) dépasseront leur enveloppe dans moins de 3 jours: ${criticalItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}`,
               severity: "critical",
             });
           }
@@ -1307,7 +1307,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
               horizon: "adjustment",
               type: "drift",
               title: "Anticipation à ce rythme",
-              description: `À ce rythme, ${warningItems.length} étape(s) dépasseront leur enveloppe dans moins de 7 jours: ${warningItems.map(i => `"${i.item.title}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
+              description: `À ce rythme, ${warningItems.length} étape(s) dépasseront leur enveloppe dans moins de 7 jours: ${warningItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
               severity: "warning",
             });
           }
@@ -1432,7 +1432,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                       <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
                         <td className="py-2 px-2">
                           <div className="flex items-center gap-2">
-                            {item.title}
+                            {item.label}
                             {itemProjection?.isCritical && (
                               <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
                                 Critique
@@ -1702,7 +1702,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   <SelectItem value="none">Aucune</SelectItem>
                   {scopeItems.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.title}
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
