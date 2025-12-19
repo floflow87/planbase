@@ -232,7 +232,7 @@ function DraggableKanbanCard({
         )}
         
         <div className="pt-1">
-          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">€ {totalBudget.toLocaleString()}</span>
+          <span className="text-sm font-bold text-primary">€ {totalBudget.toLocaleString()}</span>
         </div>
       </CardContent>
     </Card>
@@ -860,6 +860,32 @@ export default function CRM() {
                 <Settings2 className="w-4 h-4" />
               </Button>
             )}
+            {viewMode === "kanban" && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-kanban-columns" className="hidden md:flex">
+                    <Columns3 className="w-4 h-4 mr-2" />
+                    <span>Colonnes</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 bg-card" align="end">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium mb-3">Colonnes visibles</p>
+                    {KANBAN_STATUSES.map(status => (
+                      <div key={status.id} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`kanban-col-${status.id}`}
+                          checked={kanbanColumnVisibility[status.id] !== false}
+                          onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
+                          data-testid={`checkbox-kanban-column-${status.id}`}
+                        />
+                        <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             <Button variant="outline" size="sm" data-testid="button-export">
               <Download className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Exporter</span>
@@ -1174,11 +1200,11 @@ export default function CRM() {
                   onDragEnd={handleKanbanDragEnd}
                 >
                   <div className={`${viewMode === "table" ? "md:hidden" : ""}`}>
-                    {/* Toolbar with column visibility and scrollbar */}
-                    <div className="flex items-center justify-between mb-3">
+                    {/* Mobile-only toolbar with column visibility */}
+                    <div className="flex items-center justify-between mb-3 md:hidden">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" data-testid="button-kanban-columns">
+                          <Button variant="outline" size="sm" data-testid="button-kanban-columns-mobile">
                             <Columns3 className="w-4 h-4 mr-2" />
                             Colonnes
                           </Button>
@@ -1189,12 +1215,12 @@ export default function CRM() {
                             {KANBAN_STATUSES.map(status => (
                               <div key={status.id} className="flex items-center gap-2">
                                 <Checkbox 
-                                  id={`kanban-col-${status.id}`}
+                                  id={`kanban-col-mobile-${status.id}`}
                                   checked={kanbanColumnVisibility[status.id] !== false}
                                   onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
-                                  data-testid={`checkbox-kanban-column-${status.id}`}
+                                  data-testid={`checkbox-kanban-column-mobile-${status.id}`}
                                 />
-                                <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
+                                <Label htmlFor={`kanban-col-mobile-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
                               </div>
                             ))}
                           </div>

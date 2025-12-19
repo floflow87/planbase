@@ -1433,7 +1433,7 @@ function KanbanStageColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-lg border ${stage.color} ${isOver ? 'ring-2 ring-primary' : ''}`}
+      className={`flex flex-col rounded-lg border min-w-[250px] shrink-0 ${stage.color} ${isOver ? 'ring-2 ring-primary' : ''}`}
     >
       <div className="px-3 py-2 border-b">
         <div className="flex items-center justify-between">
@@ -1624,6 +1624,7 @@ interface ProjectKanbanViewProps {
   onDeleteProject: (project: Project) => void;
   onCompleteProject: (project: Project) => void;
   updateProjectMutation: any;
+  kanbanColumnVisibility: Record<string, boolean>;
 }
 
 function ProjectKanbanView({
@@ -1635,6 +1636,7 @@ function ProjectKanbanView({
   onDeleteProject,
   onCompleteProject,
   updateProjectMutation,
+  kanbanColumnVisibility,
 }: ProjectKanbanViewProps) {
   const [activeKanbanProjectId, setActiveKanbanProjectId] = useState<string | null>(null);
   
@@ -1689,6 +1691,9 @@ function ProjectKanbanView({
     ? clients.find(c => c.id === activeKanbanProject.clientId)
     : undefined;
   
+  // Filter stages by visibility
+  const visibleStages = stages.filter(stage => kanbanColumnVisibility[stage.value] !== false);
+
   return (
     <DndContext
       sensors={sensors}
@@ -1696,8 +1701,8 @@ function ProjectKanbanView({
       onDragStart={handleKanbanDragStart}
       onDragEnd={handleKanbanDragEnd}
     >
-      <div className="grid grid-cols-5 gap-2">
-        {stages.map((stage) => {
+      <div className="flex gap-4 pb-4 overflow-x-auto kanban-scrollbar">
+        {visibleStages.map((stage) => {
           const stageProjects = projects.filter(p => p.stage === stage.value);
           
           return (
@@ -1944,6 +1949,15 @@ export default function Projects() {
   useEffect(() => {
     localStorage.setItem('projectViewMode', projectViewMode);
   }, [projectViewMode]);
+
+  // Kanban column visibility state with localStorage persistence
+  const [projectKanbanColumnVisibility, setProjectKanbanColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('projectKanbanColumnVisibility');
+    return saved ? JSON.parse(saved) : {};
+  });
+  useEffect(() => {
+    localStorage.setItem('projectKanbanColumnVisibility', JSON.stringify(projectKanbanColumnVisibility));
+  }, [projectKanbanColumnVisibility]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -2954,6 +2968,32 @@ export default function Projects() {
                     <Settings2 className="w-4 h-4" />
                   </Button>
                 )}
+                {projectViewMode === "kanban" && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid="button-project-kanban-columns" className="hidden md:flex">
+                        <Columns3 className="w-4 h-4 mr-2" />
+                        <span>Colonnes</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 bg-card" align="end">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium mb-3">Colonnes visibles</p>
+                        {PROJECT_STAGES.map(stage => (
+                          <div key={stage.key} className="flex items-center gap-2">
+                            <Checkbox 
+                              id={`project-kanban-col-${stage.key}`}
+                              checked={projectKanbanColumnVisibility[stage.key] !== false}
+                              onCheckedChange={(checked) => setProjectKanbanColumnVisibility(prev => ({...prev, [stage.key]: !!checked}))}
+                              data-testid={`checkbox-project-kanban-column-${stage.key}`}
+                            />
+                            <Label htmlFor={`project-kanban-col-${stage.key}`} className="text-sm cursor-pointer">{stage.label}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
                 <Button 
                   data-testid="button-create-project"
                   onClick={() => {
@@ -3279,6 +3319,7 @@ export default function Projects() {
                           updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } });
                         }}
                         updateProjectMutation={updateProjectMutation}
+                        kanbanColumnVisibility={projectKanbanColumnVisibility}
                       />
                     </div>
                   </>
