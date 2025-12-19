@@ -304,6 +304,264 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const remainingDays = Math.max(0, totalEstimatedDays - totalTimeDays);
   const consumptionPercent = totalEstimatedDays > 0 ? (totalTimeDays / totalEstimatedDays) * 100 : 0;
   
+  // Calculate "at this pace" projections
+  const calculatePaceProjection = () => {
+    if (timeEntries.length < 2) {
+      return { available: false, reason: "Pas assez de données" };
+    }
+    
+    // Get entries with valid dates, sorted by date
+    const entriesWithDates = timeEntries
+      .filter(e => e.startTime && e.duration && e.duration > 0)
+      .map(e => ({
+        date: new Date(e.startTime!),
+        duration: e.duration || 0,
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    if (entriesWithDates.length < 2) {
+      return { available: false, reason: "Pas assez de sessions" };
+    }
+    
+    // Method 1: Last 7 days window
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last7DaysEntries = entriesWithDates.filter(e => e.date >= sevenDaysAgo);
+    
+    // Method 2: Last 5 sessions
+    const last5Sessions = entriesWithDates.slice(0, 5);
+    
+    // Choose the method with more data points (pick the richer dataset)
+    // Explicitly compare counts and select the set with more sessions
+    let selectedEntries: typeof entriesWithDates;
+    let windowLabel: string;
+    
+    const has7Days = last7DaysEntries.length >= 2;
+    const has5Sessions = last5Sessions.length >= 2;
+    
+    if (!has7Days && !has5Sessions) {
+      return { available: false, reason: "Données insuffisantes" };
+    }
+    
+    if (has7Days && has5Sessions) {
+      // Both valid - pick the one with MORE entries
+      if (last7DaysEntries.length > last5Sessions.length) {
+        selectedEntries = last7DaysEntries;
+        windowLabel = "7 derniers jours";
+      } else {
+        selectedEntries = last5Sessions;
+        windowLabel = "5 dernières sessions";
+      }
+    } else if (has7Days) {
+      selectedEntries = last7DaysEntries;
+      windowLabel = "7 derniers jours";
+    } else {
+      selectedEntries = last5Sessions;
+      windowLabel = "5 dernières sessions";
+    }
+    
+    if (selectedEntries.length < 2) {
+      return { available: false, reason: "Données insuffisantes" };
+    }
+    
+    // Calculate time consumed in window (in days)
+    const windowTimeSeconds = selectedEntries.reduce((sum, e) => sum + e.duration, 0);
+    const windowTimeDays = windowTimeSeconds / 3600 / 8;
+    
+    // Calculate window duration (in calendar days)
+    const oldestEntry = selectedEntries[selectedEntries.length - 1];
+    const newestEntry = selectedEntries[0];
+    const windowCalendarDays = Math.max(1, (newestEntry.date.getTime() - oldestEntry.date.getTime()) / (24 * 60 * 60 * 1000) + 1);
+    
+    // Pace: work days per calendar day
+    const pacePerDay = windowTimeDays / windowCalendarDays;
+    
+    if (pacePerDay <= 0) {
+      return { available: false, reason: "Rythme invalide" };
+    }
+    
+    // Calculate remaining time to complete
+    const actualRemainingDays = totalEstimatedDays - totalTimeDays;
+    
+    if (actualRemainingDays < 0) {
+      return { 
+        available: true, 
+        alreadyExceeded: true,
+        exceededBy: Math.abs(actualRemainingDays),
+        windowLabel,
+        pacePerDay,
+      };
+    }
+    
+    // Calendar days needed at this pace
+    const calendarDaysNeeded = actualRemainingDays / pacePerDay;
+    
+    // Estimated completion date
+    const estimatedEndDate = new Date(now.getTime() + calendarDaysNeeded * 24 * 60 * 60 * 1000);
+    
+    // Calculate projected overage (if any deadline is known from project)
+    return {
+      available: true,
+      alreadyExceeded: false,
+      estimatedEndDate,
+      calendarDaysNeeded: Math.ceil(calendarDaysNeeded),
+      calendarDaysNeededRaw: calendarDaysNeeded,
+      actualRemainingDays,
+      pacePerDay,
+      windowLabel,
+      windowTimeDays,
+      windowCalendarDays,
+    };
+  };
+  
+  const paceProjection = totalEstimatedDays > 0 ? calculatePaceProjection() : null;
+  
+  // Calculate per-scope-item projections using ITEM-SPECIFIC pace
+  // Each item's projection is based on its own work rhythm, not the global pace
+  const calculateScopeItemProjections = () => {
+    if (!paceProjection?.available || paceProjection.alreadyExceeded) return [];
+    
+    return scopeItems.map(item => {
+      const itemTimeSeconds = timeEntries
+        .filter(e => e.scopeItemId === item.id)
+        .reduce((sum, e) => sum + (e.duration || 0), 0);
+      const itemTimeDays = itemTimeSeconds / 3600 / 8;
+      const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+      
+      if (estimatedDays === 0) return { item, projection: null };
+      
+      const itemRemainingDays = estimatedDays - itemTimeDays;
+      const itemConsumption = (itemTimeDays / estimatedDays) * 100;
+      
+      // If already exceeded
+      if (itemRemainingDays <= 0) {
+        return {
+          item,
+          projection: {
+            exceeded: true,
+            exceededBy: Math.abs(itemRemainingDays),
+            consumption: itemConsumption,
+          }
+        };
+      }
+      
+      // Calculate ITEM-SPECIFIC pace based on this item's own time entries
+      const itemEntriesWithDates = timeEntries
+        .filter(e => e.scopeItemId === item.id && e.startTime && e.duration && e.duration > 0)
+        .map(e => ({ date: new Date(e.startTime!), duration: e.duration || 0 }))
+        .sort((a, b) => b.date.getTime() - a.date.getTime());
+      
+      // Need at least 2 sessions for this item to project reliably
+      if (itemEntriesWithDates.length < 2) {
+        return {
+          item,
+          projection: {
+            exceeded: false,
+            insufficientData: true,
+            consumption: itemConsumption,
+          }
+        };
+      }
+      
+      // Calculate pace based on last 5 sessions for this specific item
+      const last5ItemSessions = itemEntriesWithDates.slice(0, 5);
+      const itemWindowTimeSeconds = last5ItemSessions.reduce((sum, e) => sum + e.duration, 0);
+      const itemWindowTimeDays = itemWindowTimeSeconds / 3600 / 8;
+      const oldestItemEntry = last5ItemSessions[last5ItemSessions.length - 1];
+      const newestItemEntry = last5ItemSessions[0];
+      const itemWindowCalendarDays = Math.max(1, (newestItemEntry.date.getTime() - oldestItemEntry.date.getTime()) / (24 * 60 * 60 * 1000) + 1);
+      const itemPacePerDay = itemWindowTimeDays / itemWindowCalendarDays;
+      
+      // Guard against division by zero or negligible pace
+      if (itemPacePerDay <= 0.001) {
+        return {
+          item,
+          projection: {
+            exceeded: false,
+            insufficientData: true,
+            consumption: itemConsumption,
+          }
+        };
+      }
+      
+      // Project using THIS ITEM's pace, not global pace
+      const calendarDaysToExceed = itemRemainingDays / itemPacePerDay;
+      const projectedExceedDate = new Date(Date.now() + calendarDaysToExceed * 24 * 60 * 60 * 1000);
+      
+      // Critical if projected to exceed in < 3 days AND already consumed >50%
+      const isCritical = calendarDaysToExceed < 3 && itemConsumption > 50;
+      // Warning if projected to exceed in < 7 days AND already consumed >50%
+      const isWarning = calendarDaysToExceed < 7 && itemConsumption > 50 && !isCritical;
+      
+      return {
+        item,
+        projection: {
+          exceeded: false,
+          insufficientData: false,
+          daysToExceed: Math.ceil(calendarDaysToExceed),
+          projectedExceedDate,
+          isCritical,
+          isWarning,
+          consumption: itemConsumption,
+          itemPacePerDay,
+        }
+      };
+    }).filter(p => p.projection !== null);
+  };
+  
+  const scopeItemProjections = totalEstimatedDays > 0 ? calculateScopeItemProjections() : [];
+  
+  // Calculate project-level overage for trajectory status (same logic as KPI)
+  const calculateProjectOverage = () => {
+    // Sum of already-exceeded items
+    const actualOverage = scopeItemProjections.reduce((total, p) => {
+      if (p.projection?.exceeded && p.projection.exceededBy) {
+        return total + p.projection.exceededBy;
+      }
+      return total;
+    }, 0);
+    
+    // If project has a deadline, calculate capacity-based projection
+    let deadlineBasedOverage = 0;
+    const projectEndDate = project?.endDate ? new Date(project.endDate) : null;
+    
+    if (projectEndDate && paceProjection?.pacePerDay && paceProjection.pacePerDay > 0) {
+      const now = new Date();
+      const calendarDaysToDeadline = Math.max(0, (projectEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      const projectedWorkCapacity = calendarDaysToDeadline * paceProjection.pacePerDay;
+      const budgetRemaining = totalEstimatedDays - totalTimeDays;
+      
+      if (budgetRemaining > projectedWorkCapacity) {
+        deadlineBasedOverage = budgetRemaining - projectedWorkCapacity;
+      }
+    }
+    
+    return Math.max(actualOverage, deadlineBasedOverage);
+  };
+  
+  const projectedOverage = paceProjection?.available ? calculateProjectOverage() : 0;
+  
+  // Determine overall trajectory status based on projections AND deadline
+  const getTrajectoryStatus = () => {
+    if (!paceProjection?.available) return { status: "unknown", label: "Données insuffisantes", color: "text-muted-foreground", bg: "bg-muted" };
+    if (paceProjection.alreadyExceeded) return { status: "exceeded", label: "Hors enveloppe", color: "text-red-600", bg: "bg-red-600 dark:bg-red-700" };
+    
+    // Check deadline-based risk (high overage = critical)
+    const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
+    if (overagePercent > 20) return { status: "critical", label: "Risque critique", color: "text-red-600", bg: "bg-red-600 dark:bg-red-700" };
+    if (overagePercent > 10) return { status: "warning", label: "Attention requise", color: "text-orange-600", bg: "bg-orange-600 dark:bg-orange-700" };
+    
+    // Check per-item critical/warning status
+    const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
+    const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
+    
+    if (criticalItems.length > 0) return { status: "critical", label: "Risque critique", color: "text-red-600", bg: "bg-red-600 dark:bg-red-700" };
+    if (warningItems.length > 0) return { status: "warning", label: "Attention requise", color: "text-orange-600", bg: "bg-orange-600 dark:bg-orange-700" };
+    return { status: "ok", label: "Dans l'enveloppe", color: "text-green-600", bg: "bg-green-600 dark:bg-green-700" };
+  };
+  
+  const trajectoryStatus = getTrajectoryStatus();
+  
   // Time status: green <70%, orange 70-90%, red >90%
   const getTimeStatus = () => {
     if (totalEstimatedDays === 0) return { color: "text-muted-foreground", bg: "bg-muted", label: "Non défini" };
@@ -375,6 +633,98 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         </CardContent>
       </Card>
 
+      {/* Pace Projection Card */}
+      {paceProjection && totalEstimatedDays > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Projection "à ce rythme"
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!paceProjection.available ? (
+              <p className="text-sm text-muted-foreground" data-testid="text-projection-unavailable">
+                {paceProjection.reason}
+              </p>
+            ) : paceProjection.alreadyExceeded ? (
+              <div className="flex items-center gap-3 p-3 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" data-testid="alert-already-exceeded">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+                <div>
+                  <p className="font-medium text-red-800 dark:text-red-200">Budget temps déjà dépassé</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    Dépassement de {paceProjection.exceededBy?.toFixed(1)}j
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Fin estimée</p>
+                  <p className="text-lg font-semibold" data-testid="text-estimated-end-date">
+                    {paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Dans {paceProjection.calendarDaysNeeded}j calendaire{paceProjection.calendarDaysNeeded > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Rythme actuel</p>
+                  <p className="text-lg font-semibold" data-testid="text-current-pace">
+                    {(paceProjection.pacePerDay * 8).toFixed(1)}h/j
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Basé sur {paceProjection.windowLabel}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Dépassement projeté</p>
+                  {(() => {
+                    // Use pre-calculated projectedOverage (same as trajectory status)
+                    const overagePercent = totalEstimatedDays > 0 ? (projectedOverage / totalEstimatedDays) * 100 : 0;
+                    const isOverBudget = projectedOverage > 0.05;
+                    const hasDeadline = !!project?.endDate;
+                    
+                    return (
+                      <>
+                        <p className={`text-lg font-semibold ${isOverBudget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} data-testid="text-projected-overage">
+                          {isOverBudget ? `+${projectedOverage.toFixed(1)}j` : "Aucun"}
+                        </p>
+                        {isOverBudget ? (
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            +{overagePercent.toFixed(0)}% du budget
+                          </p>
+                        ) : hasDeadline ? (
+                          <p className="text-xs text-muted-foreground">
+                            Livraison en temps
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Budget temps respecté
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Trajectoire</p>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className={trajectoryStatus.bg}
+                      variant={trajectoryStatus.status === "exceeded" || trajectoryStatus.status === "critical" ? "destructive" : "default"}
+                      data-testid="badge-trajectory"
+                    >
+                      {trajectoryStatus.label}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Profitability Summary Card */}
       {metrics && (
         <Card>
@@ -445,6 +795,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                     <th className="text-right py-2 px-2 font-medium">Passé</th>
                     <th className="text-right py-2 px-2 font-medium">Écart</th>
                     <th className="text-right py-2 px-2 font-medium">Statut</th>
+                    {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                      <th className="text-right py-2 px-2 font-medium">Projection</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -465,9 +818,21 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                     };
                     const itemStatus = getItemStatus();
                     
+                    // Get projection for this item
+                    const itemProjection = scopeItemProjections.find(p => p.item.id === item.id)?.projection;
+                    
                     return (
                       <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
-                        <td className="py-2 px-2">{item.title}</td>
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-2">
+                            {item.title}
+                            {itemProjection?.isCritical && (
+                              <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
+                                Critique
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
                         <td className="text-right py-2 px-2">
                           {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
                         </td>
@@ -480,6 +845,36 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         <td className={`text-right py-2 px-2 ${itemStatus.color}`}>
                           {itemStatus.label}
                         </td>
+                        {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                          <td className="text-right py-2 px-2">
+                            {itemProjection ? (
+                              itemProjection.exceeded ? (
+                                <span className="text-red-600 dark:text-red-500" data-testid={`projection-exceeded-${item.id}`}>
+                                  Dépassé
+                                </span>
+                              ) : itemProjection.insufficientData ? (
+                                <span className="text-muted-foreground" data-testid={`projection-insufficient-${item.id}`}>
+                                  —
+                                </span>
+                              ) : (
+                                <span 
+                                  className={
+                                    itemProjection.isCritical 
+                                      ? "text-red-600 dark:text-red-500" 
+                                      : itemProjection.isWarning 
+                                        ? "text-orange-600 dark:text-orange-500" 
+                                        : "text-muted-foreground"
+                                  }
+                                  data-testid={`projection-days-${item.id}`}
+                                >
+                                  {itemProjection.daysToExceed}j
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -498,6 +893,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                           <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
                           <td className="text-right py-2 px-2">—</td>
                           <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                          {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                            <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                          )}
                         </tr>
                       );
                     }
@@ -610,6 +1008,53 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             description: `${uncategorizedPercent.toFixed(0)}% du temps n'est pas lié à une étape CDC. Catégorisez pour un meilleur suivi.`,
             severity: "info",
           });
+        }
+        
+        // Pace-based projections recommendations
+        if (paceProjection?.available && !paceProjection.alreadyExceeded) {
+          // Check for critical scope items (will exceed in < 3 days at this pace)
+          // Filter out items with insufficient data to avoid false alarms
+          const criticalItems = scopeItemProjections.filter(p => 
+            p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData
+          );
+          if (criticalItems.length > 0) {
+            recommendations.push({
+              id: "pace-critical",
+              horizon: "immediate",
+              type: "drift",
+              title: "Étape(s) critique(s) à ce rythme",
+              description: `À ce rythme, ${criticalItems.length} étape(s) dépasseront leur enveloppe dans moins de 3 jours: ${criticalItems.map(i => `"${i.item.title}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}`,
+              severity: "critical",
+            });
+          }
+          
+          // Check for warning scope items (will exceed in < 7 days at this pace)
+          const warningItems = scopeItemProjections.filter(p => 
+            p.projection?.isWarning && !p.projection.insufficientData
+          );
+          if (warningItems.length > 0 && criticalItems.length === 0) {
+            recommendations.push({
+              id: "pace-warning",
+              horizon: "adjustment",
+              type: "drift",
+              title: "Anticipation à ce rythme",
+              description: `À ce rythme, ${warningItems.length} étape(s) dépasseront leur enveloppe dans moins de 7 jours: ${warningItems.map(i => `"${i.item.title}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
+              severity: "warning",
+            });
+          }
+          
+          // Good trajectory message if no issues
+          const hasIssues = criticalItems.length > 0 || warningItems.length > 0 || imbalancedItems.length > 0 || consumptionPercent >= 80;
+          if (!hasIssues && totalTimeDays > 0) {
+            recommendations.push({
+              id: "pace-good",
+              horizon: "learning",
+              type: "ahead",
+              title: "Bonne trajectoire",
+              description: `À ce rythme (${(paceProjection.pacePerDay * 8).toFixed(1)}h/j), le projet reste dans l'enveloppe prévue. Fin estimée: ${paceProjection.estimatedEndDate?.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.`,
+              severity: "info",
+            });
+          }
         }
         
         if (recommendations.length === 0) return null;

@@ -1,0 +1,174 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel, sans contexte autour 👇
+
+⸻
+
+🎯 PROMPT REPLIT — PROJECTIONS “À CE RYTHME”
+
+Anticipation des dépassements & pilotage temps réel
+
+Tu es l’agent Replit chargé d’ajouter des projections dynamiques “à ce rythme” dans l’onglet Temps d’une fiche projet.
+
+L’objectif est d’anticiper les dépassements de temps avant qu’ils ne se produisent, en extrapolant à partir du rythme réel de consommation du temps.
+
+Cette fonctionnalité est opérationnelle, non financière, et ne modifie aucun calcul existant : elle projette uniquement à partir des données actuelles.
+
+⸻
+
+1️⃣ Principe de projection
+
+Définition :
+
+“À ce rythme” correspond à une extrapolation basée sur le rythme moyen récent de saisie du temps.
+
+Fenêtre de calcul
+	•	Utiliser par défaut :
+	•	les 7 derniers jours
+	•	ou les 5 dernières sessions de temps
+	•	Si les données sont insuffisantes, choisir automatiquement la fenêtre la plus pertinente.
+	•	Si moins de 2 sessions existent, afficher :
+
+Projection indisponible (données insuffisantes)
+
+⸻
+
+2️⃣ Calculs à implémenter
+
+2.1 Rythme moyen
+
+Rythme = Temps consommé sur la fenêtre / Durée de la fenêtre
+
+
+⸻
+
+2.2 Temps restant
+
+Temps restant = Temps prévu – Temps passé
+
+
+⸻
+
+2.3 Projection de dépassement
+
+Si Temps restant > 0 :
+
+Jours avant dépassement = Temps restant / Rythme
+
+Afficher :
+	•	une date estimée de dépassement
+	•	ou “Dépassement imminent” si < 2 jours
+
+⸻
+
+2.4 Projection de fin de projet
+
+Si une date cible ou une étape finale existe :
+	•	estimer :
+	•	le temps total projeté
+	•	le dépassement estimé (en jours)
+
+⸻
+
+3️⃣ KPI Projection (haut de l’onglet Temps)
+
+Ajouter un bloc visible :
+
+🔮 Projection à ce rythme
+	•	Fin estimée : (date)
+	•	Dépassement estimé : +X jours
+ou
+“Dans l’enveloppe prévue” si aucun dépassement n’est projeté
+
+⸻
+
+4️⃣ Projections par étape du CDC
+
+Pour chaque rubrique / étape du CDC :
+	•	Calculer une projection spécifique si suffisamment de données
+	•	Sinon afficher : Données insuffisantes
+
+Afficher :
+	•	Temps restant par étape
+	•	Dépassement estimé
+	•	Badge Étape critique si dépassement projeté
+
+Texte exact :
+
+🔴 À ce rythme, l’étape « [Nom de l’étape] » dépassera son enveloppe dans X jours.
+
+⸻
+
+5️⃣ Recommandations automatiques basées sur les projections
+
+🟠 Anticipation
+
+Condition :
+	•	Dépassement projeté > 10 %
+	•	Projet en cours
+
+Texte exact :
+
+⚠️ À ce rythme, le projet dépassera le temps prévu de X jours.
+
+Actions suggérées :
+	•	Réduire le périmètre
+	•	Accélérer certaines étapes
+	•	Reprioriser les tâches
+
+⸻
+
+🔴 Alerte critique
+
+Condition :
+	•	Dépassement imminent (< 2 jours)
+	•	Étape clé non terminée
+
+Texte exact :
+
+🔴 Dépassement imminent à ce rythme. Une décision est recommandée dès maintenant.
+
+⸻
+
+🟢 Bonne trajectoire
+
+Condition :
+	•	Aucun dépassement projeté
+
+Texte exact :
+
+✅ À ce rythme, le projet reste dans l’enveloppe de temps prévue.
+
+⸻
+
+6️⃣ Garde-fous UX
+	•	Toujours inclure la mention “à ce rythme” dans les textes
+	•	Ne jamais présenter une projection comme une certitude
+	•	Ne pas afficher de projections si les données sont insuffisantes
+
+⸻
+
+7️⃣ Horizon des recommandations
+
+Classer chaque recommandation selon l’horizon :
+	•	Action immédiate → projet en cours
+	•	Ajustement de pilotage → arbitrage à prévoir
+	•	Apprentissage → projet terminé
+
+Pour les projets terminés, utiliser le texte exact :
+
+📚 À ce rythme, ce projet aurait dépassé le CDC de X jours.
+
+⸻
+
+8️⃣ Critères d’acceptation
+	•	Les projections “à ce rythme” sont visibles dans l’onglet Temps
+	•	Elles se mettent à jour automatiquement
+	•	Les dépassements sont détectés avant qu’ils ne surviennent
+	•	Les recommandations sont claires, non alarmistes et actionnables
+	•	Aucun workflow existant n’est cassé
+
+⸻
+
+Intention produit :
+Ce module doit prévenir, anticiper et aider à décider, jamais sanctionner ni culpabiliser.
+
+⸻
