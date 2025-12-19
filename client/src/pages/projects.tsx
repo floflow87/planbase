@@ -1531,11 +1531,16 @@ function DraggableProjectCard({
     !completedColumn || t.columnId !== completedColumn.id
   ).length;
 
+  // Extract base color for very pastel effect (e.g., bg-yellow-100 -> bg-yellow-50/60)
+  const pastelCardColor = cardColor 
+    ? cardColor.replace(/bg-(\w+)-100/g, 'bg-$1-50/50').replace(/dark:bg-(\w+)-900\/30/g, 'dark:bg-$1-950/20')
+    : 'bg-popover';
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className={`hover-elevate active-elevate-2 cursor-grab ${cardColor || 'bg-popover'} ${isDragging ? 'shadow-lg' : ''}`}
+      className={`hover-elevate active-elevate-2 cursor-grab ${pastelCardColor} ${isDragging ? 'shadow-lg' : ''}`}
       {...attributes}
       {...listeners}
       data-testid={`kanban-project-card-${project.id}`}
