@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority, Activity } from "@shared/schema";
+import type { Project, Task, Client, AppUser, TaskColumn, Note, Document, ProjectPayment, Backlog, Epic, UserStory, BacklogTask, Sprint, BacklogColumn, ChecklistItem, BacklogItemState, BacklogPriority, Activity, ProjectScopeItem } from "@shared/schema";
 import { billingStatusOptions, backlogModeOptions, backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,6 +41,8 @@ type TimeEntry = {
   id: string;
   projectId: string | null;
   userId: string;
+  scopeItemId: string | null;
+  taskId: string | null;
   startTime: string;
   endTime: string | null;
   duration: number | null;
@@ -206,9 +208,25 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const [newTimeDescription, setNewTimeDescription] = useState<string>("");
   const [isNewTimeDatePickerOpen, setIsNewTimeDatePickerOpen] = useState(false);
   const [isAddingTime, setIsAddingTime] = useState(false);
+  
+  // Optional linking to scope items and tasks
+  const [selectedScopeItemId, setSelectedScopeItemId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const { data: timeEntries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: [`/api/projects/${projectId}/time-entries`],
+  });
+  
+  // Fetch scope items (CDC) for this project
+  const { data: scopeItems = [] } = useQuery<ProjectScopeItem[]>({
+    queryKey: [`/api/projects/${projectId}/scope-items`],
+    enabled: !!projectId,
+  });
+  
+  // Fetch tasks for this project
+  const { data: projectTasks = [] } = useQuery<Task[]>({
+    queryKey: [`/api/projects/${projectId}/tasks`],
+    enabled: !!projectId,
   });
 
   // Fetch profitability from backend for consistent calculations
@@ -278,36 +296,96 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     );
   }
 
+  // Calculate time KPIs
+  const totalTimeDays = totalTimeHours / 8;
+  const totalEstimatedDays = scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+  const remainingDays = Math.max(0, totalEstimatedDays - totalTimeDays);
+  const consumptionPercent = totalEstimatedDays > 0 ? (totalTimeDays / totalEstimatedDays) * 100 : 0;
+  
+  // Time status: green <70%, orange 70-90%, red >90%
+  const getTimeStatus = () => {
+    if (totalEstimatedDays === 0) return { color: "text-muted-foreground", bg: "bg-muted", label: "Non défini" };
+    if (consumptionPercent < 70) return { color: "text-green-600 dark:text-green-500", bg: "bg-green-600 dark:bg-green-700", label: "En bonne voie" };
+    if (consumptionPercent < 90) return { color: "text-orange-600 dark:text-orange-500", bg: "bg-orange-600 dark:bg-orange-700", label: "Attention" };
+    return { color: "text-red-600 dark:text-red-500", bg: "bg-red-600 dark:bg-red-700", label: "Dépassement" };
+  };
+  const timeStatus = getTimeStatus();
+
   return (
     <div className="space-y-4">
-      {/* Summary Card */}
+      {/* Time KPI Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Résumé</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Pilotage Temps vs CDC
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Temps total enregistré</p>
-              <p className="text-2xl font-semibold" data-testid="text-total-time">
-                {(totalTimeHours / 8).toFixed(2)} jours
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Temps passé</p>
+              <p className="text-xl font-semibold" data-testid="kpi-time-spent">
+                {totalTimeDays.toFixed(1)}j
               </p>
-              <p className="text-xs text-muted-foreground">
-                {totalTimeHours.toFixed(2)} heures ({timeEntries.length} session{timeEntries.length !== 1 ? "s" : ""})
-              </p>
+              <p className="text-xs text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
             </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Temps prévu (CDC)</p>
+              <p className="text-xl font-semibold" data-testid="kpi-time-estimated">
+                {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(1)}j` : "—"}
+              </p>
+              {totalEstimatedDays > 0 && (
+                <p className="text-xs text-muted-foreground">{(totalEstimatedDays * 8).toFixed(1)}h</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Temps restant</p>
+              <p className={`text-xl font-semibold ${remainingDays < 0 ? "text-red-600" : ""}`} data-testid="kpi-time-remaining">
+                {totalEstimatedDays > 0 ? `${remainingDays.toFixed(1)}j` : "—"}
+              </p>
+              {totalEstimatedDays > 0 && (
+                <p className="text-xs text-muted-foreground">{(remainingDays * 8).toFixed(1)}h</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Consommation</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-xl font-semibold ${timeStatus.color}`} data-testid="kpi-consumption-percent">
+                  {totalEstimatedDays > 0 ? `${consumptionPercent.toFixed(0)}%` : "—"}
+                </p>
+                {totalEstimatedDays > 0 && (
+                  <Badge className={timeStatus.bg} data-testid="badge-time-status">
+                    {timeStatus.label}
+                  </Badge>
+                )}
+              </div>
+              {totalEstimatedDays > 0 && (
+                <Progress value={Math.min(100, consumptionPercent)} className="h-2 mt-1" />
+              )}
+            </div>
+          </div>
+          {scopeItems.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-4 text-center">
+              Ajoutez des étapes dans l'onglet CDC pour activer le pilotage temps.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-            {metrics && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Rentabilité</p>
-                  <Button asChild variant="ghost" size="sm" className="h-6 text-xs gap-1" data-testid="link-to-finance">
-                    <Link href="/finance">
-                      <TrendingUp className="h-3 w-3" />
-                      Voir détails
-                    </Link>
-                  </Button>
-                </div>
+      {/* Profitability Summary Card */}
+      {metrics && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Rentabilité
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Marge</p>
                 <div className="flex items-center gap-2">
                   <Badge
                     variant={metrics.margin >= 0 ? "default" : "destructive"}
@@ -316,24 +394,278 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   >
                     {metrics.statusLabel}
                   </Badge>
-                  <span className={`text-lg font-semibold ${metrics.margin >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
-                    {metrics.margin >= 0 ? "+" : ""}
-                    {metrics.margin.toFixed(2)} €
-                  </span>
                 </div>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p>TJM réel: {metrics.actualTJM.toFixed(2)} €</p>
-                  {metrics.targetTJM > 0 && (
-                    <p>TJM cible: {metrics.targetTJM.toFixed(2)} €</p>
-                  )}
-                  <p>CA facturé: {metrics.totalBilled.toFixed(2)} €</p>
-                  <p>Encaissé: {metrics.totalPaid.toFixed(2)} €</p>
-                </div>
+                <p className={`text-lg font-semibold ${metrics.margin >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
+                  {metrics.margin >= 0 ? "+" : ""}{metrics.margin.toFixed(0)} €
+                </p>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">TJM réel</p>
+                <p className="text-lg font-semibold">{metrics.actualTJM.toFixed(0)} €</p>
+                {metrics.targetTJM > 0 && (
+                  <p className="text-xs text-muted-foreground">Cible: {metrics.targetTJM.toFixed(0)} €</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">CA facturé</p>
+                <p className="text-lg font-semibold">{metrics.totalBilled.toFixed(0)} €</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Encaissé</p>
+                <p className="text-lg font-semibold">{metrics.totalPaid.toFixed(0)} €</p>
+                <Button asChild variant="ghost" size="sm" className="h-6 text-xs gap-1 p-0" data-testid="link-to-finance">
+                  <Link href="/finance">
+                    Voir détails
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Time by Scope Item (CDC) Table */}
+      {scopeItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Temps par étape CDC
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2 font-medium">Étape</th>
+                    <th className="text-right py-2 px-2 font-medium">Prévu</th>
+                    <th className="text-right py-2 px-2 font-medium">Passé</th>
+                    <th className="text-right py-2 px-2 font-medium">Écart</th>
+                    <th className="text-right py-2 px-2 font-medium">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scopeItems.map((item) => {
+                    const itemTimeSeconds = timeEntries
+                      .filter(e => e.scopeItemId === item.id)
+                      .reduce((sum, e) => sum + (e.duration || 0), 0);
+                    const itemTimeDays = itemTimeSeconds / 3600 / 8;
+                    const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+                    const ecart = itemTimeDays - estimatedDays;
+                    const consumptionPct = estimatedDays > 0 ? (itemTimeDays / estimatedDays) * 100 : 0;
+                    
+                    const getItemStatus = () => {
+                      if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—" };
+                      if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK" };
+                      if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention" };
+                      return { color: "text-red-600 dark:text-red-500", label: "Critique" };
+                    };
+                    const itemStatus = getItemStatus();
+                    
+                    return (
+                      <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
+                        <td className="py-2 px-2">{item.title}</td>
+                        <td className="text-right py-2 px-2">
+                          {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
+                        </td>
+                        <td className="text-right py-2 px-2">
+                          {itemTimeDays.toFixed(1)}j
+                        </td>
+                        <td className={`text-right py-2 px-2 ${ecart > 0 ? "text-red-600 dark:text-red-500" : ecart < 0 ? "text-green-600 dark:text-green-500" : ""}`}>
+                          {estimatedDays > 0 ? `${ecart >= 0 ? "+" : ""}${ecart.toFixed(1)}j` : "—"}
+                        </td>
+                        <td className={`text-right py-2 px-2 ${itemStatus.color}`}>
+                          {itemStatus.label}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Uncategorized time row */}
+                  {(() => {
+                    const uncategorizedTimeSeconds = timeEntries
+                      .filter(e => !e.scopeItemId)
+                      .reduce((sum, e) => sum + (e.duration || 0), 0);
+                    const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
+                    
+                    if (uncategorizedTimeDays > 0) {
+                      return (
+                        <tr className="border-t bg-muted/30" data-testid="row-uncategorized-time">
+                          <td className="py-2 px-2 italic text-muted-foreground">Non catégorisé</td>
+                          <td className="text-right py-2 px-2">—</td>
+                          <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
+                          <td className="text-right py-2 px-2">—</td>
+                          <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                        </tr>
+                      );
+                    }
+                    return null;
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Time Recommendations */}
+      {scopeItems.length > 0 && totalEstimatedDays > 0 && (() => {
+        type Recommendation = {
+          id: string;
+          horizon: "immediate" | "adjustment" | "learning";
+          type: "drift" | "overflow" | "ahead" | "imbalance" | "uncategorized";
+          title: string;
+          description: string;
+          severity: "info" | "warning" | "critical";
+        };
+        
+        const recommendations: Recommendation[] = [];
+        
+        // Check for drift anticipation (80% consumed)
+        if (consumptionPercent >= 80 && consumptionPercent < 100) {
+          recommendations.push({
+            id: "drift",
+            horizon: "immediate",
+            type: "drift",
+            title: "Anticipation dérive",
+            description: `${consumptionPercent.toFixed(0)}% du temps prévu a été consommé. Planifiez les ajustements nécessaires.`,
+            severity: "warning",
+          });
+        }
+        
+        // Check for imminent overflow (<2 days remaining)
+        if (remainingDays < 2 && remainingDays >= 0 && totalEstimatedDays > 0) {
+          recommendations.push({
+            id: "overflow",
+            horizon: "immediate",
+            type: "overflow",
+            title: "Dépassement imminent",
+            description: `Moins de 2 jours restants (${remainingDays.toFixed(1)}j). Action immédiate requise.`,
+            severity: "critical",
+          });
+        }
+        
+        // Check for overflow (over 100%)
+        if (consumptionPercent > 100) {
+          recommendations.push({
+            id: "overflow-exceeded",
+            horizon: "immediate",
+            type: "overflow",
+            title: "Budget temps dépassé",
+            description: `Le temps prévu est dépassé de ${(consumptionPercent - 100).toFixed(0)}%. Renégociez le périmètre ou le budget.`,
+            severity: "critical",
+          });
+        }
+        
+        // Check for ahead of schedule (<50% consumed with significant progress)
+        if (consumptionPercent < 50 && consumptionPercent > 0) {
+          recommendations.push({
+            id: "ahead",
+            horizon: "learning",
+            type: "ahead",
+            title: "Avance sur planning",
+            description: `Seulement ${consumptionPercent.toFixed(0)}% du temps consommé. Documentez les bonnes pratiques.`,
+            severity: "info",
+          });
+        }
+        
+        // Check for imbalance by scope item
+        const imbalancedItems = scopeItems.filter((item) => {
+          const itemTimeSeconds = timeEntries
+            .filter(e => e.scopeItemId === item.id)
+            .reduce((sum, e) => sum + (e.duration || 0), 0);
+          const itemTimeDays = itemTimeSeconds / 3600 / 8;
+          const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+          if (estimatedDays === 0) return false;
+          const itemConsumption = (itemTimeDays / estimatedDays) * 100;
+          return itemConsumption > 100;
+        });
+        
+        if (imbalancedItems.length > 0) {
+          recommendations.push({
+            id: "imbalance",
+            horizon: "adjustment",
+            type: "imbalance",
+            title: "Déséquilibre par étape",
+            description: `${imbalancedItems.length} étape(s) ont dépassé leur temps prévu: ${imbalancedItems.map(i => i.title).slice(0, 2).join(", ")}${imbalancedItems.length > 2 ? "..." : ""}`,
+            severity: "warning",
+          });
+        }
+        
+        // Check for uncategorized time
+        const uncategorizedTimeSeconds = timeEntries
+          .filter(e => !e.scopeItemId)
+          .reduce((sum, e) => sum + (e.duration || 0), 0);
+        const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
+        const uncategorizedPercent = totalTimeDays > 0 ? (uncategorizedTimeDays / totalTimeDays) * 100 : 0;
+        
+        if (uncategorizedPercent > 20) {
+          recommendations.push({
+            id: "uncategorized",
+            horizon: "adjustment",
+            type: "uncategorized",
+            title: "Temps non catégorisé",
+            description: `${uncategorizedPercent.toFixed(0)}% du temps n'est pas lié à une étape CDC. Catégorisez pour un meilleur suivi.`,
+            severity: "info",
+          });
+        }
+        
+        if (recommendations.length === 0) return null;
+        
+        const getSeverityStyles = (severity: Recommendation["severity"]) => {
+          switch (severity) {
+            case "critical": return "border-red-500 bg-red-50 dark:bg-red-950/30";
+            case "warning": return "border-orange-500 bg-orange-50 dark:bg-orange-950/30";
+            case "info": return "border-blue-500 bg-blue-50 dark:bg-blue-950/30";
+          }
+        };
+        
+        const getHorizonLabel = (horizon: Recommendation["horizon"]) => {
+          switch (horizon) {
+            case "immediate": return "Action immédiate";
+            case "adjustment": return "Ajustement";
+            case "learning": return "Apprentissage";
+          }
+        };
+        
+        const getHorizonStyles = (horizon: Recommendation["horizon"]) => {
+          switch (horizon) {
+            case "immediate": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+            case "adjustment": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+            case "learning": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+          }
+        };
+        
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Recommandations temps
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recommendations.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className={`border-l-4 p-3 rounded-r-md ${getSeverityStyles(rec.severity)}`}
+                    data-testid={`recommendation-${rec.id}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className={`text-xs ${getHorizonStyles(rec.horizon)}`}>
+                        {getHorizonLabel(rec.horizon)}
+                      </Badge>
+                      <span className="font-medium text-sm">{rec.title}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{rec.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Add Time Entry Form */}
       <Card>
@@ -462,6 +794,58 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 </div>
               )}
               
+              {/* Optional linking to scope items and tasks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm">Étape CDC (optionnel)</Label>
+                  <Select
+                    value={selectedScopeItemId || "none"}
+                    onValueChange={(v) => setSelectedScopeItemId(v === "none" ? null : v)}
+                  >
+                    <SelectTrigger data-testid="select-scope-item">
+                      <SelectValue placeholder="Aucune étape" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune étape</SelectItem>
+                      {scopeItems.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.label} {item.estimatedDays ? `(${item.estimatedDays}j)` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {scopeItems.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ajoutez des étapes dans l'onglet CDC pour les associer au temps.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm">Tâche (optionnel)</Label>
+                  <Select
+                    value={selectedTaskId || "none"}
+                    onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}
+                  >
+                    <SelectTrigger data-testid="select-task">
+                      <SelectValue placeholder="Aucune tâche" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune tâche</SelectItem>
+                      {projectTasks.map((task) => (
+                        <SelectItem key={task.id} value={task.id}>
+                          {task.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {projectTasks.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Créez des tâches pour les associer au temps.
+                    </p>
+                  )}
+                </div>
+              </div>
+              
               <div>
                 <Label className="text-sm">Description (optionnelle)</Label>
                 <Input
@@ -508,6 +892,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                           endTime: new Date(startTime.getTime() + totalSeconds * 1000).toISOString(),
                           duration: totalSeconds,
                           description: newTimeDescription || null,
+                          scopeItemId: selectedScopeItemId || null,
+                          taskId: selectedTaskId || null,
                         });
                         
                         queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
@@ -517,6 +903,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         setNewTimeHours("");
                         setNewTimeMinutes("0");
                         setNewTimeDescription("");
+                        setSelectedScopeItemId(null);
+                        setSelectedTaskId(null);
                         setShowAddTimeForm(false);
                         
                         toast({
@@ -559,6 +947,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                             endTime: new Date(startTime.getTime() + daySeconds * 1000).toISOString(),
                             duration: daySeconds,
                             description: newTimeDescription || null,
+                            scopeItemId: selectedScopeItemId || null,
+                            taskId: selectedTaskId || null,
                           });
                         }));
                         
@@ -568,6 +958,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         
                         setNewTimeDates([]);
                         setNewTimeDescription("");
+                        setSelectedScopeItemId(null);
+                        setSelectedTaskId(null);
                         setShowAddTimeForm(false);
                         
                         toast({
