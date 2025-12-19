@@ -1480,10 +1480,17 @@ export default function Finance() {
                                 </div>
                               ) : (
                                 <div className="pl-11 md:pl-0 md:absolute md:top-5 md:right-5">
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Lightbulb className="w-3 h-3 mr-1" />
-                                    {rec.horizon === 'strategic' ? 'Insight' : 'Apprentissage'}
-                                  </Badge>
+                                  {rec.horizon === 'strategic' ? (
+                                    <Badge variant="outline" className="text-violet-600 border-violet-300 bg-violet-50">
+                                      <Lightbulb className="w-3 h-3 mr-1" />
+                                      Insight pour projets futurs
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-slate-500 border-slate-300 bg-slate-50">
+                                      <Info className="w-3 h-3 mr-1" />
+                                      Apprentissage
+                                    </Badge>
+                                  )}
                                 </div>
                               )}
                             </div>

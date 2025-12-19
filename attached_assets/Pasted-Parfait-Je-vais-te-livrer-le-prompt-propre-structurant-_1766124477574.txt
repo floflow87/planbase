@@ -1,0 +1,214 @@
+Parfait.
+Je vais te livrer le prompt propre, structurant et directement actionnable, intégrant :
+	•	rattachement du temps optionnel à :
+	•	une tâche / ticket
+	•	une étape (rubrique) du CDC
+	•	KPI temps passé / temps restant
+	•	recommandations automatiques en temps réel
+	•	tout centralisé dans l’onglet “Temps” d’une fiche projet
+	•	sans casser l’existant (CDC prévisionnel + facturation)
+
+Je te le donne clé en main, prêt à envoyer.
+
+⸻
+
+🎯 PROMPT REPLIT — MODULE TEMPS V2
+
+Pilotage Temps vs CDC avec Recommandations
+
+Tu es l’agent Replit chargé d’améliorer l’onglet Temps d’une fiche projet afin d’en faire un outil de pilotage opérationnel, reliant le temps réel au CDC (rubriques / étapes), tout en générant des recommandations automatiques.
+
+L’objectif est de permettre à l’utilisateur de savoir :
+	•	combien de temps il a consommé,
+	•	combien il lui reste à passer,
+	•	où se situent les dérives,
+	•	et quoi faire avant qu’un projet ne devienne non rentable.
+
+⸻
+
+1️⃣ Principes fondamentaux (non négociables)
+	1.	Le rattachement du temps à une tâche, un ticket ou une étape du CDC est optionnel.
+	2.	Le système doit fonctionner même si aucun lien n’est fait.
+	3.	Le CDC reste la source de vérité du temps prévu.
+	4.	Le module Temps est opérationnel, pas financier (la rentabilité reste dans Facturation & Rentabilité).
+
+⸻
+
+2️⃣ Saisie du temps — enrichissement progressif
+
+Lors de la saisie d’un temps :
+
+Champs
+	•	Projet (obligatoire)
+	•	Durée (obligatoire)
+	•	Tâche / Ticket (optionnel)
+	•	Étape du CDC (optionnel)
+	•	Commentaire (optionnel)
+
+Héritage intelligent
+	•	Si une tâche/ticket est sélectionné et qu’il est lié à une étape du CDC :
+	•	l’étape du CDC est auto-renseignée
+	•	L’utilisateur peut modifier ou laisser vide
+
+⸻
+
+3️⃣ Temps prévu — source unique
+
+Le temps prévu affiché dans l’onglet Temps doit provenir :
+	•	en priorité :
+	•	des rubriques obligatoires du CDC
+	•	sinon :
+	•	du champ “temps prévu” existant en facturation (fallback)
+
+Afficher clairement :
+	•	Temps prévu (CDC)
+	•	Temps optionnel (CDC) (si existant)
+
+⸻
+
+4️⃣ KPI Temps — affichage permanent dans l’onglet Temps
+
+Afficher en haut de l’onglet Temps :
+
+KPI obligatoires
+	•	⏱️ Temps passé
+	•	🎯 Temps prévu
+	•	⏳ Temps restant estimé
+	•	📊 % du temps consommé
+
+Calculs
+
+Temps restant = Temps prévu – Temps passé
+
+Statut visuel
+	•	🟢 < 70 % consommé
+	•	🟠 70–90 %
+	•	🔴 > 90 % ou dépassement
+
+⸻
+
+5️⃣ Vue par étape du CDC (clé)
+
+Afficher un tableau ou une liste par rubrique du CDC :
+
+Étape CDC	Temps prévu	Temps passé	Écart	Statut
+
+
+	•	Les temps non rattachés sont regroupés sous :
+“Temps non catégorisé”
+
+👉 Objectif : visualiser immédiatement où part le temps.
+
+⸻
+
+6️⃣ Recommandations automatiques (temps)
+
+Générer des recommandations temps réel, visibles directement dans l’onglet Temps.
+
+Types de recommandations
+
+🟠 Anticipation de dérive
+Condition :
+	•	80 % du temps consommé
+	•	projet encore en cours
+
+Texte exact :
+
+⚠️ À ce rythme, le temps prévu sera dépassé dans X jours.
+
+⸻
+
+🔴 Dépassement imminent
+Condition :
+	•	Temps restant < 2 jours
+	•	Étape clé non terminée
+
+Texte exact :
+
+🔴 Attention : le temps prévu pour ce projet est presque entièrement consommé.
+
+⸻
+
+🟢 Avance sur le planning
+Condition :
+	•	Temps consommé < 50 %
+	•	Étapes majeures déjà réalisées
+
+Texte exact :
+
+✅ Le projet est en avance sur le temps prévu.
+
+⸻
+
+🟠 Déséquilibre par étape CDC
+Condition :
+	•	Une étape dépasse son temps prévu
+	•	D’autres sont encore intactes
+
+Texte exact :
+
+⚠️ L’étape « Développement » a consommé X % de son temps prévu.
+
+⸻
+
+7️⃣ Horizon des recommandations (important)
+
+Classer chaque recommandation selon son horizon :
+	•	Action immédiate → projet en cours
+	•	Ajustement de pilotage → arbitrage à faire
+	•	Apprentissage → projet terminé
+
+Les recommandations sur projets terminés doivent afficher :
+
+📚 Apprentissage pour les prochains projets.
+
+⸻
+
+8️⃣ UX attendue
+	•	Tout doit être visible sans quitter l’onglet Temps
+	•	Utiliser le Design System existant
+	•	Ton clair, factuel, non culpabilisant
+	•	Pas d’urgence artificielle sur projets terminés
+
+⸻
+
+9️⃣ Objectif final
+
+Faire de l’onglet Temps :
+	•	un tableau de bord de pilotage quotidien
+	•	un outil qui aide à agir avant la perte
+	•	une passerelle naturelle vers la rentabilité
+
+⸻
+
+10️⃣ Critères d’acceptation
+
+La fonctionnalité est validée si :
+	•	le temps peut être rattaché optionnellement à une étape du CDC
+	•	le temps restant est toujours visible
+	•	les dérives sont détectées automatiquement
+	•	des recommandations sont affichées sans quitter l’onglet Temps
+	•	aucun workflow existant n’est cassé
+
+⸻
+
+🏁 Conclusion produit (à garder en tête)
+
+Ce module ne doit pas :
+	•	surveiller
+	•	contrôler
+	•	contraindre
+
+Il doit :
+	•	éclairer
+	•	anticiper
+	•	aider à décider
+
+⸻
+
+Si tu veux ensuite, on pourra :
+	•	relier ces recos Temps aux recos Rentabilité
+	•	ajouter une projection “à ce rythme”
+	•	ou préparer la V3 IA (analyse des dérives récurrentes)
+
+Mais là, avec ce prompt, tu poses un pilier produit majeur.

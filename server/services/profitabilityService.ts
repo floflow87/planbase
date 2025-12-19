@@ -607,8 +607,8 @@ function determineProjectHorizon(projectStage?: string, metrics?: ProfitabilityM
     return { horizon: 'strategic', horizonInfo: HORIZON_LABELS.strategic };
   }
   
-  // IMMEDIATE: In-progress projects with payment not complete - action possible NOW
-  const inProgressStages = ['en_cours', 'production', 'livraison_partielle', 'in_progress', 'ongoing', 'started', 'actif', 'active'];
+  // IMMEDIATE: In-progress or prospection projects with payment not complete - action possible NOW
+  const inProgressStages = ['en_cours', 'production', 'livraison_partielle', 'in_progress', 'ongoing', 'started', 'actif', 'active', 'prospection', 'prospect'];
   const isInProgress = inProgressStages.some(s => stage.includes(s)) || stage === '';
   const hasRemainingPayment = metrics ? metrics.paymentProgress < 100 : true;
   
