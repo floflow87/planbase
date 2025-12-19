@@ -2222,7 +2222,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If stopping the timer, calculate and validate duration
       if (validatedUpdate.endTime) {
-        const startTime = existing.startTime ? new Date(existing.startTime) : new Date();
+        const startTime = validatedUpdate.startTime 
+          ? new Date(validatedUpdate.startTime) 
+          : (existing.startTime ? new Date(existing.startTime) : new Date());
         const endTime = new Date(validatedUpdate.endTime);
         
         // Ensure endTime is after startTime
@@ -2230,10 +2232,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "End time must be after start time" });
         }
         
-        // Calculate final duration: accumulated duration + time since last start/resume
-        const elapsedSinceStart = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-        const accumulatedDuration = existing.duration || 0;
-        validatedUpdate.duration = accumulatedDuration + elapsedSinceStart;
+        // If duration is explicitly provided (manual edit), use it directly
+        // Otherwise calculate duration for timer stop (accumulated + elapsed)
+        if (validatedUpdate.duration === undefined) {
+          const elapsedSinceStart = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+          const accumulatedDuration = existing.duration || 0;
+          validatedUpdate.duration = accumulatedDuration + elapsedSinceStart;
+        }
+        // If duration is provided, use it as-is (this is a manual edit, not a timer stop)
       }
 
       const entry = await storage.updateTimeEntry(req.accountId!, req.params.id, validatedUpdate);

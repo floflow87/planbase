@@ -784,9 +784,11 @@ export default function ClientDetail() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="prospecting">Prospection</SelectItem>
+                            <SelectItem value="prospecting">Prospect</SelectItem>
                             <SelectItem value="qualified">Qualifié</SelectItem>
                             <SelectItem value="negotiation">Négociation</SelectItem>
+                            <SelectItem value="quote_sent">Devis envoyé</SelectItem>
+                            <SelectItem value="quote_approved">Devis validé</SelectItem>
                             <SelectItem value="won">Gagné</SelectItem>
                             <SelectItem value="lost">Perdu</SelectItem>
                           </SelectContent>
@@ -854,10 +856,20 @@ export default function ClientDetail() {
                   <Popover open={isStatusPopoverOpen} onOpenChange={setIsStatusPopoverOpen}>
                     <PopoverTrigger asChild>
                       <button data-testid="button-edit-status">
-                        <Badge className={`shrink-0 cursor-pointer hover-elevate ${client.status === "won" ? "bg-green-600 hover:bg-green-700" : ""}`}>
-                          {client.status === "prospecting" ? "Prospection" :
+                        <Badge className={`shrink-0 cursor-pointer hover-elevate ${
+                          client.status === "prospecting" ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400" :
+                          client.status === "qualified" ? "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" :
+                          client.status === "negotiation" ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" :
+                          client.status === "quote_sent" ? "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400" :
+                          client.status === "quote_approved" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400" :
+                          client.status === "won" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" :
+                          client.status === "lost" ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400" : ""
+                        }`}>
+                          {client.status === "prospecting" ? "Prospect" :
                            client.status === "qualified" ? "Qualifié" :
                            client.status === "negotiation" ? "Négociation" :
+                           client.status === "quote_sent" ? "Devis envoyé" :
+                           client.status === "quote_approved" ? "Devis validé" :
                            client.status === "won" ? "Gagné" :
                            client.status === "lost" ? "Perdu" : client.status}
                         </Badge>
@@ -868,11 +880,13 @@ export default function ClientDetail() {
                         <CommandList>
                           <CommandGroup className="bg-popover">
                             {[
-                              { value: "prospecting", label: "Prospection" },
-                              { value: "qualified", label: "Qualifié" },
-                              { value: "negotiation", label: "Négociation" },
-                              { value: "won", label: "Gagné" },
-                              { value: "lost", label: "Perdu" }
+                              { value: "prospecting", label: "Prospect", color: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400" },
+                              { value: "qualified", label: "Qualifié", color: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400" },
+                              { value: "negotiation", label: "Négociation", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" },
+                              { value: "quote_sent", label: "Devis envoyé", color: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400" },
+                              { value: "quote_approved", label: "Devis validé", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400" },
+                              { value: "won", label: "Gagné", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" },
+                              { value: "lost", label: "Perdu", color: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400" }
                             ].map((status) => (
                               <CommandItem
                                 key={status.value}
@@ -885,7 +899,7 @@ export default function ClientDetail() {
                                     client.status === status.value ? 'opacity-100' : 'opacity-0'
                                   }`}
                                 />
-                                {status.label}
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>

@@ -120,7 +120,10 @@ const KANBAN_STATUSES = [
   { id: "prospecting", label: "Prospect", color: "bg-orange-100/50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50", headerBg: "bg-orange-50 dark:bg-orange-950/40", textColor: "text-orange-600 dark:text-orange-400" },
   { id: "qualified", label: "Qualifié", color: "bg-blue-100/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50", headerBg: "bg-blue-50 dark:bg-blue-950/40", textColor: "text-blue-600 dark:text-blue-400" },
   { id: "negotiation", label: "Négociation", color: "bg-amber-100/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50", headerBg: "bg-amber-50 dark:bg-amber-950/40", textColor: "text-amber-600 dark:text-amber-400" },
-  { id: "won", label: "Devis envoyé", color: "bg-emerald-100/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50", headerBg: "bg-emerald-50 dark:bg-emerald-950/40", textColor: "text-emerald-600 dark:text-emerald-400" },
+  { id: "quote_sent", label: "Devis envoyé", color: "bg-purple-100/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50", headerBg: "bg-purple-50 dark:bg-purple-950/40", textColor: "text-purple-600 dark:text-purple-400" },
+  { id: "quote_approved", label: "Devis validé", color: "bg-cyan-100/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-900/50", headerBg: "bg-cyan-50 dark:bg-cyan-950/40", textColor: "text-cyan-600 dark:text-cyan-400" },
+  { id: "won", label: "Gagné", color: "bg-emerald-100/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50", headerBg: "bg-emerald-50 dark:bg-emerald-950/40", textColor: "text-emerald-600 dark:text-emerald-400" },
+  { id: "lost", label: "Perdu", color: "bg-red-100/50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50", headerBg: "bg-red-50 dark:bg-red-950/40", textColor: "text-red-600 dark:text-red-400" },
 ];
 
 // Composant Kanban Card (draggable)
@@ -703,16 +706,20 @@ export default function CRM() {
   // Obtenir les couleurs personnalisées pour les badges de statut
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "won":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "lost":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
       case "prospecting":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
-      case "negotiation":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+        return "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400";
       case "qualified":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400";
+      case "negotiation":
+        return "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400";
+      case "quote_sent":
+        return "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400";
+      case "quote_approved":
+        return "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-400";
+      case "won":
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400";
+      case "lost":
+        return "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
@@ -804,9 +811,11 @@ export default function CRM() {
               </SelectTrigger>
               <SelectContent className="bg-card">
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="prospecting">Prospection</SelectItem>
+                <SelectItem value="prospecting">Prospect</SelectItem>
                 <SelectItem value="qualified">Qualifié</SelectItem>
                 <SelectItem value="negotiation">Négociation</SelectItem>
+                <SelectItem value="quote_sent">Devis envoyé</SelectItem>
+                <SelectItem value="quote_approved">Devis validé</SelectItem>
                 <SelectItem value="won">Gagné</SelectItem>
                 <SelectItem value="lost">Perdu</SelectItem>
               </SelectContent>
@@ -902,9 +911,11 @@ export default function CRM() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="prospecting">Prospection</SelectItem>
+                            <SelectItem value="prospecting">Prospect</SelectItem>
                             <SelectItem value="qualified">Qualifié</SelectItem>
                             <SelectItem value="negotiation">Négociation</SelectItem>
+                            <SelectItem value="quote_sent">Devis envoyé</SelectItem>
+                            <SelectItem value="quote_approved">Devis validé</SelectItem>
                             <SelectItem value="won">Gagné</SelectItem>
                             <SelectItem value="lost">Perdu</SelectItem>
                           </SelectContent>
@@ -1034,9 +1045,11 @@ export default function CRM() {
                               case "type":
                                 return (
                                   <Badge className={getStatusBadgeColor(client.status)}>
-                                    {client.status === "prospecting" ? "Prospection" :
+                                    {client.status === "prospecting" ? "Prospect" :
                                      client.status === "qualified" ? "Qualifié" :
                                      client.status === "negotiation" ? "Négociation" :
+                                     client.status === "quote_sent" ? "Devis envoyé" :
+                                     client.status === "quote_approved" ? "Devis validé" :
                                      client.status === "won" ? "Gagné" :
                                      client.status === "lost" ? "Perdu" : client.status}
                                   </Badge>
