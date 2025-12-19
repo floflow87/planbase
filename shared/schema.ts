@@ -635,29 +635,64 @@ export const features = pgTable("features", {
 export const roadmaps = pgTable("roadmaps", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   horizon: text("horizon"), // e.g., '2025-Q1'
   strategy: jsonb("strategy").notNull().default({}),
+  viewDefaults: jsonb("view_defaults").notNull().default({}), // {activeView, ganttZoom, filters}
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountHorizonIdx: index().on(table.accountId, table.horizon),
+  projectIdx: index().on(table.projectId),
 }));
 
 export const roadmapItems = pgTable("roadmap_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   roadmapId: uuid("roadmap_id").notNull().references(() => roadmaps.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   featureId: uuid("feature_id").references(() => features.id, { onDelete: "set null" }),
   title: text("title").notNull(),
+  type: text("type").notNull().default("deliverable"), // 'deliverable', 'milestone', 'initiative', 'free_block'
   startDate: date("start_date"),
   endDate: date("end_date"),
   status: text("status").notNull().default("planned"), // 'planned', 'in_progress', 'done', 'blocked'
+  priority: text("priority").notNull().default("normal"), // 'low', 'normal', 'high', 'strategic'
+  description: text("description"),
+  progressMode: text("progress_mode").notNull().default("manual"), // 'manual', 'linked_auto'
+  progress: integer("progress").notNull().default(0), // 0-100
+  orderIndex: integer("order_index").notNull().default(0),
   rice: jsonb("rice").notNull().default({}), // {reach,impact,confidence,effort}
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   roadmapStatusIdx: index().on(table.roadmapId, table.status),
+  projectIdx: index().on(table.projectId),
+}));
+
+export const roadmapItemLinks = pgTable("roadmap_item_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  roadmapItemId: uuid("roadmap_item_id").notNull().references(() => roadmapItems.id, { onDelete: "cascade" }),
+  linkedType: text("linked_type").notNull(), // 'task', 'ticket', 'epic', 'cdc_section', 'free_reference'
+  linkedId: uuid("linked_id"), // Reference to the linked entity
+  linkedTitle: text("linked_title"), // For free_reference type or display purposes
+  weight: integer("weight").notNull().default(1), // Weight for progress calculation
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  roadmapItemIdx: index().on(table.roadmapItemId),
+  linkedIdx: index().on(table.linkedType, table.linkedId),
+}));
+
+export const roadmapDependencies = pgTable("roadmap_dependencies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  roadmapItemId: uuid("roadmap_item_id").notNull().references(() => roadmapItems.id, { onDelete: "cascade" }),
+  dependsOnRoadmapItemId: uuid("depends_on_roadmap_item_id").notNull().references(() => roadmapItems.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("finish_to_start"), // 'finish_to_start' (MVP)
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  roadmapItemIdx: index().on(table.roadmapItemId),
+  dependsOnIdx: index().on(table.dependsOnRoadmapItemId),
 }));
 
 // ============================================
@@ -1132,6 +1167,8 @@ export const insertProductSchema = createInsertSchema(products).omit({ id: true,
 export const insertFeatureSchema = createInsertSchema(features).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRoadmapItemLinkSchema = createInsertSchema(roadmapItemLinks).omit({ id: true, createdAt: true });
+export const insertRoadmapDependencySchema = createInsertSchema(roadmapDependencies).omit({ id: true, createdAt: true });
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
 export const insertNoteLinkSchema = createInsertSchema(noteLinks).omit({ noteId: true });
 export const insertDocumentLinkSchema = createInsertSchema(documentLinks).omit({ documentId: true });
@@ -1226,6 +1263,8 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertFeature = z.infer<typeof insertFeatureSchema>;
 export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+export type InsertRoadmapItemLink = z.infer<typeof insertRoadmapItemLinkSchema>;
+export type InsertRoadmapDependency = z.infer<typeof insertRoadmapDependencySchema>;
 export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
 export type InsertNoteLink = z.infer<typeof insertNoteLinkSchema>;
 export type InsertDocumentLink = z.infer<typeof insertDocumentLinkSchema>;
@@ -1289,6 +1328,8 @@ export type Product = typeof products.$inferSelect;
 export type Feature = typeof features.$inferSelect;
 export type Roadmap = typeof roadmaps.$inferSelect;
 export type RoadmapItem = typeof roadmapItems.$inferSelect;
+export type RoadmapItemLink = typeof roadmapItemLinks.$inferSelect;
+export type RoadmapDependency = typeof roadmapDependencies.$inferSelect;
 export type ClientComment = typeof clientComments.$inferSelect;
 export type NoteLink = typeof noteLinks.$inferSelect;
 export type DocumentLink = typeof documentLinks.$inferSelect;

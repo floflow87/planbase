@@ -1,0 +1,209 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel, uniquement sur le module Roadmap 👇
+
+⸻
+
+🎯 PROMPT REPLIT — MODULE ROADMAP
+
+Gantt + Output, connecté aux projets, backlog et CDC
+
+Tu es l’agent Replit chargé d’implémenter un nouveau module Roadmap dans PlanBase.
+
+Le module doit proposer deux vues complémentaires :
+	1.	Gantt (planification temporelle)
+	2.	Output (pilotage par livrables)
+
+La roadmap ne doit pas être un document statique, mais un plan vivant, interconnecté avec les éléments existants du produit (tickets, tâches, CDC).
+
+⸻
+
+1️⃣ Principes fondamentaux
+	•	Une roadmap est toujours rattachée à un projet
+	•	Un élément de roadmap peut être lié à :
+	•	une tâche
+	•	un ticket (user story)
+	•	un epic
+	•	une rubrique du CDC
+	•	un bloc libre (texte / référence)
+	•	Les liens sont optionnels et multiples
+	•	La roadmap doit refléter l’avancement réel si des liens existent
+
+⸻
+
+2️⃣ Modèle de données
+
+2.1 Roadmap
+	•	id
+	•	projectId (obligatoire)
+	•	name
+	•	viewDefaults (JSON : zoom, période, groupBy)
+
+⸻
+
+2.2 RoadmapItem
+	•	id
+	•	roadmapId
+	•	projectId
+	•	title
+	•	type :
+	•	deliverable
+	•	milestone
+	•	initiative
+	•	free_block
+	•	startDate (nullable)
+	•	endDate (nullable)
+	•	status :
+	•	planned
+	•	in_progress
+	•	blocked
+	•	done
+	•	priority :
+	•	low
+	•	normal
+	•	high
+	•	strategic
+	•	description (markdown)
+	•	progressMode :
+	•	manual
+	•	linked_auto
+	•	orderIndex (pour la vue Output)
+
+⸻
+
+2.3 RoadmapItemLink
+
+Permet de connecter un item à des éléments existants.
+	•	id
+	•	roadmapItemId
+	•	linkedType :
+	•	task
+	•	ticket
+	•	epic
+	•	cdc_section
+	•	free_reference
+	•	linkedId
+	•	weight (optionnel)
+
+⸻
+
+2.4 RoadmapDependency
+	•	id
+	•	roadmapItemId
+	•	dependsOnRoadmapItemId
+	•	type : finish_to_start (MVP)
+
+⸻
+
+3️⃣ Calcul de progression
+
+3.1 Progression automatique
+
+Si progressMode = linked_auto :
+	•	calculer la progression depuis les éléments liés :
+	•	tâches / tickets → % terminés
+	•	rubrique CDC → temps consommé vs temps prévu
+	•	fallback à 0 % si aucune donnée
+
+3.2 Statut
+	•	100 % → done
+	•	0 % → in_progress
+	•	0 % → planned
+(override manuel possible)
+
+⸻
+
+4️⃣ API Backend
+
+Créer les endpoints :
+	•	GET /api/projects/:projectId/roadmaps
+	•	POST /api/projects/:projectId/roadmaps
+	•	GET /api/roadmaps/:roadmapId
+	•	POST /api/roadmaps/:roadmapId/items
+	•	PUT /api/roadmap-items/:id
+	•	DELETE /api/roadmap-items/:id
+	•	POST /api/roadmap-items/:id/links
+	•	DELETE /api/roadmap-item-links/:id
+	•	POST /api/roadmap-items/:id/dependencies
+	•	DELETE /api/roadmap-dependencies/:id
+
+Respecter l’authentification et le scoping organisation / projet existants.
+
+⸻
+
+5️⃣ UI Frontend
+
+5.1 Accès
+	•	Onglet Roadmap dans la fiche projet
+	•	Route : /projects/:id/roadmap
+
+⸻
+
+5.2 Vue Gantt
+	•	Timeline semaine / mois / trimestre (switch)
+	•	Items affichés comme barres (start → end)
+	•	Drag & drop des dates (si possible MVP)
+	•	Dépendances visuelles simples
+	•	Filtres : status, priority, type
+	•	Clic sur un item → drawer latéral :
+	•	titre
+	•	dates
+	•	status
+	•	priority
+	•	progression (auto / manuel)
+	•	liens (CRUD)
+	•	description
+
+⸻
+
+5.3 Vue Output
+	•	Liste structurée par livrables
+	•	Cartes réordonnables (drag & drop)
+	•	Chaque carte affiche :
+	•	titre
+	•	statut
+	•	progression
+	•	éléments liés (tickets / CDC)
+	•	Groupement configurable (trimestre, thème, objectif)
+
+⸻
+
+5.4 Sélecteur de liens
+
+Dans le drawer d’un item :
+	•	Bouton Ajouter un lien
+	•	Modal avec onglets :
+	•	Tâches / Tickets
+	•	Epics
+	•	Rubriques du CDC
+	•	Bloc libre / Référence
+
+⸻
+
+6️⃣ Design & cohérence
+	•	Utiliser le Design System existant
+	•	Badges de statut / priorité standardisés
+	•	États vides et chargement via les patterns existants
+	•	Dropdowns fond blanc
+	•	Toasts auto-dismiss
+
+⸻
+
+7️⃣ MVP attendu
+	•	CRUD Roadmap + Items
+	•	2 vues : Gantt + Output
+	•	Liens multiples vers backlog / CDC / blocs libres
+	•	Progression automatique basique
+	•	UX fluide et cohérente
+
+⸻
+
+8️⃣ Critères d’acceptation
+	•	Une roadmap est liée à un projet
+	•	Un item roadmap peut lier tickets, tâches, CDC ou blocs libres
+	•	Les deux vues fonctionnent
+	•	La progression reflète l’avancement réel quand c’est possible
+	•	Aucun workflow existant n’est cassé
+
+⸻
+
+Intention produit :
+Faire de la roadmap un outil de pilotage vivant, connecté à l’exécution réelle, et non un simple planning figé.
