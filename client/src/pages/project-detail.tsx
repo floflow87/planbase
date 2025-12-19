@@ -3284,6 +3284,73 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="billing" className="mt-0">
+            {/* KPIs Facturation */}
+            {(() => {
+              const totalBilled = parseFloat(project?.totalBilled || "0") || 0;
+              const numberOfDays = parseFloat(project?.numberOfDays || "0") || 0;
+              const budget = parseFloat(project?.budget || "0") || 0;
+              const effectiveDailyRate = numberOfDays > 0 ? totalBilled / numberOfDays : 0;
+              const isForfait = project?.billingType === "fixed";
+              
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
+                      <div className="text-xl font-bold text-primary" data-testid="kpi-total-billed">
+                        {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="text-xs text-muted-foreground mb-1">Nombre de jours</div>
+                      <div className="text-xl font-bold" data-testid="kpi-number-of-days">
+                        {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {isForfait ? "TJM effectif" : "TJM projet"}
+                      </div>
+                      <div className="text-xl font-bold text-accent" data-testid="kpi-effective-tjm">
+                        {isForfait 
+                          ? (effectiveDailyRate > 0 
+                              ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                              : "-")
+                          : (effectiveTJMData?.effectiveTJM 
+                              ? `${effectiveTJMData.effectiveTJM} €`
+                              : "-")
+                        }
+                      </div>
+                      {isForfait && effectiveDailyRate > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          Montant ÷ Jours
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="text-xs text-muted-foreground mb-1">Budget prévisionnel</div>
+                      <div className="text-xl font-bold" data-testid="kpi-budget">
+                        {budget > 0 
+                          ? budget.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                          : "-"}
+                      </div>
+                      {totalBilled > 0 && budget > 0 && (
+                        <div className={`text-[10px] mt-1 ${totalBilled >= budget ? "text-green-600" : "text-muted-foreground"}`}>
+                          {((totalBilled / budget) * 100).toFixed(0)}% du budget
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+
             <Card>
               <CardContent className="pt-6 grid grid-cols-2 gap-4">
                 <div>
