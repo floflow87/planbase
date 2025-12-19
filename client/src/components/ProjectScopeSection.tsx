@@ -651,15 +651,6 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
 
   return (
     <div className="space-y-4">
-      {/* Texte de cadrage global */}
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-sm">
-        <span className="shrink-0">💡</span>
-        <p className="text-muted-foreground">
-          Les estimations et recommandations fournies ici constituent une aide à la décision.<br />
-          Elles doivent être adaptées à votre contexte, à votre client et validées selon votre expertise.
-        </p>
-      </div>
-
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between gap-2 text-lg flex-wrap">
@@ -686,7 +677,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
                     </DialogDescription>
                   </DialogHeader>
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-sm">
-                    <span>⚠️</span>
+                    <span className="shrink-0">!</span>
                     <p className="text-amber-700 dark:text-amber-300">
                       Ce brouillon doit être relu, adapté et validé selon votre contexte avant toute diffusion.
                     </p>
@@ -712,13 +703,91 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* KPIs grid - sous le titre */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg bg-muted/30 border">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                <Clock className="h-3.5 w-3.5" />
+                <span>Temps estimé</span>
+              </div>
+              <p className="text-xl font-bold">{totals.mandatoryDays} j</p>
+              {totals.optionalDays > 0 && (
+                <p className="text-[10px] text-muted-foreground">+ {totals.optionalDays} j opt.</p>
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/30 border">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                <Calculator className="h-3.5 w-3.5" />
+                <span>Coût estimé</span>
+              </div>
+              <p className="text-xl font-bold">{hasValidConfig ? `${safeCost.toFixed(0)} €` : '-'}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {hasValidConfig ? `${totals.mandatoryDays} j × coût interne` : 'Non défini'}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/30 border">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                <DollarSign className="h-3.5 w-3.5" />
+                <span>Prix recommandé</span>
+              </div>
+              <p className="text-xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {hasValidConfig 
+                  ? `TJM ${dailyRate} €${tjmSourceLabel ? ` (${tjmSourceLabel})` : ''}`
+                  : hasTJM ? 'Coût non défini' : 'TJM non défini'}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/30 border">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                <Target className="h-3.5 w-3.5" />
+                <span>Marge prév.</span>
+              </div>
+              <p className={`text-xl font-bold ${!hasValidConfig ? 'text-muted-foreground' : safeMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {hasValidConfig ? `${safeMargin.toFixed(0)} €` : '-'}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {hasValidConfig ? `${safeMarginPercent.toFixed(1)}%` : 'Config. requise'}
+              </p>
+            </div>
+          </div>
+
+          {/* Alertes config incomplète - sous les KPIs */}
+          {alerts.length > 0 && (
+            <div className={`p-3 rounded-lg text-sm ${
+              alerts[0].type === 'error' ? 'bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800' :
+              alerts[0].type === 'warning' ? 'bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800' :
+              'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800'
+            }`}>
+              {alerts.map((alert, index) => {
+                const Icon = alert.icon;
+                return (
+                  <div key={index} className="flex items-start gap-2">
+                    <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${
+                      alert.type === 'error' ? 'text-red-600' :
+                      alert.type === 'warning' ? 'text-amber-600' :
+                      'text-blue-600'
+                    }`} />
+                    <div>
+                      <p className="font-medium text-sm">{alert.title}</p>
+                      <p className="text-xs text-muted-foreground">{alert.message}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Formulaire d'ajout - après les KPIs et alertes */}
           <div className="flex gap-2">
             <Input
               placeholder="Intitulé de la rubrique"
               value={newItemLabel}
               onChange={(e) => setNewItemLabel(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="flex-1"
+              className="flex-1 h-8 text-sm"
               data-testid="input-new-scope-label"
             />
             <Input
@@ -729,10 +798,11 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
               value={newItemDays}
               onChange={(e) => setNewItemDays(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="w-24"
+              className="w-20 h-8 text-sm"
               data-testid="input-new-scope-days"
             />
             <Button 
+              size="sm"
               onClick={handleAddItem} 
               disabled={!newItemLabel.trim() || !newItemDays}
               data-testid="button-add-scope-item"
@@ -742,6 +812,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
             </Button>
           </div>
 
+          {/* Liste des rubriques */}
           {scopeData?.scopeItems && scopeData.scopeItems.length > 0 ? (
             <DndContext
               sensors={sensors}
@@ -752,7 +823,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
                 items={scopeData.scopeItems.map((item) => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {scopeData.scopeItems.map((item) => (
                     <SortableScopeItem
                       key={item.id}
@@ -765,101 +836,22 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
               </SortableContext>
             </DndContext>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Aucune rubrique définie</p>
-              <p className="text-sm">Ajoutez des rubriques pour estimer le projet</p>
+            <div className="text-center py-6 text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Aucune rubrique définie</p>
+              <p className="text-xs">Ajoutez des rubriques pour estimer le projet</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Clock className="h-4 w-4" />
-              <span>Temps total estimé</span>
-            </div>
-            <p className="text-2xl font-bold">{totals.mandatoryDays} j</p>
-            {totals.optionalDays > 0 && (
-              <p className="text-xs text-muted-foreground">+ {totals.optionalDays} j optionnels</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Calculator className="h-4 w-4" />
-              <span>Coût estimé</span>
-            </div>
-            <p className="text-2xl font-bold">{hasValidConfig ? `${safeCost.toFixed(0)} €` : '-'}</p>
-            <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `Coût estimé sur ${totals.mandatoryDays} jours travaillés` : 'Coût interne non défini'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <DollarSign className="h-4 w-4" />
-              <span>Prix recommandé</span>
-            </div>
-            <p className="text-2xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
-            <p className="text-xs text-muted-foreground">
-              {hasValidConfig 
-                ? `TJM ${dailyRate} €/j × ${totals.mandatoryDays} j estimés${tjmSourceLabel ? ` (${tjmSourceLabel})` : ''}`
-                : hasTJM ? 'Coût interne non défini' : 'TJM non défini'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Target className="h-4 w-4" />
-              <span>Marge prévisionnelle</span>
-            </div>
-            <p className={`text-2xl font-bold ${!hasValidConfig ? 'text-muted-foreground' : safeMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {hasValidConfig ? `${safeMargin.toFixed(0)} €` : '-'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {hasValidConfig ? `${safeMarginPercent.toFixed(1)}% de marge prévisionnelle` : 'Configuration requise'}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Texte de cadrage global */}
+      <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-xs">
+        <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-600" />
+        <p className="text-muted-foreground">
+          Les estimations et recommandations constituent une aide à la décision. Elles doivent être adaptées à votre contexte.
+        </p>
       </div>
-
-      {alerts.length > 0 && (
-        <Card className={
-          alerts[0].type === 'error' ? 'border-red-200 bg-red-50/50 dark:bg-red-900/10' :
-          alerts[0].type === 'warning' ? 'border-amber-200 bg-amber-50/50 dark:bg-amber-900/10' :
-          'border-blue-200 bg-blue-50/50 dark:bg-blue-900/10'
-        }>
-          <CardContent className="pt-4">
-            <div className="space-y-3">
-              {alerts.map((alert, index) => {
-                const Icon = alert.icon;
-                return (
-                  <div key={index} className="flex items-start gap-3">
-                    <Icon className={`h-5 w-5 shrink-0 ${
-                      alert.type === 'error' ? 'text-red-600' :
-                      alert.type === 'warning' ? 'text-amber-600' :
-                      'text-blue-600'
-                    }`} />
-                    <div>
-                      <p className="font-medium">{alert.title}</p>
-                      <p className="text-sm text-muted-foreground">{alert.message}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {recommendations.length > 0 && (
         <Card>
