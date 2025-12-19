@@ -3753,6 +3753,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // ROADMAP PROGRESS CALCULATION
+  // ============================================
+
+  // Calculate and update progress for a roadmap item based on linked entities
+  app.post("/api/roadmap-items/:id/calculate-progress", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const item = await storage.getRoadmapItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      const roadmap = await storage.getRoadmap(item.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if item is set to automatic progress calculation
+      // Allow forced calculation via query param for switching to auto mode
+      const forceAuto = req.query.force === "true";
+      if (item.progressMode !== "linked_auto" && !forceAuto) {
+        return res.status(400).json({ 
+          error: "Item is in manual progress mode. Use ?force=true to switch to automatic mode." 
+        });
+      }
+
+      // Get all links for this item
+      const links = await storage.getRoadmapItemLinksByItemId(req.params.id);
+      
+      if (links.length === 0) {
+        // No links - set progress based on status
+        let progress = item.progress;
+        if (item.status === "done") {
+          progress = 100;
+        } else if (item.status === "blocked") {
+          progress = item.progress; // Keep current
+        } else if (item.status === "planned" && item.progress === 0) {
+          progress = 0;
+        }
+        
+        const updateData: any = { progress };
+        if (forceAuto) {
+          updateData.progressMode = "linked_auto";
+        }
+        const updatedItem = await storage.updateRoadmapItem(req.params.id, updateData);
+        return res.json({ item: updatedItem, calculatedProgress: progress, linkCount: 0 });
+      }
+
+      // Calculate weighted progress from linked entities
+      let totalWeight = 0;
+      let weightedProgress = 0;
+
+      for (const link of links) {
+        const weight = link.weight || 1;
+        let linkedProgress = 0;
+
+        if (link.linkedId) {
+          switch (link.linkedType) {
+            case "task":
+            case "ticket": {
+              const task = await storage.getTask(link.linkedId);
+              if (task) {
+                // Use task progress or derive from status
+                if (task.progress !== undefined && task.progress > 0) {
+                  linkedProgress = task.progress;
+                } else {
+                  linkedProgress = task.status === "done" ? 100 :
+                                   task.status === "review" ? 75 :
+                                   task.status === "in_progress" ? 50 : 0;
+                }
+              }
+              break;
+            }
+            case "epic":
+            case "cdc_section": {
+              // Epics and CDC sections - use default progress based on type
+              linkedProgress = 50; // Assume 50% for linked entities without direct progress
+              break;
+            }
+            case "free_reference":
+            default:
+              // For free references without linked ID, skip
+              continue;
+          }
+        } else {
+          // No linked ID (free reference) - skip from calculation
+          continue;
+        }
+
+        totalWeight += weight;
+        weightedProgress += linkedProgress * weight;
+      }
+
+      const calculatedProgress = totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0;
+
+      // Update the item with calculated progress
+      const updateData: any = { progress: calculatedProgress };
+      if (forceAuto) {
+        updateData.progressMode = "linked_auto";
+      }
+      const updatedItem = await storage.updateRoadmapItem(req.params.id, updateData);
+
+      res.json({ 
+        item: updatedItem, 
+        calculatedProgress, 
+        linkCount: links.length,
+        totalWeight 
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Recalculate progress for all items in a roadmap
+  app.post("/api/roadmaps/:roadmapId/calculate-progress", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const roadmap = await storage.getRoadmap(req.params.roadmapId);
+      if (!roadmap) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const items = await storage.getRoadmapItemsByRoadmapId(req.params.roadmapId);
+      const autoItems = items.filter(i => i.progressMode === "linked_auto");
+      
+      const results = [];
+      for (const item of autoItems) {
+        const links = await storage.getRoadmapItemLinksByItemId(item.id);
+        
+        if (links.length === 0) {
+          results.push({ id: item.id, progress: item.progress, linkCount: 0 });
+          continue;
+        }
+
+        let totalWeight = 0;
+        let weightedProgress = 0;
+
+        for (const link of links) {
+          const weight = link.weight || 1;
+          let linkedProgress = 0;
+
+          if (link.linkedId) {
+            switch (link.linkedType) {
+              case "task":
+              case "ticket": {
+                const task = await storage.getTask(link.linkedId);
+                if (task) {
+                  if (task.progress !== undefined && task.progress > 0) {
+                    linkedProgress = task.progress;
+                  } else {
+                    linkedProgress = task.status === "done" ? 100 :
+                                     task.status === "review" ? 75 :
+                                     task.status === "in_progress" ? 50 : 0;
+                  }
+                }
+                break;
+              }
+              case "epic":
+              case "cdc_section":
+                linkedProgress = 50;
+                break;
+              default:
+                continue;
+            }
+          } else {
+            continue;
+          }
+
+          totalWeight += weight;
+          weightedProgress += linkedProgress * weight;
+        }
+
+        const calculatedProgress = totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0;
+        await storage.updateRoadmapItem(item.id, { progress: calculatedProgress });
+        results.push({ id: item.id, progress: calculatedProgress, linkCount: links.length });
+      }
+
+      res.json({ 
+        roadmapId: req.params.roadmapId,
+        itemsUpdated: results.length,
+        results 
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // ACCOUNT SETTINGS ROUTES
   // ============================================
 
