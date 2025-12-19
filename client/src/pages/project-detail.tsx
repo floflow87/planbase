@@ -218,11 +218,11 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   });
   
   // Fetch scope items (CDC) for this project
-  const { data: scopeItemsData } = useQuery<ProjectScopeItem[]>({
-    queryKey: [`/api/projects/${projectId}/scope-items`],
+  const { data: scopeItemsData } = useQuery<{ scopeItems: ProjectScopeItem[] }>({
+    queryKey: ['/api/projects', projectId, 'scope-items'],
     enabled: !!projectId,
   });
-  const scopeItems = Array.isArray(scopeItemsData) ? scopeItemsData : [];
+  const scopeItems = scopeItemsData?.scopeItems || [];
   
   // Fetch tasks for this project
   const { data: projectTasksData } = useQuery<Task[]>({
@@ -302,7 +302,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const totalTimeDays = totalTimeHours / 8;
   // Priority: CDC days > project.numberOfDays (billing days)
   const cdcEstimatedDays = scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
-  const totalEstimatedDays = cdcEstimatedDays > 0 ? cdcEstimatedDays : (project?.numberOfDays || 0);
+  const projectNumberOfDays = parseFloat(project?.numberOfDays?.toString() || "0") || 0;
+  const totalEstimatedDays = cdcEstimatedDays > 0 ? cdcEstimatedDays : projectNumberOfDays;
   const remainingDays = Math.max(0, totalEstimatedDays - totalTimeDays);
   const consumptionPercent = totalEstimatedDays > 0 ? (totalTimeDays / totalEstimatedDays) * 100 : 0;
   
@@ -1816,6 +1817,7 @@ export default function ProjectDetail() {
   const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
   const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
@@ -2457,13 +2459,63 @@ export default function ProjectDetail() {
                     {project.budget}
                   </Badge>
                 )}
-                <Badge 
-                  data-testid="badge-billing-status-budget"
-                  className={`${getBillingStatusColor(project.billingStatus)} shrink-0`}
-                >
-                  {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
-                  {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
-                </Badge>
+                <Popover open={isBillingStatusPopoverOpen} onOpenChange={setIsBillingStatusPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Badge 
+                      data-testid="badge-billing-status-budget"
+                      className={`${getBillingStatusColor(project.billingStatus)} shrink-0 cursor-pointer`}
+                    >
+                      {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
+                      {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Badge>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    <div className="space-y-0.5">
+                      {billingStatusOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={async () => {
+                            try {
+                              const updateData: { billingStatus: string; billingDueDate?: string | null } = {
+                                billingStatus: option.value,
+                              };
+                              if (option.value !== "retard") {
+                                updateData.billingDueDate = null;
+                              }
+                              await apiRequest(`/api/projects/${id}`, "PATCH", updateData);
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                              setIsBillingStatusPopoverOpen(false);
+                              toast({
+                                title: "Statut de facturation mis à jour",
+                                description: option.label,
+                                variant: "success",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Erreur",
+                                description: error.message,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-sm hover-elevate transition-colors",
+                            project.billingStatus === option.value && "bg-muted"
+                          )}
+                          data-testid={`option-header-billing-${option.value}`}
+                        >
+                          <div 
+                            className="w-2.5 h-2.5 rounded-full shrink-0" 
+                            style={{ backgroundColor: option.color }}
+                          />
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -2884,7 +2936,7 @@ export default function ProjectDetail() {
             <Card>
               <CardContent className="pt-6 grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="billing-status">Statut de facturation</Label>
+                  <Label htmlFor="billing-status" className="text-xs">Statut de facturation</Label>
                   <Select
                     value={project?.billingStatus || "brouillon"}
                     onValueChange={async (value) => {
@@ -2945,7 +2997,7 @@ export default function ProjectDetail() {
 
                 {project?.billingStatus === "retard" && (
                   <div>
-                    <Label>Date d'échéance</Label>
+                    <Label className="text-xs">Date d'échéance</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -3009,7 +3061,7 @@ export default function ProjectDetail() {
                 )}
 
                 <div>
-                  <Label htmlFor="business-type">Type de projet</Label>
+                  <Label htmlFor="business-type" className="text-xs">Type de projet</Label>
                   <Select
                     value={project?.businessType || "client"}
                     onValueChange={async (value) => {
@@ -3055,7 +3107,7 @@ export default function ProjectDetail() {
                 </div>
 
                 <div>
-                  <Label htmlFor="billing-type">Type de facturation</Label>
+                  <Label htmlFor="billing-type" className="text-xs">Type de facturation</Label>
                   <Select
                     value={project?.billingType || "time"}
                     onValueChange={async (value) => {
@@ -3102,7 +3154,7 @@ export default function ProjectDetail() {
                   <>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="billing-rate" className="mb-0">TJM projet</Label>
+                        <Label htmlFor="billing-rate" className="text-xs mb-0">TJM projet</Label>
                         {effectiveTJMData?.source === 'global' && !billingRateValue && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -3168,7 +3220,7 @@ export default function ProjectDetail() {
                     </div>
 
                     <div>
-                      <Label htmlFor="billing-unit">Unité de facturation</Label>
+                      <Label htmlFor="billing-unit" className="text-xs">Unité de facturation</Label>
                       <Select
                         value={project?.billingUnit || "hour"}
                         onValueChange={async (value) => {
@@ -3209,7 +3261,7 @@ export default function ProjectDetail() {
                 )}
 
                 <div>
-                  <Label htmlFor="total-billed">Montant total facturé</Label>
+                  <Label htmlFor="total-billed" className="text-xs">Montant total facturé</Label>
                   <Input
                     id="total-billed"
                     type="number"
@@ -3255,7 +3307,7 @@ export default function ProjectDetail() {
                 </div>
 
                 <div>
-                  <Label htmlFor="number-of-days">Nombre de jours</Label>
+                  <Label htmlFor="number-of-days" className="text-xs">Nombre de jours</Label>
                   <Input
                     id="number-of-days"
                     type="number"
