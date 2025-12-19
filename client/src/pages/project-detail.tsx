@@ -1569,6 +1569,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             <div className="space-y-2">
               {timeEntries.map((entry) => {
                 const user = users.find((u) => u.id === entry.userId);
+                const scopeItem = entry.scopeItemId ? scopeItems.find((s) => s.id === entry.scopeItemId) : null;
+                const task = entry.taskId ? projectTasks.find((t) => t.id === entry.taskId) : null;
+                const sprint = entry.sprintId ? projectSprints.find((s) => s.id === entry.sprintId) : null;
                 return (
                   <div
                     key={entry.id}
@@ -1586,10 +1589,49 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         {entry.description && (
                           <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center flex-wrap gap-2 mt-2">
                           {user && (
                             <Badge variant="outline" className="text-xs">
+                              <User className="h-3 w-3 mr-1" />
                               {user.firstName} {user.lastName}
+                            </Badge>
+                          )}
+                          {scopeItem && (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs cursor-pointer"
+                              onClick={() => {
+                                const element = document.getElementById('scope-section');
+                                if (element) element.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              data-testid={`badge-scope-${entry.id}`}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              {scopeItem.label}
+                            </Badge>
+                          )}
+                          {task && (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs cursor-pointer"
+                              onClick={() => {
+                                const element = document.getElementById('tasks-section');
+                                if (element) element.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              data-testid={`badge-task-${entry.id}`}
+                            >
+                              <ListTodo className="h-3 w-3 mr-1" />
+                              {task.title}
+                            </Badge>
+                          )}
+                          {sprint && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs"
+                              data-testid={`badge-sprint-${entry.id}`}
+                            >
+                              <Layers className="h-3 w-3 mr-1" />
+                              {sprint.name}
                             </Badge>
                           )}
                         </div>
@@ -2965,7 +3007,7 @@ export default function ProjectDetail() {
             </div>
           </TabsContent>
 
-          <TabsContent value="tasks" className="mt-0">
+          <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex justify-end mb-4">
@@ -3539,7 +3581,7 @@ export default function ProjectDetail() {
             </Card>
 
             {/* Project Scope Section - CDC avec allocation de temps */}
-            <div className="mt-4">
+            <div id="scope-section" className="mt-4">
               <ProjectScopeSection
                 projectId={id!}
                 dailyRate={effectiveTJMData?.effectiveTJM || 0}

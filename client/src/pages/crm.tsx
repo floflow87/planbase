@@ -30,6 +30,9 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverlay,
+  useDraggable,
+  DragStartEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -112,96 +115,122 @@ function DraggableColumnHeader({
   );
 }
 
-// Configuration des colonnes Kanban
+// Configuration des colonnes Kanban (couleurs pastel)
 const KANBAN_STATUSES = [
-  { id: "prospecting", label: "Prospect", color: "bg-orange-500/20 border-orange-500/50", headerBg: "bg-orange-500/10", textColor: "text-orange-400" },
-  { id: "qualified", label: "Qualifié", color: "bg-blue-500/20 border-blue-500/50", headerBg: "bg-blue-500/10", textColor: "text-blue-400" },
-  { id: "negotiation", label: "Négociation", color: "bg-yellow-500/20 border-yellow-500/50", headerBg: "bg-yellow-500/10", textColor: "text-yellow-400" },
-  { id: "won", label: "Devis envoyé", color: "bg-green-500/20 border-green-500/50", headerBg: "bg-green-500/10", textColor: "text-green-400" },
+  { id: "prospecting", label: "Prospect", color: "bg-orange-100/50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50", headerBg: "bg-orange-50 dark:bg-orange-950/40", textColor: "text-orange-600 dark:text-orange-400" },
+  { id: "qualified", label: "Qualifié", color: "bg-blue-100/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50", headerBg: "bg-blue-50 dark:bg-blue-950/40", textColor: "text-blue-600 dark:text-blue-400" },
+  { id: "negotiation", label: "Négociation", color: "bg-amber-100/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50", headerBg: "bg-amber-50 dark:bg-amber-950/40", textColor: "text-amber-600 dark:text-amber-400" },
+  { id: "won", label: "Devis envoyé", color: "bg-emerald-100/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50", headerBg: "bg-emerald-50 dark:bg-emerald-950/40", textColor: "text-emerald-600 dark:text-emerald-400" },
 ];
 
-// Composant Kanban Card
-function KanbanCard({ 
+// Composant Kanban Card (draggable)
+function DraggableKanbanCard({ 
   client, 
   contact,
   totalBudget,
   onEdit,
   onDelete,
+  isDragOverlay = false,
 }: { 
   client: Client; 
   contact?: Contact;
   totalBudget: number;
   onEdit: () => void;
   onDelete: () => void;
+  isDragOverlay?: boolean;
 }) {
-  return (
-    <Link href={`/crm/${client.id}`}>
-      <Card 
-        className="hover-elevate cursor-pointer bg-card/80 backdrop-blur-sm border-border/50"
-        data-testid={`kanban-card-${client.id}`}
-      >
-        <CardContent className="p-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold text-foreground truncate">{client.name}</h4>
-              {client.company && (
-                <div className="flex items-center gap-1 mt-1">
-                  <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-muted-foreground truncate">{client.company}</span>
-                </div>
-              )}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" data-testid={`kanban-actions-${client.id}`}>
-                  <MoreVertical className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-card">
-                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Modifier
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-red-600"
-                  onClick={(e) => { e.preventDefault(); onDelete(); }}
-                  data-testid={`kanban-delete-${client.id}`}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Supprimer
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `client-${client.id}`,
+    data: { client },
+  });
+  
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
+  const cardContent = (
+    <Card 
+      ref={!isDragOverlay ? setNodeRef : undefined}
+      style={!isDragOverlay ? style : undefined}
+      className={`hover-elevate cursor-grab bg-card/80 backdrop-blur-sm border-border/50 ${isDragging && !isDragOverlay ? 'opacity-50' : ''}`}
+      data-testid={`kanban-card-${client.id}`}
+      {...(!isDragOverlay ? { ...attributes, ...listeners } : {})}
+    >
+      <CardContent className="p-3 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold text-foreground truncate">{client.name}</h4>
+            {client.company && (
+              <div className="flex items-center gap-1 mt-1">
+                <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">{client.company}</span>
+              </div>
+            )}
           </div>
-          
-          {contact && (
-            <div className="space-y-1">
-              {contact.email && (
-                <div className="flex items-center gap-1.5">
-                  <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-muted-foreground truncate">{contact.email}</span>
-                </div>
-              )}
-              {contact.phone && (
-                <div className="flex items-center gap-1.5">
-                  <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
-                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <div className="pt-1">
-            <span className="text-sm font-bold text-accent">€ {totalBudget.toLocaleString()}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 shrink-0" 
+                data-testid={`kanban-actions-${client.id}`}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
+                <Edit className="w-4 h-4 mr-2" />
+                Modifier
+              </DropdownMenuItem>
+              <Link href={`/crm/${client.id}`}>
+                <DropdownMenuItem data-testid={`kanban-view-${client.id}`}>
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Voir le client
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                data-testid={`kanban-delete-${client.id}`}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
+        {contact && (
+          <div className="space-y-1">
+            {contact.email && (
+              <div className="flex items-center gap-1.5">
+                <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">{contact.email}</span>
+              </div>
+            )}
+            {contact.phone && (
+              <div className="flex items-center gap-1.5">
+                <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground">{contact.phone}</span>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+        )}
+        
+        <div className="pt-1">
+          <span className="text-sm font-bold text-accent">€ {totalBudget.toLocaleString()}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
+
+  return cardContent;
 }
 
-// Composant Kanban Column
-function KanbanColumn({
+// Composant Kanban Column (droppable)
+function DroppableKanbanColumn({
   status,
   clients,
   contacts,
@@ -216,6 +245,11 @@ function KanbanColumn({
   onEditClient: (client: Client) => void;
   onDeleteClient: (clientId: string) => void;
 }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `column-${status.id}`,
+    data: { status: status.id },
+  });
+  
   const totalBudget = clients.reduce((sum, client) => {
     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
     return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);
@@ -231,14 +265,17 @@ function KanbanColumn({
         <span className="text-xs font-medium text-muted-foreground">€ {totalBudget.toLocaleString()}</span>
       </div>
       
-      <div className={`flex-1 p-2 space-y-2 rounded-b-lg ${status.color} min-h-[200px] overflow-y-auto`}>
+      <div 
+        ref={setNodeRef}
+        className={`flex-1 p-2 space-y-2 rounded-b-lg border ${status.color} min-h-[200px] overflow-y-auto transition-all ${isOver ? 'ring-2 ring-primary/50 scale-[1.02]' : ''}`}
+      >
         {clients.map((client) => {
           const clientContact = contacts.find((c: any) => c.clientId === client.id);
           const clientProjects = projects.filter((p: any) => p.clientId === client.id);
           const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0);
           
           return (
-            <KanbanCard
+            <DraggableKanbanCard
               key={client.id}
               client={client}
               contact={clientContact}
@@ -394,6 +431,47 @@ export default function CRM() {
       toast({ title: "Clients supprimés", variant: "success" });
     },
   });
+  
+  // Update client status mutation (for Kanban drag and drop)
+  const updateClientStatusMutation = useMutation({
+    mutationFn: async ({ clientId, status }: { clientId: string; status: string }) => {
+      return await apiRequest(`/api/clients/${clientId}`, "PATCH", { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      toast({ title: "Statut mis à jour", variant: "success" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  // Kanban drag and drop state
+  const [draggingClient, setDraggingClient] = useState<Client | null>(null);
+  
+  const handleKanbanDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    if (active.data.current?.client) {
+      setDraggingClient(active.data.current.client as Client);
+    }
+  };
+  
+  const handleKanbanDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setDraggingClient(null);
+    
+    if (!over) return;
+    
+    const clientId = active.id.toString().replace('client-', '');
+    const newStatus = over.data.current?.status;
+    
+    if (newStatus && active.data.current?.client) {
+      const client = active.data.current.client as Client;
+      if (client.status !== newStatus) {
+        updateClientStatusMutation.mutate({ clientId, status: newStatus });
+      }
+    }
+  };
 
   // Bulk update status mutation
   const bulkUpdateStatusMutation = useMutation({
@@ -1056,25 +1134,43 @@ export default function CRM() {
                 )}
                 
                 {/* Kanban View - Always shown on mobile (< md), shown on desktop (>= md) when viewMode === "kanban" */}
-                <div className={`flex gap-4 overflow-x-auto pb-4 ${viewMode === "table" ? "md:hidden" : ""}`} data-testid="kanban-board">
-                  {KANBAN_STATUSES.map((status) => {
-                    const statusClients = filteredClients.filter(c => c.status === status.id);
-                    return (
-                      <KanbanColumn
-                        key={status.id}
-                        status={status}
-                        clients={statusClients}
-                        contacts={contacts}
-                        projects={projects}
-                        onEditClient={setEditingClient}
-                        onDeleteClient={(clientId) => {
-                          setClientToDelete(clientId);
-                          setIsDeleteDialogOpen(true);
-                        }}
+                <DndContext
+                  sensors={sensors}
+                  onDragStart={handleKanbanDragStart}
+                  onDragEnd={handleKanbanDragEnd}
+                >
+                  <div className={`flex gap-4 overflow-x-auto pb-4 ${viewMode === "table" ? "md:hidden" : ""}`} data-testid="kanban-board">
+                    {KANBAN_STATUSES.map((status) => {
+                      const statusClients = filteredClients.filter(c => c.status === status.id);
+                      return (
+                        <DroppableKanbanColumn
+                          key={status.id}
+                          status={status}
+                          clients={statusClients}
+                          contacts={contacts}
+                          projects={projects}
+                          onEditClient={setEditingClient}
+                          onDeleteClient={(clientId) => {
+                            setClientToDelete(clientId);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <DragOverlay>
+                    {draggingClient && (
+                      <DraggableKanbanCard
+                        client={draggingClient}
+                        contact={contacts.find((c: any) => c.clientId === draggingClient.id)}
+                        totalBudget={projects.filter((p: any) => p.clientId === draggingClient.id).reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0)}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
+                        isDragOverlay={true}
                       />
-                    );
-                  })}
-                </div>
+                    )}
+                  </DragOverlay>
+                </DndContext>
               </>
             )}
         </div>
