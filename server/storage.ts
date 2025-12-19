@@ -28,6 +28,8 @@ import {
   type Feature, type InsertFeature,
   type Roadmap, type InsertRoadmap,
   type RoadmapItem, type InsertRoadmapItem,
+  type RoadmapItemLink, type InsertRoadmapItemLink,
+  type RoadmapDependency, type InsertRoadmapDependency,
   type Appointment, type InsertAppointment,
   type GoogleCalendarToken, type InsertGoogleCalendarToken,
   type TimeEntry, type InsertTimeEntry,
@@ -38,7 +40,7 @@ import {
   type Settings, type InsertSettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
   projects, projectCategories, projectPayments, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
-  deals, products, features, roadmaps, roadmapItems,
+  deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
 } from "@shared/schema";
@@ -245,6 +247,7 @@ export interface IStorage {
   // Roadmaps
   getRoadmap(id: string): Promise<Roadmap | undefined>;
   getRoadmapsByAccountId(accountId: string): Promise<Roadmap[]>;
+  getRoadmapsByProjectId(accountId: string, projectId: string): Promise<Roadmap[]>;
   createRoadmap(roadmap: InsertRoadmap): Promise<Roadmap>;
   updateRoadmap(id: string, roadmap: Partial<InsertRoadmap>): Promise<Roadmap | undefined>;
   deleteRoadmap(id: string): Promise<boolean>;
@@ -255,6 +258,17 @@ export interface IStorage {
   createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem>;
   updateRoadmapItem(id: string, item: Partial<InsertRoadmapItem>): Promise<RoadmapItem | undefined>;
   deleteRoadmapItem(id: string): Promise<boolean>;
+
+  // Roadmap Item Links
+  getRoadmapItemLinksByItemId(roadmapItemId: string): Promise<RoadmapItemLink[]>;
+  createRoadmapItemLink(link: InsertRoadmapItemLink): Promise<RoadmapItemLink>;
+  deleteRoadmapItemLink(id: string): Promise<boolean>;
+
+  // Roadmap Dependencies
+  getRoadmapDependenciesByItemId(roadmapItemId: string): Promise<RoadmapDependency[]>;
+  getRoadmapDependenciesByRoadmapId(roadmapId: string): Promise<RoadmapDependency[]>;
+  createRoadmapDependency(dependency: InsertRoadmapDependency): Promise<RoadmapDependency>;
+  deleteRoadmapDependency(id: string): Promise<boolean>;
 
   // Search
   searchAll(accountId: string, query: string): Promise<{
@@ -1445,6 +1459,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(roadmaps.createdAt));
   }
 
+  async getRoadmapsByProjectId(accountId: string, projectId: string): Promise<Roadmap[]> {
+    return await db.select().from(roadmaps).where(
+      and(eq(roadmaps.accountId, accountId), eq(roadmaps.projectId, projectId))
+    ).orderBy(desc(roadmaps.createdAt));
+  }
+
   async createRoadmap(insertRoadmap: InsertRoadmap): Promise<Roadmap> {
     const [roadmap] = await db.insert(roadmaps).values(insertRoadmap).returning();
     return roadmap;
@@ -1483,6 +1503,49 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRoadmapItem(id: string): Promise<boolean> {
     const result = await db.delete(roadmapItems).where(eq(roadmapItems.id, id));
+    return result.length > 0;
+  }
+
+  // Roadmap Item Links
+  async getRoadmapItemLinksByItemId(roadmapItemId: string): Promise<RoadmapItemLink[]> {
+    return await db.select().from(roadmapItemLinks)
+      .where(eq(roadmapItemLinks.roadmapItemId, roadmapItemId))
+      .orderBy(desc(roadmapItemLinks.createdAt));
+  }
+
+  async createRoadmapItemLink(link: InsertRoadmapItemLink): Promise<RoadmapItemLink> {
+    const [created] = await db.insert(roadmapItemLinks).values(link).returning();
+    return created;
+  }
+
+  async deleteRoadmapItemLink(id: string): Promise<boolean> {
+    const result = await db.delete(roadmapItemLinks).where(eq(roadmapItemLinks.id, id));
+    return result.length > 0;
+  }
+
+  // Roadmap Dependencies
+  async getRoadmapDependenciesByItemId(roadmapItemId: string): Promise<RoadmapDependency[]> {
+    return await db.select().from(roadmapDependencies)
+      .where(eq(roadmapDependencies.roadmapItemId, roadmapItemId))
+      .orderBy(desc(roadmapDependencies.createdAt));
+  }
+
+  async getRoadmapDependenciesByRoadmapId(roadmapId: string): Promise<RoadmapDependency[]> {
+    const items = await db.select().from(roadmapItems).where(eq(roadmapItems.roadmapId, roadmapId));
+    if (items.length === 0) return [];
+    const itemIds = items.map(i => i.id);
+    return await db.select().from(roadmapDependencies)
+      .where(inArray(roadmapDependencies.roadmapItemId, itemIds))
+      .orderBy(desc(roadmapDependencies.createdAt));
+  }
+
+  async createRoadmapDependency(dependency: InsertRoadmapDependency): Promise<RoadmapDependency> {
+    const [created] = await db.insert(roadmapDependencies).values(dependency).returning();
+    return created;
+  }
+
+  async deleteRoadmapDependency(id: string): Promise<boolean> {
+    const result = await db.delete(roadmapDependencies).where(eq(roadmapDependencies.id, id));
     return result.length > 0;
   }
 

@@ -864,6 +864,75 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Time entries sprint_id column added");
     
+    // ============================================
+    // ROADMAP MODULE - NEW TABLES
+    // ============================================
+    
+    // Add new columns to roadmaps table
+    await db.execute(sql`
+      ALTER TABLE roadmaps 
+      ADD COLUMN IF NOT EXISTS project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS view_defaults jsonb NOT NULL DEFAULT '{}'::jsonb;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmaps_project_idx ON roadmaps(project_id);
+    `);
+    console.log("✅ Roadmaps table updated with project_id and view_defaults");
+    
+    // Add new columns to roadmap_items table
+    await db.execute(sql`
+      ALTER TABLE roadmap_items 
+      ADD COLUMN IF NOT EXISTS project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'deliverable',
+      ADD COLUMN IF NOT EXISTS priority text NOT NULL DEFAULT 'normal',
+      ADD COLUMN IF NOT EXISTS description text,
+      ADD COLUMN IF NOT EXISTS progress_mode text NOT NULL DEFAULT 'manual',
+      ADD COLUMN IF NOT EXISTS progress integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS order_index integer NOT NULL DEFAULT 0;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_project_idx ON roadmap_items(project_id);
+    `);
+    console.log("✅ Roadmap items table updated with new columns");
+    
+    // Create roadmap_item_links table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS roadmap_item_links (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        roadmap_item_id uuid NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+        linked_type text NOT NULL,
+        linked_id uuid,
+        linked_title text,
+        weight integer NOT NULL DEFAULT 1,
+        created_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_item_links_roadmap_item_idx ON roadmap_item_links(roadmap_item_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_item_links_linked_idx ON roadmap_item_links(linked_type, linked_id);
+    `);
+    console.log("✅ Roadmap item links table created");
+    
+    // Create roadmap_dependencies table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS roadmap_dependencies (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        roadmap_item_id uuid NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+        depends_on_roadmap_item_id uuid NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+        type text NOT NULL DEFAULT 'finish_to_start',
+        created_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_dependencies_roadmap_item_idx ON roadmap_dependencies(roadmap_item_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_dependencies_depends_on_idx ON roadmap_dependencies(depends_on_roadmap_item_id);
+    `);
+    console.log("✅ Roadmap dependencies table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
