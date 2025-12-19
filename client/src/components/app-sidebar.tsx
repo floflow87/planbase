@@ -53,6 +53,13 @@ export function AppSidebar() {
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];
 
+  const isActiveRoute = (itemUrl: string) => {
+    if (itemUrl === "/") {
+      return location === "/";
+    }
+    return location === itemUrl || location.startsWith(itemUrl + "/");
+  };
+
   return (
     <Sidebar collapsible="icon">
       {!isCollapsed && (
@@ -79,7 +86,7 @@ export function AppSidebar() {
                         <TooltipTrigger asChild>
                           <SidebarMenuButton 
                             asChild={!restricted}
-                            isActive={location === item.url} 
+                            isActive={isActiveRoute(item.url)} 
                             disabled={restricted}
                             className={`${restricted ? "opacity-50 cursor-not-allowed" : ""} justify-center`}
                             data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
@@ -100,7 +107,7 @@ export function AppSidebar() {
                     ) : (
                       <SidebarMenuButton 
                         asChild={!restricted}
-                        isActive={location === item.url} 
+                        isActive={isActiveRoute(item.url)} 
                         disabled={restricted}
                         className={restricted ? "opacity-50 cursor-not-allowed" : ""}
                         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
