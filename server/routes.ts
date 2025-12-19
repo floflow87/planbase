@@ -1635,6 +1635,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all sprints for a project (via backlogs linked to the project)
+  app.get("/api/projects/:projectId/sprints", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const projectId = req.params.projectId;
+      
+      // First verify the project exists and user has access
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Get all backlogs linked to this project
+      const projectBacklogs = await db.select().from(backlogs)
+        .where(and(eq(backlogs.projectId, projectId), eq(backlogs.accountId, accountId)));
+      
+      // Get all sprints from those backlogs
+      const backlogIds = projectBacklogs.map(b => b.id);
+      if (backlogIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const projectSprints = await db.select().from(sprints)
+        .where(and(
+          inArray(sprints.backlogId, backlogIds),
+          eq(sprints.accountId, accountId)
+        ))
+        .orderBy(asc(sprints.startDate));
+      
+      res.json(projectSprints);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create a new task
   app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {

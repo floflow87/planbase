@@ -244,20 +244,12 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   });
   const projectTasks = Array.isArray(projectTasksData) ? projectTasksData : [];
   
-  // Fetch backlogs for this project to get sprints
-  type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
-  const { data: backlogsData } = useQuery<BacklogWithSprints[]>({
-    queryKey: ['/api/backlogs'],
+  // Fetch sprints for this project
+  const { data: projectSprintsData } = useQuery<Sprint[]>({
+    queryKey: ['/api/projects', projectId, 'sprints'],
     enabled: !!projectId,
   });
-  
-  // Get all sprints from backlogs linked to this project
-  const projectSprints = useMemo(() => {
-    if (!backlogsData) return [];
-    const projectBacklogs = backlogsData.filter(b => b.projectId === projectId);
-    // We need to fetch full backlog data to get sprints, but for now use activeSprint if available
-    return [] as Sprint[];
-  }, [backlogsData, projectId]);
+  const projectSprints = projectSprintsData || [];
 
   // Fetch profitability from backend for consistent calculations
   const { data: profitabilityData } = useQuery<ProfitabilityAnalysis>({
@@ -296,7 +288,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   });
 
   const updateTimeEntryMutation = useMutation({
-    mutationFn: async (data: { entryId: string; projectId: string; startTime: string; endTime: string; duration: number; description: string | null; scopeItemId: string | null; taskId: string | null }) => {
+    mutationFn: async (data: { entryId: string; projectId: string; startTime: string; endTime: string; duration: number; description: string | null; scopeItemId: string | null; taskId: string | null; sprintId: string | null }) => {
       return await apiRequest(`/api/time-entries/${data.entryId}`, "PATCH", {
         projectId: data.projectId,
         startTime: data.startTime,
@@ -305,6 +297,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         description: data.description,
         scopeItemId: data.scopeItemId,
         taskId: data.taskId,
+        sprintId: data.sprintId,
       });
     },
     onSuccess: () => {
@@ -339,6 +332,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     setEditTimeDescription(entry.description || "");
     setEditScopeItemId(entry.scopeItemId);
     setEditTaskId(entry.taskId);
+    setEditSprintId(entry.sprintId || null);
   };
 
   // Handler to save edited time entry
@@ -371,6 +365,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       description: editTimeDescription.trim() || null,
       scopeItemId: editScopeItemId,
       taskId: editTaskId,
+      sprintId: editSprintId,
     });
   };
 
@@ -906,6 +901,29 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   </div>
                 </div>
                 
+                {/* Sprint selector */}
+                {projectSprints.length > 0 && (
+                  <div>
+                    <Label className="text-sm">Sprint (optionnel)</Label>
+                    <Select
+                      value={selectedSprintId || "none"}
+                      onValueChange={(v) => setSelectedSprintId(v === "none" ? null : v)}
+                    >
+                      <SelectTrigger data-testid="select-sprint">
+                        <SelectValue placeholder="Aucun" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun</SelectItem>
+                        {projectSprints.map((sprint) => (
+                          <SelectItem key={sprint.id} value={sprint.id}>
+                            {sprint.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
                 <div>
                   <Label className="text-sm">Description (optionnel)</Label>
                   <Textarea
@@ -956,6 +974,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                             description: newTimeDescription || null,
                             scopeItemId: selectedScopeItemId || null,
                             taskId: selectedTaskId || null,
+                            sprintId: selectedSprintId || null,
                           });
                           
                           queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
@@ -967,6 +986,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                           setNewTimeDescription("");
                           setSelectedScopeItemId(null);
                           setSelectedTaskId(null);
+                          setSelectedSprintId(null);
                           setShowAddTimeForm(false);
                           
                           toast({
@@ -1011,6 +1031,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                               description: newTimeDescription || null,
                               scopeItemId: selectedScopeItemId || null,
                               taskId: selectedTaskId || null,
+                              sprintId: selectedSprintId || null,
                             });
                           }));
                           
@@ -1022,6 +1043,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                           setNewTimeDescription("");
                           setSelectedScopeItemId(null);
                           setSelectedTaskId(null);
+                          setSelectedSprintId(null);
                           setShowAddTimeForm(false);
                           
                           toast({
@@ -1746,6 +1768,28 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 </SelectContent>
               </Select>
             </div>
+
+            {projectSprints.length > 0 && (
+              <div className="space-y-2">
+                <Label>Sprint (optionnel)</Label>
+                <Select
+                  value={editSprintId || "none"}
+                  onValueChange={(value) => setEditSprintId(value === "none" ? null : value)}
+                >
+                  <SelectTrigger data-testid="select-edit-sprint">
+                    <SelectValue placeholder="Sélectionner un sprint..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun</SelectItem>
+                    {projectSprints.map((sprint) => (
+                      <SelectItem key={sprint.id} value={sprint.id}>
+                        {sprint.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-4">
               <Button

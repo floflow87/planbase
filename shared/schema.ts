@@ -1108,6 +1108,7 @@ export const updateTimeEntrySchema = z.object({
   description: z.string().optional().nullable(),
   scopeItemId: z.string().uuid().optional().nullable(),
   taskId: z.string().uuid().optional().nullable(),
+  sprintId: z.string().uuid().optional().nullable(),
 });
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
