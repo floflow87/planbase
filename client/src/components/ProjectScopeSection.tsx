@@ -115,26 +115,27 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 p-3 bg-background border rounded-lg ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
+      className={`flex items-center gap-2 px-2 py-1.5 bg-background border rounded-md ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
     >
       <div
         {...attributes}
         {...listeners}
         className="cursor-grab text-muted-foreground hover:text-foreground"
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="h-3.5 w-3.5" />
       </div>
 
       {isEditing ? (
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-1.5">
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Intitulé de la rubrique"
+            className="h-8 text-sm"
             data-testid={`input-scope-label-${item.id}`}
           />
           <div className="flex gap-2 items-center">
-            <div className="flex-1">
+            <div className="w-20">
               <Input
                 type="number"
                 step="0.5"
@@ -142,6 +143,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
                 value={estimatedDays}
                 onChange={(e) => setEstimatedDays(e.target.value)}
                 placeholder="Jours"
+                className="h-8 text-sm"
                 data-testid={`input-scope-days-${item.id}`}
               />
             </div>
@@ -149,7 +151,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description (optionnel)"
-              className="flex-[2] resize-none"
+              className="flex-1 resize-none text-sm min-h-[32px]"
               rows={1}
               data-testid={`input-scope-description-${item.id}`}
             />
@@ -165,41 +167,37 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
         </div>
       ) : (
         <>
-          <div className="flex-1 min-w-0" onClick={() => setIsEditing(true)}>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setIsEditing(true)}>
             <div className="flex items-center gap-2">
-              <span className="font-medium truncate">{item.label}</span>
+              <span className="text-sm truncate">{item.label}</span>
               {item.isOptional === 1 && (
-                <Badge variant="outline" className="text-xs shrink-0">Optionnel</Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
               )}
             </div>
             {item.description && (
-              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-              <Clock className="h-3 w-3 mr-1" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs px-1.5 py-0">
+              <Clock className="h-3 w-3 mr-0.5" />
               {parseFloat(item.estimatedDays?.toString() || "0")} j
             </Badge>
-            <div className="flex items-center gap-1">
-              <Label htmlFor={`optional-${item.id}`} className="text-xs text-muted-foreground">
-                Opt.
-              </Label>
-              <Switch
-                id={`optional-${item.id}`}
-                checked={item.isOptional === 1}
-                onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
-                data-testid={`switch-optional-${item.id}`}
-              />
-            </div>
+            <Switch
+              id={`optional-${item.id}`}
+              checked={item.isOptional === 1}
+              onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
+              className="scale-75"
+              data-testid={`switch-optional-${item.id}`}
+            />
             <Button
               size="icon"
               variant="ghost"
-              className="text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(item.id)}
               data-testid={`button-delete-scope-${item.id}`}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </>
@@ -258,7 +256,11 @@ export function ProjectScopeSection({
   const [copied, setCopied] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
