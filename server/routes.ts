@@ -5880,7 +5880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get effective TJM for a project (project override ?? global)
+  // Get effective TJM and internal daily cost for a project (project override ?? global)
   app.get("/api/projects/:projectId/effective-tjm", requireAuth, async (req, res) => {
     try {
       const accountId = req.accountId!;
@@ -5896,18 +5896,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
       
       // Get global TJM from settings
-      const globalSetting = await storage.getSetting('ACCOUNT', accountId, 'billing.defaultTJM');
-      const globalTJM = globalSetting?.value ? parseFloat(String(globalSetting.value)) : null;
+      const globalTJMSetting = await storage.getSetting('ACCOUNT', accountId, 'billing.defaultTJM');
+      const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : null;
       
       // Effective TJM: project ?? global
       const effectiveTJM = projectTJM ?? globalTJM;
+      
+      // Project internal daily cost has priority
+      const projectInternalDailyCost = project.internalDailyCost ? parseFloat(project.internalDailyCost.toString()) : null;
+      
+      // Get global internal daily cost from settings
+      const globalInternalCostSetting = await storage.getSetting('ACCOUNT', accountId, 'billing.defaultInternalDailyCost');
+      const globalInternalDailyCost = globalInternalCostSetting?.value ? parseFloat(String(globalInternalCostSetting.value)) : null;
+      
+      // Effective internal daily cost: project ?? global
+      const effectiveInternalDailyCost = projectInternalDailyCost ?? globalInternalDailyCost;
       
       res.json({
         effectiveTJM,
         source: projectTJM !== null ? 'project' : (globalTJM !== null ? 'global' : null),
         projectTJM,
         globalTJM,
-        hasTJM: effectiveTJM !== null && effectiveTJM > 0
+        hasTJM: effectiveTJM !== null && effectiveTJM > 0,
+        // Internal daily cost
+        effectiveInternalDailyCost,
+        internalDailyCostSource: projectInternalDailyCost !== null ? 'project' : (globalInternalDailyCost !== null ? 'global' : null),
+        projectInternalDailyCost,
+        globalInternalDailyCost,
+        hasInternalDailyCost: effectiveInternalDailyCost !== null && effectiveInternalDailyCost > 0
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

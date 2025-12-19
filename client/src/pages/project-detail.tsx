@@ -300,7 +300,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
 
   // Calculate time KPIs
   const totalTimeDays = totalTimeHours / 8;
-  const totalEstimatedDays = scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+  // Priority: CDC days > project.numberOfDays (billing days)
+  const cdcEstimatedDays = scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+  const totalEstimatedDays = cdcEstimatedDays > 0 ? cdcEstimatedDays : (project?.numberOfDays || 0);
   const remainingDays = Math.max(0, totalEstimatedDays - totalTimeDays);
   const consumptionPercent = totalEstimatedDays > 0 ? (totalTimeDays / totalEstimatedDays) * 100 : 0;
   
@@ -1932,13 +1934,19 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  // Fetch effective TJM (project override ?? global default)
+  // Fetch effective TJM and internal daily cost (project override ?? global default)
   interface EffectiveTJMResponse {
     effectiveTJM: number | null;
     source: 'project' | 'global' | null;
     projectTJM: number | null;
     globalTJM: number | null;
     hasTJM: boolean;
+    // Internal daily cost
+    effectiveInternalDailyCost: number | null;
+    internalDailyCostSource: 'project' | 'global' | null;
+    projectInternalDailyCost: number | null;
+    globalInternalDailyCost: number | null;
+    hasInternalDailyCost: boolean;
   }
   const { data: effectiveTJMData } = useQuery<EffectiveTJMResponse>({
     queryKey: ['/api/projects', id, 'effective-tjm'],
@@ -3299,7 +3307,7 @@ export default function ProjectDetail() {
               <ProjectScopeSection
                 projectId={id!}
                 dailyRate={effectiveTJMData?.effectiveTJM || 0}
-                internalDailyCost={parseFloat(project?.internalDailyCost?.toString() || "0")}
+                internalDailyCost={effectiveTJMData?.effectiveInternalDailyCost || 0}
                 targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
                 budget={parseFloat(project?.budget?.toString() || "0")}
                 projectStage={project?.stage || 'prospection'}
