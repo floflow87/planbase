@@ -1467,6 +1467,7 @@ function KanbanStageColumn({
               onEdit={() => onEditProject(project)}
               onDelete={() => onDeleteProject(project)}
               onComplete={() => onCompleteProject(project)}
+              cardColor={stage.headerBg}
             />
           ))}
         </SortableContext>
@@ -1491,6 +1492,7 @@ interface DraggableProjectCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onComplete: () => void;
+  cardColor?: string;
 }
 
 function DraggableProjectCard({
@@ -1501,6 +1503,7 @@ function DraggableProjectCard({
   onEdit,
   onDelete,
   onComplete,
+  cardColor,
 }: DraggableProjectCardProps) {
   const {
     attributes,
@@ -1532,7 +1535,7 @@ function DraggableProjectCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className={`hover-elevate active-elevate-2 bg-popover cursor-grab ${isDragging ? 'shadow-lg' : ''}`}
+      className={`hover-elevate active-elevate-2 cursor-grab ${cardColor || 'bg-popover'} ${isDragging ? 'shadow-lg' : ''}`}
       {...attributes}
       {...listeners}
       data-testid={`kanban-project-card-${project.id}`}
