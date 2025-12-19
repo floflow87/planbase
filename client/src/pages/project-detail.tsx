@@ -198,6 +198,16 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   const { toast } = useToast();
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   
+  // Edit time entry state
+  const [editingTimeEntry, setEditingTimeEntry] = useState<TimeEntry | null>(null);
+  const [editTimeDate, setEditTimeDate] = useState<Date | undefined>(undefined);
+  const [editTimeHours, setEditTimeHours] = useState<string>("");
+  const [editTimeMinutes, setEditTimeMinutes] = useState<string>("0");
+  const [editTimeDescription, setEditTimeDescription] = useState<string>("");
+  const [editScopeItemId, setEditScopeItemId] = useState<string | null>(null);
+  const [editTaskId, setEditTaskId] = useState<string | null>(null);
+  const [isEditTimeDatePickerOpen, setIsEditTimeDatePickerOpen] = useState(false);
+  
   // Free time entry form state
   const [showAddTimeForm, setShowAddTimeForm] = useState(false);
   const [timeInputMode, setTimeInputMode] = useState<'hours' | 'days'>('hours');
@@ -266,6 +276,85 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       });
     },
   });
+
+  const updateTimeEntryMutation = useMutation({
+    mutationFn: async (data: { entryId: string; projectId: string; startTime: string; endTime: string; duration: number; description: string | null; scopeItemId: string | null; taskId: string | null }) => {
+      return await apiRequest(`/api/time-entries/${data.entryId}`, "PATCH", {
+        projectId: data.projectId,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        duration: data.duration,
+        description: data.description,
+        scopeItemId: data.scopeItemId,
+        taskId: data.taskId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries/active"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'profitability'] });
+      toast({
+        title: "Session modifiée",
+        description: "La session de temps a été mise à jour avec succès",
+        variant: "success",
+      });
+      setEditingTimeEntry(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler to open edit sheet
+  const handleOpenEditSheet = (entry: TimeEntry) => {
+    setEditingTimeEntry(entry);
+    setEditTimeDate(new Date(entry.startTime));
+    const hours = Math.floor((entry.duration || 0) / 3600);
+    const minutes = Math.floor(((entry.duration || 0) % 3600) / 60);
+    setEditTimeHours(hours.toString());
+    setEditTimeMinutes(minutes.toString());
+    setEditTimeDescription(entry.description || "");
+    setEditScopeItemId(entry.scopeItemId);
+    setEditTaskId(entry.taskId);
+  };
+
+  // Handler to save edited time entry
+  const handleSaveEditedTimeEntry = () => {
+    if (!editingTimeEntry || !editTimeDate) return;
+    
+    const hours = parseFloat(editTimeHours) || 0;
+    const minutes = parseFloat(editTimeMinutes) || 0;
+    const totalSeconds = (hours * 3600) + (minutes * 60);
+    
+    if (totalSeconds <= 0) {
+      toast({
+        title: "Erreur",
+        description: "La durée doit être supérieure à 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Calculate endTime based on startTime + duration
+    const startTime = editTimeDate;
+    const endTime = new Date(startTime.getTime() + totalSeconds * 1000);
+
+    updateTimeEntryMutation.mutate({
+      entryId: editingTimeEntry.id,
+      projectId: projectId,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      duration: totalSeconds,
+      description: editTimeDescription.trim() || null,
+      scopeItemId: editScopeItemId,
+      taskId: editTaskId,
+    });
+  };
 
   // Calculate total time in seconds
   const totalTimeSeconds = timeEntries.reduce((sum, entry) => {
@@ -1469,15 +1558,26 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         <Badge variant="secondary" data-testid={`duration-${entry.id}`}>
                           {entry.duration ? formatDuration(entry.duration) : "En cours"}
                         </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteEntryId(entry.id)}
-                          data-testid={`button-delete-${entry.id}`}
-                          className="h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEditSheet(entry)}
+                            data-testid={`button-edit-${entry.id}`}
+                            className="h-8 w-8"
+                          >
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteEntryId(entry.id)}
+                            data-testid={`button-delete-${entry.id}`}
+                            className="h-8 w-8"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1510,6 +1610,146 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Time Entry Sheet */}
+      <Sheet open={!!editingTimeEntry} onOpenChange={(open) => !open && setEditingTimeEntry(null)}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Modifier la session de temps</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 mt-6">
+            <div className="space-y-2">
+              <Label htmlFor="edit-time-date">Date</Label>
+              <Popover open={isEditTimeDatePickerOpen} onOpenChange={setIsEditTimeDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editTimeDate && "text-muted-foreground"
+                    )}
+                    data-testid="button-edit-time-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editTimeDate ? format(editTimeDate, "dd MMMM yyyy", { locale: fr }) : "Sélectionner une date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editTimeDate}
+                    onSelect={(date) => {
+                      setEditTimeDate(date);
+                      setIsEditTimeDatePickerOpen(false);
+                    }}
+                    locale={fr}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-time-hours">Heures</Label>
+                <Input
+                  id="edit-time-hours"
+                  type="number"
+                  min="0"
+                  value={editTimeHours}
+                  onChange={(e) => setEditTimeHours(e.target.value)}
+                  placeholder="0"
+                  data-testid="input-edit-time-hours"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-time-minutes">Minutes</Label>
+                <Input
+                  id="edit-time-minutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={editTimeMinutes}
+                  onChange={(e) => setEditTimeMinutes(e.target.value)}
+                  placeholder="0"
+                  data-testid="input-edit-time-minutes"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-time-description">Description (optionnel)</Label>
+              <Textarea
+                id="edit-time-description"
+                value={editTimeDescription}
+                onChange={(e) => setEditTimeDescription(e.target.value)}
+                placeholder="Description de la session..."
+                rows={3}
+                data-testid="textarea-edit-time-description"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Étape CDC (optionnel)</Label>
+              <Select
+                value={editScopeItemId || "none"}
+                onValueChange={(value) => setEditScopeItemId(value === "none" ? null : value)}
+              >
+                <SelectTrigger data-testid="select-edit-scope-item">
+                  <SelectValue placeholder="Sélectionner une étape..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {scopeItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tâche (optionnel)</Label>
+              <Select
+                value={editTaskId || "none"}
+                onValueChange={(value) => setEditTaskId(value === "none" ? null : value)}
+              >
+                <SelectTrigger data-testid="select-edit-task">
+                  <SelectValue placeholder="Sélectionner une tâche..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {projectTasks.map((task) => (
+                    <SelectItem key={task.id} value={task.id}>
+                      {task.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditingTimeEntry(null)}
+                className="flex-1"
+                data-testid="button-cancel-edit-time"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSaveEditedTimeEntry}
+                disabled={updateTimeEntryMutation.isPending}
+                className="flex-1"
+                data-testid="button-save-edit-time"
+              >
+                {updateTimeEntryMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -1953,6 +2193,18 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  // Fetch scope items (CDC) for this project - used for auto-completing numberOfDays
+  const { data: projectScopeItemsData } = useQuery<{ scopeItems: ProjectScopeItem[] }>({
+    queryKey: ['/api/projects', id, 'scope-items'],
+    enabled: !!id,
+  });
+  const projectScopeItems = projectScopeItemsData?.scopeItems || [];
+  
+  // Calculate CDC estimated days for auto-completion
+  const cdcEstimatedDays = useMemo(() => {
+    return projectScopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+  }, [projectScopeItems]);
+
   // Fetch all backlogs and filter by projectId
   interface BacklogWithDetails extends Backlog {
     ticketCounts?: { todo: number; inProgress: number; done: number; total: number };
@@ -1993,13 +2245,21 @@ export default function ProjectDetail() {
   };
 
   // Initialize billing fields when project loads
+  // Auto-complete numberOfDays with CDC estimated days if project has no value
   useEffect(() => {
     if (project) {
       setTotalBilledValue(project.totalBilled || project.budget || "");
       setBillingRateValue(project.billingRate || "");
-      setNumberOfDaysValue(project.numberOfDays || "");
+      // Auto-complete with CDC estimated days if numberOfDays is empty
+      if (project.numberOfDays) {
+        setNumberOfDaysValue(project.numberOfDays);
+      } else if (cdcEstimatedDays > 0) {
+        setNumberOfDaysValue(cdcEstimatedDays.toString());
+      } else {
+        setNumberOfDaysValue("");
+      }
     }
-  }, [project]);
+  }, [project, cdcEstimatedDays]);
 
   const updateProjectMutation = {
     mutate: async ({ data }: { data: Partial<Project> }) => {
@@ -2922,131 +3182,6 @@ export default function ProjectDetail() {
           <TabsContent value="billing" className="mt-0">
             <Card>
               <CardContent className="pt-6 grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="billing-status" className="text-xs">Statut de facturation</Label>
-                  <Select
-                    value={project?.billingStatus || "brouillon"}
-                    onValueChange={async (value) => {
-                      try {
-                        const updateData: { billingStatus: string; billingDueDate?: string | null } = {
-                          billingStatus: value,
-                        };
-                        if (value !== "retard") {
-                          updateData.billingDueDate = null;
-                        }
-                        await apiRequest(`/api/projects/${id}`, "PATCH", updateData);
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-                        const statusOption = billingStatusOptions.find(o => o.value === value);
-                        toast({
-                          title: "Statut de facturation mis à jour",
-                          description: statusOption?.label || value,
-                          variant: "success",
-                        });
-                      } catch (error: any) {
-                        toast({
-                          title: "Erreur",
-                          description: error.message,
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="billing-status" data-testid="select-billing-status">
-                      <SelectValue placeholder="Sélectionner un statut">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full shrink-0" 
-                            style={{ backgroundColor: billingStatusOptions.find(o => o.value === (project?.billingStatus || "brouillon"))?.color }}
-                          />
-                          <span>{billingStatusOptions.find(o => o.value === (project?.billingStatus || "brouillon"))?.label}</span>
-                        </div>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {billingStatusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} data-testid={`option-billing-status-${option.value}`}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full shrink-0" 
-                              style={{ backgroundColor: option.color }}
-                            />
-                            <span>{option.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    État actuel de la facturation du projet
-                  </p>
-                </div>
-
-                {project?.billingStatus === "retard" && (
-                  <div>
-                    <Label className="text-xs">Date d'échéance</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !project?.billingDueDate && "text-muted-foreground"
-                          )}
-                          data-testid="button-billing-due-date"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {project?.billingDueDate 
-                            ? format(new Date(project.billingDueDate), "dd MMM yyyy", { locale: fr })
-                            : "Sélectionner une date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={project?.billingDueDate ? new Date(project.billingDueDate) : undefined}
-                          onSelect={async (date) => {
-                            try {
-                              await apiRequest(`/api/projects/${id}`, "PATCH", {
-                                billingDueDate: date ? formatDateForStorage(date) : null,
-                              });
-                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-                              toast({
-                                title: "Date d'échéance mise à jour",
-                                description: date ? format(date, "dd MMM yyyy", { locale: fr }) : "Date supprimée",
-                                variant: "success",
-                              });
-                            } catch (error: any) {
-                              toast({
-                                title: "Erreur",
-                                description: error.message,
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          locale={fr}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {project?.billingDueDate && (() => {
-                        const dueDate = new Date(project.billingDueDate);
-                        const today = new Date();
-                        const diffTime = today.getTime() - dueDate.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        if (diffDays > 0) {
-                          return <span className="text-destructive font-medium">En retard de {diffDays} jour{diffDays > 1 ? 's' : ''}</span>;
-                        } else if (diffDays === 0) {
-                          return <span className="text-amber-600 font-medium">Échéance aujourd'hui</span>;
-                        } else {
-                          return <span className="text-muted-foreground">Dans {Math.abs(diffDays)} jour{Math.abs(diffDays) > 1 ? 's' : ''}</span>;
-                        }
-                      })()}
-                    </p>
-                  </div>
-                )}
-
                 <div>
                   <Label htmlFor="business-type" className="text-xs">Type de projet</Label>
                   <Select

@@ -1100,9 +1100,12 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, creat
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTimeEntrySchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
+  startTime: z.coerce.date().optional(),
   endTime: z.coerce.date().optional(),
   duration: z.number().int().min(0).optional(),
   description: z.string().optional().nullable(),
+  scopeItemId: z.string().uuid().optional().nullable(),
+  taskId: z.string().uuid().optional().nullable(),
 });
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
