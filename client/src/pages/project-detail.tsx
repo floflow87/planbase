@@ -3312,7 +3312,7 @@ export default function ProjectDetail() {
               
               return (
                 <div className="space-y-4 mb-4">
-                  {/* Ligne 1: Montant facturé, Prix recommandé, Nombre de jours */}
+                  {/* Ligne 1: Montant facturé, Nombre de jours facturé, TJM facturé */}
                   <div className="grid grid-cols-3 gap-4">
                     <Card>
                       <CardContent className="pt-4 pb-4">
@@ -3322,11 +3322,53 @@ export default function ProjectDetail() {
                         </div>
                       </CardContent>
                     </Card>
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Nombre de jours facturé</div>
+                        <div className="text-xl font-bold" data-testid="kpi-number-of-days">
+                          {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
+                        </div>
+                      </CardContent>
+                    </Card>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Prix recommandé</div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              {isForfait ? "TJM facturé" : "TJM projet"}
+                            </div>
+                            <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
+                              {isForfait 
+                                ? (effectiveDailyRate > 0 
+                                    ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                    : "-")
+                                : (effectiveTJMData?.effectiveTJM 
+                                    ? `${effectiveTJMData.effectiveTJM} €`
+                                    : "-")
+                              }
+                            </div>
+                            {isForfait && effectiveDailyRate > 0 && (
+                              <div className="text-[10px] text-muted-foreground mt-1">
+                                Montant ÷ Jours
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                        <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  
+                  {/* Ligne 2: Prix minimum recommandé, Coût actualisé, Marge prévisionnelle */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Card className="cursor-help">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="text-xs text-muted-foreground mb-1">Prix minimum recommandé</div>
                             <div className="text-xl font-bold" data-testid="kpi-recommended-price">
                               {recommendedPrice > 0 
                                 ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -3340,28 +3382,16 @@ export default function ProjectDetail() {
                           </CardContent>
                         </Card>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
-                        <p className="text-sm">Prix de vente suggéré pour atteindre votre marge cible.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Formule : Coût estimé ÷ (1 - Marge cible %)</p>
+                      <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                        <p className="text-sm">Prix de vente minimum pour atteindre votre marge cible.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : Coût actualisé ÷ (1 - Marge cible %)</p>
                       </TooltipContent>
                     </Tooltip>
-                    <Card>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Nombre de jours</div>
-                        <div className="text-xl font-bold" data-testid="kpi-number-of-days">
-                          {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  {/* Ligne 2: Coût estimé, Marge prévisionnelle, TJM effectif */}
-                  <div className="grid grid-cols-3 gap-4">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">Coût estimé</div>
+                            <div className="text-xs text-muted-foreground mb-1">Coût actualisé</div>
                             <div className="text-xl font-bold" data-testid="kpi-estimated-cost">
                               {estimatedCost > 0 
                                 ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -3375,7 +3405,7 @@ export default function ProjectDetail() {
                           </CardContent>
                         </Card>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
+                      <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
                         <p className="text-sm">Coût interne basé sur le temps travaillé.</p>
                         <p className="text-xs text-muted-foreground mt-1">Formule : Jours travaillés × TJM cible</p>
                       </TooltipContent>
@@ -3398,39 +3428,9 @@ export default function ProjectDetail() {
                           </CardContent>
                         </Card>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
-                        <p className="text-sm">Différence entre le CA encaissé et le coût estimé.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Formule : CA encaissé - Coût estimé</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Card className="cursor-help">
-                          <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">
-                              {isForfait ? "TJM effectif" : "TJM projet"}
-                            </div>
-                            <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
-                              {isForfait 
-                                ? (effectiveDailyRate > 0 
-                                    ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                                    : "-")
-                                : (effectiveTJMData?.effectiveTJM 
-                                    ? `${effectiveTJMData.effectiveTJM} €`
-                                    : "-")
-                              }
-                            </div>
-                            {isForfait && effectiveDailyRate > 0 && (
-                              <div className="text-[10px] text-muted-foreground mt-1">
-                                Montant ÷ Jours
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs">
-                        <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
+                      <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                        <p className="text-sm">Différence entre le CA encaissé et le coût actualisé.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : CA encaissé - Coût actualisé</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
