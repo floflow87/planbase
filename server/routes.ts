@@ -28,6 +28,8 @@ import {
   insertFeatureSchema,
   insertRoadmapSchema,
   insertRoadmapItemSchema,
+  insertRoadmapItemLinkSchema,
+  insertRoadmapDependencySchema,
   insertClientCommentSchema,
   insertAppointmentSchema,
   updateAppointmentSchema,
@@ -3610,6 +3612,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const success = await storage.deleteRoadmapItem(req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get roadmaps by project ID
+  app.get("/api/projects/:projectId/roadmaps", requireAuth, async (req, res) => {
+    try {
+      const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      res.json(roadmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ROADMAP ITEM LINKS
+  // ============================================
+
+  // Get links for a roadmap item
+  app.get("/api/roadmap-items/:id/links", requireAuth, async (req, res) => {
+    try {
+      const item = await storage.getRoadmapItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      const roadmap = await storage.getRoadmap(item.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const links = await storage.getRoadmapItemLinksByItemId(req.params.id);
+      res.json(links);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a link for a roadmap item
+  app.post("/api/roadmap-items/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const item = await storage.getRoadmapItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      const roadmap = await storage.getRoadmap(item.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const data = insertRoadmapItemLinkSchema.parse({
+        ...req.body,
+        roadmapItemId: req.params.id,
+      });
+      const link = await storage.createRoadmapItemLink(data);
+      res.json(link);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a link
+  app.delete("/api/roadmap-item-links/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const success = await storage.deleteRoadmapItemLink(req.params.id);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // ROADMAP DEPENDENCIES
+  // ============================================
+
+  // Get dependencies for a roadmap item
+  app.get("/api/roadmap-items/:id/dependencies", requireAuth, async (req, res) => {
+    try {
+      const item = await storage.getRoadmapItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      const roadmap = await storage.getRoadmap(item.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const dependencies = await storage.getRoadmapDependenciesByItemId(req.params.id);
+      res.json(dependencies);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get all dependencies for a roadmap
+  app.get("/api/roadmaps/:roadmapId/dependencies", requireAuth, async (req, res) => {
+    try {
+      const roadmap = await storage.getRoadmap(req.params.roadmapId);
+      if (!roadmap) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const dependencies = await storage.getRoadmapDependenciesByRoadmapId(req.params.roadmapId);
+      res.json(dependencies);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a dependency
+  app.post("/api/roadmap-items/:id/dependencies", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const item = await storage.getRoadmapItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      const roadmap = await storage.getRoadmap(item.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const data = insertRoadmapDependencySchema.parse({
+        ...req.body,
+        roadmapItemId: req.params.id,
+      });
+      const dependency = await storage.createRoadmapDependency(data);
+      res.json(dependency);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a dependency
+  app.delete("/api/roadmap-dependencies/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const success = await storage.deleteRoadmapDependency(req.params.id);
+      res.json({ success });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
