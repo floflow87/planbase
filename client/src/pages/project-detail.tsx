@@ -3384,7 +3384,7 @@ export default function ProjectDetail() {
                         <div className="text-xs text-muted-foreground mb-1">
                           {isForfait ? "TJM effectif" : "TJM projet"}
                         </div>
-                        <div className="text-xl font-bold text-accent" data-testid="kpi-effective-tjm">
+                        <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
                           {isForfait 
                             ? (effectiveDailyRate > 0 
                                 ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })

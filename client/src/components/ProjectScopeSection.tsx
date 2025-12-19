@@ -703,58 +703,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* KPIs grid - sous le titre */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3 rounded-lg bg-muted/30 border">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                <Clock className="h-3.5 w-3.5" />
-                <span>Temps estimé</span>
-              </div>
-              <p className="text-xl font-bold">{totals.mandatoryDays} j</p>
-              {totals.optionalDays > 0 && (
-                <p className="text-[10px] text-muted-foreground">+ {totals.optionalDays} j opt.</p>
-              )}
-            </div>
-
-            <div className="p-3 rounded-lg bg-muted/30 border">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                <Calculator className="h-3.5 w-3.5" />
-                <span>Coût estimé</span>
-              </div>
-              <p className="text-xl font-bold">{hasValidConfig ? `${safeCost.toFixed(0)} €` : '-'}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {hasValidConfig ? `${totals.mandatoryDays} j × coût interne` : 'Non défini'}
-              </p>
-            </div>
-
-            <div className="p-3 rounded-lg bg-muted/30 border">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                <DollarSign className="h-3.5 w-3.5" />
-                <span>Prix recommandé</span>
-              </div>
-              <p className="text-xl font-bold text-violet-600">{hasValidConfig ? `${safePrice.toFixed(0)} €` : '-'}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {hasValidConfig 
-                  ? `TJM ${dailyRate} €${tjmSourceLabel ? ` (${tjmSourceLabel})` : ''}`
-                  : hasTJM ? 'Coût non défini' : 'TJM non défini'}
-              </p>
-            </div>
-
-            <div className="p-3 rounded-lg bg-muted/30 border">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                <Target className="h-3.5 w-3.5" />
-                <span>Marge prév.</span>
-              </div>
-              <p className={`text-xl font-bold ${!hasValidConfig ? 'text-muted-foreground' : safeMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {hasValidConfig ? `${safeMargin.toFixed(0)} €` : '-'}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {hasValidConfig ? `${safeMarginPercent.toFixed(1)}%` : 'Config. requise'}
-              </p>
-            </div>
-          </div>
-
-          {/* Alertes config incomplète - sous les KPIs */}
+          {/* Alertes config incomplète */}
           {alerts.length > 0 && (
             <div className={`p-3 rounded-lg text-sm ${
               alerts[0].type === 'error' ? 'bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800' :
@@ -780,7 +729,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
             </div>
           )}
 
-          {/* Formulaire d'ajout - après les KPIs et alertes */}
+          {/* Formulaire d'ajout */}
           <div className="flex gap-2">
             <Input
               placeholder="Intitulé de la rubrique"
