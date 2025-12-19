@@ -3322,21 +3322,29 @@ export default function ProjectDetail() {
                         </div>
                       </CardContent>
                     </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Prix recommandé</div>
-                        <div className="text-xl font-bold" data-testid="kpi-recommended-price">
-                          {recommendedPrice > 0 
-                            ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                            : "-"}
-                        </div>
-                        {recommendedPrice > 0 && (
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            Pour {targetMarginPercent}% de marge
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Card className="cursor-help">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="text-xs text-muted-foreground mb-1">Prix recommandé</div>
+                            <div className="text-xl font-bold" data-testid="kpi-recommended-price">
+                              {recommendedPrice > 0 
+                                ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                : "-"}
+                            </div>
+                            {recommendedPrice > 0 && (
+                              <div className="text-[10px] text-muted-foreground mt-1">
+                                Pour {targetMarginPercent}% de marge
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-sm">Prix de vente suggéré pour atteindre votre marge cible.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : Coût estimé ÷ (1 - Marge cible %)</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <Card>
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Nombre de jours</div>
@@ -3349,58 +3357,82 @@ export default function ProjectDetail() {
                   
                   {/* Ligne 2: Coût estimé, Marge prévisionnelle, TJM effectif */}
                   <div className="grid grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Coût estimé</div>
-                        <div className="text-xl font-bold" data-testid="kpi-estimated-cost">
-                          {estimatedCost > 0 
-                            ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                            : "-"}
-                        </div>
-                        {profitabilityMetrics?.actualDaysWorked && profitabilityMetrics.actualDaysWorked > 0 && (
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            {profitabilityMetrics.actualDaysWorked.toFixed(1)} j × TJM cible
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
-                        <div className={`text-xl font-bold ${margin >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="kpi-margin">
-                          {margin !== 0 
-                            ? margin.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                            : "-"}
-                        </div>
-                        {margin !== 0 && (
-                          <div className={`text-[10px] mt-1 ${marginPercent >= targetMarginPercent ? "text-green-600" : marginPercent >= 0 ? "text-muted-foreground" : "text-red-600"}`}>
-                            {marginPercent.toFixed(1)}% de marge
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4">
-                        <div className="text-xs text-muted-foreground mb-1">
-                          {isForfait ? "TJM effectif" : "TJM projet"}
-                        </div>
-                        <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
-                          {isForfait 
-                            ? (effectiveDailyRate > 0 
-                                ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                                : "-")
-                            : (effectiveTJMData?.effectiveTJM 
-                                ? `${effectiveTJMData.effectiveTJM} €`
-                                : "-")
-                          }
-                        </div>
-                        {isForfait && effectiveDailyRate > 0 && (
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            Montant ÷ Jours
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Card className="cursor-help">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="text-xs text-muted-foreground mb-1">Coût estimé</div>
+                            <div className="text-xl font-bold" data-testid="kpi-estimated-cost">
+                              {estimatedCost > 0 
+                                ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                : "-"}
+                            </div>
+                            {profitabilityMetrics?.actualDaysWorked && profitabilityMetrics.actualDaysWorked > 0 && (
+                              <div className="text-[10px] text-muted-foreground mt-1">
+                                {profitabilityMetrics.actualDaysWorked.toFixed(1)} j × TJM cible
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-sm">Coût interne basé sur le temps travaillé.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : Jours travaillés × TJM cible</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Card className="cursor-help">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
+                            <div className={`text-xl font-bold ${margin >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="kpi-margin">
+                              {margin !== 0 
+                                ? margin.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                : "-"}
+                            </div>
+                            {margin !== 0 && (
+                              <div className={`text-[10px] mt-1 ${marginPercent >= targetMarginPercent ? "text-green-600" : marginPercent >= 0 ? "text-muted-foreground" : "text-red-600"}`}>
+                                {marginPercent.toFixed(1)}% de marge
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-sm">Différence entre le CA encaissé et le coût estimé.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : CA encaissé - Coût estimé</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Card className="cursor-help">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="text-xs text-muted-foreground mb-1">
+                              {isForfait ? "TJM effectif" : "TJM projet"}
+                            </div>
+                            <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
+                              {isForfait 
+                                ? (effectiveDailyRate > 0 
+                                    ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                    : "-")
+                                : (effectiveTJMData?.effectiveTJM 
+                                    ? `${effectiveTJMData.effectiveTJM} €`
+                                    : "-")
+                              }
+                            </div>
+                            {isForfait && effectiveDailyRate > 0 && (
+                              <div className="text-[10px] text-muted-foreground mt-1">
+                                Montant ÷ Jours
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               );

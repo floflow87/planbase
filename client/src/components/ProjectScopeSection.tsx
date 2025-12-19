@@ -703,32 +703,6 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Alertes config incomplète */}
-          {alerts.length > 0 && (
-            <div className={`p-3 rounded-lg text-sm ${
-              alerts[0].type === 'error' ? 'bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800' :
-              alerts[0].type === 'warning' ? 'bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800' :
-              'bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800'
-            }`}>
-              {alerts.map((alert, index) => {
-                const Icon = alert.icon;
-                return (
-                  <div key={index} className="flex items-start gap-2">
-                    <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${
-                      alert.type === 'error' ? 'text-red-600' :
-                      alert.type === 'warning' ? 'text-amber-600' :
-                      'text-blue-600'
-                    }`} />
-                    <div>
-                      <p className="font-medium text-sm">{alert.title}</p>
-                      <p className="text-xs text-muted-foreground">{alert.message}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           {/* Formulaire d'ajout */}
           <div className="flex gap-2">
             <Input
