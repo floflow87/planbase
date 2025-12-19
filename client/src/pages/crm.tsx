@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
+import { Search, Filter, Download, LayoutGrid, Table2, Plus, MoreVertical, Edit, MessageSquare, Trash2, TrendingUp, Users as UsersIcon, Target, Euro, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Settings2, Phone, Mail, Building2, Columns3 } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,9 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 // Type pour les colonnes
@@ -110,12 +112,159 @@ function DraggableColumnHeader({
   );
 }
 
+// Configuration des colonnes Kanban
+const KANBAN_STATUSES = [
+  { id: "prospecting", label: "Prospect", color: "bg-orange-500/20 border-orange-500/50", headerBg: "bg-orange-500/10", textColor: "text-orange-400" },
+  { id: "qualified", label: "Qualifié", color: "bg-blue-500/20 border-blue-500/50", headerBg: "bg-blue-500/10", textColor: "text-blue-400" },
+  { id: "negotiation", label: "Négociation", color: "bg-yellow-500/20 border-yellow-500/50", headerBg: "bg-yellow-500/10", textColor: "text-yellow-400" },
+  { id: "won", label: "Devis envoyé", color: "bg-green-500/20 border-green-500/50", headerBg: "bg-green-500/10", textColor: "text-green-400" },
+];
+
+// Composant Kanban Card
+function KanbanCard({ 
+  client, 
+  contact,
+  totalBudget,
+  onEdit,
+  onDelete,
+}: { 
+  client: Client; 
+  contact?: Contact;
+  totalBudget: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Link href={`/crm/${client.id}`}>
+      <Card 
+        className="hover-elevate cursor-pointer bg-card/80 backdrop-blur-sm border-border/50"
+        data-testid={`kanban-card-${client.id}`}
+      >
+        <CardContent className="p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-foreground truncate">{client.name}</h4>
+              {client.company && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{client.company}</span>
+                </div>
+              )}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" data-testid={`kanban-actions-${client.id}`}>
+                  <MoreVertical className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-card">
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={(e) => { e.preventDefault(); onDelete(); }}
+                  data-testid={`kanban-delete-${client.id}`}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          {contact && (
+            <div className="space-y-1">
+              {contact.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{contact.email}</span>
+                </div>
+              )}
+              {contact.phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="pt-1">
+            <span className="text-sm font-bold text-accent">€ {totalBudget.toLocaleString()}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+// Composant Kanban Column
+function KanbanColumn({
+  status,
+  clients,
+  contacts,
+  projects,
+  onEditClient,
+  onDeleteClient,
+}: {
+  status: typeof KANBAN_STATUSES[0];
+  clients: Client[];
+  contacts: Contact[];
+  projects: Project[];
+  onEditClient: (client: Client) => void;
+  onDeleteClient: (clientId: string) => void;
+}) {
+  const totalBudget = clients.reduce((sum, client) => {
+    const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+    return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);
+  }, 0);
+
+  return (
+    <div className="flex flex-col min-w-[280px] max-w-[320px] flex-1" data-testid={`kanban-column-${status.id}`}>
+      <div className={`flex items-center justify-between p-3 rounded-t-lg border-b ${status.headerBg} border-border/30`}>
+        <div className="flex items-center gap-2">
+          <h3 className={`text-sm font-semibold ${status.textColor}`}>{status.label}</h3>
+          <Badge variant="secondary" className="text-xs h-5 px-1.5">{clients.length}</Badge>
+        </div>
+        <span className="text-xs font-medium text-muted-foreground">€ {totalBudget.toLocaleString()}</span>
+      </div>
+      
+      <div className={`flex-1 p-2 space-y-2 rounded-b-lg ${status.color} min-h-[200px] overflow-y-auto`}>
+        {clients.map((client) => {
+          const clientContact = contacts.find((c: any) => c.clientId === client.id);
+          const clientProjects = projects.filter((p: any) => p.clientId === client.id);
+          const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0);
+          
+          return (
+            <KanbanCard
+              key={client.id}
+              client={client}
+              contact={clientContact}
+              totalBudget={clientBudget}
+              onEdit={() => onEditClient(client)}
+              onDelete={() => onDeleteClient(client.id)}
+            />
+          );
+        })}
+        
+        {clients.length === 0 && (
+          <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
+            Aucun client
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CRM() {
   const { toast } = useToast();
   
-  const [viewMode, setViewMode] = useState<"table" | "card">(() => {
+  const [viewMode, setViewMode] = useState<"table" | "kanban">(() => {
     const saved = localStorage.getItem("crm_view_mode");
-    return (saved === "table" || saved === "card") ? saved : "table";
+    return (saved === "table" || saved === "kanban") ? saved : "table";
   });
   
   // Persist view mode
@@ -589,8 +738,8 @@ export default function CRM() {
             <Button variant="outline" size="icon" onClick={() => setViewMode("table")} data-testid="button-view-table">
               <Table2 className={`w-4 h-4 ${viewMode === "table" ? "text-primary" : ""}`} />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setViewMode("card")} data-testid="button-view-card">
-              <LayoutGrid className={`w-4 h-4 ${viewMode === "card" ? "text-primary" : ""}`} />
+            <Button variant="outline" size="icon" onClick={() => setViewMode("kanban")} data-testid="button-view-kanban">
+              <Columns3 className={`w-4 h-4 ${viewMode === "kanban" ? "text-primary" : ""}`} />
             </Button>
             {viewMode === "table" && (
               <Button
@@ -906,96 +1055,25 @@ export default function CRM() {
                   </DndContext>
                 )}
                 
-                {/* Card View - Always shown on mobile (< md), shown on desktop (>= md) when viewMode === "card" */}
-                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${viewMode === "table" ? "md:hidden" : ""}`}>
-                {filteredClients.map((client) => {
-                  const clientContacts = contacts.filter((c: any) => c.clientId === client.id);
-                  const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-                  const isSelected = selectedClients.has(client.id);
-
-                  return (
-                    <Card
-                      key={client.id}
-                      className={`hover-elevate cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
-                      data-testid={`card-client-${client.id}`}
-                    >
-                      <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            const newSelected = new Set(selectedClients);
-                            if (checked) {
-                              newSelected.add(client.id);
-                            } else {
-                              newSelected.delete(client.id);
-                            }
-                            setSelectedClients(newSelected);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          data-testid={`checkbox-card-select-${client.id}`}
-                        />
-                        <Link href={`/crm/${client.id}`} className="flex-1">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{client.name}</CardTitle>
-                              <Badge variant="outline" className="text-[10px]">
-                                {clientProjects.length}
-                              </Badge>
-                            </div>
-                            <Badge className={`${getTypeBadgeColor(client.type)} mt-1 text-[10px]`}>
-                              {client.type === 'company' ? 'Entreprise' : 'Personne'}
-                            </Badge>
-                          </div>
-                        </Link>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" data-testid={`button-card-actions-${client.id}`}>
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-card">
-                            <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-card-edit-${client.id}`}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem data-testid={`button-card-message-${client.id}`}>
-                              <MessageSquare className="w-4 h-4 mr-2" />
-                              Message
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setClientToDelete(client.id);
-                                setIsDeleteDialogOpen(true);
-                              }}
-                              data-testid={`button-card-delete-${client.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Supprimer
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </CardHeader>
-                      <Link href={`/crm/${client.id}`}>
-                        <CardContent>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-medium text-foreground">
-                              €{clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0).toLocaleString()}
-                            </span>
-                            <Badge className={getStatusBadgeColor(client.status)}>
-                              {client.status === "prospecting" ? "Prospection" :
-                               client.status === "qualified" ? "Qualifié" :
-                               client.status === "negotiation" ? "Négociation" :
-                               client.status === "won" ? "Gagné" :
-                               client.status === "lost" ? "Perdu" : client.status}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Link>
-                    </Card>
-                  );
-                })}
+                {/* Kanban View - Always shown on mobile (< md), shown on desktop (>= md) when viewMode === "kanban" */}
+                <div className={`flex gap-4 overflow-x-auto pb-4 ${viewMode === "table" ? "md:hidden" : ""}`} data-testid="kanban-board">
+                  {KANBAN_STATUSES.map((status) => {
+                    const statusClients = filteredClients.filter(c => c.status === status.id);
+                    return (
+                      <KanbanColumn
+                        key={status.id}
+                        status={status}
+                        clients={statusClients}
+                        contacts={contacts}
+                        projects={projects}
+                        onEditClient={setEditingClient}
+                        onDeleteClient={(clientId) => {
+                          setClientToDelete(clientId);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </>
             )}
