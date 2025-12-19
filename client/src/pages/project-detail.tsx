@@ -1088,138 +1088,6 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         </Card>
       )}
 
-      {/* Time by Scope Item (CDC) Table */}
-      {scopeItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Temps par étape CDC
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2 font-medium">Étape</th>
-                    <th className="text-right py-2 px-2 font-medium">Prévu</th>
-                    <th className="text-right py-2 px-2 font-medium">Passé</th>
-                    <th className="text-right py-2 px-2 font-medium">Écart</th>
-                    <th className="text-right py-2 px-2 font-medium">Statut</th>
-                    {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                      <th className="text-right py-2 px-2 font-medium">Projection</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scopeItems.map((item) => {
-                    const itemTimeSeconds = timeEntries
-                      .filter(e => e.scopeItemId === item.id)
-                      .reduce((sum, e) => sum + (e.duration || 0), 0);
-                    const itemTimeDays = itemTimeSeconds / 3600 / 8;
-                    const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
-                    const ecart = itemTimeDays - estimatedDays;
-                    const consumptionPct = estimatedDays > 0 ? (itemTimeDays / estimatedDays) * 100 : 0;
-                    
-                    const getItemStatus = () => {
-                      if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—" };
-                      if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK" };
-                      if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention" };
-                      return { color: "text-red-600 dark:text-red-500", label: "Critique" };
-                    };
-                    const itemStatus = getItemStatus();
-                    
-                    // Get projection for this item
-                    const itemProjection = scopeItemProjections.find(p => p.item.id === item.id)?.projection;
-                    
-                    return (
-                      <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-2">
-                            {item.title}
-                            {itemProjection?.isCritical && (
-                              <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
-                                Critique
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="text-right py-2 px-2">
-                          {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
-                        </td>
-                        <td className="text-right py-2 px-2">
-                          {itemTimeDays.toFixed(1)}j
-                        </td>
-                        <td className={`text-right py-2 px-2 ${ecart > 0 ? "text-red-600 dark:text-red-500" : ecart < 0 ? "text-green-600 dark:text-green-500" : ""}`}>
-                          {estimatedDays > 0 ? `${ecart >= 0 ? "+" : ""}${ecart.toFixed(1)}j` : "—"}
-                        </td>
-                        <td className={`text-right py-2 px-2 ${itemStatus.color}`}>
-                          {itemStatus.label}
-                        </td>
-                        {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                          <td className="text-right py-2 px-2">
-                            {itemProjection ? (
-                              itemProjection.exceeded ? (
-                                <span className="text-red-600 dark:text-red-500" data-testid={`projection-exceeded-${item.id}`}>
-                                  Dépassé
-                                </span>
-                              ) : itemProjection.insufficientData ? (
-                                <span className="text-muted-foreground" data-testid={`projection-insufficient-${item.id}`}>
-                                  —
-                                </span>
-                              ) : (
-                                <span 
-                                  className={
-                                    itemProjection.isCritical 
-                                      ? "text-red-600 dark:text-red-500" 
-                                      : itemProjection.isWarning 
-                                        ? "text-orange-600 dark:text-orange-500" 
-                                        : "text-muted-foreground"
-                                  }
-                                  data-testid={`projection-days-${item.id}`}
-                                >
-                                  {itemProjection.daysToExceed}j
-                                </span>
-                              )
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                  {/* Uncategorized time row */}
-                  {(() => {
-                    const uncategorizedTimeSeconds = timeEntries
-                      .filter(e => !e.scopeItemId)
-                      .reduce((sum, e) => sum + (e.duration || 0), 0);
-                    const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
-                    
-                    if (uncategorizedTimeDays > 0) {
-                      return (
-                        <tr className="border-t bg-muted/30" data-testid="row-uncategorized-time">
-                          <td className="py-2 px-2 italic text-muted-foreground">Non catégorisé</td>
-                          <td className="text-right py-2 px-2">—</td>
-                          <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
-                          <td className="text-right py-2 px-2">—</td>
-                          <td className="text-right py-2 px-2 text-muted-foreground">—</td>
-                          {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                            <td className="text-right py-2 px-2 text-muted-foreground">—</td>
-                          )}
-                        </tr>
-                      );
-                    }
-                    return null;
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Time Recommendations */}
       {scopeItems.length > 0 && totalEstimatedDays > 0 && (() => {
         type Recommendation = {
@@ -1426,327 +1294,137 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         );
       })()}
 
-      {/* Add Time Entry Form */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Ajouter du temps</CardTitle>
-          <Button
-            variant={showAddTimeForm ? "ghost" : "default"}
-            size="sm"
-            onClick={() => setShowAddTimeForm(!showAddTimeForm)}
-            data-testid="button-toggle-add-time"
-          >
-            {showAddTimeForm ? "Annuler" : <><Plus className="h-4 w-4 mr-2" />Ajouter du temps</>}
-          </Button>
-        </CardHeader>
-        {showAddTimeForm && (
+      {/* Time by Scope Item (CDC) Table */}
+      {scopeItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Temps par étape CDC
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-2 mb-2">
-                <Button
-                  variant={timeInputMode === 'hours' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeInputMode('hours')}
-                  data-testid="button-mode-hours"
-                >
-                  Par heures
-                </Button>
-                <Button
-                  variant={timeInputMode === 'days' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeInputMode('days')}
-                  data-testid="button-mode-days"
-                >
-                  Par jours
-                </Button>
-              </div>
-
-              {timeInputMode === 'hours' ? (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm">Heures</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={newTimeHours}
-                      onChange={(e) => setNewTimeHours(e.target.value)}
-                      placeholder="0"
-                      data-testid="input-time-hours"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">Minutes</Label>
-                    <Select
-                      value={newTimeMinutes}
-                      onValueChange={setNewTimeMinutes}
-                    >
-                      <SelectTrigger data-testid="select-time-minutes">
-                        <SelectValue placeholder="0" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">0 min</SelectItem>
-                        <SelectItem value="15">15 min</SelectItem>
-                        <SelectItem value="30">30 min</SelectItem>
-                        <SelectItem value="45">45 min</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-sm">Date</Label>
-                    <Popover open={isNewTimeDatePickerOpen} onOpenChange={setIsNewTimeDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !newTimeDate && "text-muted-foreground"
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2 font-medium">Étape</th>
+                    <th className="text-right py-2 px-2 font-medium">Prévu</th>
+                    <th className="text-right py-2 px-2 font-medium">Passé</th>
+                    <th className="text-right py-2 px-2 font-medium">Écart</th>
+                    <th className="text-right py-2 px-2 font-medium">Statut</th>
+                    {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                      <th className="text-right py-2 px-2 font-medium">Projection</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {scopeItems.map((item) => {
+                    const itemTimeSeconds = timeEntries
+                      .filter(e => e.scopeItemId === item.id)
+                      .reduce((sum, e) => sum + (e.duration || 0), 0);
+                    const itemTimeDays = itemTimeSeconds / 3600 / 8;
+                    const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+                    const ecart = itemTimeDays - estimatedDays;
+                    const consumptionPct = estimatedDays > 0 ? (itemTimeDays / estimatedDays) * 100 : 0;
+                    
+                    const getItemStatus = () => {
+                      if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—" };
+                      if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK" };
+                      if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention" };
+                      return { color: "text-red-600 dark:text-red-500", label: "Critique" };
+                    };
+                    const itemStatus = getItemStatus();
+                    
+                    // Get projection for this item
+                    const itemProjection = scopeItemProjections.find(p => p.item.id === item.id)?.projection;
+                    
+                    return (
+                      <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
+                        <td className="py-2 px-2">
+                          <div className="flex items-center gap-2">
+                            {item.title}
+                            {itemProjection?.isCritical && (
+                              <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
+                                Critique
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="text-right py-2 px-2">
+                          {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
+                        </td>
+                        <td className="text-right py-2 px-2">
+                          {itemTimeDays.toFixed(1)}j
+                        </td>
+                        <td className={`text-right py-2 px-2 ${ecart > 0 ? "text-red-600 dark:text-red-500" : ecart < 0 ? "text-green-600 dark:text-green-500" : ""}`}>
+                          {estimatedDays > 0 ? `${ecart >= 0 ? "+" : ""}${ecart.toFixed(1)}j` : "—"}
+                        </td>
+                        <td className={`text-right py-2 px-2 ${itemStatus.color}`}>
+                          {itemStatus.label}
+                        </td>
+                        {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                          <td className="text-right py-2 px-2">
+                            {itemProjection ? (
+                              itemProjection.exceeded ? (
+                                <span className="text-red-600 dark:text-red-500" data-testid={`projection-exceeded-${item.id}`}>
+                                  Dépassé
+                                </span>
+                              ) : itemProjection.insufficientData ? (
+                                <span className="text-muted-foreground" data-testid={`projection-insufficient-${item.id}`}>
+                                  —
+                                </span>
+                              ) : (
+                                <span 
+                                  className={
+                                    itemProjection.isCritical 
+                                      ? "text-red-600 dark:text-red-500" 
+                                      : itemProjection.isWarning 
+                                        ? "text-orange-600 dark:text-orange-500" 
+                                        : "text-muted-foreground"
+                                  }
+                                  data-testid={`projection-days-${item.id}`}
+                                >
+                                  {itemProjection.daysToExceed}j
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {/* Uncategorized time row */}
+                  {(() => {
+                    const uncategorizedTimeSeconds = timeEntries
+                      .filter(e => !e.scopeItemId)
+                      .reduce((sum, e) => sum + (e.duration || 0), 0);
+                    const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
+                    
+                    if (uncategorizedTimeDays > 0) {
+                      return (
+                        <tr className="border-t bg-muted/30" data-testid="row-uncategorized-time">
+                          <td className="py-2 px-2 italic text-muted-foreground">Non catégorisé</td>
+                          <td className="text-right py-2 px-2">—</td>
+                          <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
+                          <td className="text-right py-2 px-2">—</td>
+                          <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                          {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                            <td className="text-right py-2 px-2 text-muted-foreground">—</td>
                           )}
-                          data-testid="button-time-date"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newTimeDate ? format(newTimeDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={newTimeDate}
-                          onSelect={(date) => {
-                            setNewTimeDate(date);
-                            setIsNewTimeDatePickerOpen(false);
-                          }}
-                          initialFocus
-                          locale={fr}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-sm">Sélectionnez les jours travaillés (1 jour = 8h)</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {newTimeDates.length} jour{newTimeDates.length !== 1 ? 's' : ''} sélectionné{newTimeDates.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <div className="border rounded-lg p-2">
-                    <Calendar
-                      mode="multiple"
-                      selected={newTimeDates}
-                      onSelect={(dates) => setNewTimeDates(dates || [])}
-                      locale={fr}
-                      className="mx-auto"
-                    />
-                  </div>
-                  {newTimeDates.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {newTimeDates
-                        .sort((a, b) => a.getTime() - b.getTime())
-                        .map((date, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {format(date, "dd/MM", { locale: fr })}
-                          </Badge>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Optional linking to scope items and tasks */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm">Étape CDC (optionnel)</Label>
-                  <Select
-                    value={selectedScopeItemId || "none"}
-                    onValueChange={(v) => setSelectedScopeItemId(v === "none" ? null : v)}
-                  >
-                    <SelectTrigger data-testid="select-scope-item">
-                      <SelectValue placeholder="Aucune étape" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucune étape</SelectItem>
-                      {scopeItems.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.label} {item.estimatedDays ? `(${item.estimatedDays}j)` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {scopeItems.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Ajoutez des étapes dans l'onglet CDC pour les associer au temps.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm">Tâche (optionnel)</Label>
-                  <Select
-                    value={selectedTaskId || "none"}
-                    onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}
-                  >
-                    <SelectTrigger data-testid="select-task">
-                      <SelectValue placeholder="Aucune tâche" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucune tâche</SelectItem>
-                      {projectTasks.map((task) => (
-                        <SelectItem key={task.id} value={task.id}>
-                          {task.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {projectTasks.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Créez des tâches pour les associer au temps.
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-sm">Description (optionnelle)</Label>
-                <Input
-                  value={newTimeDescription}
-                  onChange={(e) => setNewTimeDescription(e.target.value)}
-                  placeholder="Note sur la session de travail"
-                  data-testid="input-time-description"
-                />
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={async () => {
-                    if (timeInputMode === 'hours') {
-                      const hours = parseInt(newTimeHours) || 0;
-                      const minutes = parseInt(newTimeMinutes) || 0;
-                      const totalSeconds = (hours * 3600) + (minutes * 60);
-                      
-                      if (totalSeconds <= 0) {
-                        toast({
-                          title: "Erreur",
-                          description: "Veuillez entrer une durée valide",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      if (!newTimeDate) {
-                        toast({
-                          title: "Erreur",
-                          description: "Veuillez sélectionner une date",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      setIsAddingTime(true);
-                      try {
-                        const startTime = new Date(newTimeDate);
-                        startTime.setHours(9, 0, 0, 0);
-                        
-                        await apiRequest("/api/time-entries/manual", "POST", {
-                          projectId,
-                          startTime: startTime.toISOString(),
-                          endTime: new Date(startTime.getTime() + totalSeconds * 1000).toISOString(),
-                          duration: totalSeconds,
-                          description: newTimeDescription || null,
-                          scopeItemId: selectedScopeItemId || null,
-                          taskId: selectedTaskId || null,
-                        });
-                        
-                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
-                        queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'profitability'] });
-                        
-                        setNewTimeHours("");
-                        setNewTimeMinutes("0");
-                        setNewTimeDescription("");
-                        setSelectedScopeItemId(null);
-                        setSelectedTaskId(null);
-                        setShowAddTimeForm(false);
-                        
-                        toast({
-                          title: "Temps ajouté",
-                          description: `${hours}h${minutes > 0 ? ` ${minutes}min` : ""} ajoutés au projet`,
-                          variant: "success",
-                        });
-                      } catch (error: any) {
-                        toast({
-                          title: "Erreur",
-                          description: error.message || "Impossible d'ajouter le temps",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsAddingTime(false);
-                      }
-                    } else {
-                      if (newTimeDates.length === 0) {
-                        toast({
-                          title: "Erreur",
-                          description: "Veuillez sélectionner au moins un jour",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      const datesToAdd = [...newTimeDates];
-                      const daysCount = datesToAdd.length;
-                      
-                      setIsAddingTime(true);
-                      try {
-                        await Promise.all(datesToAdd.map(async (date) => {
-                          const startTime = new Date(date);
-                          startTime.setHours(9, 0, 0, 0);
-                          const daySeconds = 8 * 3600;
-                          
-                          return apiRequest("/api/time-entries/manual", "POST", {
-                            projectId,
-                            startTime: startTime.toISOString(),
-                            endTime: new Date(startTime.getTime() + daySeconds * 1000).toISOString(),
-                            duration: daySeconds,
-                            description: newTimeDescription || null,
-                            scopeItemId: selectedScopeItemId || null,
-                            taskId: selectedTaskId || null,
-                          });
-                        }));
-                        
-                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/time-entries`] });
-                        queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'profitability'] });
-                        
-                        setNewTimeDates([]);
-                        setNewTimeDescription("");
-                        setSelectedScopeItemId(null);
-                        setSelectedTaskId(null);
-                        setShowAddTimeForm(false);
-                        
-                        toast({
-                          title: "Temps ajouté",
-                          description: `${daysCount} jour${daysCount > 1 ? 's' : ''} (${daysCount * 8}h) ajoutés au projet`,
-                          variant: "success",
-                        });
-                      } catch (error: any) {
-                        toast({
-                          title: "Erreur",
-                          description: error.message || "Impossible d'ajouter le temps",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsAddingTime(false);
-                      }
+                        </tr>
+                      );
                     }
-                  }}
-                  disabled={isAddingTime}
-                  data-testid="button-save-time"
-                >
-                  {isAddingTime ? "Enregistrement..." : "Enregistrer"}
-                </Button>
-              </div>
+                    return null;
+                  })()}
+                </tbody>
+              </table>
             </div>
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Time Entries List */}
       <Card>
