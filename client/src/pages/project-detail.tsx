@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
+import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
 import { cn } from "@/lib/utils";
 import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass } from "@shared/config";
 
@@ -2966,6 +2967,10 @@ export default function ProjectDetail() {
                 {projectBacklogs.length}
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="roadmap" className="gap-2 text-xs sm:text-sm" data-testid="tab-roadmap">
+              <Map className="h-4 w-4" />
+              Roadmap
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="infos" className="mt-0">
@@ -3289,6 +3294,20 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="roadmap" className="mt-0">
+            {project?.accountId ? (
+              <RoadmapTab projectId={id!} accountId={project.accountId} />
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-12">
+                    <Loader />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="billing" className="mt-0">
