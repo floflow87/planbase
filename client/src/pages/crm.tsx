@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -162,7 +163,15 @@ function DraggableKanbanCard({
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-foreground truncate">{client.name}</h4>
+            <Link href={`/crm/${client.id}`}>
+              <h4 
+                className="text-sm font-semibold text-foreground truncate hover:text-primary cursor-pointer transition-colors"
+                onPointerDown={(e) => e.stopPropagation()}
+                data-testid={`link-client-${client.id}`}
+              >
+                {client.name}
+              </h4>
+            </Link>
             {client.company && (
               <div className="flex items-center gap-1 mt-1">
                 <Building2 className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -223,7 +232,7 @@ function DraggableKanbanCard({
         )}
         
         <div className="pt-1">
-          <span className="text-sm font-bold text-accent">€ {totalBudget.toLocaleString()}</span>
+          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">€ {totalBudget.toLocaleString()}</span>
         </div>
       </CardContent>
     </Card>
@@ -270,7 +279,7 @@ function DroppableKanbanColumn({
       
       <div 
         ref={setNodeRef}
-        className={`flex-1 p-2 space-y-2 rounded-b-lg border ${status.color} min-h-[200px] overflow-y-auto transition-all ${isOver ? 'ring-2 ring-primary/50 scale-[1.02]' : ''}`}
+        className={`p-2 space-y-2 rounded-b-lg border ${status.color} min-h-[100px] max-h-[500px] overflow-y-auto transition-all ${isOver ? 'ring-2 ring-primary/50 scale-[1.02]' : ''}`}
       >
         {clients.map((client) => {
           const clientContact = contacts.find((c: any) => c.clientId === client.id);
@@ -342,6 +351,18 @@ export default function CRM() {
       creation: true,
     };
   });
+  
+  // Kanban column visibility state with localStorage persistence
+  const [kanbanColumnVisibility, setKanbanColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('crmKanbanColumnVisibility');
+    if (saved) return JSON.parse(saved);
+    return KANBAN_STATUSES.reduce((acc, s) => ({ ...acc, [s.id]: true }), {} as Record<string, boolean>);
+  });
+  
+  // Persist kanban column visibility
+  useEffect(() => {
+    localStorage.setItem('crmKanbanColumnVisibility', JSON.stringify(kanbanColumnVisibility));
+  }, [kanbanColumnVisibility]);
   
   // Colonnes configurables (flex layout - pas de col-span)
   const [columns, setColumns] = useState<Column[]>([
@@ -1152,24 +1173,58 @@ export default function CRM() {
                   onDragStart={handleKanbanDragStart}
                   onDragEnd={handleKanbanDragEnd}
                 >
-                  <div className={`flex gap-4 overflow-x-auto pb-4 ${viewMode === "table" ? "md:hidden" : ""}`} data-testid="kanban-board">
-                    {KANBAN_STATUSES.map((status) => {
-                      const statusClients = filteredClients.filter(c => c.status === status.id);
-                      return (
-                        <DroppableKanbanColumn
-                          key={status.id}
-                          status={status}
-                          clients={statusClients}
-                          contacts={contacts}
-                          projects={projects}
-                          onEditClient={setEditingClient}
-                          onDeleteClient={(clientId) => {
-                            setClientToDelete(clientId);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        />
-                      );
-                    })}
+                  <div className={`${viewMode === "table" ? "md:hidden" : ""}`}>
+                    {/* Toolbar with column visibility and scrollbar */}
+                    <div className="flex items-center justify-between mb-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid="button-kanban-columns">
+                            <Columns3 className="w-4 h-4 mr-2" />
+                            Colonnes
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 bg-card" align="start">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium mb-3">Colonnes visibles</p>
+                            {KANBAN_STATUSES.map(status => (
+                              <div key={status.id} className="flex items-center gap-2">
+                                <Checkbox 
+                                  id={`kanban-col-${status.id}`}
+                                  checked={kanbanColumnVisibility[status.id] !== false}
+                                  onCheckedChange={(checked) => setKanbanColumnVisibility(prev => ({...prev, [status.id]: !!checked}))}
+                                  data-testid={`checkbox-kanban-column-${status.id}`}
+                                />
+                                <Label htmlFor={`kanban-col-${status.id}`} className="text-sm cursor-pointer">{status.label}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    {/* Kanban board with visible scrollbar */}
+                    <div 
+                      className="flex gap-4 pb-4 overflow-x-auto kanban-scrollbar" 
+                      data-testid="kanban-board"
+                    >
+                      {KANBAN_STATUSES.filter(status => kanbanColumnVisibility[status.id] !== false).map((status) => {
+                        const statusClients = filteredClients.filter(c => c.status === status.id);
+                        return (
+                          <DroppableKanbanColumn
+                            key={status.id}
+                            status={status}
+                            clients={statusClients}
+                            contacts={contacts}
+                            projects={projects}
+                            onEditClient={setEditingClient}
+                            onDeleteClient={(clientId) => {
+                              setClientToDelete(clientId);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                   <DragOverlay>
                     {draggingClient && (

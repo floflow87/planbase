@@ -427,4 +427,28 @@
   .rdp-tbody {
     min-height: 240px;
   }
+  
+  /* Kanban scrollbar always visible */
+  .kanban-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) hsl(var(--muted));
+  }
+  
+  .kanban-scrollbar::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .kanban-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+  
+  .kanban-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+  
+  .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }
