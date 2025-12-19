@@ -2286,6 +2286,13 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  // Fetch profitability metrics for KPIs
+  const { data: projectProfitabilityData } = useQuery<ProfitabilityAnalysis>({
+    queryKey: ['/api/projects', id, 'profitability'],
+    enabled: !!id,
+  });
+  const profitabilityMetrics = projectProfitabilityData?.metrics;
+
   // Extract data from API response
   const payments = paymentsData?.payments || [];
   const totalPaid = paymentsData?.totalPaid || 0;
@@ -3285,69 +3292,116 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="billing" className="mt-0">
-            {/* KPIs Facturation */}
+            {/* KPIs Facturation - 2 lignes de 3 cartes */}
             {(() => {
               const totalBilled = parseFloat(project?.totalBilled || "0") || 0;
               const numberOfDays = parseFloat(project?.numberOfDays || "0") || 0;
-              const budget = parseFloat(project?.budget || "0") || 0;
               const effectiveDailyRate = numberOfDays > 0 ? totalBilled / numberOfDays : 0;
               const isForfait = project?.billingType === "fixed";
               
+              // Données du service profitabilité
+              const estimatedCost = profitabilityMetrics?.totalCost || 0;
+              const margin = profitabilityMetrics?.margin || 0;
+              const marginPercent = profitabilityMetrics?.marginPercent || 0;
+              const targetMarginPercent = profitabilityMetrics?.targetMarginPercent || 30;
+              
+              // Prix recommandé = Coût estimé / (1 - marge cible %)
+              const recommendedPrice = estimatedCost > 0 && targetMarginPercent < 100
+                ? estimatedCost / (1 - targetMarginPercent / 100)
+                : 0;
+              
               return (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
-                      <div className="text-xl font-bold text-primary" data-testid="kpi-total-billed">
-                        {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="text-xs text-muted-foreground mb-1">Nombre de jours</div>
-                      <div className="text-xl font-bold" data-testid="kpi-number-of-days">
-                        {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {isForfait ? "TJM effectif" : "TJM projet"}
-                      </div>
-                      <div className="text-xl font-bold text-accent" data-testid="kpi-effective-tjm">
-                        {isForfait 
-                          ? (effectiveDailyRate > 0 
-                              ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                              : "-")
-                          : (effectiveTJMData?.effectiveTJM 
-                              ? `${effectiveTJMData.effectiveTJM} €`
-                              : "-")
-                        }
-                      </div>
-                      {isForfait && effectiveDailyRate > 0 && (
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          Montant ÷ Jours
+                <div className="space-y-4 mb-4">
+                  {/* Ligne 1: Montant facturé, Prix recommandé, Nombre de jours */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
+                        <div className="text-xl font-bold text-primary" data-testid="kpi-total-billed">
+                          {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="text-xs text-muted-foreground mb-1">Budget prévisionnel</div>
-                      <div className="text-xl font-bold" data-testid="kpi-budget">
-                        {budget > 0 
-                          ? budget.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                          : "-"}
-                      </div>
-                      {totalBilled > 0 && budget > 0 && (
-                        <div className={`text-[10px] mt-1 ${totalBilled >= budget ? "text-green-600" : "text-muted-foreground"}`}>
-                          {((totalBilled / budget) * 100).toFixed(0)}% du budget
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Prix recommandé</div>
+                        <div className="text-xl font-bold" data-testid="kpi-recommended-price">
+                          {recommendedPrice > 0 
+                            ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                            : "-"}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        {recommendedPrice > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            Pour {targetMarginPercent}% de marge
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Nombre de jours</div>
+                        <div className="text-xl font-bold" data-testid="kpi-number-of-days">
+                          {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  {/* Ligne 2: Coût estimé, Marge prévisionnelle, TJM effectif */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Coût estimé</div>
+                        <div className="text-xl font-bold" data-testid="kpi-estimated-cost">
+                          {estimatedCost > 0 
+                            ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                            : "-"}
+                        </div>
+                        {profitabilityMetrics?.actualDaysWorked && profitabilityMetrics.actualDaysWorked > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            {profitabilityMetrics.actualDaysWorked.toFixed(1)} j × TJM cible
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
+                        <div className={`text-xl font-bold ${margin >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="kpi-margin">
+                          {margin !== 0 
+                            ? margin.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                            : "-"}
+                        </div>
+                        {margin !== 0 && (
+                          <div className={`text-[10px] mt-1 ${marginPercent >= targetMarginPercent ? "text-green-600" : marginPercent >= 0 ? "text-muted-foreground" : "text-red-600"}`}>
+                            {marginPercent.toFixed(1)}% de marge
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {isForfait ? "TJM effectif" : "TJM projet"}
+                        </div>
+                        <div className="text-xl font-bold text-accent" data-testid="kpi-effective-tjm">
+                          {isForfait 
+                            ? (effectiveDailyRate > 0 
+                                ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                : "-")
+                            : (effectiveTJMData?.effectiveTJM 
+                                ? `${effectiveTJMData.effectiveTJM} €`
+                                : "-")
+                          }
+                        </div>
+                        {isForfait && effectiveDailyRate > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            Montant ÷ Jours
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               );
             })()}
