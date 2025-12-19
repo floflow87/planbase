@@ -218,16 +218,18 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   });
   
   // Fetch scope items (CDC) for this project
-  const { data: scopeItems = [] } = useQuery<ProjectScopeItem[]>({
+  const { data: scopeItemsData } = useQuery<ProjectScopeItem[]>({
     queryKey: [`/api/projects/${projectId}/scope-items`],
     enabled: !!projectId,
   });
+  const scopeItems = Array.isArray(scopeItemsData) ? scopeItemsData : [];
   
   // Fetch tasks for this project
-  const { data: projectTasks = [] } = useQuery<Task[]>({
+  const { data: projectTasksData } = useQuery<Task[]>({
     queryKey: [`/api/projects/${projectId}/tasks`],
     enabled: !!projectId,
   });
+  const projectTasks = Array.isArray(projectTasksData) ? projectTasksData : [];
 
   // Fetch profitability from backend for consistent calculations
   const { data: profitabilityData } = useQuery<ProfitabilityAnalysis>({
