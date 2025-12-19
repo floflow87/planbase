@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Map, LayoutGrid, Calendar, ChevronDown } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { GanttView } from "./gantt-view";
+import { OutputView } from "./output-view";
 import type { Roadmap, RoadmapItem } from "@shared/schema";
 
 interface RoadmapTabProps {
@@ -27,6 +30,18 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newRoadmapName, setNewRoadmapName] = useState("");
   const [newRoadmapHorizon, setNewRoadmapHorizon] = useState("");
+  
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  const [itemForm, setItemForm] = useState({
+    title: "",
+    type: "deliverable",
+    priority: "normal",
+    status: "planned",
+    startDate: "",
+    endDate: "",
+    description: "",
+  });
 
   const { data: roadmaps = [], isLoading: isLoadingRoadmaps } = useQuery<Roadmap[]>({
     queryKey: ['/api/projects', projectId, 'roadmaps'],
@@ -74,6 +89,128 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       name: newRoadmapName.trim(),
       horizon: newRoadmapHorizon.trim() || undefined,
     });
+  };
+
+  const createItemMutation = useMutation({
+    mutationFn: async (data: typeof itemForm) => {
+      return apiRequest('/api/roadmap-items', 'POST', {
+        roadmapId: activeRoadmapId,
+        projectId,
+        title: data.title,
+        type: data.type,
+        priority: data.priority,
+        status: data.status,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        description: data.description || null,
+        orderIndex: roadmapItems.length,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+      setIsItemDialogOpen(false);
+      resetItemForm();
+      toast({
+        title: "Élément créé",
+        description: "L'élément a été ajouté à la roadmap.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer l'élément.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<typeof itemForm> }) => {
+      return apiRequest(`/api/roadmap-items/${id}`, 'PATCH', {
+        title: data.title,
+        type: data.type,
+        priority: data.priority,
+        status: data.status,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        description: data.description || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+      setIsItemDialogOpen(false);
+      setEditingItem(null);
+      resetItemForm();
+      toast({
+        title: "Élément mis à jour",
+        description: "Les modifications ont été enregistrées.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour l'élément.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetItemForm = () => {
+    setItemForm({
+      title: "",
+      type: "deliverable",
+      priority: "normal",
+      status: "planned",
+      startDate: "",
+      endDate: "",
+      description: "",
+    });
+  };
+
+  const handleOpenAddItem = () => {
+    resetItemForm();
+    setEditingItem(null);
+    setIsItemDialogOpen(true);
+  };
+
+  const handleOpenEditItem = (item: RoadmapItem) => {
+    setEditingItem(item);
+    setItemForm({
+      title: item.title,
+      type: item.type,
+      priority: item.priority,
+      status: item.status,
+      startDate: item.startDate || "",
+      endDate: item.endDate || "",
+      description: item.description || "",
+    });
+    setIsItemDialogOpen(true);
+  };
+
+  const handleSubmitItem = () => {
+    if (!itemForm.title.trim()) return;
+    
+    if (editingItem) {
+      updateItemMutation.mutate({ id: editingItem.id, data: itemForm });
+    } else {
+      createItemMutation.mutate(itemForm);
+    }
+  };
+
+  const handleItemMove = async (itemId: string, newStatus: string, newOrderIndex: number) => {
+    try {
+      await apiRequest(`/api/roadmap-items/${itemId}`, 'PATCH', {
+        status: newStatus,
+        orderIndex: newOrderIndex,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Impossible de déplacer l'élément.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoadingRoadmaps) {
@@ -225,7 +362,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             <p className="text-sm text-muted-foreground mb-4">
               Cette roadmap est vide. Ajoutez des éléments pour commencer.
             </p>
-            <Button variant="outline" size="sm" data-testid="button-add-first-item">
+            <Button variant="outline" size="sm" onClick={handleOpenAddItem} data-testid="button-add-first-item">
               <Plus className="h-4 w-4 mr-1" />
               Ajouter un élément
             </Button>
@@ -233,13 +370,18 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
         ) : (
           <div className="min-h-[400px]">
             {viewMode === "gantt" ? (
-              <div className="text-center py-12 text-muted-foreground">
-                Vue Gantt - À implémenter
-              </div>
+              <GanttView 
+                items={roadmapItems} 
+                onItemClick={handleOpenEditItem}
+                onAddItem={handleOpenAddItem}
+              />
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                Vue Output - À implémenter
-              </div>
+              <OutputView 
+                items={roadmapItems}
+                onItemClick={handleOpenEditItem}
+                onAddItem={handleOpenAddItem}
+                onItemMove={handleItemMove}
+              />
             )}
           </div>
         )}
@@ -285,6 +427,128 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               data-testid="button-confirm-create-roadmap-modal"
             >
               {createRoadmapMutation.isPending ? "Création..." : "Créer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? "Modifier l'élément" : "Ajouter un élément"}</DialogTitle>
+            <DialogDescription>
+              {editingItem 
+                ? "Modifiez les informations de cet élément de la roadmap."
+                : "Créez un nouvel élément pour votre roadmap."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="item-title">Titre</Label>
+              <Input
+                id="item-title"
+                value={itemForm.title}
+                onChange={(e) => setItemForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Livraison MVP"
+                data-testid="input-item-title"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="item-type">Type</Label>
+                <Select value={itemForm.type} onValueChange={(v) => setItemForm(prev => ({ ...prev, type: v }))}>
+                  <SelectTrigger id="item-type" data-testid="select-item-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deliverable">Livrable</SelectItem>
+                    <SelectItem value="milestone">Jalon</SelectItem>
+                    <SelectItem value="initiative">Initiative</SelectItem>
+                    <SelectItem value="free_block">Bloc libre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="item-priority">Priorité</Label>
+                <Select value={itemForm.priority} onValueChange={(v) => setItemForm(prev => ({ ...prev, priority: v }))}>
+                  <SelectTrigger id="item-priority" data-testid="select-item-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Basse</SelectItem>
+                    <SelectItem value="normal">Normale</SelectItem>
+                    <SelectItem value="high">Haute</SelectItem>
+                    <SelectItem value="strategic">Stratégique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="item-status">Statut</Label>
+              <Select value={itemForm.status} onValueChange={(v) => setItemForm(prev => ({ ...prev, status: v }))}>
+                <SelectTrigger id="item-status" data-testid="select-item-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planned">Planifié</SelectItem>
+                  <SelectItem value="in_progress">En cours</SelectItem>
+                  <SelectItem value="done">Terminé</SelectItem>
+                  <SelectItem value="blocked">Bloqué</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="item-start-date">Date de début</Label>
+                <Input
+                  id="item-start-date"
+                  type="date"
+                  value={itemForm.startDate}
+                  onChange={(e) => setItemForm(prev => ({ ...prev, startDate: e.target.value }))}
+                  data-testid="input-item-start-date"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="item-end-date">Date de fin</Label>
+                <Input
+                  id="item-end-date"
+                  type="date"
+                  value={itemForm.endDate}
+                  onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value }))}
+                  data-testid="input-item-end-date"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="item-description">Description (optionnel)</Label>
+              <Textarea
+                id="item-description"
+                value={itemForm.description}
+                onChange={(e) => setItemForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Décrivez cet élément..."
+                rows={3}
+                data-testid="input-item-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleSubmitItem} 
+              disabled={!itemForm.title.trim() || createItemMutation.isPending || updateItemMutation.isPending}
+              data-testid="button-confirm-item"
+            >
+              {(createItemMutation.isPending || updateItemMutation.isPending) 
+                ? "Enregistrement..." 
+                : editingItem ? "Mettre à jour" : "Créer"}
             </Button>
           </DialogFooter>
         </DialogContent>
