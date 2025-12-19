@@ -840,6 +840,20 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Sprints position column added");
     
+    // Add scope_item_id and task_id columns to time_entries for Module Temps V2
+    await db.execute(sql`
+      ALTER TABLE time_entries 
+      ADD COLUMN IF NOT EXISTS scope_item_id uuid REFERENCES project_scope_items(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS task_id uuid REFERENCES tasks(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS time_entries_scope_item_idx ON time_entries(scope_item_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS time_entries_task_idx ON time_entries(task_id);
+    `);
+    console.log("✅ Time entries scope_item_id and task_id columns added");
+    
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

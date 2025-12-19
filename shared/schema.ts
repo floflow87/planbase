@@ -284,6 +284,8 @@ export const timeEntries = pgTable("time_entries", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  scopeItemId: uuid("scope_item_id").references(() => projectScopeItems.id, { onDelete: "set null" }), // Optional: link to CDC/scope item
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }), // Optional: link to task/ticket
   description: text("description"),
   startTime: timestamp("start_time", { withTimezone: true }),
   endTime: timestamp("end_time", { withTimezone: true }),
