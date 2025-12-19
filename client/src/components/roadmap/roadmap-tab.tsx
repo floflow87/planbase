@@ -44,13 +44,13 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
   });
 
   const { data: roadmaps = [], isLoading: isLoadingRoadmaps } = useQuery<Roadmap[]>({
-    queryKey: ['/api/projects', projectId, 'roadmaps'],
+    queryKey: [`/api/projects/${projectId}/roadmaps`],
   });
 
   const activeRoadmapId = selectedRoadmapId || (roadmaps.length > 0 ? roadmaps[0].id : null);
 
   const { data: roadmapItems = [], isLoading: isLoadingItems } = useQuery<RoadmapItem[]>({
-    queryKey: ['/api/roadmaps', activeRoadmapId, 'items'],
+    queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],
     enabled: !!activeRoadmapId,
   });
 
@@ -64,7 +64,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       });
     },
     onSuccess: (newRoadmap: Roadmap) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'roadmaps'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/roadmaps`] });
       setSelectedRoadmapId(newRoadmap.id);
       setIsCreateDialogOpen(false);
       setNewRoadmapName("");
@@ -107,7 +107,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
       setIsItemDialogOpen(false);
       resetItemForm();
       toast({
@@ -137,7 +137,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
       setIsItemDialogOpen(false);
       setEditingItem(null);
       resetItemForm();
@@ -203,7 +203,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
         status: newStatus,
         orderIndex: newOrderIndex,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', activeRoadmapId, 'items'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
     } catch {
       toast({
         title: "Erreur",
