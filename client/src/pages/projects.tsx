@@ -1401,7 +1401,7 @@ function SortableProjectColumnHeader({
 
 // Kanban Stage Column Component
 interface KanbanStageColumnProps {
-  stage: { value: string; label: string; color: string };
+  stage: { value: string; label: string; color: string; headerBg: string; textColor: string };
   projects: Project[];
   clients: Client[];
   tasks: Task[];
@@ -1433,17 +1433,17 @@ function KanbanStageColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-lg border min-w-[250px] shrink-0 ${stage.color} ${isOver ? 'ring-2 ring-primary' : ''}`}
+      className={`flex flex-col rounded-lg border min-w-[250px] shrink-0 bg-card/50 dark:bg-card/30 ${isOver ? 'ring-2 ring-primary' : ''}`}
     >
-      <div className="px-3 py-2 border-b">
+      <div className={`px-3 py-2 rounded-t-lg ${stage.headerBg}`}>
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-sm">{stage.label}</h3>
+          <h3 className={`font-medium text-sm ${stage.textColor}`}>{stage.label}</h3>
           <Badge variant="secondary" className="text-xs">
             {projects.length}
           </Badge>
         </div>
         {totalBudget > 0 && (
-          <div className="text-xs text-muted-foreground mt-1 font-medium">
+          <div className={`text-xs mt-1 font-medium ${stage.textColor}`}>
             {totalBudget.toLocaleString("fr-FR", {
               style: "currency",
               currency: "EUR",
@@ -1599,8 +1599,8 @@ function DraggableProjectCard({
         </div>
         
         {project.budget && (
-          <div className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
-            <span className="font-medium text-foreground">
+          <div className="text-[10px] mt-2 flex items-center gap-1">
+            <span className="font-medium text-primary">
               {parseFloat(project.budget).toLocaleString("fr-FR", {
                 style: "currency",
                 currency: "EUR",
@@ -1651,7 +1651,9 @@ function ProjectKanbanView({
   const stages = PROJECT_STAGES.map(s => ({
     value: s.key,
     label: s.label,
-    color: `${s.colorClass}`,
+    color: `${s.colorClass} ${s.darkColorClass}`,
+    headerBg: `${s.colorClass} ${s.darkColorClass}`,
+    textColor: s.textColorClass,
   }));
   
   const validStages = projectStageKeys;
