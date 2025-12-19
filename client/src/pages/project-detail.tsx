@@ -2813,6 +2813,7 @@ export default function ProjectDetail() {
                 <Popover open={isBillingStatusPopoverOpen} onOpenChange={setIsBillingStatusPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Badge 
+                      variant={null}
                       data-testid="badge-billing-status-budget"
                       className={`${getBillingStatusColor(project.billingStatus)} shrink-0 cursor-pointer`}
                     >
