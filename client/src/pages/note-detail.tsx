@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,12 +39,14 @@ import { fr } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, X } from "lucide-react";
 import { VoiceRecordingButton } from "@/components/VoiceRecordingButton";
+import { Input } from "@/components/ui/input";
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   
   // Wrap wouter's navigate to intercept route changes
   const navigate = useCallback((path: string, options?: { replace?: boolean }) => {
@@ -804,146 +807,421 @@ export default function NoteDetail() {
     <div className="h-full flex flex-col">
       {/* Fixed Header */}
       <div className="flex-none border-b border-border bg-background">
-        <div className="p-3 md:p-6 space-y-2 md:space-y-4">
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4 flex-1 min-w-0">
+        {/* MOBILE HEADER: Compact single line */}
+        {isMobile ? (
+          <div className="px-2 py-2 space-y-1.5">
+            {/* Line 1: Back + Title (editable) + Actions dropdown */}
+            <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
                 size="icon" 
                 data-testid="button-back" 
-                className="mt-1"
+                className="h-8 w-8 flex-shrink-0"
                 onClick={() => interceptNavigation("/notes")}
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </Button>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-foreground truncate mb-2 hidden md:block">
-                  {title || "Sans titre"}
-                </h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge 
-                    variant="outline" 
-                    className={`${
-                      status === "draft" 
-                        ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                        : status === "archived"
-                        ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                        : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                    }`}
-                    data-testid="badge-status"
+              
+              {/* Inline editable title */}
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Sans titre"
+                className="flex-1 h-8 text-base font-semibold border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 truncate"
+                data-testid="input-title-mobile"
+                readOnly={!isEditMode}
+              />
+              
+              {/* Discrete save status indicator */}
+              <span className="text-[10px] text-muted-foreground flex-shrink-0 min-w-[50px] text-right">
+                {isSaving ? "..." : (hasUnsavedChanges() ? "•" : "✓")}
+              </span>
+              
+              {/* Mobile Actions Dropdown (⋯) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    data-testid="button-mobile-actions"
                   >
-                    {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
-                  </Badge>
-                  {/* Project selector */}
-                  <div className="flex items-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
-                      onClick={() => {
-                        setEntitySelectorTab("project");
-                        setEntitySelectorOpen(true);
-                      }}
-                      data-testid="button-project-selector"
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Edition Section */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Édition</div>
+                  
+                  {/* Autosave toggle */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setAutoSaveEnabled(!autoSaveEnabled);
+                      toast({
+                        title: autoSaveEnabled ? "Auto-sauvegarde désactivée" : "Auto-sauvegarde activée",
+                        variant: "default",
+                      });
+                    }}
+                    data-testid="menu-item-autosave-mobile"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Auto-sauvegarde
+                    <span className="ml-auto text-xs text-muted-foreground">{autoSaveEnabled ? "ON" : "OFF"}</span>
+                  </DropdownMenuItem>
+                  
+                  {/* Lock/Unlock */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const newEditMode = !isEditMode;
+                      setIsEditMode(newEditMode);
+                      if (newEditMode && status === "active") {
+                        setStatus("draft");
+                        updateMutation.mutate({ status: "draft" });
+                      }
+                      toast({
+                        title: newEditMode ? "Note déverrouillée" : "Note verrouillée",
+                        variant: "default",
+                      });
+                    }}
+                    data-testid="menu-item-lock-mobile"
+                  >
+                    {isEditMode ? <LockOpen className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
+                    {isEditMode ? "Verrouiller" : "Déverrouiller"}
+                  </DropdownMenuItem>
+                  
+                  {/* Favorite toggle */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      handleToggleFavorite();
+                    }}
+                    data-testid="menu-item-favorite-mobile"
+                  >
+                    <Star className={`w-4 h-4 mr-2 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
+                    {isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Save button */}
+                  <DropdownMenuItem
+                    onClick={handleSaveDraft}
+                    data-testid="menu-item-save-mobile"
+                  >
+                    <Save className="w-4 h-4 mr-2 text-green-600" />
+                    Enregistrer
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Status Section */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Statut</div>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("draft");
+                      updateMutation.mutate({ status: "draft" });
+                      toast({ title: "Statut: Brouillon", variant: "default" });
+                    }}
+                    data-testid="menu-item-status-draft-mobile"
+                  >
+                    <Badge variant="outline" className="mr-2 h-4 px-1 text-[10px] bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300">●</Badge>
+                    Brouillon
+                    {status === "draft" && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("active");
+                      updateMutation.mutate({ status: "active" });
+                      toast({ title: "Statut: Publiée", variant: "success" });
+                    }}
+                    data-testid="menu-item-status-active-mobile"
+                  >
+                    <Badge variant="outline" className="mr-2 h-4 px-1 text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300">●</Badge>
+                    Publiée
+                    {status === "active" && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatus("archived");
+                      updateMutation.mutate({ status: "archived" });
+                      toast({ title: "Statut: Archivée", variant: "default" });
+                    }}
+                    data-testid="menu-item-status-archived-mobile"
+                  >
+                    <Badge variant="outline" className="mr-2 h-4 px-1 text-[10px] bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300">●</Badge>
+                    Archivée
+                    {status === "archived" && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Visibility Section */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Visibilité</div>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setVisibility("private");
+                      updateMutation.mutate({ visibility: "private" });
+                      toast({ title: "Visibilité: Privée", variant: "default" });
+                    }}
+                    data-testid="menu-item-visibility-private-mobile"
+                  >
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    Privée
+                    {visibility === "private" && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setVisibility("account");
+                      updateMutation.mutate({ visibility: "account" });
+                      toast({ title: "Visibilité: Équipe", variant: "default" });
+                    }}
+                    data-testid="menu-item-visibility-account-mobile"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Équipe
+                    {visibility === "account" && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Danger Zone */}
+                  <DropdownMenuItem
+                    onClick={handleDeleteClick}
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                    data-testid="menu-item-delete-mobile"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer la note
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
+            {/* Line 2: Chips with horizontal scroll */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-2 px-2">
+              {/* Project chip */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1 flex-shrink-0 whitespace-nowrap"
+                onClick={() => {
+                  setEntitySelectorTab("project");
+                  setEntitySelectorOpen(true);
+                }}
+                data-testid="chip-project-mobile"
+              >
+                <FolderKanban className="w-3 h-3 text-violet-500" />
+                <span className="truncate max-w-[80px]">
+                  {currentProject ? currentProject.name : "+ Projet"}
+                </span>
+                {currentProject && linkedProject && (
+                  <X 
+                    className="w-3 h-3 ml-1 hover:text-destructive" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unlinkProjectMutation.mutate();
+                    }}
+                  />
+                )}
+              </Button>
+              
+              {/* Client chip */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1 flex-shrink-0 whitespace-nowrap"
+                onClick={() => {
+                  setEntitySelectorTab("client");
+                  setEntitySelectorOpen(true);
+                }}
+                data-testid="chip-client-mobile"
+              >
+                <Users className="w-3 h-3 text-cyan-500" />
+                <span className="truncate max-w-[80px]">
+                  {currentClient ? currentClient.name : "+ Client"}
+                </span>
+                {currentClient && linkedClient && (
+                  <X 
+                    className="w-3 h-3 ml-1 hover:text-destructive" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unlinkClientMutation.mutate();
+                    }}
+                  />
+                )}
+              </Button>
+              
+              {/* Status chip */}
+              <Badge 
+                variant="outline" 
+                className={`h-6 px-2 text-xs flex-shrink-0 ${
+                  status === "draft" 
+                    ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                    : status === "archived"
+                    ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                }`}
+                data-testid="chip-status-mobile"
+              >
+                {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Publiée"}
+              </Badge>
+              
+              {/* Visibility chip */}
+              <Badge 
+                variant="outline" 
+                className="h-6 px-2 text-xs flex-shrink-0"
+                data-testid="chip-visibility-mobile"
+              >
+                {visibility === "private" ? "Privée" : visibility === "account" ? "Équipe" : "Client"}
+              </Badge>
+            </div>
+          </div>
+        ) : (
+          /* DESKTOP HEADER: Original layout */
+          <div className="p-6 space-y-4">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  data-testid="button-back" 
+                  className="mt-1"
+                  onClick={() => interceptNavigation("/notes")}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-bold text-foreground truncate mb-2">
+                    {title || "Sans titre"}
+                  </h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge 
+                      variant="outline" 
+                      className={`${
+                        status === "draft" 
+                          ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
+                          : status === "archived"
+                          ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
+                          : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                      }`}
+                      data-testid="badge-status"
                     >
-                      <FolderKanban className="w-3 h-3 text-violet-500" />
-                      <span className="truncate max-w-[100px]">
-                        {currentProject ? currentProject.name : "Projet"}
-                      </span>
-                    </Button>
-                    {currentProject && linkedProject && (
+                      {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Active"}
+                    </Badge>
+                    {/* Project selector */}
+                    <div className="flex items-center">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          unlinkProjectMutation.mutate();
+                        className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
+                        onClick={() => {
+                          setEntitySelectorTab("project");
+                          setEntitySelectorOpen(true);
                         }}
-                        data-testid="button-unlink-project"
+                        data-testid="button-project-selector"
                       >
-                        <X className="w-3 h-3" />
+                        <FolderKanban className="w-3 h-3 text-violet-500" />
+                        <span className="truncate max-w-[100px]">
+                          {currentProject ? currentProject.name : "Projet"}
+                        </span>
                       </Button>
-                    )}
-                  </div>
-                  {/* Client selector */}
-                  <div className="flex items-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-6 px-2 text-xs gap-1 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
-                      onClick={() => {
-                        setEntitySelectorTab("client");
-                        setEntitySelectorOpen(true);
-                      }}
-                      data-testid="button-client-selector"
-                    >
-                      <Users className="w-3 h-3 text-cyan-500" />
-                      <span className="truncate max-w-[100px]">
-                        {currentClient ? currentClient.name : "Client"}
-                      </span>
-                    </Button>
-                    {currentClient && linkedClient && (
+                      {currentProject && linkedProject && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unlinkProjectMutation.mutate();
+                          }}
+                          data-testid="button-unlink-project"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {/* Client selector */}
+                    <div className="flex items-center">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          unlinkClientMutation.mutate();
+                        className={`h-6 px-2 text-xs gap-1 ${currentClient ? 'rounded-r-none border-r-0' : ''}`}
+                        onClick={() => {
+                          setEntitySelectorTab("client");
+                          setEntitySelectorOpen(true);
                         }}
-                        data-testid="button-unlink-client"
+                        data-testid="button-client-selector"
                       >
-                        <X className="w-3 h-3" />
+                        <Users className="w-3 h-3 text-cyan-500" />
+                        <span className="truncate max-w-[100px]">
+                          {currentClient ? currentClient.name : "Client"}
+                        </span>
                       </Button>
+                      {currentClient && linkedClient && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unlinkClientMutation.mutate();
+                          }}
+                          data-testid="button-unlink-client"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    {isSaving ? (
+                      <span className="text-xs text-muted-foreground">Sauvegarde...</span>
+                    ) : lastSaved ? (
+                      <span className="text-xs text-muted-foreground">
+                        Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
+                      </span>
                     )}
                   </div>
-                  {isSaving ? (
-                    <span className="text-xs text-muted-foreground hidden md:inline">Sauvegarde...</span>
-                  ) : lastSaved ? (
-                    <span className="text-xs text-muted-foreground hidden md:inline">
-                      Sauvegardé {formatDistanceToNow(lastSaved, { addSuffix: true, locale: fr })}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground hidden md:inline">
-                      Modifié {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true, locale: fr })}
-                    </span>
-                  )}
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Auto Save Toggle - icon only on mobile */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1">
-                    <Switch
-                      id="autosave"
-                      checked={autoSaveEnabled}
-                      onCheckedChange={setAutoSaveEnabled}
-                      data-testid="switch-autosave"
-                    />
-                    <Label htmlFor="autosave" className="cursor-pointer text-[11px] hidden md:inline">
-                      {autoSaveEnabled ? "ON" : "OFF"}
-                    </Label>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
-              </Tooltip>
-              
-              {/* Save button - always visible */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSaveDraft} 
-                    size="icon"
-                    className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
-                    data-testid="button-save-draft"
-                  >
-                    <Save className="w-4 h-4" />
-                  </Button>
+              <div className="flex items-center gap-2">
+                {/* Auto Save Toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        id="autosave"
+                        checked={autoSaveEnabled}
+                        onCheckedChange={setAutoSaveEnabled}
+                        data-testid="switch-autosave"
+                      />
+                      <Label htmlFor="autosave" className="cursor-pointer text-[11px]">
+                        {autoSaveEnabled ? "ON" : "OFF"}
+                      </Label>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
+                </Tooltip>
+                
+                {/* Save button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSaveDraft} 
+                      size="icon"
+                      className="bg-green-50 hover:bg-white dark:hover:bg-muted text-green-700 border-green-200"
+                      data-testid="button-save-draft"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
                 </TooltipTrigger>
                 <TooltipContent>Enregistrer</TooltipContent>
               </Tooltip>
@@ -1095,6 +1373,7 @@ export default function NoteDetail() {
             </div>
           </div>
         </div>
+        )}
       </div>
       
       {/* Entity Selector Dialog (Project / Client) */}
@@ -1208,9 +1487,9 @@ export default function NoteDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content - maximize height on mobile */}
       <div className="flex-1 overflow-auto">
-        <div className="p-2 md:p-6">
+        <div className="px-1 py-0 md:p-6">
           {/* Editor */}
           <NoteEditor
             ref={editorRef}
@@ -1223,8 +1502,8 @@ export default function NoteDetail() {
           />
         </div>
 
-        {/* AI Summary */}
-        {note.summary && (
+        {/* AI Summary - hidden on mobile to maximize text zone */}
+        {note.summary && !isMobile && (
           <div className="px-6 pb-6">
             <Card>
               <CardContent className="p-4">

@@ -63,8 +63,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Type } from 'lucide-react';
+import { ChevronDown, Type, MoreHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useQuery } from '@tanstack/react-query';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { supabase } from '@/lib/supabase';
@@ -141,6 +142,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
   } = props;
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Dialogue states
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -767,25 +769,29 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               />
             </div>
           )}
-          <div className="sticky top-0 z-50 border-b border-border p-2 flex items-center gap-px bg-background shadow-sm overflow-x-auto whitespace-nowrap">
-            {/* Format Painter - first icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={copiedFormat ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={handleFormatPainter}
-                  data-testid="button-format-painter"
-                >
-                  <Paintbrush className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {copiedFormat ? 'Cliquez pour appliquer le style' : 'Copier le style'}
-              </TooltipContent>
-            </Tooltip>
+          <div className={`sticky top-0 z-50 border-b border-border ${isMobile ? 'px-1 py-1.5' : 'p-2'} flex items-center gap-px bg-background shadow-sm overflow-x-auto whitespace-nowrap`}>
+            {/* Format Painter - hidden on mobile */}
+            {!isMobile && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={copiedFormat ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={handleFormatPainter}
+                      data-testid="button-format-painter"
+                    >
+                      <Paintbrush className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {copiedFormat ? 'Cliquez pour appliquer le style' : 'Copier le style'}
+                  </TooltipContent>
+                </Tooltip>
 
-            <Separator orientation="vertical" className="h-6 mx-1" />
+                <Separator orientation="vertical" className="h-6 mx-1" />
+              </>
+            )}
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -910,223 +916,233 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               <TooltipContent>Italique</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleUnderline().run()}
-                  data-testid="button-underline"
-                >
-                  <UnderlineIcon className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Souligner</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleStrike().run()}
-                  data-testid="button-strike"
-                >
-                  <Strikethrough className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Barrer</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('code') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleCode().run()}
-                  data-testid="button-code"
-                >
-                  <Code className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Code inline</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                  data-testid="button-code-block"
-                >
-                  <FileCode2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Bloc de code</TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="h-6 mx-1" />
-
-            {/* Dropdown menu for text alignment */}
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
+            {/* Underline, Strike, Code - hidden on mobile */}
+            {!isMobile && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button
-                      variant={editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
+                      variant={editor.isActive('underline') ? 'secondary' : 'ghost'}
                       size="sm"
-                      className="gap-1"
-                      data-testid="dropdown-alignment"
+                      onClick={() => editor.chain().focus().toggleUnderline().run()}
+                      data-testid="button-underline"
                     >
-                      <AlignLeft className="w-4 h-4" />
-                      <ChevronDown className="w-3 h-3" />
+                      <UnderlineIcon className="w-4 h-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Alignement du texte</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="start" className="bg-popover">
-                <DropdownMenuItem
-                  onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                  className={editor.isActive({ textAlign: 'left' }) ? 'bg-accent' : ''}
-                  data-testid="dropdown-item-align-left"
-                >
-                  <AlignLeft className="w-4 h-4 mr-2" />
-                  Aligner à gauche
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                  className={editor.isActive({ textAlign: 'center' }) ? 'bg-accent' : ''}
-                  data-testid="dropdown-item-align-center"
-                >
-                  <AlignCenter className="w-4 h-4 mr-2" />
-                  Centrer
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                  className={editor.isActive({ textAlign: 'right' }) ? 'bg-accent' : ''}
-                  data-testid="dropdown-item-align-right"
-                >
-                  <AlignRight className="w-4 h-4 mr-2" />
-                  Aligner à droite
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-                  className={editor.isActive({ textAlign: 'justify' }) ? 'bg-accent' : ''}
-                  data-testid="dropdown-item-align-justify"
-                >
-                  <AlignJustify className="w-4 h-4 mr-2" />
-                  Justifier
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </TooltipTrigger>
+                  <TooltipContent>Souligner</TooltipContent>
+                </Tooltip>
 
-            <Separator orientation="vertical" className="h-6 mx-1" />
-
-            <Popover>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button
-                      variant="ghost"
+                      variant={editor.isActive('strike') ? 'secondary' : 'ghost'}
                       size="sm"
-                      data-testid="button-text-color"
+                      onClick={() => editor.chain().focus().toggleStrike().run()}
+                      data-testid="button-strike"
                     >
-                      <Palette className="w-4 h-4" />
+                      <Strikethrough className="w-4 h-4" />
                     </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Couleur du texte</TooltipContent>
-              </Tooltip>
-              <PopoverContent 
-                className="w-auto p-3 bg-card"
-                align="start"
-              >
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Couleur du texte</p>
-                  <div className="flex flex-wrap gap-1.5 max-w-[216px]">
-                    {TEXT_COLORS.map((color, index) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
-                        style={{ backgroundColor: color.value }}
-                        onClick={() => {
-                          editor.chain().focus().setColor(color.value).run();
-                        }}
-                        title={color.name}
-                        data-testid={`button-text-color-${index}`}
-                      />
-                    ))}
-                    <button
-                      type="button"
-                      className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
-                      onClick={() => {
-                        editor.chain().focus().unsetColor().run();
-                      }}
-                      title="Réinitialiser"
-                      data-testid="button-text-color-reset"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </TooltipTrigger>
+                  <TooltipContent>Barrer</TooltipContent>
+                </Tooltip>
 
-            <Popover>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <Button
-                      variant={editor.isActive('highlight') ? 'secondary' : 'ghost'}
+                      variant={editor.isActive('code') ? 'secondary' : 'ghost'}
                       size="sm"
-                      data-testid="button-highlight"
+                      onClick={() => editor.chain().focus().toggleCode().run()}
+                      data-testid="button-code"
                     >
-                      <Highlighter className="w-4 h-4" />
+                      <Code className="w-4 h-4" />
                     </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Surligner</TooltipContent>
-              </Tooltip>
-              <PopoverContent 
-                className="w-auto p-3 bg-card"
-                align="start"
-              >
-                <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Couleur de surlignage</p>
-                  <div className="flex flex-wrap gap-1.5 max-w-[216px]">
-                    {HIGHLIGHT_COLORS.map((color, index) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
-                        style={{ backgroundColor: color.value }}
-                        onClick={() => {
-                          editor.chain().focus().toggleHighlight({ color: color.value }).run();
-                        }}
-                        title={color.name}
-                        data-testid={`button-highlight-color-${index}`}
-                      />
-                    ))}
-                    <button
-                      type="button"
-                      className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
-                      onClick={() => {
-                        editor.chain().focus().unsetHighlight().run();
-                      }}
-                      title="Réinitialiser"
-                      data-testid="button-highlight-reset"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                  </TooltipTrigger>
+                  <TooltipContent>Code inline</TooltipContent>
+                </Tooltip>
 
-            <Separator orientation="vertical" className="h-6 mx-1" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={editor.isActive('codeBlock') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                      data-testid="button-code-block"
+                    >
+                      <FileCode2 className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Bloc de code</TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-6 mx-1" />
+              </>
+            )}
+
+            {/* Alignment, Colors, Highlight - Hidden on mobile */}
+            {!isMobile && (
+              <>
+                {/* Dropdown menu for text alignment */}
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant={editor.isActive({ textAlign: 'center' }) || editor.isActive({ textAlign: 'right' }) || editor.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="gap-1"
+                          data-testid="dropdown-alignment"
+                        >
+                          <AlignLeft className="w-4 h-4" />
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Alignement du texte</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="start" className="bg-popover">
+                    <DropdownMenuItem
+                      onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                      className={editor.isActive({ textAlign: 'left' }) ? 'bg-accent' : ''}
+                      data-testid="dropdown-item-align-left"
+                    >
+                      <AlignLeft className="w-4 h-4 mr-2" />
+                      Aligner à gauche
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                      className={editor.isActive({ textAlign: 'center' }) ? 'bg-accent' : ''}
+                      data-testid="dropdown-item-align-center"
+                    >
+                      <AlignCenter className="w-4 h-4 mr-2" />
+                      Centrer
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                      className={editor.isActive({ textAlign: 'right' }) ? 'bg-accent' : ''}
+                      data-testid="dropdown-item-align-right"
+                    >
+                      <AlignRight className="w-4 h-4 mr-2" />
+                      Aligner à droite
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+                      className={editor.isActive({ textAlign: 'justify' }) ? 'bg-accent' : ''}
+                      data-testid="dropdown-item-align-justify"
+                    >
+                      <AlignJustify className="w-4 h-4 mr-2" />
+                      Justifier
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Separator orientation="vertical" className="h-6 mx-1" />
+
+                <Popover>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          data-testid="button-text-color"
+                        >
+                          <Palette className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Couleur du texte</TooltipContent>
+                  </Tooltip>
+                  <PopoverContent 
+                    className="w-auto p-3 bg-card"
+                    align="start"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Couleur du texte</p>
+                      <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                        {TEXT_COLORS.map((color, index) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
+                            style={{ backgroundColor: color.value }}
+                            onClick={() => {
+                              editor.chain().focus().setColor(color.value).run();
+                            }}
+                            title={color.name}
+                            data-testid={`button-text-color-${index}`}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
+                          onClick={() => {
+                            editor.chain().focus().unsetColor().run();
+                          }}
+                          title="Réinitialiser"
+                          data-testid="button-text-color-reset"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={editor.isActive('highlight') ? 'secondary' : 'ghost'}
+                          size="sm"
+                          data-testid="button-highlight"
+                        >
+                          <Highlighter className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Surligner</TooltipContent>
+                  </Tooltip>
+                  <PopoverContent 
+                    className="w-auto p-3 bg-card"
+                    align="start"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Couleur de surlignage</p>
+                      <div className="flex flex-wrap gap-1.5 max-w-[216px]">
+                        {HIGHLIGHT_COLORS.map((color, index) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer"
+                            style={{ backgroundColor: color.value }}
+                            onClick={() => {
+                              editor.chain().focus().toggleHighlight({ color: color.value }).run();
+                            }}
+                            title={color.name}
+                            data-testid={`button-highlight-color-${index}`}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform cursor-pointer bg-background flex items-center justify-center text-xs font-medium"
+                          onClick={() => {
+                            editor.chain().focus().unsetHighlight().run();
+                          }}
+                          title="Réinitialiser"
+                          data-testid="button-highlight-reset"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Separator orientation="vertical" className="h-6 mx-1" />
+              </>
+            )}
 
             {/* Dropdown menu for lists */}
             <DropdownMenu>
@@ -1174,38 +1190,44 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Quote, HR - Hidden on mobile */}
+            {!isMobile && (
+              <>
+                <Separator orientation="vertical" className="h-6 mx-1" />
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                      data-testid="button-blockquote"
+                    >
+                      <Quote className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Citation</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                      data-testid="button-hr"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Séparateur</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
             <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={editor.isActive('blockquote') ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                  data-testid="button-blockquote"
-                >
-                  <Quote className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Citation</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor.chain().focus().setHorizontalRule().run()}
-                  data-testid="button-hr"
-                >
-                  <Minus className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Séparateur</TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="h-6 mx-1" />
-
+            {/* Link button - Always visible */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1220,88 +1242,174 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               <TooltipContent>Ajouter un lien</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  data-testid="button-upload-image"
-                >
-                  {uploading ? <Upload className="w-4 h-4 animate-pulse" /> : <Upload className="w-4 h-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{uploading ? 'Upload en cours...' : 'Upload image'}</TooltipContent>
-            </Tooltip>
-
-            <Popover>
-              <PopoverTrigger asChild>
+            {/* Upload, Emoji, Entity links - Hidden on mobile */}
+            {!isMobile && (
+              <>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-white dark:hover:bg-muted"
-                      data-testid="button-emoji"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      data-testid="button-upload-image"
                     >
-                      <Smile className="w-4 h-4" />
+                      {uploading ? <Upload className="w-4 h-4 animate-pulse" /> : <Upload className="w-4 h-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Ajouter un emoji</TooltipContent>
+                  <TooltipContent>{uploading ? 'Upload en cours...' : 'Upload image'}</TooltipContent>
                 </Tooltip>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-0 bg-white dark:bg-card"
-                onPointerDownOutside={(e) => e.preventDefault()}
-              >
-                <EmojiPicker onEmojiClick={handleEmojiClick} />
-              </PopoverContent>
-            </Popover>
 
-            <Separator orientation="vertical" className="h-6 mx-1" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-white dark:hover:bg-muted"
+                          data-testid="button-emoji"
+                        >
+                          <Smile className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Ajouter un emoji</TooltipContent>
+                    </Tooltip>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-auto p-0 bg-white dark:bg-card"
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                  >
+                    <EmojiPicker onEmojiClick={handleEmojiClick} />
+                  </PopoverContent>
+                </Popover>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEntityDialog('project')}
-                  data-testid="button-link-project"
-                >
-                  <FolderKanban className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Lier à un projet</TooltipContent>
-            </Tooltip>
+                <Separator orientation="vertical" className="h-6 mx-1" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEntityDialog('task')}
-                  data-testid="button-link-task"
-                >
-                  <ListTodo className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Lier à une tâche</TooltipContent>
-            </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEntityDialog('project')}
+                      data-testid="button-link-project"
+                    >
+                      <FolderKanban className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Lier à un projet</TooltipContent>
+                </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEntityDialog('client')}
-                  data-testid="button-link-client"
-                >
-                  <Users className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Lier à un client</TooltipContent>
-            </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEntityDialog('task')}
+                      data-testid="button-link-task"
+                    >
+                      <ListTodo className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Lier à une tâche</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEntityDialog('client')}
+                      data-testid="button-link-client"
+                    >
+                      <Users className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Lier à un client</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
+            {/* Mobile "More" dropdown with hidden formatting options */}
+            {isMobile && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid="button-mobile-more"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-popover">
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().toggleUnderline().run()}
+                    data-testid="mobile-menu-underline"
+                  >
+                    <UnderlineIcon className="w-4 h-4 mr-2" />
+                    Souligner
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().toggleStrike().run()}
+                    data-testid="mobile-menu-strike"
+                  >
+                    <Strikethrough className="w-4 h-4 mr-2" />
+                    Barré
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().toggleCode().run()}
+                    data-testid="mobile-menu-code"
+                  >
+                    <Code className="w-4 h-4 mr-2" />
+                    Code
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                    data-testid="mobile-menu-quote"
+                  >
+                    <Quote className="w-4 h-4 mr-2" />
+                    Citation
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                    data-testid="mobile-menu-hr"
+                  >
+                    <Minus className="w-4 h-4 mr-2" />
+                    Séparateur
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    data-testid="mobile-menu-upload"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload image
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => openEntityDialog('project')}
+                    data-testid="mobile-menu-link-project"
+                  >
+                    <FolderKanban className="w-4 h-4 mr-2" />
+                    Lier à un projet
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => openEntityDialog('task')}
+                    data-testid="mobile-menu-link-task"
+                  >
+                    <ListTodo className="w-4 h-4 mr-2" />
+                    Lier à une tâche
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => openEntityDialog('client')}
+                    data-testid="mobile-menu-link-client"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Lier à un client
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </>
       )}
@@ -1318,15 +1426,15 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
       
       <div 
         ref={editorContainerRef}
-        className="relative bg-white dark:bg-background"
+        className={`relative bg-white dark:bg-background ${isMobile ? 'min-h-[calc(100vh-180px)]' : ''}`}
       >
-        <div className="flex">
+        <div className="flex h-full">
           <div className="flex-1 min-w-0">
             <EditorContent editor={editor} />
           </div>
           
-          {/* Notion-like outline bar on the right - fixed position */}
-          {headings.length > 0 && (
+          {/* Notion-like outline bar on the right - hidden on mobile */}
+          {!isMobile && headings.length > 0 && (
             <div 
               className="sticky top-4 self-start ml-2 mr-4 flex flex-col gap-0.5 z-10"
               style={{ marginTop: '60px' }}
