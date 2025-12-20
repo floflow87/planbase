@@ -230,6 +230,37 @@ export default function RoadmapPage() {
     }
   };
 
+  const handleCreateAtDate = (startDate: Date, endDate: Date) => {
+    resetItemForm();
+    setEditingItem(null);
+    setItemForm(prev => ({
+      ...prev,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    }));
+    setIsItemDialogOpen(true);
+  };
+
+  const handleUpdateItemDates = async (itemId: string, startDate: Date, endDate: Date) => {
+    try {
+      await apiRequest(`/api/roadmap-items/${itemId}`, 'PATCH', {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      toast({
+        title: "Dates mises à jour",
+        description: "Les dates de l'élément ont été modifiées.",
+      });
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les dates.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
@@ -389,6 +420,8 @@ export default function RoadmapPage() {
                       items={roadmapItems} 
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
+                      onCreateAtDate={handleCreateAtDate}
+                      onUpdateItemDates={handleUpdateItemDates}
                     />
                   ) : (
                     <OutputView 
