@@ -1,0 +1,124 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel 👇
+
+⸻
+
+🎯 PROMPT REPLIT — SUPPRIMER LE DÉLAI D’AFFICHAGE APRÈS MODIFICATION (UI INSTANTANÉE)
+
+Tu es l’agent Replit chargé de supprimer tout délai perceptible entre une modification de donnée (mutation API) et son affichage dans l’interface utilisateur.
+
+Objectif : UX instantanée.
+Dès qu’un utilisateur modifie une donnée, l’UI doit se mettre à jour immédiatement, puis se synchroniser avec le backend en arrière-plan.
+
+⸻
+
+1️⃣ Audit des flux de données
+
+Identifier les écrans où un délai est ressenti (ex : Notes, Projets, Backlog, Settings, Config, Temps) et analyser pour chacun :
+	•	les queries React Query utilisées
+	•	les mutations associées
+	•	les clés de cache (queryKey)
+	•	les invalidations existantes (ou absentes)
+
+⸻
+
+2️⃣ Standardisation des query keys
+
+Mettre en place une convention stricte et cohérente pour toutes les queries.
+
+Exemples :
+	•	['projects']
+	•	['project', projectId]
+	•	['projectTime', projectId]
+	•	['notes']
+	•	['note', noteId]
+	•	['tasks', projectId]
+	•	['config']
+
+Supprimer toute key ambiguë ou incohérente (strings isolées, clés partielles).
+
+⸻
+
+3️⃣ Invalidation ciblée systématique
+
+Après chaque mutation :
+	•	invalider uniquement les queries concernées
+
+Exemples :
+	•	update projet → invalider ['project', id] + ['projects']
+	•	update note → invalider ['note', id] + ['notes']
+	•	update task → invalider ['tasks', projectId]
+
+Éviter les invalidations globales inutiles.
+
+⸻
+
+4️⃣ Optimistic updates (priorité absolue)
+
+Pour toutes les mutations fréquentes (update projet, note, tâche, config, temps) :
+
+Mettre en place un optimistic update avec React Query :
+	•	onMutate :
+	•	cancelQueries sur la query concernée
+	•	sauvegarder un snapshot de l’état précédent
+	•	appliquer immédiatement la nouvelle valeur via setQueryData
+	•	onError :
+	•	rollback vers le snapshot précédent
+	•	afficher un toast d’erreur
+	•	onSuccess :
+	•	synchroniser le cache avec la réponse serveur si nécessaire
+	•	onSettled :
+	•	invalider la query pour garantir la vérité backend
+
+⸻
+
+5️⃣ Réglage du cache (staleTime)
+
+Vérifier et ajuster :
+	•	staleTime
+	•	refetchOnWindowFocus
+	•	refetchOnReconnect
+
+But :
+	•	éviter les données trop longtemps “stale”
+	•	sans provoquer de refetch agressif inutile
+
+⸻
+
+6️⃣ Feedback UX explicite
+
+Sur les écrans avec autosave ou debounce :
+	•	afficher clairement l’état :
+	•	“Enregistrement…” (pending)
+	•	“Sauvegardé” (succès)
+	•	“Erreur” (échec)
+
+Ce feedback doit être visible mais discret, sans bloquer l’écriture.
+
+⸻
+
+7️⃣ Vérification côté backend
+
+Auditer les services backend utilisant :
+	•	cache in-memory
+	•	agrégation de données
+
+S’assurer que :
+	•	les données retournées après update sont immédiatement à jour
+	•	toute couche de cache est invalidée correctement et sans délai
+
+⸻
+
+8️⃣ Critères d’acceptation
+
+La tâche est validée si :
+	•	l’UI se met à jour immédiatement après modification
+	•	aucun refresh manuel n’est nécessaire
+	•	les erreurs serveur provoquent un rollback propre
+	•	les données restent cohérentes entre les vues
+	•	l’expérience est fluide et perçue comme “instantanée”
+
+⸻
+
+Intention produit :
+L’interface ne doit jamais donner l’impression de “réfléchir”.
+L’utilisateur agit → l’app répond immédiatement.

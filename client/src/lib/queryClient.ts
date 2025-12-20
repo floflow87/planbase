@@ -94,11 +94,129 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 0, // Always refetch to ensure fresh data per account
+      staleTime: 1000 * 60 * 5, // 5 minutes - data stays fresh, optimistic updates handle immediacy
+      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
       retry: false,
+      refetchOnMount: false, // Don't refetch on every mount if data is fresh
     },
     mutations: {
       retry: false,
     },
   },
 });
+
+// ============================================
+// OPTIMISTIC UPDATE UTILITIES
+// ============================================
+
+/**
+ * Generic optimistic update for lists (add item)
+ */
+export function optimisticAdd<T extends { id: string }>(
+  queryKey: string[],
+  newItem: T
+) {
+  // Cancel ongoing queries
+  queryClient.cancelQueries({ queryKey });
+  
+  // Snapshot current data
+  const previousData = queryClient.getQueryData<T[]>(queryKey);
+  
+  // Optimistically add to list
+  queryClient.setQueryData<T[]>(queryKey, (old) => {
+    if (!old) return [newItem];
+    return [newItem, ...old];
+  });
+  
+  return { previousData };
+}
+
+/**
+ * Generic optimistic update for lists (update item)
+ */
+export function optimisticUpdate<T extends { id: string }>(
+  queryKey: string[],
+  itemId: string,
+  updates: Partial<T>
+) {
+  // Cancel ongoing queries
+  queryClient.cancelQueries({ queryKey });
+  
+  // Snapshot current data
+  const previousData = queryClient.getQueryData<T[]>(queryKey);
+  
+  // Optimistically update item in list
+  queryClient.setQueryData<T[]>(queryKey, (old) => {
+    if (!old) return old;
+    return old.map(item => 
+      item.id === itemId ? { ...item, ...updates } : item
+    );
+  });
+  
+  return { previousData };
+}
+
+/**
+ * Generic optimistic update for single item
+ */
+export function optimisticUpdateSingle<T extends { id: string }>(
+  queryKey: string[],
+  updates: Partial<T>
+) {
+  // Cancel ongoing queries
+  queryClient.cancelQueries({ queryKey });
+  
+  // Snapshot current data
+  const previousData = queryClient.getQueryData<T>(queryKey);
+  
+  // Optimistically update the item
+  queryClient.setQueryData<T>(queryKey, (old) => {
+    if (!old) return old;
+    return { ...old, ...updates };
+  });
+  
+  return { previousData };
+}
+
+/**
+ * Generic optimistic update for lists (delete item)
+ */
+export function optimisticDelete<T extends { id: string }>(
+  queryKey: string[],
+  itemId: string
+) {
+  // Cancel ongoing queries
+  queryClient.cancelQueries({ queryKey });
+  
+  // Snapshot current data
+  const previousData = queryClient.getQueryData<T[]>(queryKey);
+  
+  // Optimistically remove from list
+  queryClient.setQueryData<T[]>(queryKey, (old) => {
+    if (!old) return old;
+    return old.filter(item => item.id !== itemId);
+  });
+  
+  return { previousData };
+}
+
+/**
+ * Rollback helper for optimistic updates
+ */
+export function rollbackOptimistic<T>(
+  queryKey: string[],
+  previousData: T | undefined
+) {
+  if (previousData !== undefined) {
+    queryClient.setQueryData(queryKey, previousData);
+  }
+}
+
+/**
+ * Invalidate after mutation settles (success or error)
+ */
+export function invalidateAfterMutation(queryKeys: string[][]) {
+  queryKeys.forEach(key => {
+    queryClient.invalidateQueries({ queryKey: key });
+  });
+}
