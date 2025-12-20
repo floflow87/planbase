@@ -1,0 +1,100 @@
+Tu es l’agent Replit chargé d’unifier l’icône du signet navigateur (favicon) et l’icône de l’application installée (PWA) afin qu’elles utilisent le même visuel, tout en respectant les standards techniques desktop et mobile.
+
+Objectif :
+L’utilisateur doit reconnaître PlanBase instantanément, que ce soit :
+
+dans un onglet navigateur,
+
+dans les favoris,
+
+sur l’écran d’accueil mobile (iOS / Android).
+
+1️⃣ Favicon (navigateurs & signets desktop)
+
+Mettre en place les favicons standards dans index.html :
+
+<link rel="icon" href="/favicon.ico" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+
+
+Contraintes :
+
+Les fichiers favicon doivent utiliser le même logo que l’icône PWA
+
+Logo centré, très lisible à petite taille
+
+Pas de texte
+
+2️⃣ Icônes PWA (mobile)
+
+Dans public/manifest.json, configurer les icônes PWA :
+
+{
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
+
+Contraintes :
+
+Icônes basées sur le même visuel que le favicon
+
+Logo centré avec marges de sécurité (safe area)
+
+Fond uni (recommandé pour iOS)
+
+Haute résolution (pas un simple upscale du favicon)
+
+3️⃣ Support iOS explicite (obligatoire)
+
+Toujours dans index.html, ajouter :
+
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+
+Cela empêche iOS :
+
+d’utiliser un screenshot automatique
+
+ou un favicon flou
+
+4️⃣ Source graphique unique (bonne pratique)
+
+S’assurer que :
+
+Toutes les icônes (favicon + PWA) proviennent d’un même logo source
+
+Décliné en plusieurs tailles :
+
+16px / 32px (favicon)
+
+192px / 512px (app)
+
+Aucune divergence visuelle ne doit exister entre :
+
+icône navigateur
+
+icône mobile installée
+
+5️⃣ Validation
+
+La tâche est validée si :
+
+Le favicon s’affiche correctement dans les onglets et favoris desktop
+
+L’icône affichée sur l’écran d’accueil mobile est visuellement identique
+
+Aucun flou, étirement ou screenshot automatique n’apparaît
+
+Aucun impact sur le routing, l’auth ou le Design System
