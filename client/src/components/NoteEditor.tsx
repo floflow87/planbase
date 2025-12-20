@@ -1342,7 +1342,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-popover">
+                <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-card">
                   <DropdownMenuItem
                     onClick={() => editor.chain().focus().toggleUnderline().run()}
                     data-testid="mobile-menu-underline"

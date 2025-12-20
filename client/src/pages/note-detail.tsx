@@ -902,6 +902,35 @@ export default function NoteDetail() {
                   
                   <DropdownMenuSeparator />
                   
+                  {/* Linking Section */}
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Liaison</div>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEntitySelectorTab("project");
+                      setEntitySelectorOpen(true);
+                    }}
+                    data-testid="menu-item-project-mobile"
+                  >
+                    <FolderKanban className="w-4 h-4 mr-2 text-violet-500" />
+                    {currentProject ? currentProject.name : "Lier à un projet"}
+                    {currentProject && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEntitySelectorTab("client");
+                      setEntitySelectorOpen(true);
+                    }}
+                    data-testid="menu-item-client-mobile"
+                  >
+                    <Users className="w-4 h-4 mr-2 text-cyan-500" />
+                    {currentClient ? currentClient.name : "Lier à un client"}
+                    {currentClient && <Check className="w-3 h-3 ml-auto" />}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
                   {/* Save button */}
                   <DropdownMenuItem
                     onClick={handleSaveDraft}
@@ -999,85 +1028,6 @@ export default function NoteDetail() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-            
-            {/* Line 2: Chips with horizontal scroll */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-2 px-2">
-              {/* Project chip */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs gap-1 flex-shrink-0 whitespace-nowrap"
-                onClick={() => {
-                  setEntitySelectorTab("project");
-                  setEntitySelectorOpen(true);
-                }}
-                data-testid="chip-project-mobile"
-              >
-                <FolderKanban className="w-3 h-3 text-violet-500" />
-                <span className="truncate max-w-[80px]">
-                  {currentProject ? currentProject.name : "+ Projet"}
-                </span>
-                {currentProject && linkedProject && (
-                  <X 
-                    className="w-3 h-3 ml-1 hover:text-destructive" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlinkProjectMutation.mutate();
-                    }}
-                  />
-                )}
-              </Button>
-              
-              {/* Client chip */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs gap-1 flex-shrink-0 whitespace-nowrap"
-                onClick={() => {
-                  setEntitySelectorTab("client");
-                  setEntitySelectorOpen(true);
-                }}
-                data-testid="chip-client-mobile"
-              >
-                <Users className="w-3 h-3 text-cyan-500" />
-                <span className="truncate max-w-[80px]">
-                  {currentClient ? currentClient.name : "+ Client"}
-                </span>
-                {currentClient && linkedClient && (
-                  <X 
-                    className="w-3 h-3 ml-1 hover:text-destructive" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      unlinkClientMutation.mutate();
-                    }}
-                  />
-                )}
-              </Button>
-              
-              {/* Status chip */}
-              <Badge 
-                variant="outline" 
-                className={`h-6 px-2 text-xs flex-shrink-0 ${
-                  status === "draft" 
-                    ? "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800"
-                    : status === "archived"
-                    ? "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
-                    : "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
-                }`}
-                data-testid="chip-status-mobile"
-              >
-                {status === "draft" ? "Brouillon" : status === "archived" ? "Archivée" : "Publiée"}
-              </Badge>
-              
-              {/* Visibility chip */}
-              <Badge 
-                variant="outline" 
-                className="h-6 px-2 text-xs flex-shrink-0"
-                data-testid="chip-visibility-mobile"
-              >
-                {visibility === "private" ? "Privée" : visibility === "account" ? "Équipe" : "Client"}
-              </Badge>
             </div>
           </div>
         ) : (
