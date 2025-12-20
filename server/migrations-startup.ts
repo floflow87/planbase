@@ -888,10 +888,23 @@ export async function runStartupMigrations() {
       ADD COLUMN IF NOT EXISTS description text,
       ADD COLUMN IF NOT EXISTS progress_mode text NOT NULL DEFAULT 'manual',
       ADD COLUMN IF NOT EXISTS progress integer NOT NULL DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS order_index integer NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS order_index integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS parent_id uuid,
+      ADD COLUMN IF NOT EXISTS epic_id uuid,
+      ADD COLUMN IF NOT EXISTS feature_id uuid,
+      ADD COLUMN IF NOT EXISTS is_group boolean NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS release_tag text,
+      ADD COLUMN IF NOT EXISTS color text,
+      ADD COLUMN IF NOT EXISTS rice jsonb NOT NULL DEFAULT '{}'::jsonb;
     `);
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS roadmap_items_project_idx ON roadmap_items(project_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_parent_idx ON roadmap_items(parent_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_release_tag_idx ON roadmap_items(roadmap_id, release_tag);
     `);
     console.log("✅ Roadmap items table updated with new columns");
     
