@@ -1,0 +1,73 @@
+Tu es l’agent Replit chargé d’ajouter une animation de chargement “fusée qui décolle” (rocket launch) dans PlanBase, intégrée au Design System et utilisée partout où l’état de chargement est affiché.
+
+Objectif : un loader premium, léger, cohérent avec PlanBase, qui remplace les loaders génériques.
+
+⸻
+
+1) Créer le composant RocketLoader
+
+Créer client/src/design-system/primitives/RocketLoader.tsx :
+	•	Animation via SVG + CSS (ou pur CSS) sans librairie externe
+	•	Taille par défaut : 48px (configurable)
+	•	Variante : sm | md | lg
+	•	Couleurs : utiliser les tokens (violet PlanBase + neutre)
+	•	Animation “décollage” :
+	•	fusée qui monte légèrement
+	•	petite flamme / traînée qui pulse
+	•	boucle fluide (1.2s–1.6s)
+
+Accessibilité :
+	•	aria-label="Chargement"
+	•	Respecter prefers-reduced-motion :
+	•	si activé, afficher une version statique (ou animation minimale)
+
+⸻
+
+2) Intégrer RocketLoader dans LoadingState
+
+Dans client/src/design-system/patterns/LoadingState.tsx :
+	•	Remplacer le loader actuel par <RocketLoader />
+	•	Conserver le texte optionnel (ex: “Chargement…”)
+	•	Garder la compatibilité avec les usages existants (props inchangées)
+
+⸻
+
+3) Ajouter une version pleine page (option)
+
+Créer client/src/design-system/patterns/FullPageLoading.tsx :
+	•	Centre vertical/horizontal
+	•	RocketLoader + message
+	•	Utilisable lors du boot (auth/session)
+
+⸻
+
+4) Remplacer les loaders “au cas par cas”
+	•	Scanner les pages qui utilisent un loader custom
+	•	Remplacer progressivement par :
+	•	LoadingState
+	•	ou DataTableShell (qui utilise LoadingState)
+
+Ne pas modifier le comportement fonctionnel : uniquement l’UI.
+
+⸻
+
+5) Ajouter un micro-texte “PlanBase décolle…”
+
+Texte par défaut (mobile friendly) :
+	•	“PlanBase décolle…”
+Option :
+	•	message custom via prop
+
+⸻
+
+6) Critères d’acceptation
+	•	Le loader fusée apparaît sur les états de chargement standards
+	•	Animation fluide, légère, sans saccades
+	•	Aucun impact notable sur les performances
+	•	prefers-reduced-motion respecté
+	•	Aucune régression UI sur desktop et mobile
+
+⸻
+
+Intention produit :
+L’attente doit devenir une signature de marque : courte, élégante, rassurante. 🚀

@@ -19,3 +19,6 @@ export type { LoadingStateProps } from "./LoadingState";
 
 export { ErrorState } from "./ErrorState";
 export type { ErrorStateProps } from "./ErrorState";
+
+export { FullPageLoading } from "./FullPageLoading";
+export type { FullPageLoadingProps } from "./FullPageLoading";

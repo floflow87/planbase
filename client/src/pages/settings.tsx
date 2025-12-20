@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info, Receipt, Building2 } from "lucide-react";
+import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useState, useEffect } from "react";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
 import { useToast } from "@/hooks/use-toast";
@@ -610,7 +611,7 @@ export default function Settings() {
   if (accountLoading || configLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+        <LoadingState size="lg" />
       </div>
     );
   }

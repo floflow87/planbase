@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, Settings as SettingsIcon, Puzzle } from "lucide-react";
+import { LoadingState } from "@/design-system/patterns/LoadingState";
 import type { appUsers } from "@shared/schema";
 
 const profileSchema = z.object({
@@ -206,7 +207,7 @@ export default function Profile() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <LoadingState size="lg" />
       </div>
     );
   }

@@ -30,3 +30,7 @@ export type {
 
 export { FormInput, FormTextarea } from "./FormInput";
 export type { FormInputProps, FormTextareaProps } from "./FormInput";
+
+// Loading Animation (V1.5)
+export { RocketLoader } from "./RocketLoader";
+export type { RocketLoaderProps } from "./RocketLoader";

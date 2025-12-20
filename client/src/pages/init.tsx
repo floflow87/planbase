@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { RocketLoader } from "@/design-system/primitives/RocketLoader";
 
 export default function Init() {
   const [, setLocation] = useLocation();
@@ -74,9 +74,8 @@ export default function Init() {
           )}
 
           {status === "loading" && (
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Initialisation en cours...</span>
+            <div className="flex items-center justify-center">
+              <RocketLoader size="sm" showText message="Initialisation en cours..." />
             </div>
           )}
 
