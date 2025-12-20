@@ -1,0 +1,103 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel 👇
+
+⸻
+
+🎯 PROMPT REPLIT — TEST PACK OPTIMISTIC UPDATES (VITEST + PLAYWRIGHT)
+
+Tu es l’agent Replit chargé de vérifier, sécuriser et valider les optimistic updates récemment implémentées dans PlanBase.
+
+Objectif : garantir que l’UI est instantanée, que les rollbacks fonctionnent correctement en cas d’erreur, et que les données restent cohérentes entre toutes les vues.
+
+⸻
+
+1️⃣ Stratégie de tests à 2 niveaux
+
+Niveau A — Tests unitaires (Vitest)
+
+Créer ou compléter des tests unitaires pour les hooks de mutation et utilitaires liés aux optimistic updates :
+	•	Vérifier que les queryKey sont correctement utilisées et cohérentes
+	•	Vérifier que setQueryData applique immédiatement les changements attendus
+	•	Vérifier que les snapshots d’état précédent sont bien restaurés en cas d’erreur
+	•	Vérifier que invalidateQueries est appelé sur les bonnes clés en onSettled
+
+⸻
+
+Niveau B — Tests E2E (Playwright) — Priorité
+
+Mettre en place (ou compléter) Playwright avec un pack minimal de scénarios couvrant les flux critiques.
+
+Scénario 1 — Notes : création optimiste
+	•	Créer une note
+	•	Vérifier apparition immédiate dans la liste
+	•	Recharger la page
+	•	Vérifier que la note persiste
+
+Scénario 2 — Notes : édition optimiste
+	•	Modifier le titre d’une note
+	•	Vérifier mise à jour immédiate (vue détail + liste)
+	•	Recharger la page
+	•	Vérifier cohérence
+
+Scénario 3 — Notes : suppression optimiste
+	•	Supprimer une note
+	•	Vérifier disparition immédiate de la liste
+	•	Recharger la page
+	•	Vérifier suppression persistante
+
+Scénario 4 — Rollback sur erreur API
+	•	Simuler une erreur serveur (500 ou offline) sur une mutation
+	•	Vérifier :
+	•	rollback visuel immédiat
+	•	message d’erreur/toast affiché
+	•	aucune donnée incohérente restante
+
+Scénario 5 — Cohérence multi-vues
+	•	Créer ou modifier une tâche liée à un projet
+	•	Vérifier :
+	•	mise à jour immédiate dans la liste des tâches
+	•	mise à jour des compteurs / KPIs du projet
+	•	cohérence dans le backlog (si applicable)
+	•	aucun refresh manuel requis
+
+⸻
+
+2️⃣ Simulation des erreurs
+
+Mettre en place au moins une des méthodes suivantes :
+	•	Interception réseau Playwright pour forcer une réponse 500 sur une mutation
+	•	Mode dev ?failMutation=1 (uniquement en développement) forçant un échec API
+	•	Simulation du mode offline dans Playwright pendant une mutation
+
+⸻
+
+3️⃣ Scripts de test
+
+Ajouter ou vérifier la présence des scripts suivants :
+	•	npm run test → exécute Vitest
+	•	npm run test:e2e → exécute Playwright
+	•	npm run test:e2e:ui → Playwright en mode interactif
+
+⸻
+
+4️⃣ Corrections attendues si échec
+
+Si un test échoue, corriger :
+	•	les invalidations de queries manquantes ou incorrectes
+	•	les optimistic updates écrasant des champs non concernés
+	•	les divergences de queryKey entre vues liste / détail / KPI
+
+⸻
+
+5️⃣ Critères d’acceptation
+
+La tâche est validée si :
+	•	Tous les tests passent
+	•	Les mutations sont perçues comme instantanées par l’utilisateur
+	•	Les rollbacks sont systématiques, visibles et propres
+	•	Aucune divergence de données entre les vues
+	•	Aucun refresh manuel n’est nécessaire pour voir les changements
+
+⸻
+
+Intention produit :
+L’application doit toujours donner une sensation de réactivité immédiate, tout en restant fiable et cohérente, même en cas d’erreur réseau ou serveur.
