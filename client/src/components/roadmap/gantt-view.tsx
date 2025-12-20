@@ -1,11 +1,12 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import { addDays, differenceInDays, format, startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfWeek, addMonths, isSameMonth, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { RoadmapItem } from "@shared/schema";
 
@@ -31,6 +32,17 @@ const STATUS_ICONS: Record<string, { icon: typeof Circle; color: string }> = {
   blocked: { icon: AlertCircle, color: "text-red-500" },
 };
 
+const RELEASE_TAG_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  MVP: { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-400" },
+  V1: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-300", border: "border-blue-400" },
+  V2: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-400" },
+  V3: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300", border: "border-purple-400" },
+  Hotfix: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-300", border: "border-red-400" },
+  Soon: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", border: "border-amber-400" },
+};
+
+const RELEASE_TAG_OPTIONS = ["all", "MVP", "V1", "V2", "V3", "Hotfix", "Soon"] as const;
+
 const ROW_HEIGHT = 48;
 const HEADER_HEIGHT = 60;
 const LEFT_PANEL_WIDTH = 280;
@@ -38,6 +50,7 @@ const LEFT_PANEL_WIDTH = 280;
 export function GanttView({ items, onItemClick, onAddItem }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
+  const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const viewEndDate = useMemo(() => {
@@ -89,13 +102,17 @@ export function GanttView({ items, onItemClick, onAddItem }: GanttViewProps) {
   const totalWidth = columns.length * columnWidth;
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    let filtered = [...items];
+    if (releaseTagFilter !== "all") {
+      filtered = filtered.filter(item => item.releaseTag === releaseTagFilter);
+    }
+    return filtered.sort((a, b) => {
       if (!a.startDate && !b.startDate) return a.orderIndex - b.orderIndex;
       if (!a.startDate) return 1;
       if (!b.startDate) return -1;
       return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
     });
-  }, [items]);
+  }, [items, releaseTagFilter]);
 
   const getItemPosition = useCallback((item: RoadmapItem) => {
     if (!item.startDate) return null;
@@ -216,6 +233,24 @@ export function GanttView({ items, onItemClick, onAddItem }: GanttViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Select value={releaseTagFilter} onValueChange={setReleaseTagFilter}>
+            <SelectTrigger className="w-[130px] h-8" data-testid="select-release-filter">
+              <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Version" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes versions</SelectItem>
+              {RELEASE_TAG_OPTIONS.filter(tag => tag !== "all").map(tag => (
+                <SelectItem key={tag} value={tag}>
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" />
+                    {tag}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="flex items-center border rounded-md p-0.5">
             <Button
               variant={zoom === "day" ? "default" : "ghost"}
@@ -277,12 +312,25 @@ export function GanttView({ items, onItemClick, onAddItem }: GanttViewProps) {
                   <StatusIcon className={cn("h-4 w-4 flex-shrink-0", statusInfo.color)} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.title}</p>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", typeColors.text, typeColors.border)}>
                         {item.type === "deliverable" ? "Livrable" :
                          item.type === "milestone" ? "Jalon" :
                          item.type === "initiative" ? "Initiative" : "Bloc"}
                       </Badge>
+                      {item.releaseTag && RELEASE_TAG_COLORS[item.releaseTag] && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            RELEASE_TAG_COLORS[item.releaseTag].text,
+                            RELEASE_TAG_COLORS[item.releaseTag].border
+                          )}
+                        >
+                          <Tag className="h-2.5 w-2.5 mr-0.5" />
+                          {item.releaseTag}
+                        </Badge>
+                      )}
                       {item.progress > 0 && (
                         <span className="text-[10px] text-muted-foreground">{item.progress}%</span>
                       )}
@@ -379,7 +427,21 @@ export function GanttView({ items, onItemClick, onAddItem }: GanttViewProps) {
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-xs">
                           <div className="space-y-1">
-                            <p className="font-semibold">{item.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">{item.title}</p>
+                              {item.releaseTag && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0",
+                                    RELEASE_TAG_COLORS[item.releaseTag]?.text,
+                                    RELEASE_TAG_COLORS[item.releaseTag]?.border
+                                  )}
+                                >
+                                  {item.releaseTag}
+                                </Badge>
+                              )}
+                            </div>
                             {item.startDate && (
                               <p className="text-xs text-muted-foreground">
                                 {format(parseISO(item.startDate), "d MMM yyyy", { locale: fr })}

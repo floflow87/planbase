@@ -4,12 +4,13 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { GripVertical, Plus, Circle, CheckCircle2, AlertCircle, Clock, Calendar, Flag, ChevronRight } from "lucide-react";
+import { GripVertical, Plus, Circle, CheckCircle2, AlertCircle, Clock, Calendar, Flag, ChevronRight, Tag, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { RoadmapItem } from "@shared/schema";
 
@@ -49,6 +50,17 @@ const PRIORITY_BADGES: Record<string, { label: string; color: string }> = {
   normal: { label: "Normale", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" },
   low: { label: "Basse", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
 };
+
+const RELEASE_TAG_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  MVP: { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-400" },
+  V1: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-300", border: "border-blue-400" },
+  V2: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-400" },
+  V3: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-300", border: "border-purple-400" },
+  Hotfix: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-300", border: "border-red-400" },
+  Soon: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", border: "border-amber-400" },
+};
+
+const RELEASE_TAG_OPTIONS = ["all", "MVP", "V1", "V2", "V3", "Hotfix", "Soon"] as const;
 
 interface SortableItemProps {
   item: RoadmapItem;
@@ -102,6 +114,19 @@ function SortableItem({ item, onClick }: SortableItemProps) {
             <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", typeInfo.color)}>
               {typeInfo.label}
             </Badge>
+            {item.releaseTag && RELEASE_TAG_COLORS[item.releaseTag] && (
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px] px-1.5 py-0",
+                  RELEASE_TAG_COLORS[item.releaseTag].text,
+                  RELEASE_TAG_COLORS[item.releaseTag].border
+                )}
+              >
+                <Tag className="h-2.5 w-2.5 mr-0.5" />
+                {item.releaseTag}
+              </Badge>
+            )}
             {item.startDate && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                 <Calendar className="h-2.5 w-2.5" />
@@ -205,6 +230,7 @@ function DroppableColumn({ column, items, onItemClick }: DroppableColumnProps) {
 
 export function OutputView({ items, onItemClick, onAddItem, onItemMove }: OutputViewProps) {
   const [activeItem, setActiveItem] = useState<RoadmapItem | null>(null);
+  const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -214,7 +240,12 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
     })
   );
 
-  const itemsByStatus = useMemo(() => {
+  const filteredItems = useMemo(() => {
+    if (releaseTagFilter === "all") return items;
+    return items.filter(item => item.releaseTag === releaseTagFilter);
+  }, [items, releaseTagFilter]);
+
+  const allItemsByStatus = useMemo(() => {
     const grouped: Record<string, RoadmapItem[]> = {
       planned: [],
       in_progress: [],
@@ -238,6 +269,30 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
     return grouped;
   }, [items]);
 
+  const itemsByStatus = useMemo(() => {
+    const grouped: Record<string, RoadmapItem[]> = {
+      planned: [],
+      in_progress: [],
+      done: [],
+      blocked: [],
+    };
+
+    filteredItems.forEach(item => {
+      const status = item.status || "planned";
+      if (grouped[status]) {
+        grouped[status].push(item);
+      } else {
+        grouped.planned.push(item);
+      }
+    });
+
+    Object.keys(grouped).forEach(status => {
+      grouped[status].sort((a, b) => a.orderIndex - b.orderIndex);
+    });
+
+    return grouped;
+  }, [filteredItems]);
+
   const handleDragStart = (event: DragStartEvent) => {
     const item = items.find(i => i.id === event.active.id);
     setActiveItem(item || null);
@@ -256,7 +311,7 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
     const overItem = items.find(i => i.id === over.id);
     
     const newStatus = overColumnId || overItem?.status || activeItem.status;
-    const targetItems = itemsByStatus[newStatus] || [];
+    const targetItems = allItemsByStatus[newStatus] || [];
     
     let newOrderIndex = 0;
     if (overItem && overItem.id !== activeItem.id) {
@@ -277,15 +332,37 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
   return (
     <div className="h-full" data-testid="output-view">
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-        <span className="text-sm font-medium text-muted-foreground">
-          {items.length} élément{items.length !== 1 ? "s" : ""}
-        </span>
-        {onAddItem && (
-          <Button size="sm" onClick={onAddItem} data-testid="button-add-output-item">
-            <Plus className="h-4 w-4 mr-1" />
-            Ajouter
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">
+            {filteredItems.length} élément{filteredItems.length !== 1 ? "s" : ""}
+            {releaseTagFilter !== "all" && ` (${releaseTagFilter})`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={releaseTagFilter} onValueChange={setReleaseTagFilter}>
+            <SelectTrigger className="w-[130px] h-8" data-testid="select-release-filter-output">
+              <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Version" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes versions</SelectItem>
+              {RELEASE_TAG_OPTIONS.filter(tag => tag !== "all").map(tag => (
+                <SelectItem key={tag} value={tag}>
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" />
+                    {tag}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {onAddItem && (
+            <Button size="sm" onClick={onAddItem} data-testid="button-add-output-item">
+              <Plus className="h-4 w-4 mr-1" />
+              Ajouter
+            </Button>
+          )}
+        </div>
       </div>
 
       <DndContext
