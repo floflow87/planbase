@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -235,8 +236,8 @@ export default function RoadmapPage() {
     setEditingItem(null);
     setItemForm(prev => ({
       ...prev,
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd'),
     }));
     setIsItemDialogOpen(true);
   };
@@ -244,8 +245,8 @@ export default function RoadmapPage() {
   const handleUpdateItemDates = async (itemId: string, startDate: Date, endDate: Date) => {
     try {
       await apiRequest(`/api/roadmap-items/${itemId}`, 'PATCH', {
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
       });
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
       toast({
