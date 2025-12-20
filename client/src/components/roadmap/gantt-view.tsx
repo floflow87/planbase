@@ -8,10 +8,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { RoadmapItem } from "@shared/schema";
+import type { RoadmapItem, RoadmapDependency } from "@shared/schema";
 
 interface GanttViewProps {
   items: RoadmapItem[];
+  dependencies?: RoadmapDependency[];
   onItemClick?: (item: RoadmapItem) => void;
   onAddItem?: () => void;
   onCreateAtDate?: (startDate: Date, endDate: Date) => void;
@@ -65,7 +66,7 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -297,6 +298,48 @@ export function GanttView({ items, onItemClick, onAddItem, onCreateAtDate, onUpd
 
   const todayPosition = getTodayPosition();
   const showTodayLine = todayPosition >= 0 && todayPosition <= totalWidth;
+
+  const dependencyArrows = useMemo(() => {
+    if (!dependencies.length) return [];
+    
+    const arrows: Array<{
+      id: string;
+      fromX: number;
+      fromY: number;
+      toX: number;
+      toY: number;
+    }> = [];
+
+    dependencies.forEach(dep => {
+      const fromItemIndex = sortedItems.findIndex(i => i.id === dep.dependsOnRoadmapItemId);
+      const toItemIndex = sortedItems.findIndex(i => i.id === dep.roadmapItemId);
+      
+      if (fromItemIndex === -1 || toItemIndex === -1) return;
+      
+      const fromItem = sortedItems[fromItemIndex];
+      const toItem = sortedItems[toItemIndex];
+      
+      const fromPosition = getItemPosition(fromItem);
+      const toPosition = getItemPosition(toItem);
+      
+      if (!fromPosition || !toPosition) return;
+
+      const fromX = fromPosition.left + fromPosition.width;
+      const fromY = (fromItemIndex * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+      const toX = toPosition.left;
+      const toY = (toItemIndex * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+      arrows.push({
+        id: dep.id,
+        fromX,
+        fromY,
+        toX,
+        toY,
+      });
+    });
+
+    return arrows;
+  }, [dependencies, sortedItems, getItemPosition]);
 
   const handleGridClick = useCallback((e: React.MouseEvent<HTMLDivElement>, columnDate: Date) => {
     if (!onCreateAtDate) return;
@@ -821,6 +864,42 @@ export function GanttView({ items, onItemClick, onAddItem, onCreateAtDate, onUpd
                     ))}
                   </div>
                 </div>
+              )}
+
+              {dependencyArrows.length > 0 && (
+                <svg 
+                  className="absolute inset-0 pointer-events-none z-10"
+                  style={{ width: totalWidth, height: sortedItems.length * ROW_HEIGHT }}
+                >
+                  <defs>
+                    <marker
+                      id="arrowhead"
+                      markerWidth="8"
+                      markerHeight="6"
+                      refX="8"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--primary))" />
+                    </marker>
+                  </defs>
+                  {dependencyArrows.map(arrow => {
+                    const midX = arrow.fromX + (arrow.toX - arrow.fromX) / 2;
+                    const path = `M ${arrow.fromX} ${arrow.fromY} C ${midX} ${arrow.fromY}, ${midX} ${arrow.toY}, ${arrow.toX} ${arrow.toY}`;
+                    return (
+                      <path
+                        key={arrow.id}
+                        d={path}
+                        fill="none"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="2"
+                        strokeOpacity="0.6"
+                        markerEnd="url(#arrowhead)"
+                        data-testid={`dependency-arrow-${arrow.id}`}
+                      />
+                    );
+                  })}
+                </svg>
               )}
             </div>
 

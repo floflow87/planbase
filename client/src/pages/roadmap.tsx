@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { GanttView } from "@/components/roadmap/gantt-view";
 import { OutputView } from "@/components/roadmap/output-view";
-import type { Roadmap, RoadmapItem, Project } from "@shared/schema";
+import type { Roadmap, RoadmapItem, Project, RoadmapDependency } from "@shared/schema";
 
 type ViewMode = "gantt" | "output";
 
@@ -65,6 +65,11 @@ export default function RoadmapPage() {
 
   const { data: roadmapItems = [], isLoading: isLoadingItems } = useQuery<RoadmapItem[]>({
     queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],
+    enabled: !!activeRoadmapId,
+  });
+
+  const { data: roadmapDependencies = [] } = useQuery<RoadmapDependency[]>({
+    queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`],
     enabled: !!activeRoadmapId,
   });
 
@@ -168,6 +173,49 @@ export default function RoadmapPage() {
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour l'élément.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addDependencyMutation = useMutation({
+    mutationFn: async ({ itemId, dependsOnId }: { itemId: string; dependsOnId: string }) => {
+      return apiRequest(`/api/roadmap-items/${itemId}/dependencies`, 'POST', {
+        dependsOnRoadmapItemId: dependsOnId,
+        type: "finish_to_start",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
+      toast({
+        title: "Dépendance ajoutée",
+        description: "La dépendance a été créée.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter la dépendance.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeDependencyMutation = useMutation({
+    mutationFn: async (dependencyId: string) => {
+      return apiRequest(`/api/roadmap-dependencies/${dependencyId}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
+      toast({
+        title: "Dépendance supprimée",
+        description: "La dépendance a été retirée.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la dépendance.",
         variant: "destructive",
       });
     },
@@ -419,6 +467,7 @@ export default function RoadmapPage() {
                   {viewMode === "gantt" ? (
                     <GanttView 
                       items={roadmapItems} 
+                      dependencies={roadmapDependencies}
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
                       onCreateAtDate={handleCreateAtDate}
@@ -588,6 +637,93 @@ export default function RoadmapPage() {
                 data-testid="input-item-description"
               />
             </div>
+
+            {editingItem && (
+              <div className="space-y-4 pt-2 border-t">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Bloqué par (dépendances)
+                  </Label>
+                  <div className="space-y-1.5">
+                    {roadmapDependencies
+                      .filter(d => d.roadmapItemId === editingItem.id)
+                      .map(dep => {
+                        const blockedByItem = roadmapItems.find(i => i.id === dep.dependsOnRoadmapItemId);
+                        return blockedByItem ? (
+                          <div key={dep.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                            <span className="text-sm">{blockedByItem.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeDependencyMutation.mutate(dep.id)}
+                              disabled={removeDependencyMutation.isPending}
+                              data-testid={`button-remove-dep-${dep.id}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : null;
+                      })}
+                    <Select
+                      value=""
+                      onValueChange={(itemId) => {
+                        if (itemId && editingItem) {
+                          addDependencyMutation.mutate({ itemId: editingItem.id, dependsOnId: itemId });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm" data-testid="select-add-blocked-by">
+                        <SelectValue placeholder="Ajouter une dépendance..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roadmapItems
+                          .filter(i => i.id !== editingItem.id && 
+                            !roadmapDependencies.some(d => d.roadmapItemId === editingItem.id && d.dependsOnRoadmapItemId === i.id))
+                          .map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.title}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4" />
+                    Bloque (éléments dépendants)
+                  </Label>
+                  <div className="space-y-1.5">
+                    {roadmapDependencies
+                      .filter(d => d.dependsOnRoadmapItemId === editingItem.id)
+                      .map(dep => {
+                        const blocksItem = roadmapItems.find(i => i.id === dep.roadmapItemId);
+                        return blocksItem ? (
+                          <div key={dep.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                            <span className="text-sm">{blocksItem.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeDependencyMutation.mutate(dep.id)}
+                              disabled={removeDependencyMutation.isPending}
+                              data-testid={`button-remove-blocks-${dep.id}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : null;
+                      })}
+                    <p className="text-xs text-muted-foreground">
+                      Pour ajouter un élément dépendant, ouvrez cet élément et ajoutez cette tâche dans "Bloqué par".
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>
