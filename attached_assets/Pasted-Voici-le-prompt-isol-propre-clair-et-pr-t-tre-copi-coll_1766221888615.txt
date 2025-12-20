@@ -1,0 +1,135 @@
+Voici le prompt isolé, propre, clair et prêt à être copié-collé tel quel 👇
+(Il est volontairement précis pour éviter toute interprétation.)
+
+⸻
+
+🎯 PROMPT REPLIT — NOTES MOBILE UX “NOTION-LIKE” (HEADER ULTRA COMPACT)
+
+Tu es l’agent Replit chargé de refondre l’interface mobile de la page d’édition d’une note afin de maximiser la zone d’écriture, en adoptant une UX inspirée de Notion sur mobile.
+
+L’objectif est que le texte soit prioritaire, et que toutes les actions secondaires soient regroupées dans un menu dropdown discret.
+
+⚠️ Cette refonte concerne uniquement le mobile.
+L’interface desktop ne doit pas être modifiée.
+
+⸻
+
+1️⃣ Règles générales
+	•	Appliquer les changements uniquement sous le breakpoint mobile (< 768px).
+	•	Sur desktop, conserver l’UI actuelle sans modification.
+	•	Réduire au maximum la hauteur occupée par les contrôles.
+	•	Le focus principal doit être :
+Titre → Contenu → Rien d’autre.
+
+⸻
+
+2️⃣ Header mobile (structure principale)
+
+2.1 Ligne unique (obligatoire)
+
+Remplacer le header actuel par une seule ligne compacte contenant :
+	•	À gauche :
+	•	Bouton menu (☰) si nécessaire pour la navigation
+	•	Au centre :
+	•	Titre de la note
+	•	Éditable inline
+	•	Une seule ligne
+	•	Ellipsis si trop long
+	•	À droite :
+	•	Bouton ⋯ (menu dropdown)
+
+👉 Le bouton ⋯ doit être sur la même ligne que le titre.
+
+⸻
+
+3️⃣ Sous-ligne “chips” (optionnelle mais recommandée)
+
+Sous le header principal, afficher une ligne très compacte de chips contextuelles :
+	•	Chip Projet :
+	•	Projet : Nom du projet
+	•	ou + Projet si non renseigné
+	•	Chip Visibilité :
+	•	Privée / Partagée
+	•	Chip Statut :
+	•	Brouillon / Publiée / autre
+
+Contraintes :
+	•	Une seule ligne
+	•	Scroll horizontal si nécessaire
+	•	Sélecteurs avec background blanc
+	•	Si manque de place :
+	•	Priorité au Projet
+	•	Les autres peuvent être masquées
+
+⸻
+
+4️⃣ Menu ⋯ (regroupement des actions)
+
+Déplacer toutes les actions secondaires dans le menu dropdown ⋯.
+
+Contenu du menu (minimum requis)
+
+Section “Édition”
+	•	Autosave (toggle ON/OFF)
+	•	Verrouiller / Déverrouiller
+	•	Favori (toggle)
+
+Section “Partage”
+	•	Partager
+	•	Exporter (si existant)
+
+Section “Paramètres”
+	•	Paramètres de la note
+	•	Historique / versions (si existant)
+
+Section “Danger”
+	•	Supprimer la note
+
+Règles UX :
+	•	Le bouton “Supprimer” doit être isolé en bas
+	•	Style danger clair
+	•	Chaque action déclenche un toast de feedback
+
+⸻
+
+5️⃣ Toolbar d’édition (mobile)
+	•	Supprimer l’affichage permanent de la toolbar complète au-dessus de l’éditeur sur mobile.
+	•	Options acceptables :
+	•	Toolbar minimaliste
+	•	Toolbar contextuelle (au focus)
+	•	Aucun bouton d’édition ne doit occuper de l’espace inutilement hors focus.
+
+⸻
+
+6️⃣ Zone de texte prioritaire
+	•	L’éditeur doit occuper le maximum de hauteur visible.
+	•	Aucune barre fixe ne doit réduire inutilement la zone d’écriture.
+	•	Le comportement avec le clavier mobile doit être fluide :
+	•	pas de sauts de layout
+	•	scroll naturel
+	•	focus stable
+
+⸻
+
+7️⃣ Critères d’acceptation
+
+La refonte est validée si :
+	•	Sur mobile, le header tient sur une seule ligne (titre + ⋯).
+	•	Les actions (autosave, lock, star, delete…) ne sont plus visibles directement.
+	•	La zone de texte visible est significativement plus grande.
+	•	Les sélecteurs ont un fond blanc et sont lisibles.
+	•	Le desktop reste strictement inchangé.
+
+⸻
+
+8️⃣ Bonus (si simple à implémenter)
+	•	Ajouter un indicateur discret :
+	•	“Sauvegardé”
+	•	“Modification en cours…”
+	•	Cet indicateur ne doit pas consommer de hauteur supplémentaire.
+
+⸻
+
+Intention produit :
+Sur mobile, la note doit se comporter comme dans Notion :
+écrire d’abord, gérer ensuite.
