@@ -1,0 +1,97 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel 👇
+
+⸻
+
+🎯 PROMPT REPLIT — ACTIVER MODE APP FULLSCREEN (PWA)
+
+Tu es l’agent Replit chargé de transformer PlanBase en Progressive Web App (PWA) afin qu’elle s’ouvre en plein écran, sans aucune barre de navigation du navigateur, lorsqu’elle est ajoutée à l’écran d’accueil sur mobile (iOS et Android).
+
+L’objectif est d’obtenir un comportement équivalent à une application native.
+
+⸻
+
+1️⃣ Manifest PWA
+
+Créer un fichier public/manifest.json avec les caractéristiques suivantes :
+	•	name : PlanBase
+	•	short_name : PlanBase
+	•	start_url : /
+	•	display : standalone
+	•	background_color : #ffffff
+	•	theme_color : couleur principale du Design System
+	•	orientation : portrait
+	•	Icônes :
+	•	192×192 (/icons/icon-192.png)
+	•	512×512 (/icons/icon-512.png)
+
+⸻
+
+2️⃣ Lier le manifest dans l’application
+
+Dans le fichier HTML principal (index.html) :
+	•	Ajouter :
+
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#6D28D9" />
+
+
+⸻
+
+3️⃣ Support iOS obligatoire (Safari)
+
+Toujours dans index.html, ajouter :
+
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PlanBase" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+Ces balises sont indispensables pour supprimer totalement la barre Safari en mode app.
+
+⸻
+
+4️⃣ Gestion des safe areas (iPhone avec notch)
+
+Dans le CSS global, ajouter :
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+Cela évite que le contenu soit masqué par le notch ou la barre système.
+
+⸻
+
+5️⃣ Comportement attendu
+	•	L’application s’ouvre sans barre d’adresse ni navigation navigateur
+	•	Aucune URL visible
+	•	UX plein écran identique à une app native
+	•	Fonctionne sur iOS et Android après “Ajouter à l’écran d’accueil”
+
+⸻
+
+6️⃣ Contraintes
+
+Ne pas modifier :
+	•	le routing existant
+	•	l’authentification
+	•	le Design System
+	•	la logique métier
+
+⸻
+
+7️⃣ Validation
+
+Tester sur mobile :
+	•	Ouvrir l’app dans Safari / Chrome
+	•	“Ajouter à l’écran d’accueil”
+	•	Lancer depuis l’icône
+	•	Vérifier l’absence totale de barres navigateur
+
+⸻
+
+Intention produit :
+PlanBase doit se comporter comme une vraie application, sans friction ni bruit navigateur, tout en restant une web app installable.
+
+⸻
