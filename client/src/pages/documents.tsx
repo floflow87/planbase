@@ -28,6 +28,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Loader } from "@/components/Loader";
 import type { Document, Client, Project, DocumentLink } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -654,7 +655,7 @@ export default function Documents() {
           {/* Files Grid */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-muted-foreground">Chargement des documents...</div>
+              <Loader size="lg" />
             </div>
           ) : files.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">

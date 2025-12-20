@@ -241,6 +241,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loader } from "@/components/Loader";
 import {
   Select,
   SelectContent,
@@ -2745,8 +2746,8 @@ function MindmapCanvas() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 p-6">
-        <Skeleton className="h-[600px] w-full" />
+      <div className="flex items-center justify-center h-full">
+        <Loader size="lg" />
       </div>
     );
   }

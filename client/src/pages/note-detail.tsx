@@ -31,6 +31,7 @@ import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Loader } from "@/components/Loader";
 import type { Note, InsertNote, Project, NoteLink, Client } from "@shared/schema";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -776,13 +777,8 @@ export default function NoteDetail() {
 
   if (isLoading) {
     return (
-      <div className="h-full overflow-auto">
-        <div className="p-6 space-y-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="h-64 bg-muted rounded"></div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-full">
+        <Loader size="lg" />
       </div>
     );
   }

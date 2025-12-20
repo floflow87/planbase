@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Loader } from "@/components/Loader";
 import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import type { DocumentTemplate, Project } from "@shared/schema";
 import { marked } from "marked";
@@ -225,7 +226,7 @@ export default function DocumentTemplateForm() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Chargement...</div>
+        <Loader size="lg" />
       </div>
     );
   }
