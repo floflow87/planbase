@@ -3565,14 +3565,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/roadmap-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log("📌 Creating roadmap item, body:", JSON.stringify(req.body));
       const data = insertRoadmapItemSchema.parse({
         ...req.body,
         accountId: req.accountId!,
         createdBy: req.userId || req.body.createdBy,
       });
+      console.log("📌 Parsed data:", JSON.stringify(data));
       const item = await storage.createRoadmapItem(data);
+      console.log("📌 Created item:", JSON.stringify(item));
       res.json(item);
     } catch (error: any) {
+      console.error("❌ Error creating roadmap item:", error.message, error);
       res.status(400).json({ error: error.message });
     }
   });
