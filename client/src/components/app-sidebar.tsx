@@ -63,7 +63,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       {!isCollapsed && (
-        <SidebarHeader className="p-4 border-b border-sidebar-border">
+        <SidebarHeader className="p-4 border-b border-sidebar-border" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
           <Link href="/" onClick={handleNavigation}>
             <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
               <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
@@ -73,7 +73,7 @@ export function AppSidebar() {
         </SidebarHeader>
       )}
 
-      <SidebarContent className={isCollapsed ? 'pt-4' : ''}>
+      <SidebarContent className={isCollapsed ? '' : ''} style={isCollapsed ? { paddingTop: 'max(1rem, env(safe-area-inset-top))' } : {}}>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
