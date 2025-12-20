@@ -1,0 +1,125 @@
+Dépendances + Versions (MVP/V1/V2) + Gantt interactif + Hiérarchie Epic → Features
+
+Tu es l’agent Replit chargé d’améliorer le module Roadmap de PlanBase pour atteindre un comportement “Gantt pro” inspiré des outils roadmap.
+
+Objectif : une roadmap manipulable (click-to-create, resize, drag), structurée par rubriques (Epics) connectées au backlog, et supportant des dépendances ainsi qu’une roadmap de versions (MVP, V1, V2…).
+
+⸻
+
+1️⃣ DÉPENDANCES (à vérifier / compléter)
+
+1.1 Modèle
+
+Assurer l’existence d’une table roadmap_dependencies (ou équivalent) :
+	•	id
+	•	roadmapItemId
+	•	dependsOnRoadmapItemId
+	•	type (MVP: finish_to_start)
+	•	timestamps
+
+1.2 API
+
+Endpoints CRUD :
+	•	POST /api/roadmap-items/:id/dependencies
+	•	DELETE /api/roadmap-dependencies/:id
+	•	GET /api/roadmaps/:roadmapId doit renvoyer items + dependencies
+
+1.3 UI
+
+Dans le drawer d’un item :
+	•	section “Dépendances”
+	•	“Bloqué par : …”
+	•	“Bloque : …”
+	•	Ajout via recherche d’un autre item
+	•	Affichage visuel sur le Gantt :
+	•	ligne/flèche simple entre items (MVP)
+	•	Si un item dépend d’un autre non terminé :
+	•	badge blocked
+	•	option d’alerte “impossible de commencer avant …”
+
+⸻
+
+2️⃣ ROADMAP DE VERSIONS (MVP, V1, V2…)
+
+2.1 Modèle (simple et scalable)
+
+Ajouter sur RoadmapItem :
+	•	releaseTag (string / enum) ex: MVP, V1, V2, Hotfix, Soon
+
+2.2 UI
+	•	Filtre “Version” en haut du Gantt + Output view
+	•	Possibilité d’afficher des “swimlanes” par version (optionnel V1.2)
+	•	Default : afficher tout, avec badge version sur chaque item
+
+⸻
+
+3️⃣ GANTT INTERACTIF (UX “pro”)
+
+3.1 Click-to-create
+	•	Sur la vue Gantt, permettre un clic sur une cellule de la grille temporelle :
+	•	crée un RoadmapItem à la date cliquée
+	•	durée par défaut : 7 jours (ou 5 jours ouvrés)
+	•	ouvre le drawer pour saisir le titre
+
+3.2 Drag & drop
+	•	Drag horizontal d’un item :
+	•	déplace startDate et endDate en conservant la durée
+	•	Drag vertical :
+	•	change la position (ordre) si items libres
+	•	ou déplace l’item sous une autre rubrique (Epic) si hiérarchie activée
+
+3.3 Resize
+	•	Ajouter deux poignées (gauche/droite) sur chaque barre :
+	•	poignée gauche modifie startDate
+	•	poignée droite modifie endDate
+	•	Afficher un feedback en live (dates)
+	•	Sauvegarder en fin de drag (debounce)
+
+⸻
+
+4️⃣ RUBRIQUES (EPICS) + FEATURES (US/TASKS) connectées au backlog
+
+4.1 Modèle
+
+Supporter une hiérarchie simple sur RoadmapItem :
+	•	parentId (nullable)
+	•	isGroup (bool) ou type = epic_group
+
+Règle :
+	•	une “rubrique” roadmap = type: initiative ou epic_group
+	•	ses enfants = features (US / tasks) ou items libres
+
+4.2 Connexion backlog
+	•	Permettre de créer une rubrique roadmap à partir d’un Epic existant
+	•	Dans le drawer rubrique :
+	•	bouton “Lier à un Epic”
+	•	une fois lié :
+	•	possibilité d’importer automatiquement ses US/tasks en enfants (optionnel)
+	•	Les children peuvent être :
+	•	des items “miroirs” du backlog
+	•	ou des liens (RoadmapItemLink) affichés comme lignes internes
+
+4.3 UI
+	•	Vue Gantt : rubriques affichées comme groupes (expand/collapse)
+	•	Vue Output : rubriques = sections, features = items sous section
+	•	Option “Afficher seulement les rubriques” vs “Rubriques + features”
+
+⸻
+
+5️⃣ Progression (cohérence)
+	•	Si un item est lié à des tickets/tâches :
+	•	progression auto = done/total (ou points)
+	•	Si une rubrique a des enfants :
+	•	progression = moyenne pondérée des enfants
+	•	Si dépendances et item blocked :
+	•	afficher clairement l’état
+
+⸻
+
+6️⃣ Critères d’acceptation
+	•	Les dépendances sont persistées (DB+API) et visibles en UI
+	•	Click-to-create fonctionne sur la grille Gantt
+	•	Drag & drop + resize modifient correctement les dates
+	•	Support des versions via releaseTag + filtre UI
+	•	Rubriques (Epics) pouvant contenir des features (US/Tasks) via hiérarchie
+	•	UX fluide, cohérente avec le Design System, sans casser l’existant

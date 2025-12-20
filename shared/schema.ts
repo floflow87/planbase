@@ -653,22 +653,29 @@ export const roadmapItems = pgTable("roadmap_items", {
   roadmapId: uuid("roadmap_id").notNull().references(() => roadmaps.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   featureId: uuid("feature_id").references(() => features.id, { onDelete: "set null" }),
+  parentId: uuid("parent_id"), // Reference to parent item for Epic/Feature hierarchy (self-reference added via FK in migration)
+  epicId: uuid("epic_id").references(() => epics.id, { onDelete: "set null" }), // Link to backlog Epic
   title: text("title").notNull(),
-  type: text("type").notNull().default("deliverable"), // 'deliverable', 'milestone', 'initiative', 'free_block'
+  type: text("type").notNull().default("deliverable"), // 'deliverable', 'milestone', 'initiative', 'epic_group', 'free_block'
+  isGroup: boolean("is_group").notNull().default(false), // True for Epic/rubrique groups
+  releaseTag: text("release_tag"), // 'MVP', 'V1', 'V2', 'Hotfix', 'Soon', etc.
   startDate: date("start_date"),
   endDate: date("end_date"),
   status: text("status").notNull().default("planned"), // 'planned', 'in_progress', 'done', 'blocked'
   priority: text("priority").notNull().default("normal"), // 'low', 'normal', 'high', 'strategic'
   description: text("description"),
-  progressMode: text("progress_mode").notNull().default("manual"), // 'manual', 'linked_auto'
+  progressMode: text("progress_mode").notNull().default("manual"), // 'manual', 'linked_auto', 'children_auto'
   progress: integer("progress").notNull().default(0), // 0-100
   orderIndex: integer("order_index").notNull().default(0),
+  color: text("color"), // Custom color for the item bar
   rice: jsonb("rice").notNull().default({}), // {reach,impact,confidence,effort}
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   roadmapStatusIdx: index().on(table.roadmapId, table.status),
   projectIdx: index().on(table.projectId),
+  parentIdx: index().on(table.parentId),
+  releaseTagIdx: index().on(table.roadmapId, table.releaseTag),
 }));
 
 export const roadmapItemLinks = pgTable("roadmap_item_links", {
@@ -1166,7 +1173,9 @@ export const insertEmailSchema = createInsertSchema(emails).omit({ id: true, cre
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertFeatureSchema = createInsertSchema(features).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertRoadmapSchema = createInsertSchema(roadmaps).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateRoadmapSchema = insertRoadmapSchema.omit({ accountId: true, createdBy: true }).partial();
 export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateRoadmapItemSchema = insertRoadmapItemSchema.omit({ roadmapId: true }).partial();
 export const insertRoadmapItemLinkSchema = createInsertSchema(roadmapItemLinks).omit({ id: true, createdAt: true });
 export const insertRoadmapDependencySchema = createInsertSchema(roadmapDependencies).omit({ id: true, createdAt: true });
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
@@ -1262,7 +1271,9 @@ export type InsertEmail = z.infer<typeof insertEmailSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertFeature = z.infer<typeof insertFeatureSchema>;
 export type InsertRoadmap = z.infer<typeof insertRoadmapSchema>;
+export type UpdateRoadmap = z.infer<typeof updateRoadmapSchema>;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+export type UpdateRoadmapItem = z.infer<typeof updateRoadmapItemSchema>;
 export type InsertRoadmapItemLink = z.infer<typeof insertRoadmapItemLinkSchema>;
 export type InsertRoadmapDependency = z.infer<typeof insertRoadmapDependencySchema>;
 export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
