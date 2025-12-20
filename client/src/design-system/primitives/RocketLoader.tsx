@@ -43,6 +43,9 @@ export const RocketLoader = React.forwardRef<HTMLDivElement, RocketLoaderProps>(
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
           }
+          .rocket-container {
+            transform: rotate(45deg);
+          }
           @keyframes flamePulse {
             0%, 100% { opacity: 1; transform: scaleY(1); }
             50% { opacity: 0.7; transform: scaleY(1.3); }
@@ -79,7 +82,7 @@ export const RocketLoader = React.forwardRef<HTMLDivElement, RocketLoaderProps>(
           }
         `}</style>
         
-        <div className={cn("relative", config.container)}>
+        <div className={cn("relative rocket-container", config.container)}>
           <svg
             viewBox="0 0 48 64"
             fill="none"
