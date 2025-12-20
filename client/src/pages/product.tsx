@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -156,7 +157,7 @@ export default function Product() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader size="lg" />
       </div>
     );
   }

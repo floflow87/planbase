@@ -24,6 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -966,7 +967,7 @@ export default function BacklogDetail() {
   if (isLoading && !isCreatingNew) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader size="lg" />
       </div>
     );
   }
@@ -2900,7 +2901,7 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
   if (retrosLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader size="md" />
       </div>
     );
   }
@@ -3162,7 +3163,7 @@ function RetroKanbanDetail({ retroId, backlogId, onBack }: { retroId: string; ba
   if (retroLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader size="md" />
       </div>
     );
   }
