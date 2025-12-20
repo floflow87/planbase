@@ -18,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
+import { apiRequest, queryClient, formatDateForStorage, optimisticAdd, optimisticUpdate, optimisticUpdateSingle, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -286,14 +286,23 @@ export default function ClientDetail() {
     mutationFn: async (data: InsertClient) => {
       return await apiRequest(`/api/clients/${id}`, "PATCH", data);
     },
+    onMutate: async (data: InsertClient) => {
+      const { previousData: prevList } = optimisticUpdate<Client>(['/api/clients'], id!, data);
+      const { previousData: prevSingle } = optimisticUpdateSingle<Client>(['/api/clients', id!], data);
+      return { prevList, prevSingle };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
       setIsEditClientDialogOpen(false);
       toast({ title: "Client mis à jour", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.prevList) rollbackOptimistic(['/api/clients'], context.prevList);
+      if (context?.prevSingle) rollbackOptimistic(['/api/clients', id!], context.prevSingle);
       toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id] });
     },
   });
 
@@ -301,34 +310,57 @@ export default function ClientDetail() {
     mutationFn: async () => {
       await apiRequest(`/api/clients/${id}`, "DELETE");
     },
+    onMutate: async () => {
+      const { previousData } = optimisticDelete<Client>(['/api/clients'], id!);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({ title: "Client supprimé avec succès", variant: "success" });
       setLocation("/crm");
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/clients'], context.previousData);
       toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
     },
   });
 
   const createContactMutation = useMutation({
     mutationFn: async (data: any) => {
       const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
-      return await apiRequest("/api/contacts", "POST", { 
+      const response = await apiRequest("/api/contacts", "POST", { 
         ...data, 
         clientId: id,
         fullName,
         accountId
       });
+      return response.json();
+    },
+    onMutate: async (data: any) => {
+      const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
+      const tempContact = {
+        id: `temp-${Date.now()}`,
+        ...data,
+        clientId: id,
+        fullName,
+        accountId,
+      } as Contact;
+      const { previousData } = optimisticAdd<Contact>(['/api/contacts'], tempContact);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
       toast({ title: "Contact créé avec succès", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/contacts'], context.previousData);
       toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
     },
   });
 
@@ -337,12 +369,23 @@ export default function ClientDetail() {
       const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
       return await apiRequest(`/api/contacts/${contactId}`, "PATCH", { ...data, fullName });
     },
+    onMutate: async ({ id: contactId, data }) => {
+      const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Sans nom';
+      const { previousData } = optimisticUpdate<Contact>(['/api/contacts'], contactId, { ...data, fullName });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsContactDialogOpen(false);
       setEditingContact(null);
       setContactFormData({ firstName: "", lastName: "", email: "", phone: "", position: "" });
       toast({ title: "Contact mis à jour", variant: "success" });
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/contacts'], context.previousData);
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
     },
   });
 
@@ -350,29 +393,50 @@ export default function ClientDetail() {
     mutationFn: async (contactId: string) => {
       await apiRequest(`/api/contacts/${contactId}`, "DELETE");
     },
+    onMutate: async (contactId: string) => {
+      const { previousData } = optimisticDelete<Contact>(['/api/contacts'], contactId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
       setIsDeleteContactDialogOpen(false);
       setContactToDelete(null);
       toast({ title: "Contact supprimé", variant: "default" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/contacts'], context.previousData);
       toast({ title: "Erreur lors de la suppression du contact", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
     },
   });
 
   const createCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      return await apiRequest(`/api/clients/${id}/comments`, "POST", { content });
+      const response = await apiRequest(`/api/clients/${id}/comments`, "POST", { content });
+      return response.json();
+    },
+    onMutate: async (content: string) => {
+      const tempComment = {
+        id: `temp-${Date.now()}`,
+        clientId: id,
+        content,
+        createdAt: new Date().toISOString(),
+      } as ClientComment;
+      const { previousData } = optimisticAdd<ClientComment>(['/api/clients', id!, 'comments'], tempComment);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
       setNewComment("");
       toast({ title: "Commentaire ajouté", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/clients', id!, 'comments'], context.previousData);
       toast({ title: "Erreur lors de l'ajout du commentaire", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
     },
   });
 
@@ -380,21 +444,27 @@ export default function ClientDetail() {
     mutationFn: async (commentId: string) => {
       await apiRequest(`/api/clients/${id}/comments/${commentId}`, "DELETE");
     },
+    onMutate: async (commentId: string) => {
+      const { previousData } = optimisticDelete<ClientComment>(['/api/clients', id!, 'comments'], commentId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
       setIsDeleteCommentDialogOpen(false);
       setCommentToDelete(null);
       toast({ title: "Commentaire supprimé", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/clients', id!, 'comments'], context.previousData);
       toast({ title: "Erreur lors de la suppression du commentaire", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
     },
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Prepare task data
       const taskData: any = {
         title: data.title,
         description: data.description || null,
@@ -407,11 +477,27 @@ export default function ClientDetail() {
           ? (typeof data.dueDate === 'string' ? data.dueDate : formatDateForStorage(new Date(data.dueDate)))
           : null,
       };
-      
-      return await apiRequest("/api/tasks", "POST", taskData);
+      const response = await apiRequest("/api/tasks", "POST", taskData);
+      return response.json();
+    },
+    onMutate: async (data: any) => {
+      const tempTask = {
+        id: `temp-${Date.now()}`,
+        title: data.title,
+        description: data.description || null,
+        priority: data.priority,
+        status: data.status,
+        clientId: id,
+        accountId,
+        projectId: data.projectId || null,
+        dueDate: data.dueDate 
+          ? (typeof data.dueDate === 'string' ? data.dueDate : formatDateForStorage(new Date(data.dueDate)))
+          : null,
+      } as Task;
+      const { previousData } = optimisticAdd<Task>(['/api/tasks'], tempTask);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       setIsTaskDialogOpen(false);
       setTaskFormData({
         title: "",
@@ -423,29 +509,49 @@ export default function ClientDetail() {
       });
       toast({ title: "Tâche créée avec succès", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/tasks'], context.previousData);
       toast({ title: "Erreur lors de la création de la tâche", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
     },
   });
 
   const createCustomTabMutation = useMutation({
     mutationFn: async (data: { name: string; icon?: string }) => {
       const maxOrder = customTabs.length > 0 ? Math.max(...customTabs.map(t => t.order)) : -1;
-      return await apiRequest("/api/client-custom-tabs", "POST", {
+      const response = await apiRequest("/api/client-custom-tabs", "POST", {
         name: data.name,
         icon: data.icon || null,
         order: maxOrder + 1,
       });
+      return response.json();
+    },
+    onMutate: async (data: { name: string; icon?: string }) => {
+      const maxOrder = customTabs.length > 0 ? Math.max(...customTabs.map(t => t.order)) : -1;
+      const tempTab = {
+        id: `temp-${Date.now()}`,
+        name: data.name,
+        icon: data.icon || null,
+        order: maxOrder + 1,
+        accountId,
+      } as ClientCustomTab;
+      const { previousData } = optimisticAdd<ClientCustomTab>(['/api/client-custom-tabs'], tempTab);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
       setIsCreateTabDialogOpen(false);
       setNewTabName("");
       setNewTabIcon("");
       toast({ title: "Onglet personnalisé créé", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/client-custom-tabs'], context.previousData);
       toast({ title: "Erreur lors de la création de l'onglet", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
     },
   });
 
@@ -453,13 +559,20 @@ export default function ClientDetail() {
     mutationFn: async (tabId: string) => {
       return await apiRequest(`/api/client-custom-tabs/${tabId}`, "DELETE");
     },
+    onMutate: async (tabId: string) => {
+      const { previousData } = optimisticDelete<ClientCustomTab>(['/api/client-custom-tabs'], tabId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
       toast({ title: "Onglet personnalisé supprimé", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/client-custom-tabs'], context.previousData);
       toast({ title: "Erreur lors de la suppression de l'onglet", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
     },
   });
 
@@ -469,14 +582,21 @@ export default function ClientDetail() {
         name: data.name,
       });
     },
+    onMutate: async (data: { tabId: string; name: string }) => {
+      const { previousData } = optimisticUpdate<ClientCustomTab>(['/api/client-custom-tabs'], data.tabId, { name: data.name });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
       setEditingTabId(null);
       setEditingTabName("");
       toast({ title: "Onglet personnalisé modifié", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/client-custom-tabs'], context.previousData);
       toast({ title: "Erreur lors de la modification de l'onglet", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-tabs'] });
     },
   });
 
@@ -484,22 +604,41 @@ export default function ClientDetail() {
     mutationFn: async (data: { tabId: string; name: string; fieldType: string; options?: string }) => {
       const tabFields = customFields.filter(f => f.tabId === data.tabId);
       const maxOrder = tabFields.length > 0 ? Math.max(...tabFields.map(f => f.order)) : -1;
-      return await apiRequest("/api/client-custom-fields", "POST", {
+      const response = await apiRequest("/api/client-custom-fields", "POST", {
         tabId: data.tabId,
         name: data.name,
         fieldType: data.fieldType,
         options: data.options && data.options.trim() ? data.options.split(',').map(o => o.trim()) : [],
         order: maxOrder + 1,
       });
+      return response.json();
+    },
+    onMutate: async (data: { tabId: string; name: string; fieldType: string; options?: string }) => {
+      const tabFields = customFields.filter(f => f.tabId === data.tabId);
+      const maxOrder = tabFields.length > 0 ? Math.max(...tabFields.map(f => f.order)) : -1;
+      const tempField = {
+        id: `temp-${Date.now()}`,
+        tabId: data.tabId,
+        name: data.name,
+        fieldType: data.fieldType,
+        options: data.options && data.options.trim() ? data.options.split(',').map(o => o.trim()) : [],
+        order: maxOrder + 1,
+        accountId,
+      } as ClientCustomField;
+      const { previousData } = optimisticAdd<ClientCustomField>(['/api/client-custom-fields'], tempField);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
       setIsCreateFieldDialogOpen(false);
       setNewFieldData({ name: "", fieldType: "text", options: "" });
       toast({ title: "Champ personnalisé créé", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/client-custom-fields'], context.previousData);
       toast({ title: "Erreur lors de la création du champ", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
     },
   });
 
@@ -507,15 +646,22 @@ export default function ClientDetail() {
     mutationFn: async (fieldId: string) => {
       return await apiRequest(`/api/client-custom-fields/${fieldId}`, "DELETE");
     },
+    onMutate: async (fieldId: string) => {
+      const { previousData } = optimisticDelete<ClientCustomField>(['/api/client-custom-fields'], fieldId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'field-values'] });
       setIsDeleteFieldDialogOpen(false);
       setDeleteFieldId(null);
       toast({ title: "Champ supprimé avec succès", variant: "success" });
     },
-    onError: () => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(['/api/client-custom-fields'], context.previousData);
       toast({ title: "Erreur lors de la suppression du champ", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/client-custom-fields'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'field-values'] });
     },
   });
 

@@ -189,11 +189,15 @@ export default function DocumentDetail() {
     });
   }, [debouncedTitle, debouncedContent, status, document, isEditMode, autoSaveEnabled]);
 
-  // Delete mutation
+  // Delete mutation with optimistic update
   const deleteDocumentMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(`/api/documents/${id}`, "DELETE");
       return await response.json();
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["/api/documents"] });
+      navigate("/documents");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -202,7 +206,6 @@ export default function DocumentDetail() {
         description: "Le document a été supprimé avec succès",
         variant: "success",
       });
-      navigate("/documents");
     },
     onError: (error: any) => {
       toast({

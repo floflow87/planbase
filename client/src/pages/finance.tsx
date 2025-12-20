@@ -1084,12 +1084,33 @@ export default function Finance() {
     actionMap.set(key, action);
   });
   
-  // Mutations for recommendation actions
+  // Mutations for recommendation actions with optimistic updates
   const createActionMutation = useMutation({
     mutationFn: async (data: { projectId: string; recommendationKey: string; action: 'treated' | 'ignored' }) => {
       return apiRequest('/api/recommendation-actions', 'POST', data);
     },
-    onSuccess: () => {
+    onMutate: async (newAction) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/recommendation-actions'] });
+      const previousActions = queryClient.getQueryData<RecommendationActionData[]>(['/api/recommendation-actions']);
+      if (previousActions) {
+        const optimisticAction: RecommendationActionData = {
+          id: `temp-${Date.now()}`,
+          ...newAction,
+          createdAt: new Date().toISOString(),
+        };
+        queryClient.setQueryData<RecommendationActionData[]>(
+          ['/api/recommendation-actions'],
+          [...previousActions, optimisticAction]
+        );
+      }
+      return { previousActions };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousActions) {
+        queryClient.setQueryData(['/api/recommendation-actions'], context.previousActions);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
     },
   });
@@ -1098,7 +1119,23 @@ export default function Finance() {
     mutationFn: async (id: string) => {
       return apiRequest(`/api/recommendation-actions/${id}`, 'DELETE');
     },
-    onSuccess: () => {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/recommendation-actions'] });
+      const previousActions = queryClient.getQueryData<RecommendationActionData[]>(['/api/recommendation-actions']);
+      if (previousActions) {
+        queryClient.setQueryData<RecommendationActionData[]>(
+          ['/api/recommendation-actions'],
+          previousActions.filter(a => a.id !== id)
+        );
+      }
+      return { previousActions };
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previousActions) {
+        queryClient.setQueryData(['/api/recommendation-actions'], context.previousActions);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/recommendation-actions'] });
     },
   });

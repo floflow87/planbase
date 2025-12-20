@@ -67,7 +67,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
+import { queryClient, apiRequest, formatDateForStorage, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import {
   DndContext,
   DragEndEvent,
@@ -2233,17 +2233,26 @@ export default function Projects() {
       const response = await apiRequest(`/api/tasks/${id}`, "PATCH", data);
       return response.json();
     },
+    onMutate: async ({ id, data }) => {
+      const { previousData: prevProject } = optimisticUpdate<Task>(["/api/projects", selectedProjectId!, "tasks"], id, data);
+      const { previousData: prevAll } = optimisticUpdate<Task>(["/api/tasks"], id, data);
+      return { prevProject, prevAll };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ title: "Tâche mise à jour", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      if (context?.prevProject) rollbackOptimistic(["/api/projects", selectedProjectId!, "tasks"], context.prevProject);
+      if (context?.prevAll) rollbackOptimistic(["/api/tasks"], context.prevAll);
       toast({
         title: "Erreur lors de la mise à jour",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -2271,19 +2280,28 @@ export default function Projects() {
       const response = await apiRequest(`/api/tasks/${taskId}`, "DELETE");
       return response.json();
     },
+    onMutate: async (taskId) => {
+      const { previousData: prevProject } = optimisticDelete<Task>(["/api/projects", selectedProjectId!, "tasks"], taskId);
+      const { previousData: prevAll } = optimisticDelete<Task>(["/api/tasks"], taskId);
+      return { prevProject, prevAll };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsDeleteTaskDialogOpen(false);
       setSelectedTask(null);
       toast({ title: "Tâche supprimée", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      if (context?.prevProject) rollbackOptimistic(["/api/projects", selectedProjectId!, "tasks"], context.prevProject);
+      if (context?.prevAll) rollbackOptimistic(["/api/tasks"], context.prevAll);
       toast({
         title: "Erreur lors de la suppression",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 
@@ -2444,8 +2462,11 @@ export default function Projects() {
       const response = await apiRequest(`/api/projects/${id}`, "PATCH", data);
       return response.json();
     },
+    onMutate: async ({ id, data }) => {
+      const { previousData } = optimisticUpdate<Project>(["/api/projects"], id, data);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditProjectDialogOpen(false);
       setEditingProject(null);
       setProjectFormData({
@@ -2460,12 +2481,16 @@ export default function Projects() {
       });
       toast({ title: "Projet mis à jour avec succès", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/projects"], context.previousData);
       toast({
         title: "Erreur lors de la mise à jour",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
   });
 
@@ -2474,18 +2499,25 @@ export default function Projects() {
       const response = await apiRequest(`/api/projects/${projectId}`, "DELETE");
       return response.json();
     },
+    onMutate: async (projectId) => {
+      const { previousData } = optimisticDelete<Project>(["/api/projects"], projectId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsDeleteProjectDialogOpen(false);
       setEditingProject(null);
       toast({ title: "Projet supprimé avec succès", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/projects"], context.previousData);
       toast({
         title: "Erreur lors de la suppression",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     },
   });
 

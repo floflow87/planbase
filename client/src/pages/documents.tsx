@@ -78,32 +78,45 @@ export default function Documents() {
     queryKey: ["/api/document-links"],
   });
 
-  // Delete mutation
+  // Delete mutation with optimistic update
   const deleteDocumentMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest(`/api/documents/${id}`, "DELETE");
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({
-        title: "Document supprimé",
-        description: "Le document a été supprimé avec succès",
-        variant: "success",
-      });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/documents"] });
+      const previousDocuments = queryClient.getQueryData<Document[]>(["/api/documents"]);
+      if (previousDocuments) {
+        queryClient.setQueryData<Document[]>(["/api/documents"], previousDocuments.filter(d => d.id !== id));
+      }
       setDeleteDialogOpen(false);
       setDocumentToDelete(null);
+      return { previousDocuments };
     },
-    onError: (error: any) => {
+    onError: (error: any, _id, context) => {
+      if (context?.previousDocuments) {
+        queryClient.setQueryData(["/api/documents"], context.previousDocuments);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de supprimer le document",
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document supprimé",
+        description: "Le document a été supprimé avec succès",
+        variant: "success",
+      });
+    },
   });
 
-  // Duplicate mutation
+  // Duplicate mutation (no optimistic update - need server response for new ID)
   const duplicateDocumentMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest(`/api/documents/${id}/duplicate`, "POST");

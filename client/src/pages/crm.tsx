@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClientSchema, type InsertClient, type Client, type Contact, type Project, type AppUser } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
 import {
   DndContext,
@@ -406,67 +406,124 @@ export default function CRM() {
     enabled: !!accountId,
   });
 
-  // Create client mutation
+  // Create client mutation with optimistic update
   const createMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
-      return await apiRequest("/api/clients", "POST", data);
+      const res = await apiRequest("/api/clients", "POST", data);
+      return res.json();
+    },
+    onMutate: async (data) => {
+      const tempId = `temp-${Date.now()}`;
+      const tempClient: Client = {
+        id: tempId,
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as Client;
+      const { previousData } = optimisticAdd<Client>(["/api/accounts", accountId!, "clients"], tempClient);
+      return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setIsCreateDialogOpen(false);
       toast({ title: "Client créé avec succès", variant: "success" });
     },
-    onError: () => {
+    onError: (error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
       toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
     },
   });
 
-  // Update client mutation
+  // Update client mutation with optimistic update
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClient> }) => {
       return await apiRequest(`/api/clients/${id}`, "PATCH", data);
     },
+    onMutate: async ({ id, data }) => {
+      const { previousData } = optimisticUpdate<Client>(["/api/accounts", accountId!, "clients"], id, data as Partial<Client>);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setEditingClient(null);
       toast({ title: "Client mis à jour", variant: "success" });
     },
+    onError: (error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+    },
   });
 
-  // Delete client mutation
+  // Delete client mutation with optimistic update
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest(`/api/clients/${id}`, "DELETE");
     },
+    onMutate: async (id) => {
+      const { previousData } = optimisticDelete<Client>(["/api/accounts", accountId!, "clients"], id);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       toast({ title: "Client supprimé", variant: "success" });
+    },
+    onError: (error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
     },
   });
 
-  // Bulk delete mutation
+  // Bulk delete mutation with optimistic update
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       await Promise.all(ids.map(id => apiRequest(`/api/clients/${id}`, "DELETE")));
     },
+    onMutate: async (ids) => {
+      queryClient.cancelQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      const previousData = queryClient.getQueryData<Client[]>(["/api/accounts", accountId!, "clients"]);
+      queryClient.setQueryData<Client[]>(["/api/accounts", accountId!, "clients"], (old) => {
+        if (!old) return old;
+        return old.filter(client => !ids.includes(client.id));
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setSelectedClients(new Set());
       toast({ title: "Clients supprimés", variant: "success" });
     },
+    onError: (error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+    },
   });
   
-  // Update client status mutation (for Kanban drag and drop)
+  // Update client status mutation (for Kanban drag and drop) with optimistic update
   const updateClientStatusMutation = useMutation({
     mutationFn: async ({ clientId, status }: { clientId: string; status: string }) => {
       return await apiRequest(`/api/clients/${clientId}`, "PATCH", { status });
     },
+    onMutate: async ({ clientId, status }) => {
+      const { previousData } = optimisticUpdate<Client>(["/api/accounts", accountId!, "clients"], clientId, { status } as Partial<Client>);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       toast({ title: "Statut mis à jour", variant: "success" });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
     },
   });
   
@@ -497,15 +554,30 @@ export default function CRM() {
     }
   };
 
-  // Bulk update status mutation
+  // Bulk update status mutation with optimistic update
   const bulkUpdateStatusMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
       await Promise.all(ids.map(id => apiRequest(`/api/clients/${id}`, "PATCH", { status })));
     },
+    onMutate: async ({ ids, status }) => {
+      queryClient.cancelQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
+      const previousData = queryClient.getQueryData<Client[]>(["/api/accounts", accountId!, "clients"]);
+      queryClient.setQueryData<Client[]>(["/api/accounts", accountId!, "clients"], (old) => {
+        if (!old) return old;
+        return old.map(client => ids.includes(client.id) ? { ...client, status } : client);
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
       setSelectedClients(new Set());
       toast({ title: "Statuts mis à jour", variant: "success" });
+    },
+    onError: (error, _, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/accounts", accountId!, "clients"], context.previousData);
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/accounts", accountId, "clients"] });
     },
   });
 

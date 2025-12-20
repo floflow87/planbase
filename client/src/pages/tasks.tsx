@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest, formatDateForStorage } from "@/lib/queryClient";
+import { queryClient, apiRequest, formatDateForStorage, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import {
   DndContext,
   DragEndEvent,
@@ -955,7 +955,14 @@ export default function Tasks() {
       const response = await apiRequest(`/api/tasks/${id}`, "PATCH", data);
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ id, data }) => {
+      const { previousData } = optimisticUpdate<Task>(["/api/tasks"], id, data);
+      return { previousData };
+    },
+    onError: (error: Error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/tasks"], context.previousData);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
@@ -964,8 +971,11 @@ export default function Tasks() {
     mutationFn: async (id: string) => {
       await apiRequest(`/api/tasks/${id}`, "DELETE");
     },
+    onMutate: async (id) => {
+      const { previousData } = optimisticDelete<Task>(["/api/tasks"], id);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsDeleteTaskDialogOpen(false);
       setSelectedTask(null);
       toast({
@@ -973,6 +983,12 @@ export default function Tasks() {
         title: "Tâche supprimée",
         description: "La tâche a été supprimée avec succès.",
       });
+    },
+    onError: (error: Error, variables, context) => {
+      if (context?.previousData) rollbackOptimistic(["/api/tasks"], context.previousData);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
   });
 

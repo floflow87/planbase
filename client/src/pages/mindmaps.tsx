@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader } from "@/components/Loader";
 import { Badge } from "@/components/ui/badge";
+import { MutationStateIndicator } from "@/design-system/feedback/SavingIndicator";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Mindmap, MindmapKind, Client, Project } from "@shared/schema";
@@ -57,15 +58,42 @@ export default function Mindmaps() {
       const res = await apiRequest("/api/mindmaps", "POST", data);
       return await res.json();
     },
-    onSuccess: (mindmap) => {
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/mindmaps"] });
+      const previousMindmaps = queryClient.getQueryData<Mindmap[]>(["/api/mindmaps"]);
+      
+      if (previousMindmaps) {
+        const tempMindmap: Mindmap = {
+          id: `temp-${Date.now()}`,
+          accountId: "temp",
+          name: data.name || "Nouvelle mindmap",
+          description: data.description || null,
+          kind: data.kind || "generic",
+          clientId: data.clientId || null,
+          projectId: data.projectId || null,
+          canvas: { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        queryClient.setQueryData<Mindmap[]>(["/api/mindmaps"], [tempMindmap, ...previousMindmaps]);
+      }
+      
+      return { previousMindmaps };
+    },
+    onError: (error: Error, _data, context) => {
+      if (context?.previousMindmaps) {
+        queryClient.setQueryData(["/api/mindmaps"], context.previousMindmaps);
+      }
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
+    },
+    onSuccess: (mindmap) => {
       setIsSheetOpen(false);
       setNewMindmap({ name: "", description: "", kind: "generic", clientId: "", projectId: "" });
       toast({ title: "Mindmap créée", description: "Votre mindmap a été créée avec succès." });
       setLocation(`/mindmaps/${mindmap.id}`);
-    },
-    onError: (error: Error) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
 
@@ -73,12 +101,25 @@ export default function Mindmaps() {
     mutationFn: async (id: string) => {
       return await apiRequest(`/api/mindmaps/${id}`, "DELETE");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
-      toast({ title: "Mindmap supprimée" });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/mindmaps"] });
+      const previousMindmaps = queryClient.getQueryData<Mindmap[]>(["/api/mindmaps"]);
+      if (previousMindmaps) {
+        queryClient.setQueryData<Mindmap[]>(["/api/mindmaps"], previousMindmaps.filter(m => m.id !== id));
+      }
+      return { previousMindmaps };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _id, context) => {
+      if (context?.previousMindmaps) {
+        queryClient.setQueryData(["/api/mindmaps"], context.previousMindmaps);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mindmaps"] });
+    },
+    onSuccess: () => {
+      toast({ title: "Mindmap supprimée" });
     },
   });
 
@@ -193,16 +234,25 @@ export default function Mindmaps() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsSheetOpen(false)} className="flex-1">Annuler</Button>
-                <Button 
-                  onClick={handleCreate} 
-                  disabled={createMutation.isPending}
-                  data-testid="button-create-mindmap"
-                  className="flex-1"
-                >
-                  {createMutation.isPending ? "Création..." : "Créer"}
-                </Button>
+              <div className="flex flex-col gap-2 pt-4">
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsSheetOpen(false)} className="flex-1">Annuler</Button>
+                  <Button 
+                    onClick={handleCreate} 
+                    disabled={createMutation.isPending}
+                    data-testid="button-create-mindmap"
+                    className="flex-1"
+                  >
+                    {createMutation.isPending ? "Création..." : "Créer"}
+                  </Button>
+                </div>
+                <MutationStateIndicator 
+                  isPending={createMutation.isPending}
+                  isSuccess={createMutation.isSuccess}
+                  isError={createMutation.isError}
+                  savingText="Création en cours..."
+                  savedText="Mindmap créée"
+                />
               </div>
             </div>
           </SheetContent>

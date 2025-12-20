@@ -86,12 +86,14 @@ export default function RoadmapPage() {
         horizon: data.horizon || null,
       });
     },
-    onSuccess: (newRoadmap: Roadmap) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
-      setSelectedRoadmapId(newRoadmap.id);
+    onMutate: async () => {
       setIsCreateDialogOpen(false);
       setNewRoadmapName("");
       setNewRoadmapHorizon("");
+    },
+    onSuccess: (newRoadmap: Roadmap) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      setSelectedRoadmapId(newRoadmap.id);
       toast({
         title: "Roadmap créée",
         description: `La roadmap "${newRoadmap.name}" a été créée avec succès.`,
@@ -129,10 +131,12 @@ export default function RoadmapPage() {
         orderIndex: roadmapItems.length,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+    onMutate: async () => {
       setIsItemDialogOpen(false);
       resetItemForm();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
       toast({
         title: "Élément créé",
         description: "L'élément a été ajouté à la roadmap.",
@@ -159,21 +163,37 @@ export default function RoadmapPage() {
         description: data.description || null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      const previousItems = queryClient.getQueryData<RoadmapItem[]>([`/api/roadmaps/${activeRoadmapId}/items`]);
+      if (previousItems) {
+        queryClient.setQueryData<RoadmapItem[]>(
+          [`/api/roadmaps/${activeRoadmapId}/items`],
+          previousItems.map(item => item.id === id ? { ...item, ...data } : item)
+        );
+      }
       setIsItemDialogOpen(false);
       setEditingItem(null);
       resetItemForm();
-      toast({
-        title: "Élément mis à jour",
-        description: "Les modifications ont été enregistrées.",
-      });
+      return { previousItems };
     },
-    onError: () => {
+    onError: (_error, _variables, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData([`/api/roadmaps/${activeRoadmapId}/items`], context.previousItems);
+      }
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour l'élément.",
         variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Élément mis à jour",
+        description: "Les modifications ont été enregistrées.",
       });
     },
   });
@@ -205,18 +225,34 @@ export default function RoadmapPage() {
     mutationFn: async (dependencyId: string) => {
       return apiRequest(`/api/roadmap-dependencies/${dependencyId}`, 'DELETE');
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
-      toast({
-        title: "Dépendance supprimée",
-        description: "La dépendance a été retirée.",
-      });
+    onMutate: async (dependencyId: string) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
+      const previousDependencies = queryClient.getQueryData<RoadmapDependency[]>([`/api/roadmaps/${activeRoadmapId}/dependencies`]);
+      if (previousDependencies) {
+        queryClient.setQueryData<RoadmapDependency[]>(
+          [`/api/roadmaps/${activeRoadmapId}/dependencies`],
+          previousDependencies.filter(d => d.id !== dependencyId)
+        );
+      }
+      return { previousDependencies };
     },
-    onError: () => {
+    onError: (_error, _id, context) => {
+      if (context?.previousDependencies) {
+        queryClient.setQueryData([`/api/roadmaps/${activeRoadmapId}/dependencies`], context.previousDependencies);
+      }
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la dépendance.",
         variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Dépendance supprimée",
+        description: "La dépendance a été retirée.",
       });
     },
   });

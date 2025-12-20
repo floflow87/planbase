@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -212,34 +212,76 @@ export default function BacklogDetail() {
     mutationFn: async (data: { title: string; description?: string; priority?: string; color?: string }) => {
       return apiRequest(`/api/backlogs/${id}/epics`, "POST", data);
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempEpic = { id: `temp-${Date.now()}`, backlogId: id!, ...data, state: "backlog" } as Epic;
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          epics: [...previousBacklog.epics, tempEpic],
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Epic créé" });
       setShowEpicDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const updateEpicMutation = useMutation({
     mutationFn: async ({ epicId, data }: { epicId: string; data: Partial<Epic> }) => {
       return apiRequest(`/api/epics/${epicId}`, "PATCH", data);
     },
+    onMutate: async ({ epicId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          epics: previousBacklog.epics.map(e => e.id === epicId ? { ...e, ...data } : e),
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Epic mis à jour" });
       setEditingEpic(null);
       setShowEpicDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const deleteEpicMutation = useMutation({
     mutationFn: async (epicId: string) => apiRequest(`/api/epics/${epicId}`, "DELETE"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Epic supprimé" });
+    onMutate: async (epicId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          epics: previousBacklog.epics.filter(e => e.id !== epicId),
+          userStories: previousBacklog.userStories.map(us => us.epicId === epicId ? { ...us, epicId: null } : us),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Epic supprimé" }),
   });
 
   const createUserStoryMutation = useMutation({
@@ -253,34 +295,75 @@ export default function BacklogDetail() {
     }) => {
       return apiRequest(`/api/backlogs/${id}/user-stories`, "POST", data);
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempStory = { id: `temp-${Date.now()}`, backlogId: id!, ...data, state: "backlog", tasks: [] } as UserStory & { tasks: BacklogTask[] };
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: [...previousBacklog.userStories, tempStory],
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "User Story créée" });
       setShowUserStoryDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const updateUserStoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<UserStory> }) => {
-      return apiRequest(`/api/user-stories/${id}`, "PATCH", data);
+    mutationFn: async ({ id: usId, data }: { id: string; data: Partial<UserStory> }) => {
+      return apiRequest(`/api/user-stories/${usId}`, "PATCH", data);
     },
+    onMutate: async ({ id: usId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.map(us => us.id === usId ? { ...us, ...data } : us),
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "User Story mise à jour" });
       setEditingUserStory(null);
       setShowUserStoryDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const deleteUserStoryMutation = useMutation({
     mutationFn: async (usId: string) => apiRequest(`/api/user-stories/${usId}`, "DELETE"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "User Story supprimée" });
+    onMutate: async (usId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.filter(us => us.id !== usId),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "User Story supprimée" }),
   });
 
   const createTaskMutation = useMutation({
@@ -290,99 +373,231 @@ export default function BacklogDetail() {
         description: data.description 
       });
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempTask = { id: `temp-${Date.now()}`, userStoryId: data.userStoryId, title: data.title, description: data.description, state: "a_faire" } as BacklogTask;
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.map(us => 
+            us.id === data.userStoryId ? { ...us, tasks: [...(us.tasks || []), tempTask] } : us
+          ),
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Tâche créée" });
       setShowTaskDialog(false);
       setParentUserStoryId(null);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }: { taskId: string; data: Partial<BacklogTask> }) => {
       return apiRequest(`/api/backlog-tasks/${taskId}`, "PATCH", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+    onMutate: async ({ taskId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.map(us => ({
+            ...us,
+            tasks: (us.tasks || []).map(t => t.id === taskId ? { ...t, ...data } : t),
+          })),
+          backlogTasks: previousBacklog.backlogTasks.map(t => t.id === taskId ? { ...t, ...data } : t),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
   });
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => apiRequest(`/api/backlog-tasks/${taskId}`, "DELETE"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Tâche supprimée" });
+    onMutate: async (taskId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.map(us => ({
+            ...us,
+            tasks: (us.tasks || []).filter(t => t.id !== taskId),
+          })),
+          backlogTasks: previousBacklog.backlogTasks.filter(t => t.id !== taskId),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Tâche supprimée" }),
   });
 
   const createSprintMutation = useMutation({
     mutationFn: async (data: { name: string; goal?: string; startDate?: string; endDate?: string }) => {
       return apiRequest(`/api/backlogs/${id}/sprints`, "POST", data);
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempSprint = { id: `temp-${Date.now()}`, backlogId: id!, ...data, status: "planned", position: (previousBacklog.sprints?.length || 0) } as Sprint;
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          sprints: [...(previousBacklog.sprints || []), tempSprint],
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Sprint créé" });
       setShowSprintDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const updateSprintMutation = useMutation({
     mutationFn: async ({ sprintId, data }: { sprintId: string; data: Partial<Sprint> }) => {
       return apiRequest(`/api/sprints/${sprintId}`, "PATCH", data);
     },
+    onMutate: async ({ sprintId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, ...data } : s),
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Sprint mis à jour" });
       setShowSprintDialog(false);
       setEditingSprint(null);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const startSprintMutation = useMutation({
     mutationFn: async (sprintId: string) => apiRequest(`/api/sprints/${sprintId}/start`, "PATCH"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Sprint démarré" });
+    onMutate: async (sprintId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "active" } : s),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Sprint démarré" }),
   });
 
   const moveSprintMutation = useMutation({
     mutationFn: async ({ sprintId, direction }: { sprintId: string; direction: 'up' | 'down' }) => 
       apiRequest(`/api/sprints/${sprintId}/move`, "PATCH", { direction }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Sprint déplacé" });
+    onMutate: async ({ sprintId, direction }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog && previousBacklog.sprints) {
+        const sprints = [...previousBacklog.sprints];
+        const idx = sprints.findIndex(s => s.id === sprintId);
+        if (idx !== -1) {
+          const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (newIdx >= 0 && newIdx < sprints.length) {
+            [sprints[idx], sprints[newIdx]] = [sprints[newIdx], sprints[idx]];
+            queryClient.setQueryData<BacklogData>(["/api/backlogs", id], { ...previousBacklog, sprints });
+          }
+        }
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Sprint déplacé" }),
   });
 
   const closeSprintMutation = useMutation({
     mutationFn: async ({ sprintId, redirectTo }: { sprintId: string; redirectTo?: string }) => 
       apiRequest(`/api/sprints/${sprintId}/close`, "PATCH", { redirectTo }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Sprint clôturé" });
+    onMutate: async ({ sprintId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "completed" } : s),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Sprint clôturé" }),
   });
 
   const updateBacklogMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; projectId?: string | null }) => {
       return apiRequest(`/api/backlogs/${id}`, "PATCH", data);
     },
-    onSuccess: () => {
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], { ...previousBacklog, ...data });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+    },
+    onSuccess: () => {
       toastSuccess({ title: "Backlog mis à jour" });
       setShowEditBacklogDialog(false);
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const deleteBacklogMutation = useMutation({
@@ -402,10 +617,28 @@ export default function BacklogDetail() {
     mutationFn: async ({ itemId, done }: { itemId: string; done: boolean }) => {
       return apiRequest(`/api/checklist-items/${itemId}`, "PATCH", { done });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+    onMutate: async ({ itemId, done }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          userStories: previousBacklog.userStories.map(us => ({
+            ...us,
+            tasks: (us.tasks || []).map(t => ({
+              ...t,
+              checklistItems: (t.checklistItems || []).map(ci => ci.id === itemId ? { ...ci, done } : ci),
+            })),
+          })),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
   });
 
   // Kanban column mutations
@@ -413,46 +646,101 @@ export default function BacklogDetail() {
     mutationFn: async (data: { name: string; color: string }) => {
       return apiRequest(`/api/backlogs/${id}/columns`, "POST", data);
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempColumn = { id: `temp-${Date.now()}`, backlogId: id!, ...data, position: (previousBacklog.columns?.length || 0) } as BacklogColumn;
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          columns: [...(previousBacklog.columns || []), tempColumn],
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowColumnDialog(false);
       toastSuccess({ title: "Colonne créée" });
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const deleteColumnMutation = useMutation({
     mutationFn: async (columnId: string) => {
       return apiRequest(`/api/backlog-columns/${columnId}`, "DELETE");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      toastSuccess({ title: "Colonne supprimée" });
+    onMutate: async (columnId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          columns: (previousBacklog.columns || []).filter(c => c.id !== columnId),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: () => toastSuccess({ title: "Colonne supprimée" }),
   });
 
   const createKanbanTaskMutation = useMutation({
     mutationFn: async (data: { title: string; description?: string; priority?: string; columnId: string }) => {
       return apiRequest(`/api/backlogs/${id}/tasks`, "POST", data);
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        const tempTask = { id: `temp-${Date.now()}`, backlogId: id!, ...data, state: "a_faire" } as BacklogTask;
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          backlogTasks: [...previousBacklog.backlogTasks, tempTask],
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setShowKanbanTaskDialog(false);
       setSelectedColumnId(null);
       toastSuccess({ title: "Tâche créée" });
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
   });
 
   const moveTaskToColumnMutation = useMutation({
     mutationFn: async ({ taskId, columnId }: { taskId: string; columnId: string }) => {
       return apiRequest(`/api/backlog-tasks/${taskId}`, "PATCH", { columnId });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+    onMutate: async ({ taskId, columnId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          backlogTasks: previousBacklog.backlogTasks.map(t => t.id === taskId ? { ...t, columnId } : t),
+          userStories: previousBacklog.userStories.map(us => us.id === taskId ? { ...us, columnId } : us),
+        });
+      }
+      return { previousBacklog };
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
   });
 
   const toggleEpic = (epicId: string) => {

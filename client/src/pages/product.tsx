@@ -116,14 +116,27 @@ export default function Product() {
     mutationFn: async (id: string) => {
       await apiRequest(`/api/backlogs/${id}`, "DELETE");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      toastSuccess({ title: "Backlog supprimé" });
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs"] });
+      const previousBacklogs = queryClient.getQueryData<BacklogWithProject[]>(["/api/backlogs"]);
+      if (previousBacklogs) {
+        queryClient.setQueryData<BacklogWithProject[]>(["/api/backlogs"], previousBacklogs.filter(b => b.id !== id));
+      }
       setShowDeleteDialog(false);
       setSelectedBacklog(null);
+      return { previousBacklogs };
     },
-    onError: (error: any) => {
+    onError: (error: any, _id, context) => {
+      if (context?.previousBacklogs) {
+        queryClient.setQueryData(["/api/backlogs"], context.previousBacklogs);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+    },
+    onSuccess: () => {
+      toastSuccess({ title: "Backlog supprimé" });
     },
   });
 

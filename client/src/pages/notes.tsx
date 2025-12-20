@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -507,16 +507,23 @@ export default function Notes() {
     mutationFn: async ({ noteId, data }: { noteId: string; data: Partial<Note> }) => {
       return apiRequest(`/api/notes/${noteId}`, "PATCH", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/note-links"] });
+    onMutate: async ({ noteId, data }) => {
+      const { previousData } = optimisticUpdate<Note>(["/api/notes"], noteId, data);
+      return { previousData };
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        rollbackOptimistic(["/api/notes"], context.previousData);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de mettre à jour la note",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/note-links"] });
     },
   });
 
@@ -524,20 +531,29 @@ export default function Notes() {
     mutationFn: async (noteId: string) => {
       return apiRequest(`/api/notes/${noteId}`, "DELETE");
     },
+    onMutate: async (noteId) => {
+      const { previousData } = optimisticDelete<Note>(["/api/notes"], noteId);
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Note supprimée",
         description: "La note a été supprimée avec succès",
         variant: "success",
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        rollbackOptimistic(["/api/notes"], context.previousData);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de supprimer la note",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
 
@@ -570,8 +586,18 @@ export default function Notes() {
         apiRequest(`/api/notes/${id}`, "PATCH", { status: "active" })
       ));
     },
+    onMutate: async (noteIds) => {
+      qc.cancelQueries({ queryKey: ["/api/notes"] });
+      const previousData = qc.getQueryData<Note[]>(["/api/notes"]);
+      qc.setQueryData<Note[]>(["/api/notes"], (old) => {
+        if (!old) return old;
+        return old.map(note => 
+          noteIds.includes(note.id) ? { ...note, status: "active" } : note
+        );
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setSelectedNotes(new Set());
       toast({
         title: "Notes publiées",
@@ -579,12 +605,18 @@ export default function Notes() {
         variant: "success",
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        rollbackOptimistic(["/api/notes"], context.previousData);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de publier les notes",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
 
@@ -594,8 +626,16 @@ export default function Notes() {
         apiRequest(`/api/notes/${id}`, "DELETE")
       ));
     },
+    onMutate: async (noteIds) => {
+      qc.cancelQueries({ queryKey: ["/api/notes"] });
+      const previousData = qc.getQueryData<Note[]>(["/api/notes"]);
+      qc.setQueryData<Note[]>(["/api/notes"], (old) => {
+        if (!old) return old;
+        return old.filter(note => !noteIds.includes(note.id));
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setSelectedNotes(new Set());
       toast({
         title: "Notes supprimées",
@@ -603,12 +643,18 @@ export default function Notes() {
         variant: "success",
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        rollbackOptimistic(["/api/notes"], context.previousData);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de supprimer les notes",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
 

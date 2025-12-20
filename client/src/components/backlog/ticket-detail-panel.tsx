@@ -135,10 +135,23 @@ export function TicketDetailPanel({
         content,
       });
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
-      setNewComment("");
+    onMutate: async ({ content, tId, tType }) => {
+      const key = ["/api/tickets", tId, tType, "comments"];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previousComments = queryClient.getQueryData<TicketComment[]>(key);
+      if (previousComments) {
+        const tempComment = { id: `temp-${Date.now()}`, content, ticketId: tId, ticketType: tType, authorId: "current-user", createdAt: new Date().toISOString() } as TicketComment;
+        queryClient.setQueryData<TicketComment[]>(key, [...previousComments, tempComment]);
+      }
+      return { previousComments, key };
     },
+    onError: (_error, _variables, context) => {
+      if (context?.previousComments && context.key) queryClient.setQueryData(context.key, context.previousComments);
+    },
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
+    },
+    onSuccess: () => setNewComment(""),
   });
   
   // Update comment mutation
@@ -146,8 +159,22 @@ export function TicketDetailPanel({
     mutationFn: async ({ commentId, content, tId, tType }: { commentId: string; content: string; tId: string; tType: string }) => {
       return apiRequest(`/api/ticket-comments/${commentId}`, "PATCH", { content });
     },
-    onSuccess: (_, variables) => {
+    onMutate: async ({ commentId, content, tId, tType }) => {
+      const key = ["/api/tickets", tId, tType, "comments"];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previousComments = queryClient.getQueryData<TicketComment[]>(key);
+      if (previousComments) {
+        queryClient.setQueryData<TicketComment[]>(key, previousComments.map(c => c.id === commentId ? { ...c, content } : c));
+      }
+      return { previousComments, key };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousComments && context.key) queryClient.setQueryData(context.key, context.previousComments);
+    },
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
+    },
+    onSuccess: () => {
       setEditingCommentId(null);
       setEditedCommentContent("");
     },
@@ -158,7 +185,19 @@ export function TicketDetailPanel({
     mutationFn: async ({ commentId, tId, tType }: { commentId: string; tId: string; tType: string }) => {
       return apiRequest(`/api/ticket-comments/${commentId}`, "DELETE");
     },
-    onSuccess: (_, variables) => {
+    onMutate: async ({ commentId, tId, tType }) => {
+      const key = ["/api/tickets", tId, tType, "comments"];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previousComments = queryClient.getQueryData<TicketComment[]>(key);
+      if (previousComments) {
+        queryClient.setQueryData<TicketComment[]>(key, previousComments.filter(c => c.id !== commentId));
+      }
+      return { previousComments, key };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousComments && context.key) queryClient.setQueryData(context.key, context.previousComments);
+    },
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets", variables.tId, variables.tType, "comments"] });
     },
   });

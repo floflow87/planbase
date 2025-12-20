@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import NoteEditor, { type NoteEditorRef } from "@/components/NoteEditor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, optimisticUpdate, optimisticUpdateSingle, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/Loader";
 import type { Note, InsertNote, Project, NoteLink, Client } from "@shared/schema";
@@ -258,6 +258,12 @@ export default function NoteDetail() {
       const response = await apiRequest(`/api/notes/${id}`, "PATCH", data);
       return await response.json();
     },
+    onMutate: async (data) => {
+      // Optimistic update for both single and list queries
+      const { previousData: prevSingle } = optimisticUpdateSingle<Note>(["/api/notes", id!], data as Partial<Note>);
+      const { previousData: prevList } = optimisticUpdate<Note>(["/api/notes"], id!, data as Partial<Note>);
+      return { prevSingle, prevList };
+    },
     onSuccess: (updatedNote) => {
       // Update local state to match server response to avoid UI flicker
       setLastSaved(new Date());
@@ -270,18 +276,26 @@ export default function NoteDetail() {
         status: updatedNote.status,
         visibility: updatedNote.visibility,
       });
-      
-      // Invalidate both the individual note and the list (for status/visibility changes)
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.prevSingle) {
+        rollbackOptimistic(["/api/notes", id!], context.prevSingle);
+      }
+      if (context?.prevList) {
+        rollbackOptimistic(["/api/notes"], context.prevList);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de sauvegarder la note",
         variant: "destructive",
       });
       setIsSaving(false);
+    },
+    onSettled: () => {
+      // Sync with server truth
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
 
