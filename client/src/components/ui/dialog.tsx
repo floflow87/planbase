@@ -42,7 +42,7 @@ const DialogContent = React.forwardRef<
         className
       )}
       style={{
-        top: "calc(50% + env(safe-area-inset-top, 0px) / 2)"
+        top: "calc(50% + var(--safe-top, 0px) / 2)"
       }}
       {...props}
     >
