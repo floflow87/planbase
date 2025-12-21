@@ -1,5 +1,6 @@
 import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Loader } from "@/components/Loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -882,15 +883,8 @@ export default function Notes() {
 
         {/* Notes List */}
         {isLoading ? (
-          <div className="border border-border rounded-md">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="border-b border-border last:border-b-0 p-4">
-                <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-muted rounded w-1/3"></div>
-                  <div className="h-3 bg-muted rounded w-1/4"></div>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-center py-16">
+            <Loader size="md" text="Chargement des notes..." />
           </div>
         ) : (
           <>
