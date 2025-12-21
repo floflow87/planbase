@@ -51,7 +51,7 @@ export function SafeAreaTopBar() {
     <div
       className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none"
       style={{
-        height: "env(safe-area-inset-top, 0px)",
+        height: "var(--safe-top, 0px)",
         backgroundColor: "hsl(var(--primary))",
       }}
       aria-hidden="true"
