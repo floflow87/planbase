@@ -39,6 +39,7 @@ import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -204,6 +205,7 @@ interface Tab {
 function AppLayout() {
   const [location, setLocation] = useLocation();
   const isAuthPage = location === "/login" || location === "/signup";
+  const isStandalone = useIsStandalone();
   
   // Tab system state with localStorage persistence
   const [tabs, setTabs] = useState<Tab[]>(() => {
@@ -324,15 +326,32 @@ function AppLayout() {
   };
 
   if (isAuthPage) {
-    return <Router />;
+    return (
+      <>
+        <SafeAreaTopBar />
+        <div 
+          className="min-h-screen"
+          style={isStandalone ? { paddingTop: "env(safe-area-inset-top, 0px)" } : undefined}
+        >
+          <Router />
+        </div>
+      </>
+    );
   }
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full bg-background">
+      <SafeAreaTopBar />
+      <div 
+        className="flex h-screen w-full bg-background"
+        style={isStandalone ? { paddingTop: "env(safe-area-inset-top, 0px)" } : undefined}
+      >
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card sticky top-0 z-10">
+          <header 
+            className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-border bg-card sticky z-10"
+            style={{ top: isStandalone ? "env(safe-area-inset-top, 0px)" : 0 }}
+          >
             <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
               <SidebarTrigger data-testid="button-sidebar-toggle" className="flex-shrink-0" />
               

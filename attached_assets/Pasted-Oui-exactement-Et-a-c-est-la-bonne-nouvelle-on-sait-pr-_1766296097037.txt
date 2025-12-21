@@ -1,0 +1,81 @@
+Oui — exactement. Et ça, c’est la bonne nouvelle : on sait précisément quoi refaire.
+
+Sur iOS PWA, tu ne “colories” pas la status bar comme sur Android : tu rends la status bar transparente (black-translucent) et tu peins la safe area derrière.
+Donc si ta safe area n’est plus violette, c’est que :
+	•	soit viewport-fit=cover a sauté,
+	•	soit ton fond violet n’est plus “au niveau root”,
+	•	soit un wrapper blanc recouvre le haut.
+
+On va le verrouiller proprement.
+
+⸻
+
+🎯 PROMPT REPLIT (isolé) — Safe Area violette iOS PWA (signature PlanBase)
+
+Tu es l’agent Replit. Sur iOS en mode PWA (ajout à l’écran d’accueil), la safe area (zone notch/status bar) n’est plus violette alors qu’elle l’était avant et donnait l’identité visuelle PlanBase. Je veux restaurer cette safe area violette de manière fiable.
+
+Objectif : en PWA iOS, la zone du haut (safe-area-inset-top) doit être violette, même si le contenu principal reste sur fond blanc.
+
+⸻
+
+1) Metas iOS indispensables
+
+Dans index.html, garantir :
+
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#6D28D9" />
+
+Note : viewport-fit=cover est obligatoire pour dessiner derrière la safe area.
+
+⸻
+
+2) Implémenter une SafeAreaTopBar violette (solution robuste)
+
+Créer client/src/design-system/primitives/SafeAreaTopBar.tsx :
+	•	position: fixed; top: 0; left: 0; right: 0;
+	•	height: env(safe-area-inset-top);
+	•	background: var(--pb-brand) (violet PlanBase / token)
+	•	z-index élevé
+	•	pointer-events: none
+
+Détection “mode PWA standalone” :
+	•	window.matchMedia('(display-mode: standalone)').matches
+	•	ou (navigator as any).standalone === true (iOS)
+
+Afficher la SafeAreaTopBar uniquement si :
+	•	mobile + standalone
+
+⸻
+
+3) Assurer que rien ne recouvre la safe area
+
+Vérifier le layout global (root wrapper / topbar) :
+	•	aucun container blanc ne doit être fixed top-0 avec un fond blanc recouvrant la zone notch
+	•	si un header est fixed, il doit commencer à top: env(safe-area-inset-top) en mode standalone
+
+Option recommandée :
+	•	ajouter une classe pt-[env(safe-area-inset-top)] sur le layout global uniquement en standalone mobile, afin que le contenu commence sous la safe area violette.
+
+⸻
+
+4) Critères d’acceptation
+	•	En iOS PWA : la safe area en haut est violette (signature PlanBase retrouvée).
+	•	En navigateur normal : pas d’effet indésirable.
+	•	Desktop inchangé.
+	•	Aucun élément UI n’est masqué sous le notch.
+
+⸻
+
+5) Test iOS (obligatoire)
+
+Après déploiement :
+	1.	Supprimer l’app de l’écran d’accueil
+	2.	Réglages → Safari → Avancé → Données de sites → supprimer planbase.io
+	3.	Réinstaller via “Ajouter à l’écran d’accueil”
+Vérifier que la safe area est violette.
+
+⸻
+
+Si tu veux, je peux aussi te proposer la version encore plus “native” : safe area violette + header blanc collé dessous, ça fait très app iOS premium.
