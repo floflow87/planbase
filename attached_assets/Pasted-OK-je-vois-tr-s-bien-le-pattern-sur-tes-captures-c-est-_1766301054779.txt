@@ -1,0 +1,124 @@
+OK, je vois très bien le pattern sur tes captures : c’est un problème de “double offset safe-area” + header pas vraiment sticky/fixed partout + layout des toasts sur mobile. On va corriger ça d’un coup, propre, scalable, sans rustines page par page.
+
+Voici le prompt isolé pour Replit (il couvre les 3 sujets).
+
+⸻
+
+🎯 PROMPT REPLIT — iOS PWA: Gap safe-area/topbar + Header non fixed + Toasts tronqués
+
+Tu es l’agent Replit. Sur iOS PWA, la safe area violette est revenue ✅ mais :
+	1.	Il y a un espace (gap) entre la safe-area violette et la topbar blanche.
+Quand j’ouvre le menu avatar, la topbar se repositionne correctement puis revient au bug → signe d’un double calcul de padding / top offset ou d’un layout qui recalcule au focus.
+	2.	Le menu topbar (header) n’est pas “fix/sticky” sur certaines pages : mindmaps / marketing / documents.
+	3.	Les toasts de succès (fond vert) sont tronqués sur mobile.
+
+Objectif : corriger durablement au niveau du layout/design-system, pas en patchant chaque page.
+
+⸻
+
+A) Fix gap safe-area / topbar (cause: double safe-area + header top)
+
+1) Audit du layout global
+
+Identifier où env(safe-area-inset-top) est appliqué :
+	•	SafeAreaTopBar (height = safe-area)
+	•	padding-top sur le root container
+	•	topbar/header en top: env(safe-area-inset-top) ou similaire
+Le bug vient quasi sûrement d’un safe-area appliqué 2 fois.
+
+2) Choisir UNE stratégie unique (et la rendre canonique)
+
+✅ Stratégie recommandée (la plus stable) :
+	•	SafeAreaTopBar dessine la zone violette (height = safe-area)
+	•	La topbar (header) est positionnée juste dessous, via top: env(safe-area-inset-top) si fixed
+	•	Le reste du contenu commence sous la topbar (padding-top classique), sans re-ajouter la safe-area.
+
+Donc :
+	•	supprimer tout padding-top: env(safe-area-inset-top) sur des wrappers si déjà géré par header fixed.
+	•	ou à l’inverse : si on garde padding-top root, alors header DOIT être top: 0 (pas safe-area).
+
+➡️ Implémenter un helper unique :
+client/src/utils/layoutOffsets.ts
+	•	getSafeAreaTop() (CSS variable)
+	•	isStandalone()
+
+Et définir une CSS variable globale sur :root quand standalone mobile :
+	•	--safe-top: env(safe-area-inset-top)
+	•	--header-h: <hauteur header> (ex: 56px)
+Puis utiliser ces variables partout.
+
+3) Rendre le comportement stable (éviter le “ça se replace puis revient”)
+
+Ce symptôme arrive quand :
+	•	le menu ouvre un portal/focus qui déclenche un reflow
+	•	un container passe de position: static à relative ou change de hauteur
+	•	ou le header dépend d’un calcul JS instable
+
+➡️ Solution :
+	•	Topbar doit être position: sticky ou fixed de manière constante (pas conditionnelle).
+	•	Ne pas recalculer top offset en JS sur open menu.
+	•	Utiliser uniquement CSS variables.
+
+⸻
+
+B) Header non fixed sur Mindmaps/Marketing/Documents
+
+1) Problème
+
+Certaines pages n’utilisent pas le même “AppShell” que les autres, ou ont un wrapper scroll différent.
+
+2) Correction
+	•	Créer/renforcer un composant unique AppShell (si pas déjà) :
+	•	<Header /> commun
+	•	<Main /> avec scroll interne (recommended) : overflow-y-auto; height: 100dvh;
+	•	Toutes les pages doivent être rendues à l’intérieur de ce shell, sans wrapper qui casse sticky.
+
+3) Choix technique recommandé
+
+Utiliser position: sticky pour le header (plutôt que fixed) SI scroll est sur body.
+Sinon, si scroll est dans <Main />, sticky doit s’appliquer dans ce conteneur.
+
+➡️ Standardiser :
+	•	Le scroll doit être toujours au même endroit (body OU main).
+	•	Ensuite sticky fonctionnera partout.
+
+⸻
+
+C) Toasts de succès tronqués (mobile)
+
+1) Cause probable
+	•	largeur max trop petite
+	•	overflow-hidden sur container
+	•	ou toast fixé trop haut/bas avec safe-area
+	•	ou texte en whitespace-nowrap
+
+2) Correctif DS Toast
+
+Dans le composant toast (shadcn Toaster / ToastViewport / Toast):
+	•	autoriser le wrapping :
+	•	whitespace-normal
+	•	break-words
+	•	padding et max-width mobile :
+	•	w-[calc(100vw-24px)] max-w-[420px]
+	•	position safe-area aware :
+	•	si en bas : bottom: calc(env(safe-area-inset-bottom) + 12px)
+	•	si en haut : top: calc(env(safe-area-inset-top) + 12px)
+	•	s’assurer qu’aucun parent n’a overflow: hidden qui coupe les toasts.
+
+3) Vérifier sur iOS PWA
+	•	toast succès long (phrase > 80 caractères)
+	•	doit être lisible, non tronqué, et non masqué par header/safe-area.
+
+⸻
+
+Critères d’acceptation
+	1.	En iOS PWA : aucun gap entre safe-area violette et topbar.
+	2.	Le header/topbar reste correctement positionné en permanence (y compris ouverture menu avatar).
+	3.	Le header est sticky/fixed sur toutes les pages (mindmaps/marketing/documents inclus).
+	4.	Toasts succès non tronqués : texte wrap + viewport safe-area aware.
+	5.	Aucun patch page-specific : corrections centralisées (AppShell + DS Toast + variables layout).
+
+⸻
+
+Si tu veux, après ça on fait un mini polish :
+	•	ajouter un “shadow subtil” sous la topbar quand on scroll, façon Notion (très premium).
