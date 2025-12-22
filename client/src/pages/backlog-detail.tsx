@@ -65,7 +65,8 @@ import {
   transformToFlatTickets,
   type FlatTicket,
   type TicketType,
-  type TicketAction
+  type TicketAction,
+  type BulkAction
 } from "@/components/backlog/jira-scrum-view";
 import { TicketDetailPanel } from "@/components/backlog/ticket-detail-panel";
 
@@ -120,6 +121,9 @@ export default function BacklogDetail() {
   });
   const [epicFilter, setEpicFilter] = useState<string[]>([]);
   const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
+  
+  // Multi-select state for bulk actions
+  const [checkedTickets, setCheckedTickets] = useState<Set<string>>(new Set());
   
   // New backlog form state
   const [newBacklogName, setNewBacklogName] = useState("");
@@ -1100,6 +1104,99 @@ export default function BacklogDetail() {
     }
   };
   
+  // Handle checkbox change for multi-select
+  const handleCheckChange = (ticketId: string, ticketType: TicketType, checked: boolean) => {
+    setCheckedTickets(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(ticketId);
+      } else {
+        newSet.delete(ticketId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Clear all selections
+  const handleClearSelection = () => {
+    setCheckedTickets(new Set());
+  };
+  
+  // Handle bulk actions
+  const handleBulkAction = async (action: BulkAction) => {
+    try {
+      const { ticketIds, type } = action;
+      
+      // Process each ticket
+      for (const { id: ticketId, type: ticketType } of ticketIds) {
+        switch (type) {
+          case "bulk_change_state":
+            if (action.state) {
+              await handleUpdateTicket(ticketId, ticketType, { state: action.state });
+            }
+            break;
+            
+          case "bulk_change_priority":
+            if (action.priority) {
+              await handleUpdateTicket(ticketId, ticketType, { priority: action.priority });
+            }
+            break;
+            
+          case "bulk_assign":
+            await handleUpdateTicket(ticketId, ticketType, { assigneeId: action.assigneeId || null });
+            break;
+            
+          case "bulk_set_estimate":
+            await handleUpdateTicket(ticketId, ticketType, { estimatePoints: action.estimatePoints ?? null });
+            break;
+            
+          case "bulk_link_epic":
+            if (ticketType === "user_story" || ticketType === "task") {
+              await handleUpdateTicket(ticketId, ticketType, { epicId: action.epicId || null });
+            }
+            break;
+            
+          case "bulk_move_sprint":
+            await handleUpdateTicket(ticketId, ticketType, { sprintId: action.sprintId || null });
+            break;
+            
+          case "bulk_move_backlog":
+            await handleUpdateTicket(ticketId, ticketType, { sprintId: null });
+            break;
+            
+          case "bulk_delete":
+            await handleDeleteTicket(ticketId, ticketType);
+            break;
+        }
+      }
+      
+      // Show success message based on action type
+      const actionMessages: Record<string, string> = {
+        bulk_change_state: "Étape modifiée",
+        bulk_change_priority: "Priorité modifiée",
+        bulk_assign: "Assignation modifiée",
+        bulk_set_estimate: "Points modifiés",
+        bulk_link_epic: "Epic lié",
+        bulk_move_sprint: "Déplacé vers le sprint",
+        bulk_move_backlog: "Déplacé vers le backlog",
+        bulk_delete: "Tickets supprimés"
+      };
+      
+      toastSuccess({ 
+        title: actionMessages[type] || "Action effectuée",
+        description: `${ticketIds.length} ticket${ticketIds.length > 1 ? "s" : ""} modifié${ticketIds.length > 1 ? "s" : ""}`
+      });
+      
+      // Clear selection after bulk action
+      handleClearSelection();
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+  
   // Handle type conversion
   const handleConvertType = async (ticketId: string, fromType: TicketType, toType: TicketType) => {
     try {
@@ -1702,6 +1799,10 @@ export default function BacklogDetail() {
                       onMoveSprintDown={(sprintId) => moveSprintMutation.mutate({ sprintId, direction: 'down' })}
                       isFirstSprint={index === 0}
                       isLastSprint={index === sortedSprints.length - 1}
+                      checkedTickets={checkedTickets}
+                      onCheckChange={handleCheckChange}
+                      onBulkAction={handleBulkAction}
+                      onClearSelection={handleClearSelection}
                     />
                   ));
                 })()}
@@ -1732,6 +1833,10 @@ export default function BacklogDetail() {
                   onUpdateField={handleInlineFieldUpdate}
                   onTicketAction={handleTicketAction}
                   selectedTicketId={selectedTicket?.id}
+                  checkedTickets={checkedTickets}
+                  onCheckChange={handleCheckChange}
+                  onBulkAction={handleBulkAction}
+                  onClearSelection={handleClearSelection}
                 />
               </div>
 

@@ -3,8 +3,10 @@ import {
   ChevronDown, ChevronRight, ChevronUp, Plus, MoreVertical, 
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
-  ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink
+  ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
+  CheckSquare, Square, MoreHorizontal, Link2
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -194,9 +196,12 @@ interface TicketRowProps {
   onTicketAction?: (action: TicketAction) => void;
   isSelected?: boolean;
   isDraggable?: boolean;
+  isChecked?: boolean;
+  onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
+  showCheckbox?: boolean;
 }
 
-export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const ticketEpic = epics?.find(e => e.id === ticket.epicId);
@@ -227,11 +232,23 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         "group flex items-center gap-3 px-3 py-2.5 border-b border-border/50 cursor-pointer transition-colors",
         "hover-elevate",
         isSelected && "bg-primary/5 border-l-2 border-l-primary",
+        isChecked && "bg-violet-50 dark:bg-violet-950/20",
         isDragging && "shadow-lg bg-card"
       )}
       onClick={() => onSelect(ticket)}
       data-testid={`ticket-row-${ticket.type}-${ticket.id}`}
     >
+      {showCheckbox && (
+        <Checkbox
+          checked={isChecked}
+          onCheckedChange={(checked) => {
+            onCheckChange?.(ticket.id, ticket.type, checked === true);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
+          data-testid={`checkbox-ticket-${ticket.id}`}
+        />
+      )}
       <div {...listeners} {...attributes}>
         <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-grab" />
       </div>
@@ -788,6 +805,243 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
   );
 }
 
+// Bulk action types
+export interface BulkAction {
+  type: "bulk_change_state" | "bulk_change_priority" | "bulk_assign" | "bulk_set_estimate" | "bulk_link_epic" | "bulk_move_sprint" | "bulk_move_backlog" | "bulk_delete";
+  ticketIds: { id: string; type: TicketType }[];
+  state?: string;
+  priority?: string;
+  assigneeId?: string | null;
+  estimatePoints?: number;
+  epicId?: string | null;
+  sprintId?: string | null;
+}
+
+// Bulk Actions Dropdown Component
+interface BulkActionsDropdownProps {
+  selectedCount: number;
+  users?: AppUser[];
+  sprints?: Sprint[];
+  epics?: Epic[];
+  onBulkAction: (action: BulkAction) => void;
+  selectedTickets: { id: string; type: TicketType }[];
+  onClearSelection: () => void;
+}
+
+function BulkActionsDropdown({ 
+  selectedCount, 
+  users, 
+  sprints, 
+  epics, 
+  onBulkAction, 
+  selectedTickets,
+  onClearSelection 
+}: BulkActionsDropdownProps) {
+  if (selectedCount === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-violet-100 dark:bg-violet-950/50 border-b border-violet-200 dark:border-violet-800">
+      <Badge variant="secondary" className="bg-violet-600 text-white">
+        {selectedCount} sélectionné{selectedCount > 1 ? "s" : ""}
+      </Badge>
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="h-7 gap-1" data-testid="button-bulk-actions">
+            <MoreHorizontal className="h-4 w-4" />
+            Actions
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 bg-white dark:bg-white" align="start">
+          {/* Change State */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Check className="h-4 w-4 mr-2" />
+              Changer l'étape
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white">
+              {backlogItemStateOptions.map(opt => (
+                <DropdownMenuItem 
+                  key={opt.value}
+                  onClick={() => onBulkAction({ type: "bulk_change_state", ticketIds: selectedTickets, state: opt.value })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-state-${opt.value}`}
+                >
+                  <span className={cn("w-2 h-2 rounded-full mr-2", getStateDot(opt.value))} />
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Change Priority */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Flag className="h-4 w-4 mr-2" />
+              Changer la priorité
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white">
+              {backlogPriorityOptions.map(opt => (
+                <DropdownMenuItem 
+                  key={opt.value}
+                  onClick={() => onBulkAction({ type: "bulk_change_priority", ticketIds: selectedTickets, priority: opt.value })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-priority-${opt.value}`}
+                >
+                  <span className="mr-2"><PriorityIcon priority={opt.value} /></span>
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Assign to */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Assigner à
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+              <DropdownMenuItem 
+                onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: null })}
+                className="text-gray-900"
+                data-testid="bulk-action-unassign"
+              >
+                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                Non assigné
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {users?.map(user => (
+                <DropdownMenuItem 
+                  key={user.id}
+                  onClick={() => onBulkAction({ type: "bulk_assign", ticketIds: selectedTickets, assigneeId: user.id })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-assign-${user.id}`}
+                >
+                  <Avatar className="h-4 w-4 mr-2">
+                    <AvatarFallback className="text-[8px]">
+                      {user.firstName?.charAt(0) || user.email?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Set Estimate Points */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Hash className="h-4 w-4 mr-2" />
+              Ajouter un estimate point
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white">
+              {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(points => (
+                <DropdownMenuItem 
+                  key={points}
+                  onClick={() => onBulkAction({ type: "bulk_set_estimate", ticketIds: selectedTickets, estimatePoints: points })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-estimate-${points}`}
+                >
+                  <Badge variant="outline" className="text-xs mr-2">{points}</Badge>
+                  {points === 0 ? "Sans estimation" : `${points} point${points > 1 ? "s" : ""}`}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Link to Epic */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Link2 className="h-4 w-4 mr-2" />
+              Lier à l'Epic
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+              <DropdownMenuItem 
+                onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: null })}
+                className="text-gray-900"
+                data-testid="bulk-action-unlink-epic"
+              >
+                <Layers className="h-4 w-4 mr-2 text-muted-foreground" />
+                Aucun Epic
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {epics?.map(epic => (
+                <DropdownMenuItem 
+                  key={epic.id}
+                  onClick={() => onBulkAction({ type: "bulk_link_epic", ticketIds: selectedTickets, epicId: epic.id })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-epic-${epic.id}`}
+                >
+                  <div 
+                    className="h-3 w-3 rounded mr-2" 
+                    style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                  />
+                  {epic.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Move to Sprint */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Play className="h-4 w-4 mr-2" />
+              Déplacer vers le sprint
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white max-h-[300px] overflow-y-auto">
+              {sprints?.filter(s => s.status !== "termine").map(sprint => (
+                <DropdownMenuItem 
+                  key={sprint.id}
+                  onClick={() => onBulkAction({ type: "bulk_move_sprint", ticketIds: selectedTickets, sprintId: sprint.id })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-sprint-${sprint.id}`}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {sprint.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
+          {/* Move to Backlog */}
+          <DropdownMenuItem 
+            onClick={() => onBulkAction({ type: "bulk_move_backlog", ticketIds: selectedTickets })}
+            className="text-gray-900"
+            data-testid="bulk-action-move-backlog"
+          >
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Déplacer vers le backlog
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          {/* Delete */}
+          <DropdownMenuItem 
+            onClick={() => onBulkAction({ type: "bulk_delete", ticketIds: selectedTickets })}
+            className="text-red-600"
+            data-testid="bulk-action-delete"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Supprimer
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      <Button 
+        size="sm" 
+        variant="ghost" 
+        className="h-7 text-xs" 
+        onClick={onClearSelection}
+        data-testid="button-clear-selection"
+      >
+        Désélectionner
+      </Button>
+    </div>
+  );
+}
+
 interface SprintSectionProps {
   sprint: Sprint;
   tickets: FlatTicket[];
@@ -810,6 +1064,10 @@ interface SprintSectionProps {
   onMoveSprintDown?: (sprintId: string) => void;
   isFirstSprint?: boolean;
   isLastSprint?: boolean;
+  checkedTickets?: Set<string>;
+  onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
+  onBulkAction?: (action: BulkAction) => void;
+  onClearSelection?: () => void;
 }
 
 export function SprintSection({ 
@@ -833,7 +1091,11 @@ export function SprintSection({
   onMoveSprintUp,
   onMoveSprintDown,
   isFirstSprint,
-  isLastSprint
+  isLastSprint,
+  checkedTickets,
+  onCheckChange,
+  onBulkAction,
+  onClearSelection
 }: SprintSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -971,6 +1233,18 @@ export function SprintSection({
         </div>
         
         <CollapsibleContent>
+          {/* Bulk Actions Bar */}
+          {checkedTickets && onBulkAction && onClearSelection && (
+            <BulkActionsDropdown
+              selectedCount={tickets.filter(t => checkedTickets.has(t.id)).length}
+              users={users}
+              sprints={sprints}
+              epics={epics}
+              onBulkAction={onBulkAction}
+              selectedTickets={tickets.filter(t => checkedTickets.has(t.id)).map(t => ({ id: t.id, type: t.type }))}
+              onClearSelection={onClearSelection}
+            />
+          )}
           <div className="divide-y divide-border/50">
             {tickets.map(ticket => (
               <TicketRow 
@@ -985,6 +1259,9 @@ export function SprintSection({
                 onUpdateField={onUpdateField}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
+                showCheckbox={true}
+                isChecked={checkedTickets?.has(ticket.id) || false}
+                onCheckChange={onCheckChange}
               />
             ))}
             
@@ -1088,6 +1365,10 @@ interface BacklogPoolProps {
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
+  checkedTickets?: Set<string>;
+  onCheckChange?: (ticketId: string, ticketType: TicketType, checked: boolean) => void;
+  onBulkAction?: (action: BulkAction) => void;
+  onClearSelection?: () => void;
 }
 
 export function BacklogPool({ 
@@ -1103,7 +1384,11 @@ export function BacklogPool({
   onUpdateState,
   onUpdateField,
   onTicketAction,
-  selectedTicketId
+  selectedTicketId,
+  checkedTickets,
+  onCheckChange,
+  onBulkAction,
+  onClearSelection
 }: BacklogPoolProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newTicketTitle, setNewTicketTitle] = useState("");
@@ -1161,6 +1446,18 @@ export function BacklogPool({
         </div>
         
         <CollapsibleContent>
+          {/* Bulk Actions Bar */}
+          {checkedTickets && onBulkAction && onClearSelection && (
+            <BulkActionsDropdown
+              selectedCount={tickets.filter(t => checkedTickets.has(t.id)).length}
+              users={users}
+              sprints={sprints}
+              epics={epics}
+              onBulkAction={onBulkAction}
+              selectedTickets={tickets.filter(t => checkedTickets.has(t.id)).map(t => ({ id: t.id, type: t.type }))}
+              onClearSelection={onClearSelection}
+            />
+          )}
           <div className="divide-y divide-border/50">
             {tickets.map(ticket => (
               <TicketRow 
@@ -1175,6 +1472,9 @@ export function BacklogPool({
                 onUpdateField={onUpdateField}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
+                showCheckbox={true}
+                isChecked={checkedTickets?.has(ticket.id) || false}
+                onCheckChange={onCheckChange}
               />
             ))}
             
