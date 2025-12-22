@@ -50,7 +50,7 @@ export function UnifiedAvatar() {
 
   const progressMutation = useMutation({
     mutationFn: async (lastStep: string) => {
-      await apiRequest("POST", "/api/onboarding/progress", { lastStep });
+      await apiRequest("/api/onboarding/progress", "POST", { lastStep });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -59,7 +59,7 @@ export function UnifiedAvatar() {
 
   const completeMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/complete");
+      await apiRequest("/api/onboarding/complete", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -70,7 +70,7 @@ export function UnifiedAvatar() {
 
   const skipMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/skip");
+      await apiRequest("/api/onboarding/skip", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
