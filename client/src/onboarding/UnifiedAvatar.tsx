@@ -203,10 +203,12 @@ export function UnifiedAvatar() {
           <Spotlight
             targetSelector={currentStep.highlightSelector}
             isActive={showSpotlight || false}
+            onClickOutside={handleLater}
           />
 
           <div
-            className={!showSpotlight ? "fixed inset-0 z-[9998] bg-black/60 pointer-events-none" : ""}
+            onClick={handleLater}
+            className={!showSpotlight ? "fixed inset-0 z-[9998] bg-black/60 cursor-pointer" : ""}
           />
 
           <AvatarCompanion

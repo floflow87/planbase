@@ -5,6 +5,7 @@ interface SpotlightProps {
   targetSelector?: string;
   isActive: boolean;
   children?: React.ReactNode;
+  onClickOutside?: () => void;
 }
 
 interface TargetRect {
@@ -14,7 +15,7 @@ interface TargetRect {
   height: number;
 }
 
-export function Spotlight({ targetSelector, isActive, children }: SpotlightProps) {
+export function Spotlight({ targetSelector, isActive, children, onClickOutside }: SpotlightProps) {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [isReady, setIsReady] = useState(false);
   const observerRef = useRef<ResizeObserver | null>(null);
@@ -87,34 +88,81 @@ export function Spotlight({ targetSelector, isActive, children }: SpotlightProps
       data-testid="spotlight-overlay"
     >
       {targetRect ? (
-        <svg
-          className="absolute inset-0 w-full h-full"
-          style={{ minHeight: "100vh" }}
-        >
-          <defs>
-            <mask id="spotlight-mask">
-              <rect x="0" y="0" width="100%" height="100%" fill="white" />
-              <rect
-                x={targetRect.left}
-                y={targetRect.top}
-                width={targetRect.width}
-                height={targetRect.height}
-                rx="8"
-                fill="black"
+        <>
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ minHeight: "100vh" }}
+          >
+            <defs>
+              <mask id="spotlight-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <rect
+                  x={targetRect.left}
+                  y={targetRect.top}
+                  width={targetRect.width}
+                  height={targetRect.height}
+                  rx="8"
+                  fill="black"
+                />
+              </mask>
+            </defs>
+            <rect
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              fill="rgba(0, 0, 0, 0.6)"
+              mask="url(#spotlight-mask)"
+            />
+          </svg>
+          {/* Clickable overlay areas around the spotlight */}
+          {onClickOutside && (
+            <>
+              {/* Top area */}
+              <div
+                className="absolute left-0 right-0 cursor-pointer pointer-events-auto"
+                style={{ top: 0, height: Math.max(0, targetRect.top) }}
+                onClick={onClickOutside}
               />
-            </mask>
-          </defs>
-          <rect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            fill="rgba(0, 0, 0, 0.6)"
-            mask="url(#spotlight-mask)"
-          />
-        </svg>
+              {/* Bottom area */}
+              <div
+                className="absolute left-0 right-0 cursor-pointer pointer-events-auto"
+                style={{ top: targetRect.top + targetRect.height, bottom: 0 }}
+                onClick={onClickOutside}
+              />
+              {/* Left area */}
+              <div
+                className="absolute cursor-pointer pointer-events-auto"
+                style={{
+                  top: targetRect.top,
+                  left: 0,
+                  width: Math.max(0, targetRect.left),
+                  height: targetRect.height,
+                }}
+                onClick={onClickOutside}
+              />
+              {/* Right area */}
+              <div
+                className="absolute cursor-pointer pointer-events-auto"
+                style={{
+                  top: targetRect.top,
+                  left: targetRect.left + targetRect.width,
+                  right: 0,
+                  height: targetRect.height,
+                }}
+                onClick={onClickOutside}
+              />
+            </>
+          )}
+        </>
       ) : (
-        <div className="absolute inset-0 bg-black/60" />
+        <div 
+          className={cn(
+            "absolute inset-0 bg-black/60", 
+            onClickOutside && "cursor-pointer pointer-events-auto"
+          )} 
+          onClick={onClickOutside}
+        />
       )}
       {children}
     </div>
