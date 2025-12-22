@@ -1235,13 +1235,19 @@ export const insertBacklogSchema = createInsertSchema(backlogs).omit({ id: true,
 export const updateBacklogSchema = insertBacklogSchema.omit({ accountId: true, createdBy: true }).partial();
 
 export const insertEpicSchema = createInsertSchema(epics).omit({ id: true, createdAt: true, updatedAt: true });
-export const updateEpicSchema = insertEpicSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+export const updateEpicSchema = insertEpicSchema.omit({ accountId: true, backlogId: true, createdBy: true }).extend({
+  state: z.string().optional(),
+}).partial();
 
 export const insertUserStorySchema = createInsertSchema(userStories).omit({ id: true, createdAt: true, updatedAt: true });
-export const updateUserStorySchema = insertUserStorySchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+export const updateUserStorySchema = insertUserStorySchema.omit({ accountId: true, backlogId: true, createdBy: true }).extend({
+  state: z.string().optional(),
+}).partial();
 
 export const insertBacklogTaskSchema = createInsertSchema(backlogTasks).omit({ id: true, createdAt: true, updatedAt: true });
-export const updateBacklogTaskSchema = insertBacklogTaskSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+export const updateBacklogTaskSchema = insertBacklogTaskSchema.omit({ accountId: true, backlogId: true, createdBy: true }).extend({
+  state: z.string().optional(),
+}).partial();
 
 export const insertChecklistItemSchema = createInsertSchema(checklistItems).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateChecklistItemSchema = insertChecklistItemSchema.omit({ accountId: true, userStoryId: true }).partial();
