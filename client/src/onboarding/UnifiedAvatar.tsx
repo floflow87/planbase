@@ -146,7 +146,7 @@ export function UnifiedAvatar() {
       const timeout = setTimeout(() => {
         clearInterval(interval);
         setIsElementReady(true);
-      }, 3000);
+      }, 5000);
 
       return () => {
         clearInterval(interval);

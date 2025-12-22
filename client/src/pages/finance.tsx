@@ -905,7 +905,7 @@ function TopPriorityCard({ recommendation, projectName, onMarkTreated, onMarkIgn
           </h3>
           
           {/* Impact financier clair - Wording adapté selon l'horizon */}
-          {recommendation.impactValue && (
+          {recommendation.impactValue !== undefined && recommendation.impactValue !== 0 && (
             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium ${
               recommendation.impactValue > 0 
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
