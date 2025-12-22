@@ -146,30 +146,33 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* Aide et support button - above the footer */}
-      <div className={`border-t border-sidebar-border ${isCollapsed ? 'p-2' : 'p-2'}`}>
-        {isCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
+      <div className="border-t border-sidebar-border px-2 py-1">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            {isCollapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    onClick={handleHelpClick}
+                    className="justify-center"
+                    data-testid="button-aide-support"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right">Aide et support</TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarMenuButton
                 onClick={handleHelpClick}
-                className="flex items-center justify-center w-full p-2 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground"
                 data-testid="button-aide-support"
               >
                 <HelpCircle className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Aide et support</TooltipContent>
-          </Tooltip>
-        ) : (
-          <button
-            onClick={handleHelpClick}
-            className="flex items-center gap-2 w-full p-2 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground text-sm"
-            data-testid="button-aide-support"
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>Aide et support</span>
-          </button>
-        )}
+                <span>Aide et support</span>
+              </SidebarMenuButton>
+            )}
+          </SidebarMenuItem>
+        </SidebarMenu>
       </div>
 
       <SidebarFooter className={`border-t border-sidebar-border bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 ${isCollapsed ? 'p-2' : 'p-4'}`}>

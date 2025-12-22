@@ -256,25 +256,6 @@ export function UnifiedAvatar() {
             totalSteps={getTotalSteps()}
           />
 
-          <button
-            onClick={handleAvatarClick}
-            className={cn(
-              "fixed bottom-24 right-6 z-[10000]",
-              "w-10 h-10 rounded-full",
-              "bg-card/95 backdrop-blur-sm",
-              "shadow-lg",
-              "transition-all duration-200",
-              "hover:scale-110 hover:bg-card",
-              "active:scale-95",
-              "cursor-pointer",
-              "flex items-center justify-center",
-              "border border-border"
-            )}
-            data-testid="help-button-onboarding"
-            aria-label="Aide"
-          >
-            <HelpCircle className="w-5 h-5 text-primary" />
-          </button>
         </>
       )}
 
