@@ -19,7 +19,7 @@ interface StepContent {
 
 const STEP_CONTENT: Record<NonNullable<OnboardingStep>, StepContent> = {
   welcome: {
-    text: `Salut 👋
+    text: `Salut !
 Je vais t'aider à prendre Planbase en main.
 Ici, tout est connecté : clients, projets, temps, tâches, rentabilité.
 On ne va pas tout voir d'un coup — je te guide, pas à pas.`,
@@ -45,7 +45,7 @@ Rien n'est isolé ici.`,
 Tu peux personnaliser les étapes pour qu'elles collent vraiment à ta façon de travailler.
 
 Quand une opportunité devient concrète, tu peux la transformer en projet — sans ressaisie.`,
-    link: "👉 Ce que tu fais ici alimente directement tes projets et ta rentabilité.",
+    link: "Ce que tu fais ici alimente directement tes projets et ta rentabilité.",
     actions: [
       { label: "Créer un projet", action: "navigate", target: "project", primary: true },
       { label: "Suivant", action: "next" }
@@ -56,7 +56,7 @@ Quand une opportunité devient concrète, tu peux la transformer en projet — s
 Un projet relie un client, un budget, un périmètre et un objectif.
 
 À partir d'un projet, tu pilotes le temps, les tâches, le backlog et la rentabilité.`,
-    link: "👉 C'est le point de départ de tout le reste.",
+    link: "C'est le point de départ de tout le reste.",
     actions: [
       { label: "Suivre le temps", action: "navigate", target: "time-tracker", primary: true },
       { label: "Voir les tâches", action: "navigate", target: "tasks" },
@@ -68,7 +68,7 @@ Un projet relie un client, un budget, un périmètre et un objectif.
 Tu peux le lier à une tâche, un ticket ou une étape du cahier des charges.
 
 Plus tu saisis ton temps, plus je peux t'aider à anticiper, ajuster et décider.`,
-    link: "👉 Le temps nourrit directement la rentabilité et les recommandations.",
+    link: "Le temps nourrit directement la rentabilité et les recommandations.",
     actions: [
       { label: "Voir les tâches", action: "navigate", target: "tasks", primary: true },
       { label: "Suivant", action: "next" }
@@ -79,7 +79,7 @@ Plus tu saisis ton temps, plus je peux t'aider à anticiper, ajuster et décider
 Tu ajoutes des tâches à un projet, tu les priorises et tu vois ce qui avance ou bloque.
 
 Une tâche peut être liée à un projet, un client ou un ticket du backlog.`,
-    link: "👉 Chaque tâche a un impact visible sur l'avancement global.",
+    link: "Chaque tâche a un impact visible sur l'avancement global.",
     actions: [
       { label: "Voir les notes", action: "navigate", target: "notes", primary: true },
       { label: "Suivant", action: "next" }
@@ -90,7 +90,7 @@ Une tâche peut être liée à un projet, un client ou un ticket du backlog.`,
 Idées, décisions, comptes rendus.
 
 Tu peux organiser tes notes et les regrouper par projet pour garder le contexte au bon endroit.`,
-    link: "👉 Les notes donnent du sens à tes projets et à tes décisions.",
+    link: "Les notes donnent du sens à tes projets et à tes décisions.",
     actions: [
       { label: "Voir le backlog", action: "navigate", target: "backlog", primary: true },
       { label: "Suivant", action: "next" }
@@ -101,7 +101,7 @@ Tu peux organiser tes notes et les regrouper par projet pour garder le contexte 
 Tu structures ton périmètre en épics, tickets et sprints pour garder le contrôle.
 
 Chaque ticket peut être relié au projet, au temps passé et aux tâches.`,
-    link: "👉 Le backlog t'évite les dérives invisibles.",
+    link: "Le backlog t'évite les dérives invisibles.",
     actions: [
       { label: "Voir la roadmap", action: "navigate", target: "roadmap", primary: true },
       { label: "Suivant", action: "next" }
@@ -112,7 +112,7 @@ Chaque ticket peut être relié au projet, au temps passé et aux tâches.`,
 Tu visualises les grandes étapes, les priorités et les dépendances dans le temps.
 
 Ta roadmap peut connecter des épics, des tickets ou des jalons projet.`,
-    link: "👉 Elle t'aide à décider ce que tu fais maintenant… et ce que tu assumes de faire plus tard.",
+    link: "Elle t'aide à décider ce que tu fais maintenant… et ce que tu assumes de faire plus tard.",
     actions: [
       { label: "Voir la rentabilité", action: "navigate", target: "finance", primary: true },
       { label: "Suivant", action: "next" }
@@ -123,7 +123,7 @@ Ta roadmap peut connecter des épics, des tickets ou des jalons projet.`,
 Je croise ton budget, ton temps passé et ton avancement pour t'aider à décider.
 
 Je peux te dire quand ajuster ton TJM, accélérer ou apprendre pour les prochains projets.`,
-    link: "👉 Tout ce que tu fais ailleurs se reflète ici.",
+    link: "Tout ce que tu fais ailleurs se reflète ici.",
     actions: [
       { label: "Terminer la visite", action: "complete", primary: true }
     ]
@@ -132,7 +132,7 @@ Je peux te dire quand ajuster ton TJM, accélérer ou apprendre pour les prochai
     text: `Voilà.
 Tu as maintenant une vision claire de comment tout s'imbrique.
 
-Je reste là si tu as besoin d'aide, mais maintenant, c'est toi qui pilotes 🚀`,
+Je reste là si tu as besoin d'aide, mais maintenant, c'est toi qui pilotes.`,
     actions: [
       { label: "C'est parti !", action: "complete", primary: true }
     ]
