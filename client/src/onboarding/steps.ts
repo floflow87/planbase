@@ -33,8 +33,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "crm",
     route: "/crm",
-    highlightSelector: "[data-testid='crm-kpis']",
-    placement: "bottom",
+    highlightSelector: "[data-testid='kanban-board']",
+    placement: "top",
     copy: "Ici, tu ajoutes tes clients et tu suis ton pipe d'opportunites. Tu peux personnaliser les etapes pour qu'elles collent a ta facon de travailler. Quand une opportunite devient concrete, tu la transformes en projet - sans ressaisie.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
@@ -42,8 +42,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "project",
     route: "/projects",
-    highlightSelector: "[data-testid='projects-list'], .projects-container, main",
-    placement: "bottom",
+    highlightSelector: "[data-testid='projects-list']",
+    placement: "top",
     copy: "Ici, tout se rejoint. Un projet relie un client, un budget, un perimetre et un objectif. A partir d'un projet, tu pilotes le temps, les taches, le backlog et la rentabilite.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
