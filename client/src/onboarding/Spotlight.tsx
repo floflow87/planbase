@@ -62,7 +62,8 @@ export function Spotlight({ targetSelector, isActive, children, onClickOutside }
         observerRef.current.observe(element);
       } else {
         setTargetRect(null);
-        setIsReady(false);
+        // Still set isReady to true after a delay to show fallback overlay
+        setIsReady(true);
       }
     };
 

@@ -4,6 +4,7 @@ import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ModuleHelp } from "./faqs";
+import avatarNeutral from "@assets/899AB3E8-58FE-4555-8E35-19571A40EDA5_1766391167518.png";
 
 interface HelpDrawerProps {
   isOpen: boolean;
@@ -143,6 +144,26 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
             </Button>
           </div>
         )}
+
+        {/* Avatar at bottom of panel */}
+        <div className="p-4 border-t border-border flex justify-center">
+          <div
+            className={cn(
+              "w-16 h-16 rounded-full",
+              "bg-gradient-to-br from-violet-500 to-violet-600",
+              "shadow-lg shadow-violet-500/30",
+              "overflow-hidden",
+              "border-2 border-white/20"
+            )}
+            data-testid="help-drawer-avatar"
+          >
+            <img
+              src={avatarNeutral}
+              alt="Assistant Planbase"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
       </div>
     </>
   );

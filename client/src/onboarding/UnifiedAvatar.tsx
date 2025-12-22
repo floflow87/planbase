@@ -9,7 +9,6 @@ import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
 import { ONBOARDING_VERSION, getStepById, getNextStep, isLastStep } from "./steps";
 import { HelpDrawer } from "@/help/HelpDrawer";
 import { getModuleIdFromPath, getModuleHelp, MODULE_HELP } from "@/help/faqs";
-import avatarNeutral from "@assets/899AB3E8-58FE-4555-8E35-19571A40EDA5_1766391167518.png";
 import { HelpCircle } from "lucide-react";
 
 import type { UserOnboarding } from "@shared/schema";
@@ -260,31 +259,6 @@ export function UnifiedAvatar() {
         </>
       )}
 
-      {!showOnboardingOverlay && (
-        <button
-          onClick={handleAvatarClick}
-          className={cn(
-            "fixed bottom-6 right-6 z-50",
-            "w-16 h-16 rounded-full",
-            "bg-gradient-to-br from-violet-500 to-violet-600",
-            "shadow-lg shadow-violet-500/30",
-            "transition-all duration-300 ease-out",
-            "hover:scale-110 hover:shadow-xl hover:shadow-violet-500/40",
-            "active:scale-95",
-            "cursor-pointer",
-            "overflow-hidden",
-            "border-2 border-white/20"
-          )}
-          data-testid="unified-avatar-button"
-          aria-label="Aide"
-        >
-          <img
-            src={avatarNeutral}
-            alt="Assistant Planbase"
-            className="w-full h-full object-cover"
-          />
-        </button>
-      )}
 
       <HelpDrawer
         isOpen={isHelpOpen}
