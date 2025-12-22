@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { ChevronLeft } from "lucide-react";
 import avatarWaving from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1766391167518.png";
 import avatarCelebrating from "@assets/97FA848E-CB40-4ADC-9F33-36793D7CA0B1_1766391167518.png";
 import avatarThinking from "@assets/4A1310C2-F869-4A53-A8DC-B871545DDB79_1766391167518.png";
@@ -16,9 +17,12 @@ interface AvatarCompanionProps {
   primaryAction?: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
   tertiaryAction?: { label: string; onClick: () => void };
+  previousAction?: { label: string; onClick: () => void };
   mood?: AvatarMood;
   onClick?: () => void;
   showTooltip?: boolean;
+  currentStep?: number;
+  totalSteps?: number;
 }
 
 const AVATAR_IMAGES: Record<AvatarMood, string> = {
@@ -37,9 +41,12 @@ export function AvatarCompanion({
   primaryAction,
   secondaryAction,
   tertiaryAction,
+  previousAction,
   mood = "neutral",
   onClick,
   showTooltip = true,
+  currentStep,
+  totalSteps,
 }: AvatarCompanionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -194,20 +201,39 @@ export function AvatarCompanion({
             )}
           >
             {placement === "spotlight" && (
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className={cn(
-                    "w-20 h-20 rounded-[15px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
-                    !prefersReducedMotion && "animate-float-subtle"
-                  )}
-                >
-                  <img
-                    src={avatarImage}
-                    alt="Planbase Assistant"
-                    className="w-full h-full object-cover"
-                  />
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "w-16 h-16 rounded-[12px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
+                      !prefersReducedMotion && "animate-float-subtle"
+                    )}
+                  >
+                    <img
+                      src={avatarImage}
+                      alt="Planbase Assistant"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="font-medium text-foreground">Planbase</span>
                 </div>
-                <span className="font-medium text-foreground">Planbase</span>
+                {currentStep !== undefined && totalSteps !== undefined && (
+                  <div className="flex items-center gap-1.5" data-testid="onboarding-breadcrumb">
+                    {Array.from({ length: totalSteps }).map((_, index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-colors",
+                          index < currentStep
+                            ? "bg-primary"
+                            : index === currentStep
+                            ? "bg-primary ring-2 ring-primary/30"
+                            : "bg-muted-foreground/30"
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -215,14 +241,25 @@ export function AvatarCompanion({
               {message}
             </p>
 
-            <div className="flex flex-wrap gap-2">
-              {primaryAction && (
+            <div className="flex flex-wrap items-center gap-2">
+              {previousAction && (
                 <button
-                  onClick={primaryAction.onClick}
-                  className="flex-1 min-w-[100px] px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover-elevate active-elevate-2 transition-colors"
-                  data-testid="onboarding-primary-action"
+                  onClick={previousAction.onClick}
+                  className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  data-testid="onboarding-previous-action"
                 >
-                  {primaryAction.label}
+                  <ChevronLeft className="w-4 h-4" />
+                  {previousAction.label}
+                </button>
+              )}
+              <div className="flex-1" />
+              {tertiaryAction && (
+                <button
+                  onClick={tertiaryAction.onClick}
+                  className="px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  data-testid="onboarding-tertiary-action"
+                >
+                  {tertiaryAction.label}
                 </button>
               )}
               {secondaryAction && (
@@ -234,13 +271,13 @@ export function AvatarCompanion({
                   {secondaryAction.label}
                 </button>
               )}
-              {tertiaryAction && (
+              {primaryAction && (
                 <button
-                  onClick={tertiaryAction.onClick}
-                  className="px-4 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  data-testid="onboarding-tertiary-action"
+                  onClick={primaryAction.onClick}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover-elevate active-elevate-2 transition-colors"
+                  data-testid="onboarding-primary-action"
                 >
-                  {tertiaryAction.label}
+                  {primaryAction.label}
                 </button>
               )}
             </div>

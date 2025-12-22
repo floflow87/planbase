@@ -79,7 +79,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: "backlog",
     route: "/product",
     highlightSelector: "[data-testid='backlog-board'], .backlog-container, main",
-    placement: "bottom",
+    placement: "top-left",
     copy: "Ici, tu decoupes le travail avant de le lancer. Epics, tickets, sprints : tu structures ton perimetre pour garder le controle. Les tickets peuvent etre lies au projet, au temps et aux taches.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
@@ -129,4 +129,16 @@ export function getNextStep(currentId: string): OnboardingStep | undefined {
 
 export function isLastStep(id: string): boolean {
   return id === "complete";
+}
+
+export function getPreviousStep(currentId: string): OnboardingStep | undefined {
+  const currentIndex = getStepIndex(currentId);
+  if (currentIndex <= 0) {
+    return undefined;
+  }
+  return ONBOARDING_STEPS[currentIndex - 1];
+}
+
+export function getTotalSteps(): number {
+  return ONBOARDING_STEPS.length;
 }

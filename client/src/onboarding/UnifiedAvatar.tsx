@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Spotlight } from "./Spotlight";
 import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
-import { ONBOARDING_VERSION, getStepById, getNextStep, isLastStep } from "./steps";
+import { ONBOARDING_VERSION, getStepById, getNextStep, isLastStep, getPreviousStep, getStepIndex, getTotalSteps } from "./steps";
 import { HelpDrawer } from "@/help/HelpDrawer";
 import { getModuleIdFromPath, getModuleHelp, MODULE_HELP } from "@/help/faqs";
 import { HelpCircle } from "lucide-react";
@@ -184,6 +184,16 @@ export function UnifiedAvatar() {
     setCurrentStepId(null);
   }, []);
 
+  const handlePrevious = useCallback(() => {
+    if (!currentStepId) return;
+    const prevStep = getPreviousStep(currentStepId);
+    if (prevStep) {
+      progressMutation.mutate(prevStep.id);
+      setCurrentStepId(prevStep.id);
+      setIsElementReady(false);
+    }
+  }, [currentStepId, progressMutation]);
+
   const handleAvatarClick = useCallback(() => {
     setIsHelpOpen(true);
   }, []);
@@ -239,6 +249,13 @@ export function UnifiedAvatar() {
                 ? { label: "Plus tard", onClick: handleLater }
                 : undefined
             }
+            previousAction={
+              currentStepId && currentStepId !== "intro"
+                ? { label: "Précédent", onClick: handlePrevious }
+                : undefined
+            }
+            currentStep={currentStepId ? getStepIndex(currentStepId) : 0}
+            totalSteps={getTotalSteps()}
           />
 
           <button
