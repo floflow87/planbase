@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Project = {
   id: string;
@@ -41,6 +42,7 @@ type TimeEntry = {
 
 export function TimeTracker() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -58,16 +60,17 @@ export function TimeTracker() {
     }
   }, [showProjectSelector]);
 
-  // Fetch active time entry
+  // Fetch active time entry - only when user is authenticated
   const { data: activeEntry, isLoading: isLoadingActive } = useQuery<TimeEntry | null>({
     queryKey: ["/api/time-entries/active"],
     refetchInterval: 1000, // Refresh every second to update timer
+    enabled: !!user, // Only fetch when user is authenticated
   });
 
   // Fetch projects for selection (load when popover is open OR when showing project selector)
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    enabled: open || showProjectSelector, // Load when popover is open OR when showing project selector
+    enabled: !!user && (open || showProjectSelector), // Only when authenticated AND popover is open
   });
 
   // Update elapsed time when active entry changes

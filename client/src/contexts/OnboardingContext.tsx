@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import type { UserOnboarding } from "@shared/schema";
 
 export type OnboardingStep = 
@@ -66,12 +67,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [isOnboardingActive, setIsOnboardingActive] = useState(false);
   const [showContextualHelp, setShowContextualHelp] = useState(false);
   const [, setLocation] = useLocation();
+  const { user, loading: authLoading } = useAuth();
 
-  // Fetch onboarding state from API
+  // Fetch onboarding state from API - only when user is authenticated
   const { data: onboardingData, isLoading } = useQuery<UserOnboarding>({
     queryKey: ["/api/onboarding"],
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !!user && !authLoading, // Only fetch when user is authenticated
   });
 
   // Mutation to update progress

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { Spotlight } from "./Spotlight";
 import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
@@ -28,6 +29,7 @@ interface TargetRect {
 
 export function UnifiedAvatar() {
   const [location, setLocation] = useLocation();
+  const { user, loading: authLoading } = useAuth();
   
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [isOnboardingActive, setIsOnboardingActive] = useState(false);
@@ -41,6 +43,7 @@ export function UnifiedAvatar() {
     queryKey: ["/api/onboarding"],
     retry: false,
     staleTime: 1000 * 60 * 5,
+    enabled: !!user && !authLoading, // Only fetch when user is authenticated
   });
 
   const progressMutation = useMutation({
@@ -186,8 +189,9 @@ export function UnifiedAvatar() {
   const moduleHelp = moduleId ? getModuleHelp(moduleId) : MODULE_HELP.dashboard;
   const effectiveModuleHelp = moduleHelp || MODULE_HELP.dashboard;
 
+  // Don't render on auth pages or when user is not authenticated
   const isOnLoginOrSignup = location === "/login" || location === "/signup";
-  if (isOnLoginOrSignup) return null;
+  if (isOnLoginOrSignup || !user) return null;
 
   const showOnboardingOverlay = isOnboardingActive && currentStep && isElementReady;
   const showSpotlight = showOnboardingOverlay && currentStep?.highlightSelector && currentStep?.placement !== "center";
