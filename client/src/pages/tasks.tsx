@@ -1526,7 +1526,7 @@ export default function Tasks() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6" data-testid="tasks-board">
         {/* Header with project selector and buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">

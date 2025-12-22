@@ -2941,7 +2941,7 @@ export default function Projects() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4" data-testid="projects-list">
         {/* Projects View Header */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 flex-1">

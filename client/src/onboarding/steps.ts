@@ -33,7 +33,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "crm",
     route: "/crm",
-    highlightSelector: "[data-testid='crm-pipeline'], .pipeline-container, main",
+    highlightSelector: "[data-testid='kanban-board'], [data-testid='crm-table'], main",
     placement: "bottom",
     copy: "Ici, tu ajoutes tes clients et tu suis ton pipe d'opportunites. Tu peux personnaliser les etapes pour qu'elles collent a ta facon de travailler. Quand une opportunite devient concrete, tu la transformes en projet - sans ressaisie.",
     ctaPrimaryLabel: "Suivant",
@@ -96,7 +96,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "profitability",
     route: "/finance",
-    highlightSelector: "[data-testid='finance-dashboard'], .finance-container, main",
+    highlightSelector: "[data-testid='page-finance'], main",
     placement: "bottom",
     copy: "Ici, tu vois si tes projets sont vraiment sains. Je croise ton budget, ton temps passe et ton avancement pour t'aider a decider : ajuster ton TJM, accelerer, ou apprendre pour les prochains projets.",
     ctaPrimaryLabel: "Suivant",

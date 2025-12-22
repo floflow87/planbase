@@ -763,7 +763,7 @@ export default function Notes() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6" data-testid="notes-list">
         {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Mobile: Single row with search, new button, and filter */}
