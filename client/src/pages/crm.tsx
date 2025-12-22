@@ -849,16 +849,13 @@ export default function CRM() {
     return null;
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full overflow-auto" data-testid="page-crm">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <Loader size="lg" />
+        </div>
+      ) : (
       <div className="p-6 space-y-6">
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1446,6 +1443,7 @@ export default function CRM() {
           </SheetContent>
         </Sheet>
       </div>
+      )}
     </div>
   );
 }
