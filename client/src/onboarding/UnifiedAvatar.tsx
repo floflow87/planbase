@@ -200,16 +200,18 @@ export function UnifiedAvatar() {
     <>
       {showOnboardingOverlay && (
         <>
-          <Spotlight
-            targetSelector={currentStep.highlightSelector}
-            isActive={showSpotlight || false}
-            onClickOutside={handleLater}
-          />
-
-          <div
-            onClick={handleLater}
-            className={!showSpotlight ? "fixed inset-0 z-[9998] bg-black/60 cursor-pointer" : ""}
-          />
+          {showSpotlight ? (
+            <Spotlight
+              targetSelector={currentStep.highlightSelector}
+              isActive={true}
+              onClickOutside={handleLater}
+            />
+          ) : (
+            <div
+              onClick={handleLater}
+              className="fixed inset-0 z-[9998] bg-black/60 cursor-pointer"
+            />
+          )}
 
           <AvatarCompanion
             message={currentStep.copy}

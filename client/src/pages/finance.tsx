@@ -1406,7 +1406,7 @@ export default function Finance() {
                       return (
                         <Card 
                           key={`today-${rec.projectId}-${rec.id}`}
-                          className={`overflow-hidden border-l-4 ${style.border} ${style.bg}`}
+                          className={`overflow-hidden border-l-4 ${style.border} ${style.bg} relative`}
                           data-testid={`card-today-decision-${index + 1}`}
                         >
                           <CardContent className="p-3 md:p-5">
