@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import avatarWaving from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1766391167518.png";
+import avatarCelebrating from "@assets/97FA848E-CB40-4ADC-9F33-36793D7CA0B1_1766391167518.png";
+import avatarThinking from "@assets/4A1310C2-F869-4A53-A8DC-B871545DDB79_1766391167518.png";
+import avatarNeutral from "@assets/899AB3E8-58FE-4555-8E35-19571A40EDA5_1766391167518.png";
+
+export type AvatarMood = "waving" | "celebrating" | "thinking" | "neutral";
 
 interface AvatarCompanionProps {
   message?: string;
@@ -10,7 +16,17 @@ interface AvatarCompanionProps {
   primaryAction?: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
   tertiaryAction?: { label: string; onClick: () => void };
+  mood?: AvatarMood;
+  onClick?: () => void;
+  showTooltip?: boolean;
 }
+
+const AVATAR_IMAGES: Record<AvatarMood, string> = {
+  waving: avatarWaving,
+  celebrating: avatarCelebrating,
+  thinking: avatarThinking,
+  neutral: avatarNeutral,
+};
 
 export function AvatarCompanion({
   message,
@@ -21,6 +37,9 @@ export function AvatarCompanion({
   primaryAction,
   secondaryAction,
   tertiaryAction,
+  mood = "neutral",
+  onClick,
+  showTooltip = true,
 }: AvatarCompanionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -48,7 +67,6 @@ export function AvatarCompanion({
     if (placement === "spotlight" && spotlightRect && tooltipPlacement !== "center") {
       const padding = 16;
       const tooltipWidth = 320;
-      const avatarSize = 56;
 
       switch (tooltipPlacement) {
         case "bottom":
@@ -79,6 +97,7 @@ export function AvatarCompanion({
   };
 
   const tooltipStyle = placement === "spotlight" && tooltipPlacement !== "center" ? getTooltipPosition() : {};
+  const avatarImage = AVATAR_IMAGES[mood];
 
   return (
     <>
@@ -89,20 +108,25 @@ export function AvatarCompanion({
             !prefersReducedMotion && "animate-float"
           )}
           data-testid="avatar-companion"
+          onClick={onClick}
         >
           <div
             className={cn(
-              "w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-violet-600 shadow-lg flex items-center justify-center text-white text-2xl cursor-pointer transition-transform",
+              "w-16 h-16 rounded-full bg-card shadow-lg flex items-center justify-center cursor-pointer transition-transform overflow-hidden border-2 border-primary/20",
               !prefersReducedMotion && isAnimating && "animate-bounce-in",
               !prefersReducedMotion && "hover:scale-105"
             )}
           >
-            <span className="select-none">P</span>
+            <img
+              src={avatarImage}
+              alt="Planbase Assistant"
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
       )}
 
-      {message && (
+      {message && showTooltip && (
         <div
           className={cn(
             "fixed z-[9999] pointer-events-auto",
@@ -123,11 +147,15 @@ export function AvatarCompanion({
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center text-white text-lg flex-shrink-0",
+                    "w-12 h-12 rounded-full bg-card flex items-center justify-center flex-shrink-0 overflow-hidden border border-primary/20",
                     !prefersReducedMotion && "animate-float-subtle"
                   )}
                 >
-                  <span className="select-none">P</span>
+                  <img
+                    src={avatarImage}
+                    alt="Planbase Assistant"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <span className="font-medium text-foreground">Planbase</span>
               </div>

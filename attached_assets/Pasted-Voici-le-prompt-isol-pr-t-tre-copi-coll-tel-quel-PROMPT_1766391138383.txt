@@ -1,0 +1,149 @@
+Voici le prompt isolé, prêt à être copié-collé tel quel 👇
+
+⸻
+
+🎯 PROMPT — ONBOARDING V1 PLANBASE : ALIGNEMENT FINAL AVANT OUVERTURE AU PUBLIC
+
+Tu as implémenté un onboarding guidé avec avatar, spotlight, persistance backend et système d’aide.
+Avant publication, il faut aligner le parcours, la narration et l’UI avec la vision produit Planbase.
+
+Objectif : proposer un onboarding clair, incarné et cohérent, qui met en avant la force centrale de Planbase : tout est connecté (clients, projets, temps, tâches, rentabilité).
+
+⸻
+
+1️⃣ Parcours d’onboarding — modules cœur (V1)
+
+Remplacer le flow actuel par ce parcours narratif (ordre intentionnel, pas un simple menu) :
+	1.	Introduction (global)
+	2.	Tableau de bord
+	3.	CRM
+	4.	Projet
+	5.	Time tracker
+	6.	Tâches
+	7.	Notes
+	8.	Backlog
+	9.	Roadmap
+	10.	Rentabilité
+	11.	Conclusion
+
+Supprimer les étapes génériques sans valeur directe (Search, Files, Calendar, Sidebar) si elles ne contribuent pas à la compréhension du système.
+
+Chaque étape doit définir :
+	•	route cible
+	•	highlightSelector stable (avec fallback responsive)
+	•	copy (texte avatar exact)
+	•	CTA (Suivant, Aller voir, Plus tard)
+	•	appel POST /api/onboarding/progress
+	•	attente du DOM avant affichage du spotlight
+
+⸻
+
+2️⃣ Textes EXACTS à utiliser (avatar, tutoiement)
+
+Utiliser mot pour mot les textes suivants :
+
+Introduction
+
+“Salut 👋 Je vais t’aider à prendre Planbase en main. Ici, tout est connecté : clients, projets, temps, tâches, rentabilité. On ne va pas tout voir d’un coup — je te guide, pas à pas.”
+
+Tableau de bord
+
+“Ici, tu commences toujours par un coup d’œil. Tu vois tes principaux KPIs, ce qui avance, ce qui bloque, et ce qui mérite ton attention aujourd’hui. Chaque chiffre vient de tes projets, de ton temps et de tes tâches. Rien n’est isolé.”
+
+CRM
+
+“Ici, tu ajoutes tes clients et tu suis ton pipe d’opportunités. Tu peux personnaliser les étapes pour qu’elles collent à ta façon de travailler. Quand une opportunité devient concrète, tu la transformes en projet — sans ressaisie.”
+
+Projet
+
+“Ici, tout se rejoint. Un projet relie un client, un budget, un périmètre et un objectif. À partir d’un projet, tu pilotes le temps, les tâches, le backlog et la rentabilité.”
+
+Time tracker
+
+“Ici, tu enregistres chaque temps passé sur un projet. Tu peux le lier à une tâche, un ticket ou une étape du cahier des charges. Plus tu saisis ton temps, plus je peux t’aider à anticiper et te proposer des recommandations utiles.”
+
+Tâches
+
+“Ici, tu passes à l’action. Tu ajoutes des tâches à un projet, tu les priorises, et tu vois ce qui avance ou bloque. Chaque tâche peut se relier à ton backlog et à ton temps.”
+
+Notes
+
+“Ici, tu poses tout ce que tu as en tête : idées, décisions, comptes rendus. Tu peux organiser tes notes et les regrouper par projet pour garder le contexte au bon endroit.”
+
+Backlog
+
+“Ici, tu découpes le travail avant de le lancer. Épics, tickets, sprints : tu structures ton périmètre pour garder le contrôle. Les tickets peuvent être liés au projet, au temps et aux tâches.”
+
+Roadmap
+
+“Ici, je te fais prendre de la hauteur. Tu visualises les étapes, les priorités et les dépendances dans le temps. Ta roadmap peut connecter des épics, des tickets, des jalons projet… ou des blocs libres.”
+
+Rentabilité
+
+“Ici, tu vois si tes projets sont vraiment sains. Je croise ton budget, ton temps passé et ton avancement pour t’aider à décider : ajuster ton TJM, accélérer, ou apprendre pour les prochains projets.”
+
+Conclusion
+
+“Voilà. Tu as une vision claire de comment tout s’imbrique. Je reste là si tu as besoin d’aide, mais maintenant, c’est toi qui pilotes 🚀”
+
+⸻
+
+3️⃣ Cohérence UI — avatar comme point d’entrée unique
+	•	L’avatar bottom-right est le point d’entrée principal pour :
+	•	onboarding
+	•	aide contextuelle
+	•	Éviter tout doublon avec un bouton “Help” fixe bottom-right
+	•	Ajouter un accès “❓ Aide” :
+	•	soit dans la topbar des modules
+	•	soit dans le menu de l’avatar
+
+⸻
+
+4️⃣ Système d’aide / FAQ par module
+
+Après onboarding :
+	•	l’avatar reste disponible
+	•	clic ouvre un drawer FAQ contextuel
+
+Modules couverts :
+	•	Dashboard
+	•	CRM
+	•	Projet
+	•	Time tracker
+	•	Tâches
+	•	Notes
+	•	Backlog
+	•	Roadmap
+	•	Rentabilité
+
+Pour chaque module :
+	•	1 résumé court
+	•	4 à 6 questions/réponses maximum
+	•	1 CTA utile (ex : créer un projet, ajouter un client, saisir un temps…)
+
+Les contenus peuvent être codés en dur pour la V1.
+
+⸻
+
+5️⃣ Robustesse & UX
+	•	Spotlight affiché uniquement quand le DOM est prêt
+	•	Pas de navigation forcée si l’utilisateur est déjà sur la bonne route
+	•	Gestion responsive (mobile / desktop)
+	•	“Plus tard” ferme l’onboarding sans marquer skipped
+	•	“Skip” marque skipped=true
+	•	“Complete” marque completed=true
+	•	Reprise automatique au dernier step après refresh
+
+⸻
+
+6️⃣ Critères d’acceptation
+	•	Parcours conforme aux modules cœur Planbase
+	•	Narration incarnée, tutoiement, liens explicites entre modules
+	•	Avatar unique (pas de doublon UI)
+	•	Aide contextuelle accessible partout
+	•	Aucune étape générique inutile
+	•	Onboarding stable, reprenable et non intrusif
+
+⸻
+
+Une fois ces points validés, l’application est prête pour ouverture au public.

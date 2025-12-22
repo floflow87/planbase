@@ -3,9 +3,16 @@ import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Spotlight } from "./Spotlight";
-import { AvatarCompanion } from "./AvatarCompanion";
+import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
 import { ONBOARDING_STEPS, ONBOARDING_VERSION, getStepById, getNextStep, isLastStep, type OnboardingStep } from "./steps";
+
 import type { UserOnboarding } from "@shared/schema";
+
+function getMoodForStep(stepId: string): AvatarMood {
+  if (stepId === "intro") return "waving";
+  if (stepId === "complete") return "celebrating";
+  return "neutral";
+}
 
 interface TargetRect {
   top: number;
@@ -186,6 +193,7 @@ export function OnboardingOverlay() {
         placement={showSpotlight ? "spotlight" : "bottom-right"}
         spotlightRect={targetRect || undefined}
         tooltipPlacement={currentStep.placement}
+        mood={getMoodForStep(currentStep.id)}
         primaryAction={{
           label: currentStep.ctaPrimaryLabel,
           onClick: handleNext,
