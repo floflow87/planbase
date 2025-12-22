@@ -64,6 +64,9 @@ export function OnboardingOverlay() {
       setIsActive(false);
       setCurrentStepId(null);
     },
+    onError: (error) => {
+      console.error("Error skipping onboarding:", error);
+    },
   });
 
   useEffect(() => {

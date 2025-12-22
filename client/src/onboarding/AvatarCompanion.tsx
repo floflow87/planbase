@@ -206,6 +206,7 @@ export function AvatarCompanion({
           >
             {onClose && (
               <button
+                type="button"
                 onClick={onClose}
                 className="absolute top-2 right-2 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                 data-testid="onboarding-close"
@@ -239,6 +240,7 @@ export function AvatarCompanion({
             <div className="flex items-center gap-2">
               {secondaryAction && (
                 <button
+                  type="button"
                   onClick={secondaryAction.onClick}
                   className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover-elevate active-elevate-2 transition-colors"
                   data-testid="onboarding-secondary-action"
@@ -249,6 +251,7 @@ export function AvatarCompanion({
               <div className="flex-1" />
               {previousAction && (
                 <button
+                  type="button"
                   onClick={previousAction.onClick}
                   className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
                   data-testid="onboarding-previous-action"
@@ -259,6 +262,7 @@ export function AvatarCompanion({
               )}
               {primaryAction && (
                 <button
+                  type="button"
                   onClick={primaryAction.onClick}
                   className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover-elevate active-elevate-2 transition-colors"
                   data-testid="onboarding-primary-action"
