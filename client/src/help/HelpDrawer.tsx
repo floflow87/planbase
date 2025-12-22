@@ -63,10 +63,13 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
 
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-[101] bg-card rounded-t-2xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col",
-          "sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:max-w-lg sm:max-h-[80vh]",
-          !prefersReducedMotion && "animate-fade-in"
+          "fixed top-0 right-0 bottom-0 z-[101] bg-card shadow-xl w-full max-w-md overflow-hidden flex flex-col",
+          "sm:w-96",
+          !prefersReducedMotion && "animate-slide-in-right"
         )}
+        style={{
+          animation: prefersReducedMotion ? 'none' : 'slideInRight 0.3s ease-out forwards'
+        }}
         data-testid="help-drawer"
       >
         <div className="flex items-center justify-between p-4 border-b border-border">

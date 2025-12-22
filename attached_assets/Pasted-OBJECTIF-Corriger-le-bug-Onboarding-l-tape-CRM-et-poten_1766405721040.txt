@@ -1,0 +1,86 @@
+OBJECTIF
+Corriger le bug Onboarding : à l’étape CRM (et potentiellement sur d’autres pages), l’avatar + l’infobulle + les CTA contextuels disparaissent après navigation. Je veux un onboarding “cross-pages” ultra stable (style Notion/Linear) : l’avatar reste toujours visible, l’infobulle suit les étapes, et chaque étape attend que sa cible DOM soit prête avant d’afficher le spotlight.
+
+CONTEXTE TECH
+App React + React Router + React Query. Onboarding state persisté via API (user_onboarding), déjà en place.
+Il existe un système d’overlay “spotlight”, un avatar animé bottom-right, et des boutons contextuels dans la bulle (CTA) qui déclenchent navigation ou actions.
+
+PROBLÈME À RÉSOUDRE (BUG)
+Dès que je change de page à l’étape CRM, je ne vois plus l’infobulle avec les boutons contextuels et l’avatar : ils n’apparaissent pas. Je veux que l’onboarding survive aux changements de route.
+
+EXIGENCES NON NÉGOCIABLES
+1) L’avatar et l’overlay Onboarding doivent être MONTÉS UNE SEULE FOIS, au plus haut niveau de l’app (root layout / AppShell), jamais dans une page (Dashboard/CRM/etc).
+2) Un changement de route ne doit JAMAIS démonter l’onboarding.
+3) L’étape onboarding doit pouvoir déclencher navigate('/crm') puis attendre que la cible DOM existe avant d’afficher l’infobulle.
+4) Si la cible DOM n’existe pas (sélecteur invalide, page pas prête), l’onboarding doit :
+   - retry pendant un délai raisonnable (ex: 3-5s),
+   - sinon fallback: afficher l’infobulle “sans ancrage” (center / bottom) avec un message et un bouton “Réessayer”.
+5) Les CTA doivent fonctionner (route ou non-route) même après navigation.
+
+TRAVAIL DEMANDÉ (PLAN D’EXÉCUTION)
+A) AUDIT RAPIDE
+- Identifier où sont montés actuellement : OnboardingProvider / OnboardingOverlay / Avatar / HelpButton
+- Vérifier si AppShell est remount à chaque route (ex: key={location.pathname} sur Layout, ou layouts différents par module).
+- Vérifier si l’overlay est rendu dans un conteneur “page” au lieu d’être global (z-index / overflow).
+
+B) REFACTOR ARCHI (ROOT MOUNT)
+1) Déplacer OnboardingProvider + OnboardingOverlay + OnboardingAvatar + HelpButton dans un composant racine stable:
+   - ex: client/src/components/layout/AppShell.tsx (ou équivalent)
+   - Ils doivent être rendus en dehors de <Outlet/> ou <Routes/>.
+2) S’assurer qu’aucun parent du AppShell n’a de “key” qui force un remount à chaque navigation.
+
+C) CIBLAGE DOM ROBUSTE (WAIT-FOR-TARGET)
+1) Implémenter une fonction utilitaire robuste :
+   - waitForTarget(selector, {timeoutMs, intervalMs}) => Promise<Element | null>
+   - Utiliser MutationObserver + fallback interval (ou l’un des deux) pour détecter l’apparition du DOM.
+2) Dans le moteur d’onboarding:
+   - Lorsqu’une étape a un route différent, faire navigate(step.route) uniquement si nécessaire (éviter boucle)
+   - Puis appeler waitForTarget(step.targetSelector)
+   - Quand la cible est trouvée => afficher spotlight + bulle ancrée
+   - Si timeout => afficher bulle non-ancrée + bouton “Réessayer” et log warn (dev only)
+
+D) NORMALISATION DES SÉLECTEURS (DATA ATTRIBUTES)
+1) Ne pas utiliser des sélecteurs fragiles (classes tailwind, structure DOM).
+2) Ajouter des attributs dédiés sur les éléments importants de chaque module, ex:
+   data-onboarding="crm-board"
+   data-onboarding="crm-new-client"
+   data-onboarding="crm-search"
+3) Mettre à jour la définition des steps pour utiliser ces sélecteurs.
+
+E) COMPATIBILITÉ UI / OVERFLOW / Z-INDEX
+1) L’overlay doit être en position: fixed au niveau document (Portal vers document.body).
+2) Garantir z-index au-dessus de tout (drawer, dialog, dropdown).
+3) Gérer les pages avec scroll horizontal (CRM kanban) :
+   - scrollIntoView() sur la cible avant d’afficher la bulle
+   - ou positionnement relatif correct.
+
+F) ETATS & SYNCHRO
+1) L’onboarding est piloté par l’état backend (React Query). Après navigate, ne pas perdre l’état currentStep.
+2) Corriger tout effet qui “réinitialise” l’étape lors du mount d’une page.
+3) Conserver la progression et permettre “Plus tard”, “Skip”, “Reset”.
+
+G) TESTS & VALIDATION
+1) Ajouter une checklist manuelle + (si possible) un test E2E minimal :
+   - Démarrer onboarding
+   - Aller step CRM
+   - Vérifier avatar visible + bulle visible
+   - Vérifier CTA (ex: “Nouveau client”) déclenche l’action
+2) Ajouter logs dev friendly (désactivés en prod) pour :
+   - route changes
+   - target found / not found
+   - fallback triggered
+
+LIVRABLES ATTENDUS
+- Un onboarding stable cross-pages : l’avatar et l’infobulle restent visibles après navigation.
+- Code propre, réutilisable, scalable.
+- Steps CRM fonctionnels avec data-onboarding selectors.
+- Fallback UX si target introuvable.
+
+CONTRAINTES
+- Zéro régression : l’onboarding doit continuer de fonctionner sur Dashboard/Projects/etc.
+- Respect du Design System (tokens / primitives existantes).
+- Pas de hardcoding fragile : utiliser data-onboarding pour les cibles.
+- Respect “prefers-reduced-motion”.
+
+CRITÈRE DE SUCCÈS
+Je lance l’onboarding, j’arrive à l’étape CRM : l’avatar est toujours là, l’infobulle est visible, les CTA fonctionnent, et tout est stable même après plusieurs changements de pages.

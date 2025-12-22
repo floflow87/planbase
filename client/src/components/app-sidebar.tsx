@@ -1,4 +1,5 @@
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network } from "lucide-react";
+import { useState } from "react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -16,6 +17,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpDrawer } from "@/help/HelpDrawer";
+import { getModuleIdFromPath, getModuleHelp, MODULE_HELP } from "@/help/faqs";
 import defaultAvatar from "@/assets/default-avatar.png";
 import planbaseLogo from "@assets/planbase-logo.png";
 
@@ -24,11 +27,20 @@ export function AppSidebar() {
   const { userProfile, user } = useAuth();
   const { state, setOpenMobile, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  const moduleId = getModuleIdFromPath(location);
+  const moduleHelp = moduleId ? getModuleHelp(moduleId) : MODULE_HELP.dashboard;
+  const effectiveModuleHelp = moduleHelp || MODULE_HELP.dashboard;
 
   const handleNavigation = () => {
     if (isMobile) {
       setOpenMobile(false);
     }
+  };
+
+  const handleHelpClick = () => {
+    setIsHelpOpen(true);
   };
 
   // Sections restreintes pour le plan "starter"
@@ -133,6 +145,33 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
+      {/* Aide et support button - above the footer */}
+      <div className={`border-t border-sidebar-border ${isCollapsed ? 'p-2' : 'p-2'}`}>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleHelpClick}
+                className="flex items-center justify-center w-full p-2 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground"
+                data-testid="button-aide-support"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Aide et support</TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={handleHelpClick}
+            className="flex items-center gap-2 w-full p-2 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground text-sm"
+            data-testid="button-aide-support"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span>Aide et support</span>
+          </button>
+        )}
+      </div>
+
       <SidebarFooter className={`border-t border-sidebar-border bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <Link href="/profile" onClick={handleNavigation}>
           {isCollapsed ? (
@@ -178,6 +217,12 @@ export function AppSidebar() {
           )}
         </Link>
       </SidebarFooter>
+
+      <HelpDrawer
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        moduleHelp={effectiveModuleHelp}
+      />
     </Sidebar>
   );
 }
