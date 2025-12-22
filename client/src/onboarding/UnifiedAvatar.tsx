@@ -38,11 +38,14 @@ export function UnifiedAvatar() {
   
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
+  // Don't run queries on login/register pages
+  const isAuthPage = location === "/login" || location === "/register" || location === "/forgot-password";
+
   const { data: onboardingData, isLoading } = useQuery<UserOnboarding>({
     queryKey: ["/api/onboarding"],
     retry: false,
     staleTime: 1000 * 60 * 5,
-    enabled: !!user && !authLoading, // Only fetch when user is authenticated
+    enabled: !!user && !authLoading && !isAuthPage, // Only fetch when user is authenticated and not on auth pages
   });
 
   const progressMutation = useMutation({
@@ -203,8 +206,7 @@ export function UnifiedAvatar() {
   const effectiveModuleHelp = moduleHelp || MODULE_HELP.dashboard;
 
   // Don't render on auth pages or when user is not authenticated
-  const isOnLoginOrSignup = location === "/login" || location === "/signup";
-  if (isOnLoginOrSignup || !user) return null;
+  if (isAuthPage || !user) return null;
 
   const showOnboardingOverlay = isOnboardingActive && currentStep && isElementReady;
   const showSpotlight = showOnboardingOverlay && currentStep?.highlightSelector && currentStep?.placement !== "center";

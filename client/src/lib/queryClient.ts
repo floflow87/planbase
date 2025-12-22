@@ -1,16 +1,33 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 
+// Track if we're already handling a 401 to prevent infinite loops
+let isHandling401 = false;
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     
     // Auto sign-out on 401 to clear invalid tokens
-    if (res.status === 401) {
+    if (res.status === 401 && !isHandling401) {
+      // Skip if already on login page
+      if (window.location.pathname === "/login") {
+        throw new Error(`${res.status}: ${text}`);
+      }
+      
+      isHandling401 = true;
       console.warn("401 Unauthorized - signing out to clear invalid session");
+      
+      // Clear all queries first to prevent more requests
+      queryClient.clear();
+      
       await supabase.auth.signOut();
-      // Reload the page to redirect to login
+      
+      // Redirect to login
       window.location.href = "/login";
+      
+      // Reset flag after a delay
+      setTimeout(() => { isHandling401 = false; }, 2000);
     }
     
     throw new Error(`${res.status}: ${text}`);
