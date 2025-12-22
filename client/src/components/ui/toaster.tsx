@@ -7,7 +7,6 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
-import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png"
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -15,9 +14,8 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
-        const isSuccess = props.variant === "success"
         return (
-          <Toast key={id} {...props} className={isSuccess ? "pr-20" : undefined}>
+          <Toast key={id} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
@@ -26,14 +24,6 @@ export function Toaster() {
             </div>
             {action}
             <ToastClose />
-            {isSuccess && (
-              <img 
-                src={astronautAvatar} 
-                alt="Astronaute Planbase" 
-                className="absolute bottom-0 right-2 w-16 h-16 object-contain"
-                data-testid="img-astronaut-avatar"
-              />
-            )}
           </Toast>
         )
       })}

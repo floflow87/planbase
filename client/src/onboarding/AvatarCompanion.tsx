@@ -173,7 +173,7 @@ export function AvatarCompanion({
         >
           <div
             className={cn(
-              "w-16 h-16 rounded-full bg-card shadow-lg flex items-center justify-center cursor-pointer transition-transform overflow-hidden border-2 border-primary/20",
+              "w-32 h-32 rounded-[8px] bg-white dark:bg-white shadow-lg flex items-center justify-center cursor-pointer transition-transform overflow-hidden border-2 border-primary/20",
               !prefersReducedMotion && isAnimating && "animate-bounce-in",
               !prefersReducedMotion && "hover:scale-105"
             )}
@@ -216,10 +216,10 @@ export function AvatarCompanion({
               </button>
             )}
             {placement === "spotlight" && (
-              <div className="flex items-center gap-3 mb-3 pr-8">
+              <div className="flex items-center gap-4 mb-4 pr-8">
                 <div
                   className={cn(
-                    "w-16 h-16 rounded-[12px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
+                    "w-32 h-32 rounded-[8px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
                     !prefersReducedMotion && "animate-float-subtle"
                   )}
                 >
