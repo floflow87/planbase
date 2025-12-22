@@ -33,7 +33,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "crm",
     route: "/crm",
-    highlightSelector: "[data-testid='kanban-board'], [data-testid='crm-table'], main",
+    highlightSelector: "[data-testid='page-crm']",
     placement: "bottom",
     copy: "Ici, tu ajoutes tes clients et tu suis ton pipe d'opportunites. Tu peux personnaliser les etapes pour qu'elles collent a ta facon de travailler. Quand une opportunite devient concrete, tu la transformes en projet - sans ressaisie.",
     ctaPrimaryLabel: "Suivant",
