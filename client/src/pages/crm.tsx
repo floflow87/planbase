@@ -858,7 +858,7 @@ export default function CRM() {
       ) : (
       <div className="p-6 space-y-6">
         {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="crm-kpis">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
