@@ -40,7 +40,7 @@ export function Spotlight({ targetSelector, isActive, children, onClickOutside }
         const rect = element.getBoundingClientRect();
         const padding = 8;
         setTargetRect({
-          top: rect.top - padding + window.scrollY,
+          top: rect.top - padding,
           left: rect.left - padding,
           width: rect.width + padding * 2,
           height: rect.height + padding * 2,
@@ -53,7 +53,7 @@ export function Spotlight({ targetSelector, isActive, children, onClickOutside }
         observerRef.current = new ResizeObserver(() => {
           const newRect = element!.getBoundingClientRect();
           setTargetRect({
-            top: newRect.top - padding + window.scrollY,
+            top: newRect.top - padding,
             left: newRect.left - padding,
             width: newRect.width + padding * 2,
             height: newRect.height + padding * 2,
