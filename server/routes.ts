@@ -68,6 +68,7 @@ import {
   appUsers,
   retros,
   retroCards,
+  userOnboarding,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -314,6 +315,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't rollback for this - user account is still valid
       }
 
+      // Step 5: Create onboarding record for new user
+      try {
+        await db.insert(userOnboarding).values({
+          userId: appUser.id,
+          version: "v1",
+        });
+        console.log("✅ Created onboarding record for user:", appUser.id);
+      } catch (onboardingError: any) {
+        console.error("⚠️  Failed to create onboarding record (non-critical):", onboardingError);
+        // Don't rollback - user can still use the app
+      }
+
       res.status(201).json({
         message: "Account created successfully",
         accountId: account.id,
@@ -399,6 +412,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Mot de passe mis à jour avec succès" });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // USER ONBOARDING
+  // ============================================
+
+  // Get current user's onboarding state
+  app.get("/api/onboarding", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const result = await db.select().from(userOnboarding).where(eq(userOnboarding.userId, userId)).limit(1);
+      
+      if (result.length === 0) {
+        // Create new onboarding record for this user
+        const newRecord = await db.insert(userOnboarding).values({ 
+          userId, 
+          version: "v1" 
+        }).returning();
+        return res.json(newRecord[0]);
+      }
+      
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error("Error fetching onboarding state:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update onboarding progress (last step)
+  app.post("/api/onboarding/progress", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const { lastStep } = req.body;
+      
+      await db.update(userOnboarding)
+        .set({ lastStep, updatedAt: new Date() })
+        .where(eq(userOnboarding.userId, userId));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error updating onboarding progress:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark onboarding as completed
+  app.post("/api/onboarding/complete", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      
+      await db.update(userOnboarding)
+        .set({ 
+          completed: true, 
+          completedAt: new Date(), 
+          updatedAt: new Date() 
+        })
+        .where(eq(userOnboarding.userId, userId));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reset onboarding (for testing or restart)
+  app.post("/api/onboarding/reset", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      
+      await db.update(userOnboarding)
+        .set({ 
+          completed: false, 
+          completedAt: null, 
+          lastStep: null, 
+          skipped: false, 
+          updatedAt: new Date() 
+        })
+        .where(eq(userOnboarding.userId, userId));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error resetting onboarding:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Skip onboarding
+  app.post("/api/onboarding/skip", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      
+      await db.update(userOnboarding)
+        .set({ 
+          skipped: true, 
+          updatedAt: new Date() 
+        })
+        .where(eq(userOnboarding.userId, userId));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error skipping onboarding:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 

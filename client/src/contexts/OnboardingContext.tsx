@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { UserOnboarding } from "@shared/schema";
 
 export type OnboardingStep = 
   | "welcome"
@@ -25,6 +28,7 @@ interface OnboardingContextType {
   completeOnboarding: () => void;
   showContextualHelp: boolean;
   toggleContextualHelp: () => void;
+  isLoading: boolean;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -63,22 +67,85 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [showContextualHelp, setShowContextualHelp] = useState(false);
   const [, setLocation] = useLocation();
 
+  // Fetch onboarding state from API
+  const { data: onboardingData, isLoading } = useQuery<UserOnboarding>({
+    queryKey: ["/api/onboarding"],
+    retry: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Mutation to update progress
+  const progressMutation = useMutation({
+    mutationFn: async (lastStep: string) => {
+      await apiRequest("POST", "/api/onboarding/progress", { lastStep });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
+    },
+  });
+
+  // Mutation to complete onboarding
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/onboarding/complete");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
+    },
+  });
+
+  // Mutation to skip onboarding
+  const skipMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/onboarding/skip");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
+    },
+  });
+
+  // Mutation to reset onboarding
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/onboarding/reset");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
+    },
+  });
+
+  // Initialize onboarding state from API data
   useEffect(() => {
-    const hasCompletedOnboarding = localStorage.getItem("planbase_onboarding_completed");
-    const isFirstVisit = !localStorage.getItem("planbase_visited");
-    
-    if (isFirstVisit && !hasCompletedOnboarding) {
-      localStorage.setItem("planbase_visited", "true");
-      setCurrentStep("welcome");
-      setIsOnboardingActive(true);
+    if (!isLoading && onboardingData) {
+      // If onboarding is completed or skipped, don't show it
+      if (onboardingData.completed || onboardingData.skipped) {
+        setIsOnboardingActive(false);
+        setCurrentStep(null);
+      } else if (!onboardingData.completed && !onboardingData.skipped) {
+        // User hasn't completed onboarding - check if they have a saved step
+        if (onboardingData.lastStep) {
+          // Resume from last step
+          setCurrentStep(onboardingData.lastStep as OnboardingStep);
+          setIsOnboardingActive(true);
+        } else {
+          // First time - start onboarding
+          setCurrentStep("welcome");
+          setIsOnboardingActive(true);
+        }
+      }
     }
-  }, []);
+  }, [isLoading, onboardingData]);
 
   const startOnboarding = useCallback(() => {
-    setCurrentStep("welcome");
-    setIsOnboardingActive(true);
-    setLocation("/");
-  }, [setLocation]);
+    // Reset onboarding in backend and start fresh
+    resetMutation.mutate(undefined, {
+      onSuccess: () => {
+        setCurrentStep("welcome");
+        setIsOnboardingActive(true);
+        setLocation("/");
+      },
+    });
+  }, [setLocation, resetMutation]);
 
   const nextStep = useCallback(() => {
     if (!currentStep) return;
@@ -88,29 +155,44 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const nextStepValue = ONBOARDING_STEPS[currentIndex + 1];
       setCurrentStep(nextStepValue);
       
+      // Save progress to backend
+      if (nextStepValue) {
+        progressMutation.mutate(nextStepValue);
+      }
+      
       if (nextStepValue && STEP_TO_ROUTE[nextStepValue]) {
         setLocation(STEP_TO_ROUTE[nextStepValue]);
       }
     }
-  }, [currentStep, setLocation]);
+  }, [currentStep, setLocation, progressMutation]);
 
   const goToStep = useCallback((step: OnboardingStep) => {
     setCurrentStep(step);
+    if (step) {
+      progressMutation.mutate(step);
+    }
     if (step && STEP_TO_ROUTE[step]) {
       setLocation(STEP_TO_ROUTE[step]);
     }
-  }, [setLocation]);
+  }, [setLocation, progressMutation]);
 
   const skipOnboarding = useCallback(() => {
-    setIsOnboardingActive(false);
-    setCurrentStep(null);
-  }, []);
+    skipMutation.mutate(undefined, {
+      onSuccess: () => {
+        setIsOnboardingActive(false);
+        setCurrentStep(null);
+      },
+    });
+  }, [skipMutation]);
 
   const completeOnboarding = useCallback(() => {
-    localStorage.setItem("planbase_onboarding_completed", "true");
-    setIsOnboardingActive(false);
-    setCurrentStep(null);
-  }, []);
+    completeMutation.mutate(undefined, {
+      onSuccess: () => {
+        setIsOnboardingActive(false);
+        setCurrentStep(null);
+      },
+    });
+  }, [completeMutation]);
 
   const toggleContextualHelp = useCallback(() => {
     setShowContextualHelp(prev => !prev);
@@ -127,7 +209,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         goToStep,
         completeOnboarding,
         showContextualHelp,
-        toggleContextualHelp
+        toggleContextualHelp,
+        isLoading,
       }}
     >
       {children}
