@@ -70,7 +70,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: "notes",
     route: "/notes",
     highlightSelector: "[data-testid='notes-list'], .notes-container, main",
-    placement: "bottom",
+    placement: "left",
     copy: "Ici, tu poses tout ce que tu as en tete : idees, decisions, comptes rendus. Tu peux organiser tes notes et les regrouper par projet pour garder le contexte au bon endroit.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
