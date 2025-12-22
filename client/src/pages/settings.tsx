@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info, Receipt, Building2 } from "lucide-react";
+import { Loader2, Settings as SettingsIcon, Shield, Palette, Clock, AlertTriangle, Save, RotateCcw, DollarSign, Info, Receipt, Building2, HelpCircle } from "lucide-react";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useState, useEffect } from "react";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
@@ -565,6 +566,7 @@ function ThresholdEditor({
 export default function Settings() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { startOnboarding } = useOnboarding();
   
   const { data: currentUser } = useQuery<{ accountId: string; role?: string }>({
     queryKey: ["/api/me"],
@@ -679,6 +681,37 @@ export default function Settings() {
                       {isOwner ? "Propriétaire" : "Collaborateur"}
                     </Badge>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-cyan-100 dark:bg-cyan-900/30">
+                    <HelpCircle className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                  <div>
+                    <CardTitle>Visite guidée</CardTitle>
+                    <CardDescription>
+                      Redécouvrez les fonctionnalités de Planbase
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={startOnboarding}
+                    data-testid="button-restart-onboarding"
+                  >
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Relancer la visite guidée
+                  </Button>
                 </div>
               </CardContent>
             </Card>

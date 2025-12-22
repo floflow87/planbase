@@ -1,0 +1,290 @@
+Parfait.
+Voici le prompt complet, isolé, prêt à être envoyé (à Replit / à ton agent), avec :
+	•	les textes exacts (avatar à la 1ʳᵉ personne, tutoiement)
+	•	quand ça se déclenche
+	•	où ça s’affiche
+	•	comment on navigue entre les pages
+	•	comment l’onboarding s’arrête et laisse place à l’aide contextuelle
+
+⸻
+
+🎯 PROMPT — Onboarding guidé Planbase (avatar + parcours connecté)
+
+Objectif
+
+Mettre en place un onboarding guidé incarné, porté par un avatar (astronaute Planbase), qui prend l’utilisateur par la main sans imposer un parcours rigide, tout en montrant la force clé de Planbase : tout est connecté.
+
+L’avatar parle à la première personne, tutoie l’utilisateur et agit comme un copilote produit.
+
+⸻
+
+Déclenchement
+
+Quand
+	•	À la première connexion d’un utilisateur
+	•	Ou manuellement via un bouton “Relancer la visite guidée” dans les paramètres
+
+Où
+	•	Avatar fixe en bas à droite
+	•	Bulle de dialogue contextuelle
+	•	Overlay léger avec focus sur les zones clés
+	•	CTA clair : “Suivant”, “Aller voir”, “Plus tard”
+
+⸻
+
+Structure globale
+	•	Parcours non linéaire, mais cohérent
+	•	Chaque étape peut :
+	•	soit expliquer la page actuelle
+	•	soit proposer de naviguer vers un autre module
+	•	Chaque étape est liée aux autres modules
+
+⸻
+
+🧑‍🚀 Textes exacts de l’onboarding (par module)
+
+⸻
+
+1️⃣ Accueil – Introduction (global)
+
+Affichage
+	•	Avatar + bulle
+	•	Pas de navigation imposée
+
+Texte
+
+Salut 👋
+Je vais t’aider à prendre Planbase en main.
+Ici, tout est connecté : clients, projets, temps, tâches, rentabilité.
+On ne va pas tout voir d’un coup — je te guide, pas à pas.
+
+CTA :
+	•	👉 Commencer
+	•	Plus tard
+
+⸻
+
+2️⃣ Tableau de bord — point d’entrée
+
+Déclenchement
+	•	Sur la page Dashboard
+
+Texte
+
+Ici, tu commences toujours par un coup d’œil.
+Tu vois tes principaux KPIs, ce qui avance, ce qui bloque, et ce qui mérite ton attention aujourd’hui.
+
+Chaque chiffre vient de tes projets, de ton temps et de tes tâches.
+Rien n’est isolé ici.
+
+CTA :
+	•	👉 Aller voir le CRM
+	•	👉 Voir un projet
+	•	Suivant
+
+⸻
+
+3️⃣ CRM — clients & opportunités
+
+Navigation
+	•	Redirection vers /crm
+
+Texte
+
+Ici, tu ajoutes tes clients et tu suis ton pipe d’opportunités.
+Tu peux personnaliser les étapes pour qu’elles collent vraiment à ta façon de travailler.
+
+Quand une opportunité devient concrète, tu peux la transformer en projet — sans ressaisie.
+
+Lien explicite :
+
+👉 Ce que tu fais ici alimente directement tes projets et ta rentabilité.
+
+CTA :
+	•	👉 Créer un projet
+	•	Suivant
+
+⸻
+
+4️⃣ Projet — centre de gravité
+
+Navigation
+	•	Vers une fiche projet existante ou un projet démo
+
+Texte
+
+Ici, tout se rejoint.
+Un projet relie un client, un budget, un périmètre et un objectif.
+
+À partir d’un projet, tu pilotes le temps, les tâches, le backlog et la rentabilité.
+
+Lien explicite :
+
+👉 C’est le point de départ de tout le reste.
+
+CTA :
+	•	👉 Suivre le temps
+	•	👉 Voir les tâches
+	•	Suivant
+
+⸻
+
+5️⃣ Time tracker — pilotage réel
+
+Navigation
+	•	Onglet Temps du projet
+
+Texte
+
+Ici, tu enregistres chaque temps passé sur un projet.
+Tu peux le lier à une tâche, un ticket ou une étape du cahier des charges.
+
+Plus tu saisis ton temps, plus je peux t’aider à anticiper, ajuster et décider.
+
+Lien explicite :
+
+👉 Le temps nourrit directement la rentabilité et les recommandations.
+
+CTA :
+	•	👉 Voir les tâches
+	•	Suivant
+
+⸻
+
+6️⃣ Tâches — action concrète
+
+Navigation
+	•	Onglet Tâches
+
+Texte
+
+Ici, tu passes à l’action.
+Tu ajoutes des tâches à un projet, tu les priorises et tu vois ce qui avance ou bloque.
+
+Une tâche peut être liée à un projet, un client ou un ticket du backlog.
+
+Lien explicite :
+
+👉 Chaque tâche a un impact visible sur l’avancement global.
+
+CTA :
+	•	👉 Voir les notes
+	•	Suivant
+
+⸻
+
+7️⃣ Notes — cerveau externe
+
+Navigation
+	•	Module Notes
+
+Texte
+
+Ici, tu poses tout ce que tu as en tête.
+Idées, décisions, comptes rendus.
+
+Tu peux organiser tes notes et les regrouper par projet pour garder le contexte au bon endroit.
+
+Lien explicite :
+
+👉 Les notes donnent du sens à tes projets et à tes décisions.
+
+CTA :
+	•	👉 Voir le backlog
+	•	Suivant
+
+⸻
+
+8️⃣ Backlog — structurer avant d’exécuter
+
+Navigation
+	•	Onglet Backlog
+
+Texte
+
+Ici, tu découpes le travail avant de le lancer.
+Tu structures ton périmètre en épics, tickets et sprints pour garder le contrôle.
+
+Chaque ticket peut être relié au projet, au temps passé et aux tâches.
+
+Lien explicite :
+
+👉 Le backlog t’évite les dérives invisibles.
+
+CTA :
+	•	👉 Voir la roadmap
+	•	Suivant
+
+⸻
+
+9️⃣ Roadmap — prendre de la hauteur
+
+Navigation
+	•	Module Roadmap
+
+Texte
+
+Ici, tu prends de la hauteur.
+Tu visualises les grandes étapes, les priorités et les dépendances dans le temps.
+
+Ta roadmap peut connecter des épics, des tickets ou des jalons projet.
+
+Lien explicite :
+
+👉 Elle t’aide à décider ce que tu fais maintenant… et ce que tu assumes de faire plus tard.
+
+CTA :
+	•	👉 Voir la rentabilité
+	•	Suivant
+
+⸻
+
+🔟 Rentabilité — décider au bon moment
+
+Navigation
+	•	Module Rentabilité
+
+Texte
+
+Ici, tu vois si tes projets sont vraiment sains.
+Je croise ton budget, ton temps passé et ton avancement pour t’aider à décider.
+
+Je peux te dire quand ajuster ton TJM, accélérer ou apprendre pour les prochains projets.
+
+Lien explicite :
+
+👉 Tout ce que tu fais ailleurs se reflète ici.
+
+CTA :
+	•	👉 Terminer la visite
+
+⸻
+
+✅ Fin d’onboarding
+
+Texte
+
+Voilà.
+Tu as maintenant une vision claire de comment tout s’imbrique.
+
+Je reste là si tu as besoin d’aide, mais maintenant, c’est toi qui pilotes 🚀
+
+⸻
+
+🆘 Étape 2 — Aide contextuelle
+
+Après onboarding
+	•	Bouton “Aide” sur chaque module
+	•	Réouvre l’avatar avec :
+	•	rappel du rôle du module
+	•	FAQ courte
+	•	“Que faire ensuite ?”
+
+⸻
+
+Si tu veux, prochaine étape possible :
+	•	micro-animations de l’avatar selon le contexte
+	•	onboarding “express” pour utilisateurs avancés
+	•	scoring d’adoption (modules visités)
+
+Là, tu as un onboarding de SaaS premium, clair, humain et différenciant.
