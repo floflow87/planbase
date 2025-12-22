@@ -64,9 +64,46 @@ export function AvatarCompanion({
   if (!isVisible) return null;
 
   const getTooltipPosition = () => {
-    if (placement === "spotlight" && spotlightRect && tooltipPlacement !== "center") {
+    if (placement === "spotlight" && tooltipPlacement !== "center") {
       const padding = 16;
       const tooltipWidth = 320;
+
+      // Fallback position when spotlightRect is not available
+      // Use sensible edge positions based on intended tooltipPlacement
+      if (!spotlightRect) {
+        const fallbackPadding = 100;
+        switch (tooltipPlacement) {
+          case "bottom":
+            return {
+              top: fallbackPadding,
+              left: "50%",
+              transform: "translateX(-50%)",
+            };
+          case "top":
+            return {
+              bottom: fallbackPadding,
+              left: "50%",
+              transform: "translateX(-50%)",
+            };
+          case "right":
+            return {
+              top: "50%",
+              left: fallbackPadding,
+              transform: "translateY(-50%)",
+            };
+          case "left":
+            return {
+              top: "50%",
+              right: fallbackPadding,
+              transform: "translateY(-50%)",
+            };
+          default:
+            return {
+              bottom: 100,
+              right: 100,
+            };
+        }
+      }
 
       switch (tooltipPlacement) {
         case "bottom":
@@ -90,7 +127,10 @@ export function AvatarCompanion({
             right: window.innerWidth - spotlightRect.left + padding,
           };
         default:
-          return {};
+          return {
+            bottom: 100,
+            right: 100,
+          };
       }
     }
     return {};
@@ -147,7 +187,7 @@ export function AvatarCompanion({
               <div className="flex items-center gap-3 mb-3">
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-full bg-card flex items-center justify-center flex-shrink-0 overflow-hidden border border-primary/20",
+                    "w-20 h-20 rounded-[15px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
                     !prefersReducedMotion && "animate-float-subtle"
                   )}
                 >
