@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
@@ -430,11 +431,13 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <AppLayout />
-            <UnifiedAvatar />
-            <Toaster />
-          </TooltipProvider>
+          <OnboardingProvider>
+            <TooltipProvider>
+              <AppLayout />
+              <UnifiedAvatar />
+              <Toaster />
+            </TooltipProvider>
+          </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
