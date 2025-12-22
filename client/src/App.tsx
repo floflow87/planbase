@@ -33,7 +33,6 @@ import Marketing from "@/pages/marketing";
 import Finance from "@/pages/finance";
 import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
-import Profile from "@/pages/profile";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
@@ -126,9 +125,6 @@ function Router() {
       <Route path="/legal">
         <ProtectedRoute><Legal /></ProtectedRoute>
       </Route>
-      <Route path="/profile">
-        <ProtectedRoute><Profile /></ProtectedRoute>
-      </Route>
       <Route path="/calendar">
         <ProtectedRoute><CalendarPage /></ProtectedRoute>
       </Route>
@@ -151,7 +147,7 @@ function UserMenu() {
   };
 
   const handleProfile = () => {
-    setLocation("/profile");
+    setLocation("/settings");
   };
 
   if (!user) return null;
@@ -250,7 +246,6 @@ function AppLayout() {
     if (path === "/finance") return "Finance";
     if (path === "/commercial") return "Commercial";
     if (path === "/legal") return "Légal";
-    if (path === "/profile") return "Profil";
     if (path === "/calendar") return "Calendrier";
     if (path === "/settings") return "Paramètres";
     return "Page";

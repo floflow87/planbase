@@ -176,7 +176,7 @@ export function AppSidebar() {
       </div>
 
       <SidebarFooter className={`border-t border-sidebar-border bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        <Link href="/profile" onClick={handleNavigation}>
+        <Link href="/settings" onClick={handleNavigation}>
           {isCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>

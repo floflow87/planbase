@@ -245,7 +245,6 @@ export function getModuleIdFromPath(path: string): string | undefined {
   if (path.startsWith("/finance")) return "finance";
   if (path.startsWith("/calendar")) return "dashboard";
   if (path.startsWith("/settings")) return "dashboard";
-  if (path.startsWith("/profile")) return "dashboard";
   if (path.startsWith("/documents")) return "notes";
   if (path.startsWith("/mindmaps")) return "notes";
   if (path.startsWith("/marketing")) return "dashboard";
