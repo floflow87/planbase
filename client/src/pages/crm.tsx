@@ -845,13 +845,13 @@ export default function CRM() {
     }
   };
 
-  if (!accountId) {
-    return null;
-  }
-
   return (
     <div className="h-full overflow-auto" data-testid="page-crm">
-      {isLoading ? (
+      {!accountId ? (
+        <div className="flex items-center justify-center h-full">
+          <Loader size="lg" />
+        </div>
+      ) : isLoading ? (
         <div className="flex items-center justify-center h-full">
           <Loader size="lg" />
         </div>
