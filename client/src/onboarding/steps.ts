@@ -2,7 +2,7 @@ export interface OnboardingStep {
   id: string;
   route: string;
   highlightSelector?: string;
-  placement: "top" | "bottom" | "left" | "right" | "center";
+  placement: "top" | "bottom" | "left" | "right" | "center" | "top-right" | "top-left";
   copy: string;
   ctaPrimaryLabel: string;
   ctaSecondaryLabel?: string;
@@ -34,7 +34,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: "crm",
     route: "/crm",
     highlightSelector: "[data-testid='kanban-board']",
-    placement: "top",
+    placement: "top-right",
     copy: "Ici, tu ajoutes tes clients et tu suis ton pipe d'opportunites. Tu peux personnaliser les etapes pour qu'elles collent a ta facon de travailler. Quand une opportunite devient concrete, tu la transformes en projet - sans ressaisie.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
@@ -43,7 +43,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     id: "project",
     route: "/projects",
     highlightSelector: "[data-testid='projects-list']",
-    placement: "top",
+    placement: "top-right",
     copy: "Ici, tout se rejoint. Un projet relie un client, un budget, un perimetre et un objectif. A partir d'un projet, tu pilotes le temps, les taches, le backlog et la rentabilite.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",

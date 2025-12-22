@@ -12,7 +12,7 @@ interface AvatarCompanionProps {
   isVisible: boolean;
   placement?: "bottom-right" | "spotlight";
   spotlightRect?: { top: number; left: number; width: number; height: number };
-  tooltipPlacement?: "top" | "bottom" | "left" | "right" | "center";
+  tooltipPlacement?: "top" | "bottom" | "left" | "right" | "center" | "top-right" | "top-left";
   primaryAction?: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
   tertiaryAction?: { label: string; onClick: () => void };
@@ -115,6 +115,16 @@ export function AvatarCompanion({
           return {
             bottom: window.innerHeight - spotlightRect.top + padding,
             left: Math.max(16, Math.min(spotlightRect.left + spotlightRect.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16)),
+          };
+        case "top-right":
+          return {
+            top: Math.max(16, spotlightRect.top - padding),
+            right: Math.max(16, window.innerWidth - spotlightRect.left - spotlightRect.width + padding),
+          };
+        case "top-left":
+          return {
+            top: Math.max(16, spotlightRect.top - padding),
+            left: Math.max(16, spotlightRect.left + padding),
           };
         case "right":
           return {
