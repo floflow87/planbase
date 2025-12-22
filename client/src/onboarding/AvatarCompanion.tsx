@@ -24,6 +24,7 @@ interface AvatarCompanionProps {
   showTooltip?: boolean;
   currentStep?: number;
   totalSteps?: number;
+  stepTitle?: string;
 }
 
 const AVATAR_IMAGES: Record<AvatarMood, string> = {
@@ -49,6 +50,7 @@ export function AvatarCompanion({
   showTooltip = true,
   currentStep,
   totalSteps,
+  stepTitle,
 }: AvatarCompanionProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -198,37 +200,35 @@ export function AvatarCompanion({
         >
           <div
             className={cn(
-              "bg-card border border-border rounded-xl shadow-xl p-4 max-w-xs sm:max-w-sm",
+              "bg-card border border-border rounded-xl shadow-xl p-4 max-w-xs sm:max-w-sm relative",
               tooltipPlacement === "center" && "max-w-md"
             )}
           >
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="absolute top-2 right-2 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                data-testid="onboarding-close"
+                aria-label="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             {placement === "spotlight" && (
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-16 h-16 rounded-[12px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
-                      !prefersReducedMotion && "animate-float-subtle"
-                    )}
-                  >
-                    <img
-                      src={avatarImage}
-                      alt="Planbase Assistant"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="font-medium text-foreground">Planbase</span>
+              <div className="flex items-center gap-3 mb-3 pr-8">
+                <div
+                  className={cn(
+                    "w-16 h-16 rounded-[12px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
+                    !prefersReducedMotion && "animate-float-subtle"
+                  )}
+                >
+                  <img
+                    src={avatarImage}
+                    alt="Planbase Assistant"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                {onClose && (
-                  <button
-                    onClick={onClose}
-                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                    data-testid="onboarding-close"
-                    aria-label="Fermer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <span className="font-bold text-foreground">{stepTitle || "Planbase"}</span>
               </div>
             )}
 

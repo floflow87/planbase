@@ -233,6 +233,7 @@ export function UnifiedAvatar() {
             spotlightRect={targetRect || undefined}
             tooltipPlacement={currentStep.placement}
             mood={getMoodForStep(currentStep.id)}
+            stepTitle={currentStep.title}
             primaryAction={{
               label: currentStep.ctaPrimaryLabel,
               onClick: handleNext,

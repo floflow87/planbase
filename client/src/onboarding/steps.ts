@@ -1,5 +1,6 @@
 export interface OnboardingStep {
   id: string;
+  title: string;
   route: string;
   highlightSelector?: string;
   placement: "top" | "bottom" | "left" | "right" | "center" | "top-right" | "top-left";
@@ -15,6 +16,7 @@ export const ONBOARDING_VERSION = "v1";
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "intro",
+    title: "Bienvenue",
     route: "/",
     placement: "center",
     copy: "Salut ! Je vais t'aider a prendre Planbase en main. Ici, tout est connecte : clients, projets, temps, taches, rentabilite. On ne va pas tout voir d'un coup - je te guide, pas a pas.",
@@ -23,6 +25,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "dashboard",
+    title: "Tableau de bord",
     route: "/",
     highlightSelector: "[data-testid='dashboard-kpis'], .dashboard-stats, main",
     placement: "bottom",
@@ -32,6 +35,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "crm",
+    title: "CRM",
     route: "/crm",
     highlightSelector: "[data-testid='kanban-board']",
     placement: "top-left",
@@ -41,6 +45,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "project",
+    title: "Projets",
     route: "/projects",
     highlightSelector: "[data-testid='projects-list']",
     placement: "top-left",
@@ -50,6 +55,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "time-tracker",
+    title: "Suivi du temps",
     route: "/projects",
     highlightSelector: "[data-testid='time-tracker'], .time-entries, main",
     placement: "top-left",
@@ -59,6 +65,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "tasks",
+    title: "Tâches",
     route: "/tasks",
     highlightSelector: "[data-testid='tasks-board'], .kanban-board, main",
     placement: "top-left",
@@ -68,6 +75,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "notes",
+    title: "Notes",
     route: "/notes",
     highlightSelector: "[data-testid='notes-list'], .notes-container, main",
     placement: "bottom",
@@ -77,6 +85,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "backlog",
+    title: "Backlog",
     route: "/product",
     highlightSelector: "[data-testid='backlog-board'], .backlog-container, main",
     placement: "top-left",
@@ -86,6 +95,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "roadmap",
+    title: "Roadmap",
     route: "/roadmap",
     highlightSelector: "[data-testid='roadmap-view'], .roadmap-container, main",
     placement: "top-left",
@@ -95,6 +105,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "profitability",
+    title: "Rentabilité",
     route: "/finance",
     highlightSelector: "[data-testid='page-finance'], main",
     placement: "top-right",
@@ -104,6 +115,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: "complete",
+    title: "Félicitations",
     route: "/",
     placement: "center",
     copy: "Voila. Tu as une vision claire de comment tout s'imbrique. Je reste la si tu as besoin d'aide, mais maintenant, c'est toi qui pilotes !",
