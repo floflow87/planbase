@@ -5294,7 +5294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
+      console.log("📝 PATCH user-story request body:", JSON.stringify(req.body));
       const data = updateUserStorySchema.parse(req.body);
+      console.log("✅ PATCH user-story parsed data:", JSON.stringify(data));
       
       const [updated] = await db.update(userStories)
         .set({ ...data, updatedAt: new Date() })
@@ -5306,6 +5308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(updated);
     } catch (error: any) {
+      console.error("❌ PATCH user-story error:", error);
       res.status(400).json({ error: error.message });
     }
   });
