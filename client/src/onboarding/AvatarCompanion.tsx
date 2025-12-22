@@ -162,7 +162,7 @@ export function AvatarCompanion({
 
   return (
     <>
-      {placement === "bottom-right" && (
+      {placement === "bottom-right" && !message && (
         <div
           className={cn(
             "fixed bottom-6 right-6 z-[9999] pointer-events-auto",
@@ -215,23 +215,21 @@ export function AvatarCompanion({
                 <X className="w-4 h-4" />
               </button>
             )}
-            {placement === "spotlight" && (
-              <div className="flex items-center gap-4 mb-4 pr-8">
-                <div
-                  className={cn(
-                    "w-32 h-32 rounded-[8px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
-                    !prefersReducedMotion && "animate-float-subtle"
-                  )}
-                >
-                  <img
-                    src={avatarImage}
-                    alt="Planbase Assistant"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <span className="font-bold text-foreground">{stepTitle || "Planbase"}</span>
+            <div className="flex items-center gap-4 mb-4 pr-8">
+              <div
+                className={cn(
+                  "w-32 h-32 rounded-[8px] bg-white dark:bg-white flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-primary",
+                  !prefersReducedMotion && "animate-float-subtle"
+                )}
+              >
+                <img
+                  src={avatarImage}
+                  alt="Planbase Assistant"
+                  className="w-full h-full object-cover"
+                />
               </div>
-            )}
+              <span className="font-bold text-foreground">{stepTitle || "Planbase"}</span>
+            </div>
 
             <p className="text-sm text-foreground leading-relaxed mb-4">
               {message}
