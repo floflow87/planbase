@@ -39,6 +39,13 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
     if (moduleHelp.ctaAction) {
       if (moduleHelp.ctaAction.startsWith("/")) {
         setLocation(moduleHelp.ctaAction);
+      } else {
+        const actionButton = document.querySelector(`[data-testid="button-${moduleHelp.ctaAction}"]`);
+        if (actionButton instanceof HTMLElement) {
+          onClose();
+          setTimeout(() => actionButton.click(), 100);
+          return;
+        }
       }
       onClose();
     }

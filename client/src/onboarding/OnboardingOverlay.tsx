@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -15,11 +15,12 @@ interface TargetRect {
 }
 
 export function OnboardingOverlay() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [isElementReady, setIsElementReady] = useState(false);
+  const lastNavigatedStepRef = useRef<string | null>(null);
 
   const { data: onboardingData, isLoading } = useQuery<UserOnboarding>({
     queryKey: ["/api/onboarding"],
@@ -86,7 +87,10 @@ export function OnboardingOverlay() {
   useEffect(() => {
     if (!isActive || !currentStep) return;
 
-    setLocation(currentStep.route);
+    if (lastNavigatedStepRef.current !== currentStep.id && location !== currentStep.route) {
+      lastNavigatedStepRef.current = currentStep.id;
+      setLocation(currentStep.route);
+    }
 
     if (!currentStep.highlightSelector) {
       setIsElementReady(true);
@@ -132,7 +136,7 @@ export function OnboardingOverlay() {
         clearTimeout(timeout);
       };
     }
-  }, [isActive, currentStep, setLocation]);
+  }, [isActive, currentStep, location, setLocation]);
 
   const handleNext = useCallback(() => {
     if (!currentStepId) return;
