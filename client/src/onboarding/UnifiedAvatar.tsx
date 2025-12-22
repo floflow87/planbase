@@ -251,7 +251,7 @@ export function UnifiedAvatar() {
             }
             previousAction={
               currentStepId && currentStepId !== "intro"
-                ? { label: "Précédent", onClick: handlePrevious }
+                ? { label: "Préc.", onClick: handlePrevious }
                 : undefined
             }
             currentStep={currentStepId ? getStepIndex(currentStepId) : 0}

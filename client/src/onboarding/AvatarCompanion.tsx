@@ -242,17 +242,6 @@ export function AvatarCompanion({
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
-              {previousAction && (
-                <button
-                  onClick={previousAction.onClick}
-                  className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  data-testid="onboarding-previous-action"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  {previousAction.label}
-                </button>
-              )}
-              <div className="flex-1" />
               {tertiaryAction && (
                 <button
                   onClick={tertiaryAction.onClick}
@@ -269,6 +258,17 @@ export function AvatarCompanion({
                   data-testid="onboarding-secondary-action"
                 >
                   {secondaryAction.label}
+                </button>
+              )}
+              <div className="flex-1" />
+              {previousAction && (
+                <button
+                  onClick={previousAction.onClick}
+                  className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
+                  data-testid="onboarding-previous-action"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {previousAction.label}
                 </button>
               )}
               {primaryAction && (
