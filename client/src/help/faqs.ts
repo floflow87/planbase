@@ -60,7 +60,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
       },
     ],
     ctaLabel: "Ajouter un client",
-    ctaAction: "add-client",
+    ctaAction: "new-client",
   },
   projects: {
     id: "projects",
@@ -86,7 +86,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
       },
     ],
     ctaLabel: "Créer un projet",
-    ctaAction: "add-project",
+    ctaAction: "create-project",
   },
   tasks: {
     id: "tasks",
@@ -108,7 +108,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
       },
     ],
     ctaLabel: "Ajouter une tâche",
-    ctaAction: "add-task",
+    ctaAction: "new-task",
   },
   notes: {
     id: "notes",
@@ -130,7 +130,7 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
       },
     ],
     ctaLabel: "Créer une note",
-    ctaAction: "add-note",
+    ctaAction: "nouvelle-note",
   },
   backlog: {
     id: "backlog",
@@ -155,8 +155,8 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
         answer: "Oui, un ticket peut être lié à une ou plusieurs tâches. Le temps saisi sur les tâches remonte automatiquement.",
       },
     ],
-    ctaLabel: "Créer un ticket",
-    ctaAction: "add-ticket",
+    ctaLabel: "Créer une story",
+    ctaAction: "add-user-story",
   },
   roadmap: {
     id: "roadmap",
@@ -225,8 +225,8 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
         answer: "Utilise les filtres en haut pour changer la période. Tu verras le total et la répartition par projet.",
       },
     ],
-    ctaLabel: "Ajouter du temps",
-    ctaAction: "add-time",
+    ctaLabel: "Voir mes projets",
+    ctaAction: "/projects",
   },
 };
 
