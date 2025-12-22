@@ -945,6 +945,21 @@ export async function runStartupMigrations() {
       CREATE INDEX IF NOT EXISTS roadmap_dependencies_depends_on_idx ON roadmap_dependencies(depends_on_roadmap_item_id);
     `);
     console.log("✅ Roadmap dependencies table created");
+    
+    // Create user_onboarding table for guided tour state
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_onboarding (
+        user_id uuid PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+        completed boolean NOT NULL DEFAULT false,
+        completed_at timestamp with time zone,
+        last_step text,
+        skipped boolean NOT NULL DEFAULT false,
+        version text NOT NULL DEFAULT 'v1',
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    console.log("✅ User onboarding table created");
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {

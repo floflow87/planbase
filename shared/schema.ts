@@ -37,6 +37,24 @@ export const appUsers = pgTable("app_users", {
   accountIdIdx: index().on(table.accountId),
 }));
 
+export const userOnboarding = pgTable("user_onboarding", {
+  userId: uuid("user_id").primaryKey().references(() => appUsers.id, { onDelete: "cascade" }),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  lastStep: text("last_step"),
+  skipped: boolean("skipped").notNull().default(false),
+  version: text("version").notNull().default("v1"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
+export type UserOnboarding = typeof userOnboarding.$inferSelect;
+
 export const invitations = pgTable("invitations", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),

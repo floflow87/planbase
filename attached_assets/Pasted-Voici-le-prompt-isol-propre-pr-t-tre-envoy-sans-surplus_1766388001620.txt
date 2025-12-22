@@ -1,0 +1,125 @@
+Voici le prompt isolé, propre, prêt à être envoyé, sans surplus 👇
+
+⸻
+
+🎯 PROMPT — Gestion de l’état d’onboarding utilisateur (backend + frontend)
+
+Objectif
+
+Mettre en place une gestion robuste et scalable de l’onboarding utilisateur afin que le parcours guidé ne se déclenche qu’une seule fois par utilisateur (ou par version), tout en permettant :
+	•	de le relancer manuellement
+	•	de le faire évoluer dans le temps
+	•	de conserver une aide contextuelle permanente
+
+⸻
+
+1️⃣ Modèle de données (recommandé)
+
+Créer une table dédiée user_onboarding (ou équivalent), liée à l’utilisateur.
+
+Schéma proposé
+
+user_onboarding (
+  user_id UUID PRIMARY KEY REFERENCES users(id),
+  completed BOOLEAN DEFAULT false,
+  completed_at TIMESTAMP NULL,
+  last_step VARCHAR NULL,
+  skipped BOOLEAN DEFAULT false,
+  version VARCHAR NOT NULL
+)
+
+Règles
+	•	version correspond à la version de l’onboarding (ex: "v1")
+	•	completed = true signifie que l’onboarding ne doit plus jamais se lancer automatiquement
+	•	last_step permet de reprendre ou analyser l’abandon
+
+⸻
+
+2️⃣ Initialisation à l’inscription
+
+À la création d’un utilisateur :
+	•	créer automatiquement une ligne user_onboarding
+	•	avec :
+	•	completed = false
+	•	version = "v1"
+	•	last_step = null
+
+⸻
+
+3️⃣ Logique backend (API)
+
+Endpoints à exposer
+	•	GET /api/onboarding
+	•	retourne l’état d’onboarding de l’utilisateur courant
+	•	POST /api/onboarding/progress
+	•	met à jour last_step
+	•	POST /api/onboarding/complete
+	•	met completed = true
+	•	renseigne completed_at
+	•	POST /api/onboarding/reset (optionnel, owner/admin only)
+	•	remet completed = false
+	•	utile pour tests ou relance manuelle
+
+⸻
+
+4️⃣ Logique frontend (React)
+
+Au chargement de l’app
+	•	récupérer l’état via GET /api/onboarding
+	•	si :
+	•	completed === false
+	•	et version === CURRENT_ONBOARDING_VERSION
+→ déclencher automatiquement le parcours d’onboarding
+
+Sinon
+	•	ne jamais déclencher automatiquement
+	•	afficher uniquement :
+	•	l’avatar en mode aide contextuelle
+
+⸻
+
+5️⃣ Mise à jour pendant l’onboarding
+
+À chaque étape franchie :
+	•	appeler POST /api/onboarding/progress
+	•	stocker le nom logique de l’étape (dashboard, crm, project, etc.)
+
+À la fin du parcours :
+	•	appeler POST /api/onboarding/complete
+	•	stopper définitivement le déclenchement automatique
+
+⸻
+
+6️⃣ Relancer l’onboarding manuellement
+
+Ajouter une option dans les paramètres utilisateur :
+	•	“Relancer la visite guidée”
+
+Comportement :
+	•	remet l’état frontend en mode onboarding
+	•	sans modifier completed = true en base (ou via reset explicite)
+
+⸻
+
+7️⃣ Gestion des versions (anticipation)
+
+Lorsqu’un onboarding V2 sera créé :
+	•	changer CURRENT_ONBOARDING_VERSION = "v2"
+	•	si :
+	•	user_onboarding.version !== CURRENT_ONBOARDING_VERSION
+→ proposer (mais ne pas forcer) un nouveau parcours
+
+⸻
+
+8️⃣ Critères d’acceptation
+	•	L’onboarding ne se lance qu’une seule fois par utilisateur et par version
+	•	Aucun utilisateur déjà onboardé n’est forcé de le revoir
+	•	Le parcours est relançable manuellement
+	•	L’avatar reste disponible comme aide contextuelle
+	•	La structure permet d’évoluer sans migration lourde
+
+⸻
+
+Intention produit
+L’onboarding est un accompagnement, pas une contrainte.
+Une fois terminé, l’utilisateur pilote — Planbase reste à ses côtés, sans s’imposer.
