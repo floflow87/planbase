@@ -21,7 +21,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     placement: "center",
     copy: "Salut ! Je vais t'aider a prendre Planbase en main. Ici, tout est connecte : clients, projets, temps, taches, rentabilite. On ne va pas tout voir d'un coup - je te guide, pas a pas.",
     ctaPrimaryLabel: "C'est parti",
-    ctaSecondaryLabel: "Plus tard",
+    ctaSecondaryLabel: "Passer",
   },
   {
     id: "dashboard",

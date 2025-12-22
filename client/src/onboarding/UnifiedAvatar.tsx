@@ -244,7 +244,7 @@ export function UnifiedAvatar() {
                 : undefined
             }
             onClose={
-              currentStep.id !== "intro" && currentStep.id !== "complete"
+              currentStep.id !== "complete"
                 ? handleLater
                 : undefined
             }

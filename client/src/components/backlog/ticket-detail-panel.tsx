@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -28,7 +28,12 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink } from "@shared/schema";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
 import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions } from "@shared/schema";
 import type { FlatTicket, TicketType } from "./jira-scrum-view";
 
@@ -72,7 +77,11 @@ function getStateStyle(state: string | null | undefined) {
     case "en_cours":
       return { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" };
     case "review":
-      return { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" };
+      return { bg: "bg-purple-100", text: "text-purple-700", dot: "bg-purple-500" };
+    case "testing":
+      return { bg: "bg-cyan-100", text: "text-cyan-700", dot: "bg-cyan-500" };
+    case "to_fix":
+      return { bg: "bg-orange-100", text: "text-orange-700", dot: "bg-orange-500" };
     case "bloque":
       return { bg: "bg-red-100", text: "text-red-700", dot: "bg-red-500" };
     default:
@@ -127,6 +136,71 @@ export function TicketDetailPanel({
     enabled: !!ticketId && !!ticketType,
     staleTime: 0,
   });
+  
+  // Get all notes for linking
+  const { data: allNotes = [] } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+  });
+  
+  // Get entity links for this ticket
+  const ticketEntityType = ticketType === "epic" ? "epic" : ticketType === "user_story" ? "user_story" : "task";
+  const entityLinksQueryKey = ["/api/entity-links", ticketEntityType, ticketId] as const;
+  
+  const { data: entityLinks = [] } = useQuery<EntityLink[]>({
+    queryKey: entityLinksQueryKey,
+    queryFn: async () => {
+      if (!ticketId || !ticketType) return [];
+      const res = await apiRequest(`/api/entity-links`, "GET");
+      const allLinks = await res.json();
+      return allLinks.filter((link: EntityLink) => 
+        (link.sourceType === ticketEntityType && link.sourceId === ticketId) ||
+        (link.targetType === ticketEntityType && link.targetId === ticketId)
+      );
+    },
+    enabled: !!ticketId && !!ticketType,
+  });
+  
+  // Filter to get only note links
+  const linkedNoteIds = entityLinks
+    .filter(link => link.targetType === "note" || link.sourceType === "note")
+    .map(link => link.targetType === "note" ? link.targetId : link.sourceId);
+  
+  const linkedNotes = allNotes.filter(note => linkedNoteIds.includes(note.id));
+  const availableNotes = allNotes.filter(note => !linkedNoteIds.includes(note.id));
+  
+  // Link note mutation
+  const linkNoteMutation = useMutation({
+    mutationFn: async (noteId: string) => {
+      return apiRequest("/api/entity-links", "POST", {
+        sourceType: ticketEntityType,
+        sourceId: ticketId,
+        targetType: "note",
+        targetId: noteId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: entityLinksQueryKey });
+    },
+  });
+  
+  // Unlink note mutation
+  const unlinkNoteMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      return apiRequest(`/api/entity-links/${linkId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: entityLinksQueryKey });
+    },
+  });
+  
+  // Helper to find the link ID for a note
+  const findLinkIdForNote = (noteId: string) => {
+    const link = entityLinks.find(
+      l => (l.targetType === "note" && l.targetId === noteId) ||
+           (l.sourceType === "note" && l.sourceId === noteId)
+    );
+    return link?.id;
+  };
   
   // Add comment mutation - pass ticketId and ticketType explicitly
   const addCommentMutation = useMutation({
@@ -633,6 +707,85 @@ export function TicketDetailPanel({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Linked Notes Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Notes liées ({linkedNotes.length})
+              </Label>
+              {!readOnly && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      disabled={availableNotes.length === 0}
+                      data-testid="button-add-note-link"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2" align="end">
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {availableNotes.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-2">Aucune note disponible</p>
+                      ) : (
+                        availableNotes.map(note => (
+                          <Button
+                            key={note.id}
+                            variant="ghost"
+                            className="w-full justify-start text-left h-auto py-2"
+                            onClick={() => linkNoteMutation.mutate(note.id)}
+                            disabled={linkNoteMutation.isPending}
+                            data-testid={`button-link-note-${note.id}`}
+                          >
+                            <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">{note.title || "Note sans titre"}</span>
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+            {linkedNotes.length > 0 ? (
+              <div className="space-y-1">
+                {linkedNotes.map(note => {
+                  const linkId = findLinkIdForNote(note.id);
+                  return (
+                    <div 
+                      key={note.id} 
+                      className="flex items-center justify-between p-2 rounded bg-muted/50 group"
+                      data-testid={`linked-note-${note.id}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <span className="text-sm truncate">{note.title || "Note sans titre"}</span>
+                      </div>
+                      {!readOnly && linkId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => unlinkNoteMutation.mutate(linkId)}
+                          disabled={unlinkNoteMutation.isPending}
+                          data-testid={`button-unlink-note-${note.id}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucune note liée</p>
+            )}
           </div>
           
           {/* Read-only notice */}
