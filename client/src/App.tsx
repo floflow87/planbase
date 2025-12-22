@@ -49,8 +49,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
-import { OnboardingProvider } from "@/contexts/OnboardingContext";
-import { OnboardingAvatar } from "@/components/OnboardingAvatar";
+import { OnboardingOverlay } from "@/onboarding/OnboardingOverlay";
+import { HelpButton } from "@/help/HelpButton";
 
 function Router() {
   return (
@@ -431,13 +431,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <OnboardingProvider>
-            <TooltipProvider>
-              <AppLayout />
-              <OnboardingAvatar />
-              <Toaster />
-            </TooltipProvider>
-          </OnboardingProvider>
+          <TooltipProvider>
+            <AppLayout />
+            <OnboardingOverlay />
+            <HelpButton />
+            <Toaster />
+          </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

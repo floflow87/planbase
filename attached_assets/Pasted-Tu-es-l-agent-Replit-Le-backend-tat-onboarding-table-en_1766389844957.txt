@@ -1,0 +1,134 @@
+Tu es l’agent Replit. Le backend + état onboarding (table + endpoints + React Query context) est déjà implémenté. Il faut maintenant livrer l’expérience onboarding complète V1 pour Planbase :
+
+Objectifs :
+	1.	Un parcours guidé non linéaire mais cohérent, qui fait naviguer l’utilisateur entre modules
+	2.	Un avatar en bas à droite avec micro-animations + bulle de dialogue (ton complice, tutoiement, 1ère personne)
+	3.	Un système d’aide/FAQ par module via un bouton ❓, disponible après onboarding (ou pendant)
+
+Contraintes :
+	•	Ne pas casser desktop
+	•	Mobile first
+	•	Respect prefers-reduced-motion
+	•	Onboarding non bloquant (skip / plus tard)
+	•	Persisté via API onboarding (progress/complete/skip)
+
+⸻
+
+1) Orchestrateur d’onboarding (state machine)
+
+Créer une définition de steps V1 (ex: client/src/onboarding/steps.ts) :
+
+Chaque step contient :
+	•	id
+	•	route (ex: /dashboard, /crm, /projects/:id, /notes, /product/backlog, /roadmap, /profitability)
+	•	highlightSelector (CSS selector à spotlight)
+	•	placement (tooltip position)
+	•	copy (texte exact avatar)
+	•	ctaPrimaryLabel, ctaSecondaryLabel
+	•	onEnter (optionnel : ex sélectionner un projet par défaut)
+	•	waitFor (fonction qui attend que le selector existe avant d’afficher)
+
+Le flux doit :
+	•	naviguer vers route
+	•	attendre l’élément highlightSelector
+	•	afficher spotlight + bulle avatar
+	•	au “Suivant” → POST /api/onboarding/progress avec le step suivant
+	•	au “Terminer” → POST /api/onboarding/complete
+	•	au “Passer” → POST /api/onboarding/skip
+
+⸻
+
+2) Textes exacts (avatar, tutoiement, 1ère personne)
+
+Utiliser exactement ces copies :
+
+Intro
+
+“Salut 👋 Je vais t’aider à prendre Planbase en main. Ici, tout est connecté : clients, projets, temps, tâches, rentabilité. On ne va pas tout voir d’un coup — je te guide, pas à pas.”
+
+Dashboard
+
+“Ici, tu commences toujours par un coup d’œil. Tu vois tes principaux KPIs, ce qui avance, ce qui bloque, et ce qui mérite ton attention aujourd’hui. Chaque chiffre vient de tes projets, de ton temps et de tes tâches. Rien n’est isolé.”
+
+CRM
+
+“Ici, tu ajoutes tes clients et tu suis ton pipe d’opportunités. Tu peux personnaliser les étapes pour qu’elles collent à ta façon de travailler. Quand une opportunité devient concrète, tu la transformes en projet — sans ressaisie.”
+
+Projet
+
+“Ici, tout se rejoint. Un projet relie un client, un budget, un périmètre et un objectif. À partir d’un projet, tu pilotes le temps, les tâches, le backlog et la rentabilité.”
+
+Time tracker
+
+“Ici, tu enregistres chaque temps passé sur un projet. Tu peux le lier à une tâche, un ticket ou une étape du cahier des charges. Plus tu saisis ton temps, plus je peux t’aider à anticiper et te proposer des recommandations utiles.”
+
+Tâches
+
+“Ici, tu passes à l’action. Tu ajoutes des tâches à un projet, tu les priorises, et tu vois ce qui avance ou bloque. Chaque tâche peut se relier à ton backlog et à ton temps.”
+
+Notes
+
+“Ici, tu poses tout ce que tu as en tête : idées, décisions, comptes rendus. Tu peux organiser tes notes et les regrouper par projet pour garder le contexte au bon endroit.”
+
+Backlog
+
+“Ici, tu découpes le travail avant de le lancer. Épics, tickets, sprints : tu structures ton périmètre pour garder le contrôle. Les tickets peuvent être liés au projet, au temps et aux tâches.”
+
+Roadmap
+
+“Ici, je te fais prendre de la hauteur. Tu visualises les étapes, les priorités et les dépendances dans le temps. Ta roadmap peut connecter des épics, des tickets, des jalons projet… ou des blocs libres.”
+
+Rentabilité
+
+“Ici, tu vois si tes projets sont vraiment sains. Je croise ton budget, ton temps passé et ton avancement pour t’aider à décider : ajuster ton TJM, accélérer, ou apprendre pour les prochains projets.”
+
+Fin
+
+“Voilà. Tu as une vision claire de comment tout s’imbrique. Je reste là si tu as besoin d’aide, mais maintenant, c’est toi qui pilotes 🚀”
+
+⸻
+
+3) UI spotlight + navigation
+	•	Implémenter un overlay “spotlight” : fond sombre léger + focus sur l’élément ciblé
+	•	Tooltip/bulle avatar alignée au spotlight
+	•	Boutons : “Suivant”, “Passer”, “Plus tard”
+	•	“Plus tard” ferme sans skip (ne pas marquer skipped), et propose de relancer depuis Settings
+	•	“Passer” → skip (ne plus auto-trigger)
+
+⸻
+
+4) Avatar + micro-animations
+
+Créer AvatarCompanion fixé en bas à droite :
+	•	idle float (CSS keyframes)
+	•	bounce à l’apparition
+	•	blink léger sur success
+	•	respect prefers-reduced-motion (pas d’animation)
+
+L’avatar sert à :
+	•	onboarding (spotlight)
+	•	aide contextuelle (FAQ)
+
+⸻
+
+5) Bouton Aide + FAQ par module (post onboarding)
+
+Ajouter un bouton ❓ Aide visible sur chaque module (Dashboard, CRM, Project, Backlog, Notes, Rentabilité, Roadmap, Time tracker, Tasks).
+
+Au clic :
+	•	ouvrir un Drawer/Modal FAQ
+	•	contenu : 1 résumé + 3-6 Q/R max + 1 CTA (“Créer…”, “Ajouter…”, etc.)
+	•	l’avatar apparaît et affiche une bulle courte : “Je te réponds ici.”
+
+Les FAQs peuvent être codées en dur pour V1 dans client/src/help/faqs.ts avec mapping route → contenu.
+
+⸻
+
+6) Critères d’acceptation
+	•	L’onboarding se déclenche uniquement si completed=false et skipped=false et version match
+	•	Navigation automatique entre modules + spotlight stable (attend le DOM)
+	•	Progress sauvegardé via API
+	•	Complete/Skip/Reset fonctionnels
+	•	Avatar visible, animations légères, non intrusif
+	•	Aide/FAQ disponible partout après onboarding
+	•	Mobile UX premium (aucun overlap avec safe areas)
