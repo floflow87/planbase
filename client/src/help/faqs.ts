@@ -235,7 +235,7 @@ export function getModuleHelp(moduleId: string): ModuleHelp | undefined {
 }
 
 export function getModuleIdFromPath(path: string): string | undefined {
-  if (path === "/" || path === "/dashboard") return "dashboard";
+  if (path === "/" || path === "/dashboard" || path === "/home") return "dashboard";
   if (path.startsWith("/crm")) return "crm";
   if (path.startsWith("/projects")) return "projects";
   if (path.startsWith("/tasks")) return "tasks";
@@ -243,5 +243,13 @@ export function getModuleIdFromPath(path: string): string | undefined {
   if (path.startsWith("/product")) return "backlog";
   if (path.startsWith("/roadmap")) return "roadmap";
   if (path.startsWith("/finance")) return "finance";
+  if (path.startsWith("/calendar")) return "dashboard";
+  if (path.startsWith("/settings")) return "dashboard";
+  if (path.startsWith("/profile")) return "dashboard";
+  if (path.startsWith("/documents")) return "notes";
+  if (path.startsWith("/mindmaps")) return "notes";
+  if (path.startsWith("/marketing")) return "dashboard";
+  if (path.startsWith("/commercial")) return "crm";
+  if (path.startsWith("/legal")) return "dashboard";
   return undefined;
 }

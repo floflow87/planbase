@@ -49,8 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
-import { OnboardingOverlay } from "@/onboarding/OnboardingOverlay";
-import { HelpButton } from "@/help/HelpButton";
+import { UnifiedAvatar } from "@/onboarding/UnifiedAvatar";
 
 function Router() {
   return (
@@ -433,8 +432,7 @@ export default function App() {
         <AuthProvider>
           <TooltipProvider>
             <AppLayout />
-            <OnboardingOverlay />
-            <HelpButton />
+            <UnifiedAvatar />
             <Toaster />
           </TooltipProvider>
         </AuthProvider>
