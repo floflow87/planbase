@@ -442,7 +442,7 @@ export async function runStartupMigrations() {
         title text NOT NULL,
         description text,
         priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
-        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine')),
         color text DEFAULT '#C4B5FD',
         "order" integer NOT NULL DEFAULT 0,
         due_date date,
@@ -476,7 +476,7 @@ export async function runStartupMigrations() {
         complexity text CHECK (complexity IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')),
         priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
         estimate_points integer,
-        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine')),
         "order" integer NOT NULL DEFAULT 0,
         due_date date,
         owner_id uuid REFERENCES app_users(id) ON DELETE SET NULL,
@@ -518,7 +518,7 @@ export async function runStartupMigrations() {
         user_story_id uuid REFERENCES user_stories(id) ON DELETE CASCADE,
         title text NOT NULL,
         description text,
-        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'review', 'termine')),
+        state text DEFAULT 'a_faire' CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine')),
         estimate_points integer,
         "order" integer NOT NULL DEFAULT 0,
         due_date date,
@@ -960,6 +960,30 @@ export async function runStartupMigrations() {
       );
     `);
     console.log("✅ User onboarding table created");
+
+    // Update backlog state check constraints to include 'testing' and 'to_fix'
+    await db.execute(sql`
+      ALTER TABLE epics DROP CONSTRAINT IF EXISTS epics_state_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE epics ADD CONSTRAINT epics_state_check 
+        CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine'));
+    `);
+    await db.execute(sql`
+      ALTER TABLE user_stories DROP CONSTRAINT IF EXISTS user_stories_state_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE user_stories ADD CONSTRAINT user_stories_state_check 
+        CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine'));
+    `);
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks DROP CONSTRAINT IF EXISTS backlog_tasks_state_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks ADD CONSTRAINT backlog_tasks_state_check 
+        CHECK (state IN ('a_faire', 'en_cours', 'testing', 'to_fix', 'review', 'termine'));
+    `);
+    console.log("✅ Backlog state check constraints updated to include testing and to_fix");
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
