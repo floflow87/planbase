@@ -240,13 +240,11 @@ export function UnifiedAvatar() {
             secondaryAction={
               currentStep.ctaSecondaryLabel === "Passer"
                 ? { label: "Passer", onClick: handleSkip }
-                : currentStep.ctaSecondaryLabel === "Plus tard"
-                ? { label: "Plus tard", onClick: handleLater }
                 : undefined
             }
-            tertiaryAction={
+            onClose={
               currentStep.id !== "intro" && currentStep.id !== "complete"
-                ? { label: "Plus tard", onClick: handleLater }
+                ? handleLater
                 : undefined
             }
             previousAction={

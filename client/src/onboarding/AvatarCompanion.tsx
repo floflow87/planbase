@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import avatarWaving from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1766391167518.png";
 import avatarCelebrating from "@assets/97FA848E-CB40-4ADC-9F33-36793D7CA0B1_1766391167518.png";
 import avatarThinking from "@assets/4A1310C2-F869-4A53-A8DC-B871545DDB79_1766391167518.png";
@@ -17,6 +17,7 @@ interface AvatarCompanionProps {
   primaryAction?: { label: string; onClick: () => void };
   secondaryAction?: { label: string; onClick: () => void };
   tertiaryAction?: { label: string; onClick: () => void };
+  onClose?: () => void;
   previousAction?: { label: string; onClick: () => void };
   mood?: AvatarMood;
   onClick?: () => void;
@@ -41,6 +42,7 @@ export function AvatarCompanion({
   primaryAction,
   secondaryAction,
   tertiaryAction,
+  onClose,
   previousAction,
   mood = "neutral",
   onClick,
@@ -217,22 +219,15 @@ export function AvatarCompanion({
                   </div>
                   <span className="font-medium text-foreground">Planbase</span>
                 </div>
-                {currentStep !== undefined && totalSteps !== undefined && (
-                  <div className="flex items-center gap-1.5" data-testid="onboarding-breadcrumb">
-                    {Array.from({ length: totalSteps }).map((_, index) => (
-                      <div
-                        key={index}
-                        className={cn(
-                          "w-2 h-2 rounded-full transition-colors",
-                          index < currentStep
-                            ? "bg-primary"
-                            : index === currentStep
-                            ? "bg-primary ring-2 ring-primary/30"
-                            : "bg-muted-foreground/30"
-                        )}
-                      />
-                    ))}
-                  </div>
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                    data-testid="onboarding-close"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
               </div>
             )}
@@ -241,16 +236,7 @@ export function AvatarCompanion({
               {message}
             </p>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {tertiaryAction && (
-                <button
-                  onClick={tertiaryAction.onClick}
-                  className="px-3 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  data-testid="onboarding-tertiary-action"
-                >
-                  {tertiaryAction.label}
-                </button>
-              )}
+            <div className="flex items-center gap-2">
               {secondaryAction && (
                 <button
                   onClick={secondaryAction.onClick}
@@ -279,6 +265,11 @@ export function AvatarCompanion({
                 >
                   {primaryAction.label}
                 </button>
+              )}
+              {currentStep !== undefined && totalSteps !== undefined && (
+                <span className="text-xs text-muted-foreground ml-2" data-testid="onboarding-step-counter">
+                  {currentStep + 1}/{totalSteps}
+                </span>
               )}
             </div>
           </div>

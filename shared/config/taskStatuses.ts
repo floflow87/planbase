@@ -6,6 +6,8 @@
 export const TASK_STATUSES = [
   { key: "todo", label: "À faire", order: 10, colorClass: "bg-gray-100 border-gray-200", textColorClass: "text-gray-700", darkColorClass: "dark:bg-gray-800/30 dark:text-gray-300" },
   { key: "in_progress", label: "En cours", order: 20, colorClass: "bg-blue-100 border-blue-200", textColorClass: "text-blue-700", darkColorClass: "dark:bg-blue-900/30 dark:text-blue-300" },
+  { key: "testing", label: "Testing", order: 25, colorClass: "bg-cyan-100 border-cyan-200", textColorClass: "text-cyan-700", darkColorClass: "dark:bg-cyan-900/30 dark:text-cyan-300" },
+  { key: "to_fix", label: "To fix", order: 28, colorClass: "bg-orange-100 border-orange-200", textColorClass: "text-orange-700", darkColorClass: "dark:bg-orange-900/30 dark:text-orange-300" },
   { key: "review", label: "En révision", order: 30, colorClass: "bg-purple-100 border-purple-200", textColorClass: "text-purple-700", darkColorClass: "dark:bg-purple-900/30 dark:text-purple-300" },
   { key: "done", label: "Terminé", order: 40, colorClass: "bg-green-100 border-green-200", textColorClass: "text-green-700", darkColorClass: "dark:bg-green-900/30 dark:text-green-300", isTerminal: true },
 ] as const;
@@ -51,6 +53,10 @@ export function getStatusFromColumnName(columnName: string): TaskStatusKey {
     return "in_progress";
   } else if (lowerName.includes("review") || lowerName.includes("révision") || lowerName.includes("relecture")) {
     return "review";
+  } else if (lowerName.includes("testing") || lowerName.includes("test")) {
+    return "testing";
+  } else if (lowerName.includes("to fix") || lowerName.includes("fix") || lowerName.includes("corriger")) {
+    return "to_fix";
   }
   return "in_progress";
 }

@@ -96,8 +96,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "profitability",
     route: "/finance",
-    highlightSelector: "[data-testid='sidebar-item-dashboard'], [data-testid='page-finance'], main",
-    placement: "right",
+    highlightSelector: "[data-testid='page-finance'], main",
+    placement: "top-right",
     copy: "Ici, tu vois si tes projets sont vraiment sains. Je croise ton budget, ton temps passe et ton avancement pour t'aider a decider : ajuster ton TJM, accelerer, ou apprendre pour les prochains projets.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
