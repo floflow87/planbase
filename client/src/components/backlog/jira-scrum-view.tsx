@@ -107,6 +107,10 @@ function getStateLabel(state: string | null | undefined) {
       return "En cours";
     case "review":
       return "Review";
+    case "testing":
+      return "Testing";
+    case "to_fix":
+      return "To fix";
     case "a_faire":
     default:
       return "À faire";
