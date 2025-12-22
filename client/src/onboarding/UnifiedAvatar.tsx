@@ -104,11 +104,15 @@ export function UnifiedAvatar() {
   useEffect(() => {
     if (!isOnboardingActive || !currentStep) return;
 
-    if (lastNavigatedStepRef.current !== currentStep.id && location !== currentStep.route) {
+    // Navigate to the step's route if we're not already there
+    if (location !== currentStep.route) {
       lastNavigatedStepRef.current = currentStep.id;
       setLocation(currentStep.route);
+      // Don't wait for element yet, let navigation complete first
+      return;
     }
 
+    // We're on the correct route, now wait for element
     if (!currentStep.highlightSelector) {
       setIsElementReady(true);
       return;
