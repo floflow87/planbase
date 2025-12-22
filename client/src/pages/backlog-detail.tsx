@@ -1451,7 +1451,7 @@ export default function BacklogDetail() {
           </TabsList>
         </div>
 
-        <TabsContent value="backlog" className="flex-1 flex flex-col overflow-hidden mt-0">
+        <TabsContent value="backlog" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
         {/* Fixed Header/Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 md:px-6 md:py-4 border-b bg-background sticky top-0 z-10">
           {/* Left: Search + Creation buttons */}
