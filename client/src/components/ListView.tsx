@@ -855,6 +855,23 @@ export function ListView({
                                   </TableCell>
                                 );
                               case 'status':
+                                // Fallback status labels and colors when no column is found
+                                const statusFallback: Record<string, { label: string; color: string }> = {
+                                  todo: { label: "À faire", color: "#e2e8f0" },
+                                  in_progress: { label: "En cours", color: "#93c5fd" },
+                                  review: { label: "En revue", color: "#fcd34d" },
+                                  done: { label: "Terminée", color: "#86efac" },
+                                };
+                                const fallback = statusFallback[task.status] || statusFallback.todo;
+                                const displayColor = taskColumn?.color || fallback.color;
+                                const displayLabel = taskColumn?.name || fallback.label;
+                                
+                                // Get available columns for the popover (task's project or global if no project)
+                                const availableColumns = task.projectId 
+                                  ? columns.filter(col => col.projectId === task.projectId)
+                                  : columns.filter(col => !col.projectId);
+                                const sortedAvailableColumns = [...availableColumns].sort((a, b) => a.order - b.order);
+                                
                                 return (
                                   <TableCell key={columnId}>
                                     <Popover
@@ -869,22 +886,17 @@ export function ListView({
                                     >
                                       <PopoverTrigger asChild>
                                         <Badge 
-                                          style={{ backgroundColor: taskColumn?.color || 'transparent' }}
+                                          style={{ backgroundColor: displayColor }}
                                           className="text-foreground min-w-[80px] cursor-pointer hover-elevate text-[12px]"
                                           data-testid={`badge-status-${task.id}`}
                                         >
-                                          {taskColumn?.name || '—'}
+                                          {displayLabel}
                                         </Badge>
                                       </PopoverTrigger>
-                                      <PopoverContent className="w-56 p-2 bg-white">
+                                      <PopoverContent className="w-56 p-2 bg-white dark:bg-card">
                                         <div className="space-y-1">
-                                          {(() => {
-                                            // Only show columns from the task's project to prevent cross-project moves
-                                            const taskProjectColumns = columns
-                                              .filter(col => col.projectId === task.projectId)
-                                              .sort((a, b) => a.order - b.order);
-                                            
-                                            return taskProjectColumns.map(col => (
+                                          {sortedAvailableColumns.length > 0 ? (
+                                            sortedAvailableColumns.map(col => (
                                               <button
                                                 key={col.id}
                                                 onClick={() => {
@@ -906,8 +918,10 @@ export function ListView({
                                                 />
                                                 <span className="text-xs">{col.name}</span>
                                               </button>
-                                            ));
-                                          })()}
+                                            ))
+                                          ) : (
+                                            <p className="text-xs text-muted-foreground p-2">Aucune colonne disponible. Liez cette tâche à un projet.</p>
+                                          )}
                                         </div>
                                       </PopoverContent>
                                     </Popover>

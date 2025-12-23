@@ -2505,15 +2505,24 @@ export default function ProjectDetail() {
   // Create task linked to project
   const createTaskMutation = useMutation({
     mutationFn: async () => {
-      const defaultColumn = columns[0];
-      const response = await apiRequest("/api/tasks", "POST", {
+      // Get first column sorted by order, or use first available column
+      const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+      const defaultColumn = sortedColumns[0];
+      
+      const taskPayload: any = {
         title: "Nouvelle tâche",
         description: "",
         projectId: id,
-        columnId: defaultColumn?.id || null,
         priority: "medium",
         status: "todo",
-      });
+      };
+      
+      // Only add columnId if we have a valid column
+      if (defaultColumn?.id) {
+        taskPayload.columnId = defaultColumn.id;
+      }
+      
+      const response = await apiRequest("/api/tasks", "POST", taskPayload);
       return await response.json();
     },
     onSuccess: (newTask) => {
@@ -2918,12 +2927,8 @@ export default function ProjectDetail() {
           </Card>
         )}
 
-        <Tabs defaultValue="infos" className="w-full">
+        <Tabs defaultValue="activities" className="w-full">
           <TabsList className="w-full justify-start mb-4 overflow-x-auto overflow-y-hidden flex-nowrap">
-            <TabsTrigger value="infos" className="gap-2 text-xs sm:text-sm" data-testid="tab-infos">
-              <Briefcase className="h-4 w-4" />
-              Infos
-            </TabsTrigger>
             <TabsTrigger value="activities" className="gap-2 text-xs sm:text-sm" data-testid="tab-activities">
               <MessageSquare className="h-4 w-4" />
               Activités
@@ -2972,53 +2977,6 @@ export default function ProjectDetail() {
               Roadmap
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="infos" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground text-[12px]" data-testid="project-description-tab">
-                    {project.description || "Aucune description renseignée"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="tracking-tight font-semibold text-[#17171c] text-[16px]">Période</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-[12px]">Début:</span>
-                        <span className="text-[12px]" data-testid="project-start-date-tab">
-                          {project.startDate 
-                            ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-[12px]">Fin:</span>
-                        <span className="text-[12px]" data-testid="project-end-date-tab">
-                          {project.endDate 
-                            ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <Card>
@@ -4146,6 +4104,53 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="activities" className="mt-0">
+            {/* Project Info Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground text-[12px]" data-testid="project-description-tab">
+                    {project.description || "Aucune description renseignée"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="tracking-tight font-semibold text-foreground text-[16px]">Période</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-[12px]">Début:</span>
+                        <span className="text-[12px]" data-testid="project-start-date-tab">
+                          {project.startDate 
+                            ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                            : "Non définie"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-[12px]">Fin:</span>
+                        <span className="text-[12px]" data-testid="project-end-date-tab">
+                          {project.endDate 
+                            ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
+                            : "Non définie"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Activities Card */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
                 <CardTitle className="text-base">Activités</CardTitle>

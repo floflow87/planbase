@@ -113,6 +113,8 @@ export function TaskDetailModal({
     const derivedStatus = selectedColumn ? getStatusFromColumnName(selectedColumn.name) : task.status;
 
     // Build the update object
+    // If projectId is undefined, user selected "no-project", so we send null
+    // If projectId has a value, we send that value
     const updates: Partial<Task> = {
       id: task.id,
       title,
@@ -121,8 +123,8 @@ export function TaskDetailModal({
       assignedToId: assignedToId || null,
       dueDate: dueDate ? formatDateForStorage(dueDate) : null,
       status: derivedStatus,
-      columnId: selectedColumnId,
-      projectId: projectId || task.projectId,
+      columnId: selectedColumnId || null,
+      projectId: projectId === undefined ? null : projectId,
       effort: effort,
     };
 
@@ -292,7 +294,14 @@ export function TaskDetailModal({
               <Label htmlFor="project">Projet</Label>
               <Select 
                 value={projectId || "no-project"} 
-                onValueChange={(value) => setProjectId(value === "no-project" ? undefined : value)}
+                onValueChange={(value) => {
+                  const newProjectId = value === "no-project" ? undefined : value;
+                  setProjectId(newProjectId);
+                  // Reset columnId when project changes - get first column of new project or empty
+                  const newProjectColumns = columns.filter(col => col.projectId === newProjectId);
+                  const sortedColumns = [...newProjectColumns].sort((a, b) => a.order - b.order);
+                  setSelectedColumnId(sortedColumns[0]?.id || "");
+                }}
               >
                 <SelectTrigger id="project" data-testid="select-task-project">
                   <SelectValue />
