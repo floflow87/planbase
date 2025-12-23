@@ -794,16 +794,16 @@ export default function Settings() {
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3" data-testid="tabs-settings">
-            <TabsTrigger value="informations" className="text-[10px]" data-testid="tab-informations">
-              <UserCircle className="w-3 h-3 mr-1" />
+            <TabsTrigger value="informations" data-testid="tab-informations">
+              <UserCircle className="w-4 h-4 mr-2" />
               Informations
             </TabsTrigger>
-            <TabsTrigger value="config" className="text-[10px]" data-testid="tab-config">
-              <SettingsIcon className="w-3 h-3 mr-1" />
+            <TabsTrigger value="config" data-testid="tab-config">
+              <SettingsIcon className="w-4 h-4 mr-2" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="integrations" className="text-[10px]" data-testid="tab-integrations">
-              <Puzzle className="w-3 h-3 mr-1" />
+            <TabsTrigger value="integrations" data-testid="tab-integrations">
+              <Puzzle className="w-4 h-4 mr-2" />
               Intégrations
             </TabsTrigger>
           </TabsList>

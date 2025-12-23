@@ -356,7 +356,7 @@ function AppLayout() {
                     key={tab.id}
                     onClick={() => handleTabClick(tab)}
                     className={`
-                      group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium 
+                      group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
                       transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
                       ${activeTabId === tab.id 
                         ? 'bg-primary/10 text-primary border border-primary/20' 
