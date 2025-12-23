@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, Receipt, HelpCircle, Hash
+  DollarSign, Info, HelpCircle, Hash
 } from "lucide-react";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -793,21 +793,17 @@ export default function Settings() {
     <div className="h-full overflow-auto bg-background">
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4" data-testid="tabs-settings">
-            <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
-              <UserCircle className="w-3.5 h-3.5 mr-1.5" />
+          <TabsList className="grid w-full max-w-md grid-cols-3" data-testid="tabs-settings">
+            <TabsTrigger value="informations" className="text-[10px]" data-testid="tab-informations">
+              <UserCircle className="w-3 h-3 mr-1" />
               Informations
             </TabsTrigger>
-            <TabsTrigger value="billing" className="text-xs" data-testid="tab-billing">
-              <Receipt className="w-3.5 h-3.5 mr-1.5" />
-              TJM
-            </TabsTrigger>
-            <TabsTrigger value="config" className="text-xs" data-testid="tab-config">
-              <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="config" className="text-[10px]" data-testid="tab-config">
+              <SettingsIcon className="w-3 h-3 mr-1" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
-              <Puzzle className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="integrations" className="text-[10px]" data-testid="tab-integrations">
+              <Puzzle className="w-3 h-3 mr-1" />
               Intégrations
             </TabsTrigger>
           </TabsList>
@@ -1278,35 +1274,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="billing">
-            {!isOwner ? (
-              <Card>
-                <CardContent className="py-8">
-                  <div className="text-center text-muted-foreground">
-                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">Seuls les propriétaires du compte peuvent modifier les paramètres de facturation.</p>
-                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">Paramètres de facturation</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Configurez vos informations de facturation et votre tarification
-                    </p>
-                  </div>
-                </div>
-
-                <TJMEditor onRefetch={refetchConfig} />
-
-                <SIRETEditor onRefetch={refetchConfig} />
-              </div>
-            )}
-          </TabsContent>
-
           <TabsContent value="config">
             {!isOwner ? (
               <Card>
@@ -1331,6 +1298,8 @@ export default function Settings() {
                     Portée: ACCOUNT
                   </Badge>
                 </div>
+
+                <TJMEditor onRefetch={refetchConfig} />
 
                 <ThresholdEditor
                   thresholds={config?.thresholds as ThresholdConfig}
