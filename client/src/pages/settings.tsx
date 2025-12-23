@@ -794,20 +794,20 @@ export default function Settings() {
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
           <TabsList className="grid w-full max-w-2xl grid-cols-4" data-testid="tabs-settings">
-            <TabsTrigger value="informations" data-testid="tab-informations">
-              <UserCircle className="w-4 h-4 mr-2" />
+            <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
+              <UserCircle className="w-3.5 h-3.5 mr-1.5" />
               Informations
             </TabsTrigger>
-            <TabsTrigger value="billing" data-testid="tab-billing">
-              <Receipt className="w-4 h-4 mr-2" />
+            <TabsTrigger value="billing" className="text-xs" data-testid="tab-billing">
+              <Receipt className="w-3.5 h-3.5 mr-1.5" />
               TJM
             </TabsTrigger>
-            <TabsTrigger value="config" data-testid="tab-config">
-              <SettingsIcon className="w-4 h-4 mr-2" />
+            <TabsTrigger value="config" className="text-xs" data-testid="tab-config">
+              <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="integrations" data-testid="tab-integrations">
-              <Puzzle className="w-4 h-4 mr-2" />
+            <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
+              <Puzzle className="w-3.5 h-3.5 mr-1.5" />
               Intégrations
             </TabsTrigger>
           </TabsList>
