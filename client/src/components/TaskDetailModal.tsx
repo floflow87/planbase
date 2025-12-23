@@ -159,7 +159,7 @@ export function TaskDetailModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-task-detail">
+      <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-task-detail">
         <SheetHeader className="space-y-0 pb-4">
           <div className="flex items-center gap-3">
             <SheetTitle>Détails de la tâche</SheetTitle>
