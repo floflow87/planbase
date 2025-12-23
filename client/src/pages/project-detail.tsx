@@ -31,7 +31,7 @@ import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
 import { cn } from "@/lib/utils";
-import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass } from "@shared/config";
+import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass, PROJECT_STAGES } from "@shared/config";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -4464,12 +4464,12 @@ export default function ProjectDetail() {
                 <SelectTrigger id="edit-stage" data-testid="select-edit-stage">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="prospection">Prospection</SelectItem>
-                  <SelectItem value="signe">Signé</SelectItem>
-                  <SelectItem value="en_cours">En cours</SelectItem>
-                  <SelectItem value="livre">Livré</SelectItem>
-                  <SelectItem value="termine">Terminé</SelectItem>
+                <SelectContent className="bg-white dark:bg-card">
+                  {PROJECT_STAGES.map((stage) => (
+                    <SelectItem key={stage.key} value={stage.key}>
+                      {stage.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

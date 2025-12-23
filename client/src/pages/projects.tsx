@@ -3636,29 +3636,23 @@ export default function Projects() {
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-2 bg-popover" align="start">
+                                    <PopoverContent className="w-56 p-2 bg-white dark:bg-card" align="start">
                                       <div className="space-y-1">
-                                        {[
-                                          { value: "prospection", label: "Prospection" },
-                                          { value: "signe", label: "Signé" },
-                                          { value: "en_cours", label: "En cours" },
-                                          { value: "livre", label: "Livré" },
-                                          { value: "termine", label: "Terminé" }
-                                        ].map((stage) => (
+                                        {PROJECT_STAGES.map((stage) => (
                                           <button
-                                            key={stage.value}
+                                            key={stage.key}
                                             onClick={() => {
                                               updateProjectMutation.mutate({
                                                 id: project.id,
-                                                data: { stage: stage.value }
+                                                data: { stage: stage.key }
                                               });
                                               setStagePopoverOpen(false);
                                               setEditingStageProjectId(null);
                                             }}
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
-                                            data-testid={`item-stage-${stage.value}`}
+                                            data-testid={`item-stage-${stage.key}`}
                                           >
-                                            <Badge className={`${getProjectStageColorClass(stage.value)} text-[10px]`}>
+                                            <Badge className={`${getProjectStageColorClass(stage.key)} text-[10px]`}>
                                               {stage.label}
                                             </Badge>
                                           </button>
@@ -4243,27 +4237,21 @@ export default function Projects() {
             <div>
               <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>
               <div className="space-y-2">
-                {[
-                  { value: "prospection", label: "Prospection" },
-                  { value: "signe", label: "Signé" },
-                  { value: "en_cours", label: "En cours" },
-                  { value: "livre", label: "Livré" },
-                  { value: "termine", label: "Terminé" }
-                ].map((stage) => (
+                {PROJECT_STAGES.map((stage) => (
                   <div 
-                    key={stage.value} 
+                    key={stage.key} 
                     className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
                     onClick={() => {
                       setProjectStageFilters(prev => 
-                        prev.includes(stage.value)
-                          ? prev.filter(s => s !== stage.value)
-                          : [...prev, stage.value]
+                        prev.includes(stage.key)
+                          ? prev.filter(s => s !== stage.key)
+                          : [...prev, stage.key]
                       );
                     }}
                   >
                     <Checkbox 
-                      checked={projectStageFilters.includes(stage.value)}
-                      data-testid={`checkbox-filter-stage-${stage.value}`}
+                      checked={projectStageFilters.includes(stage.key)}
+                      data-testid={`checkbox-filter-stage-${stage.key}`}
                     />
                     <span className="text-sm">{stage.label}</span>
                   </div>
@@ -4381,7 +4369,7 @@ export default function Projects() {
                   <SelectTrigger id="project-stage" data-testid="select-project-stage">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover">
+                  <SelectContent className="bg-white dark:bg-card">
                     {PROJECT_STAGES.map((stage) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
@@ -4594,7 +4582,7 @@ export default function Projects() {
                   <SelectTrigger id="edit-project-stage" data-testid="select-edit-project-stage">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover">
+                  <SelectContent className="bg-white dark:bg-card">
                     {PROJECT_STAGES.map((stage) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
