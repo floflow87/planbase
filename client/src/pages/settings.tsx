@@ -626,10 +626,10 @@ export default function Settings() {
 
   const { data: account, isLoading: accountLoading } = useQuery<Account>({
     queryKey: ["/api/accounts", userProfile?.accountId],
-    enabled: !!userProfile?.accountId,
+    enabled: !!userProfile?.accountId && userProfile?.role === "owner",
   });
 
-  const isOwner = userProfile?.id === account?.ownerId;
+  const isOwner = userProfile?.role === "owner";
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),

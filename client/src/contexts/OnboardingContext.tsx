@@ -80,7 +80,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Mutation to update progress
   const progressMutation = useMutation({
     mutationFn: async (lastStep: string) => {
-      await apiRequest("POST", "/api/onboarding/progress", { lastStep });
+      await apiRequest("/api/onboarding/progress", "POST", { lastStep });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -90,7 +90,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Mutation to complete onboarding
   const completeMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/complete");
+      await apiRequest("/api/onboarding/complete", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -100,7 +100,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Mutation to skip onboarding
   const skipMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/skip");
+      await apiRequest("/api/onboarding/skip", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -110,7 +110,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // Mutation to reset onboarding
   const resetMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/reset");
+      await apiRequest("/api/onboarding/reset", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
