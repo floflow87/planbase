@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2174,6 +2174,8 @@ export default function ProjectDetail() {
   const [totalBilledValue, setTotalBilledValue] = useState<string>("");
   const [billingRateValue, setBillingRateValue] = useState<string>("");
   const [numberOfDaysValue, setNumberOfDaysValue] = useState<string>("");
+  // Track if numberOfDays is manually overridden (not auto-synced from CDC)
+  const [isNumberOfDaysOverridden, setIsNumberOfDaysOverridden] = useState<boolean>(false);
 
   // Payment tracking state
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -2357,21 +2359,31 @@ export default function ProjectDetail() {
   };
 
   // Initialize billing fields when project loads
-  // Auto-complete numberOfDays with CDC estimated days if project has no value
   useEffect(() => {
     if (project) {
       setTotalBilledValue(project.totalBilled || project.budget || "");
       setBillingRateValue(project.billingRate || "");
-      // Auto-complete with CDC estimated days if numberOfDays is empty
+      // If project has a saved numberOfDays, it's an override
       if (project.numberOfDays) {
         setNumberOfDaysValue(project.numberOfDays);
-      } else if (cdcEstimatedDays > 0) {
+        setIsNumberOfDaysOverridden(true);
+      } else {
+        setIsNumberOfDaysOverridden(false);
+      }
+    }
+  }, [project]);
+
+  // Auto-sync numberOfDays with CDC estimated days (when not overridden)
+  useEffect(() => {
+    if (!isNumberOfDaysOverridden) {
+      // Auto-sync with CDC estimated days
+      if (cdcEstimatedDays > 0) {
         setNumberOfDaysValue(cdcEstimatedDays.toString());
       } else {
         setNumberOfDaysValue("");
       }
     }
-  }, [project, cdcEstimatedDays]);
+  }, [cdcEstimatedDays, isNumberOfDaysOverridden]);
 
   const updateProjectMutation = {
     mutate: async ({ data }: { data: Partial<Project> }) => {
@@ -3271,8 +3283,9 @@ export default function ProjectDetail() {
           <TabsContent value="billing" className="mt-0">
             {/* KPIs Facturation - 2 lignes de 3 cartes */}
             {(() => {
-              const totalBilled = parseFloat(project?.totalBilled || "0") || 0;
-              const numberOfDays = parseFloat(project?.numberOfDays || "0") || 0;
+              // Use reactive state values for real-time KPI updates
+              const totalBilled = parseFloat(totalBilledValue || "0") || 0;
+              const numberOfDays = parseFloat(numberOfDaysValue || "0") || 0;
               const effectiveDailyRate = numberOfDays > 0 ? totalBilled / numberOfDays : 0;
               const isForfait = project?.billingType === "fixed";
               
@@ -3664,48 +3677,103 @@ export default function ProjectDetail() {
                 </div>
 
                 <div>
-                  <Label htmlFor="number-of-days" className="text-xs">Nombre de jours</Label>
-                  <Input
-                    id="number-of-days"
-                    type="number"
-                    step="0.5"
-                    placeholder="10"
-                    value={numberOfDaysValue}
-                    onChange={(e) => setNumberOfDaysValue(e.target.value)}
-                    onBlur={async () => {
-                      const trimmedValue = numberOfDaysValue.trim();
-                      if (trimmedValue !== project?.numberOfDays) {
-                        try {
-                          // Parse and validate the number
-                          const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
-                          if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
-                            throw new Error("Veuillez entrer un nombre valide");
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="number-of-days" className="text-xs">Nombre de jours</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={async () => {
+                            if (isNumberOfDaysOverridden) {
+                              // Switch back to auto-sync mode - clear the override
+                              setIsNumberOfDaysOverridden(false);
+                              // Clear the saved numberOfDays in database
+                              try {
+                                await apiRequest(`/api/projects/${id}`, "PATCH", {
+                                  numberOfDays: null,
+                                });
+                                queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                                toast({
+                                  title: "Mode automatique activé",
+                                  description: "Le nombre de jours se synchronise maintenant avec le chiffrage CDC",
+                                  variant: "success",
+                                });
+                              } catch (error) {
+                                console.error("Failed to reset numberOfDays override:", error);
+                              }
+                            } else {
+                              // Switch to manual override mode
+                              setIsNumberOfDaysOverridden(true);
+                            }
+                          }}
+                          data-testid="button-toggle-days-override"
+                        >
+                          {isNumberOfDaysOverridden ? (
+                            <Lock className="h-3.5 w-3.5 text-amber-600" />
+                          ) : (
+                            <Unlock className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                        {isNumberOfDaysOverridden 
+                          ? "Mode manuel - Cliquer pour synchroniser automatiquement avec le chiffrage CDC"
+                          : "Mode automatique - Cliquer pour forcer une valeur manuelle"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="number-of-days"
+                      type="number"
+                      step="0.5"
+                      placeholder={cdcEstimatedDays > 0 ? cdcEstimatedDays.toString() : "10"}
+                      value={numberOfDaysValue}
+                      onChange={(e) => setNumberOfDaysValue(e.target.value)}
+                      disabled={!isNumberOfDaysOverridden}
+                      className={!isNumberOfDaysOverridden ? "bg-muted" : ""}
+                      onBlur={async () => {
+                        if (!isNumberOfDaysOverridden) return; // Don't save if not overridden
+                        const trimmedValue = numberOfDaysValue.trim();
+                        if (trimmedValue !== project?.numberOfDays) {
+                          try {
+                            // Parse and validate the number
+                            const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                            if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                              throw new Error("Veuillez entrer un nombre valide");
+                            }
+                            
+                            await apiRequest(`/api/projects/${id}`, "PATCH", {
+                              numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                            });
+                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                            toast({
+                              title: "Nombre de jours mis à jour",
+                              description: trimmedValue ? `${parseFloat(trimmedValue)} jour${parseFloat(trimmedValue) > 1 ? 's' : ''}` : "Nombre de jours supprimé",
+                              variant: "success",
+                            });
+                          } catch (error: any) {
+                            toast({
+                              title: "Erreur",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                            // Rollback to previous value
+                            setNumberOfDaysValue(project?.numberOfDays || "");
                           }
-                          
-                          await apiRequest(`/api/projects/${id}`, "PATCH", {
-                            numberOfDays: trimmedValue === "" ? null : trimmedValue,
-                          });
-                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                          toast({
-                            title: "Nombre de jours mis à jour",
-                            description: trimmedValue ? `${parseFloat(trimmedValue)} jour${parseFloat(trimmedValue) > 1 ? 's' : ''}` : "Nombre de jours supprimé",
-                            variant: "success",
-                          });
-                        } catch (error: any) {
-                          toast({
-                            title: "Erreur",
-                            description: error.message,
-                            variant: "destructive",
-                          });
-                          // Rollback to previous value
-                          setNumberOfDaysValue(project?.numberOfDays || "");
                         }
-                      }
-                    }}
-                    data-testid="input-number-of-days"
-                  />
+                      }}
+                      data-testid="input-number-of-days"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Nombre de jours pour le calcul du TJM théorique
+                    {isNumberOfDaysOverridden 
+                      ? "Valeur manuelle (forçage actif)"
+                      : cdcEstimatedDays > 0 
+                        ? `Synchronisé avec le chiffrage CDC (${cdcEstimatedDays} j)`
+                        : "Aucun chiffrage CDC - définir manuellement"}
                   </p>
                 </div>
               </CardContent>

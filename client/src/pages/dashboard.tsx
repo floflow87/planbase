@@ -1736,13 +1736,6 @@ export default function Dashboard() {
               Vous avez des tâches urgentes ou en retard qui nécessitent votre attention.
             </DialogDescription>
           </DialogHeader>
-          {/* Astronaut Avatar */}
-          <img 
-            src={astronautAvatar} 
-            alt="Astronaute Planbase" 
-            className="absolute bottom-2 right-2 w-20 h-20 object-contain opacity-90 pointer-events-none"
-            data-testid="img-astronaut-reminder"
-          />
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
             {(() => {
               const urgentTasks = [...overdueTasks, ...todaysTasks].slice(0, 5);
