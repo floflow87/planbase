@@ -256,12 +256,14 @@ export function calculateMetrics(
   
   // Coût journalier cible - Hiérarchie :
   // 1. TJM projet (billingRate) si défini
-  // 2. Pour les forfaits : budget / numberOfDays si les deux sont définis
+  // 2. Pour les forfaits UNIQUEMENT : budget / numberOfDays si les deux sont définis
   // 3. TJM global (paramètres) sinon
   const projectTJM = project.billingRate ? parseFloat(project.billingRate.toString()) : null;
   
-  // Calculer le TJM effectif pour les projets au forfait (budget / jours)
-  const forfaitTJM = (totalBilled > 0 && theoreticalDays > 0) 
+  // Calculer le TJM effectif SEULEMENT pour les projets au forfait (fixed_price)
+  // Pour les projets régie (time_based ou non défini), on utilise le TJM global
+  const isForfait = project.billingType === 'fixed_price';
+  const forfaitTJM = (isForfait && totalBilled > 0 && theoreticalDays > 0) 
     ? totalBilled / theoreticalDays 
     : null;
   
