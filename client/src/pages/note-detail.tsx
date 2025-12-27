@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, optimisticUpdate, optimisticUpdateSingle, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/Loader";
-import type { Note, InsertNote, Project, NoteLink, Client } from "@shared/schema";
+import type { Note, InsertNote, Project, NoteLink, Client, Epic, UserStory, BacklogTask } from "@shared/schema";
+
+// Combined ticket type for note linking
+interface TicketItem {
+  id: string;
+  type: 'epic' | 'user_story' | 'task';
+  title: string;
+  backlogName?: string;
+}
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDistanceToNow } from "date-fns";
@@ -75,7 +83,7 @@ export default function NoteDetail() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false); // Default OFF - no localStorage memory
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entitySelectorOpen, setEntitySelectorOpen] = useState(false);
-  const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client">("project");
+  const [entitySelectorTab, setEntitySelectorTab] = useState<"project" | "client" | "ticket">("project");
   const [saveBeforeLeaveDialogOpen, setSaveBeforeLeaveDialogOpen] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [allowNavigation, setAllowNavigation] = useState(false);
@@ -225,6 +233,25 @@ export default function NoteDetail() {
     queryKey: ["/api/clients"],
   });
 
+  // Fetch all backlogs with their tickets for linking
+  interface BacklogWithItems {
+    id: string;
+    name: string;
+    epics: Epic[];
+    userStories: UserStory[];
+    tasks: BacklogTask[];
+  }
+  const { data: backlogs = [] } = useQuery<BacklogWithItems[]>({
+    queryKey: ["/api/backlogs-with-items"],
+  });
+
+  // Flatten all tickets from backlogs for easier searching
+  const allTickets: TicketItem[] = backlogs.flatMap(backlog => [
+    ...backlog.epics.map(e => ({ id: e.id, type: 'epic' as const, title: e.title, backlogName: backlog.name })),
+    ...backlog.userStories.map(us => ({ id: us.id, type: 'user_story' as const, title: us.title, backlogName: backlog.name })),
+    ...backlog.tasks.map(t => ({ id: t.id, type: 'task' as const, title: t.title, backlogName: backlog.name })),
+  ]);
+
   // Fetch note links
   const { data: noteLinks = [] } = useQuery<NoteLink[]>({
     queryKey: ["/api/notes", id, "links"],
@@ -238,6 +265,12 @@ export default function NoteDetail() {
   // Find linked client
   const linkedClient = noteLinks.find(link => link.targetType === "client");
   const currentClient = linkedClient ? clients.find(c => c.id === linkedClient.targetId) : null;
+
+  // Find linked ticket (epic, user_story, or task)
+  const linkedTicket = noteLinks.find(link => 
+    link.targetType === "epic" || link.targetType === "user_story" || link.targetType === "backlog_task"
+  );
+  const currentTicket = linkedTicket ? allTickets.find(t => t.id === linkedTicket.targetId) : null;
 
   // Initialize form with note data ONLY on first load, not during autosave
   useEffect(() => {
@@ -785,6 +818,77 @@ export default function NoteDetail() {
   const handleUnlinkClient = useCallback(() => {
     unlinkClientMutation.mutate();
   }, [unlinkClientMutation]);
+
+  // Ticket linking mutations
+  const linkTicketMutation = useMutation({
+    mutationFn: async ({ ticketId, ticketType }: { ticketId: string; ticketType: 'epic' | 'user_story' | 'task' }) => {
+      // Map type to targetType format used in noteLinks
+      const targetType = ticketType === 'task' ? 'backlog_task' : ticketType;
+      const response = await apiRequest(`/api/notes/${id}/links`, "POST", {
+        targetType,
+        targetId: ticketId,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Ticket lié",
+        description: "La note a été liée au ticket avec succès",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de lier le ticket",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unlinkTicketMutation = useMutation({
+    mutationFn: async () => {
+      if (!linkedTicket) return;
+      const response = await apiRequest(
+        `/api/notes/${id}/links/${linkedTicket.targetType}/${linkedTicket.targetId}`,
+        "DELETE"
+      );
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id, "links"] });
+      toast({
+        title: "Ticket délié",
+        description: "La note n'est plus liée au ticket",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de délier le ticket",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSelectTicket = useCallback(async (ticket: TicketItem) => {
+    try {
+      // If already linked to a ticket, unlink first
+      if (linkedTicket) {
+        await unlinkTicketMutation.mutateAsync();
+      }
+      // Link to new ticket
+      await linkTicketMutation.mutateAsync({ ticketId: ticket.id, ticketType: ticket.type });
+      setEntitySelectorOpen(false);
+    } catch (error) {
+      // Errors are already handled by the mutations
+    }
+  }, [linkedTicket, linkTicketMutation, unlinkTicketMutation]);
+
+  const handleUnlinkTicket = useCallback(() => {
+    unlinkTicketMutation.mutate();
+  }, [unlinkTicketMutation]);
 
   // Toggle favorite handler
   const handleToggleFavorite = useCallback(() => {
@@ -1350,6 +1454,18 @@ export default function NoteDetail() {
                     <Users className="w-4 h-4 mr-2 text-cyan-500" />
                     {currentClient ? `Client: ${currentClient.name}` : "Rattacher à un client"}
                   </DropdownMenuItem>
+                  
+                  {/* Attach to ticket */}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEntitySelectorTab("ticket");
+                      setEntitySelectorOpen(true);
+                    }}
+                    data-testid="menu-item-attach-ticket"
+                  >
+                    <Ticket className="w-4 h-4 mr-2 text-orange-500" />
+                    {currentTicket ? `Ticket: ${currentTicket.title}` : "Rattacher à un ticket"}
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1364,15 +1480,19 @@ export default function NoteDetail() {
           <DialogHeader>
             <DialogTitle>Rattacher à une entité</DialogTitle>
           </DialogHeader>
-          <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client")} className="w-full overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="project" className="gap-2" data-testid="tab-project">
-                <FolderKanban className="w-4 h-4" />
+          <Tabs value={entitySelectorTab} onValueChange={(v) => setEntitySelectorTab(v as "project" | "client" | "ticket")} className="w-full overflow-hidden">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="project" className="gap-1 text-xs" data-testid="tab-project">
+                <FolderKanban className="w-3 h-3" />
                 Projets
               </TabsTrigger>
-              <TabsTrigger value="client" className="gap-2" data-testid="tab-client">
-                <Users className="w-4 h-4" />
+              <TabsTrigger value="client" className="gap-1 text-xs" data-testid="tab-client">
+                <Users className="w-3 h-3" />
                 Clients
+              </TabsTrigger>
+              <TabsTrigger value="ticket" className="gap-1 text-xs" data-testid="tab-ticket">
+                <Ticket className="w-3 h-3" />
+                Tickets
               </TabsTrigger>
             </TabsList>
             
@@ -1456,6 +1576,56 @@ export default function NoteDetail() {
                           {client.email && (
                             <div className="text-xs text-muted-foreground truncate">
                               {client.email}
+                            </div>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </TabsContent>
+            
+            <TabsContent value="ticket" className="mt-0">
+              <Command className="rounded-lg border shadow-md bg-white dark:bg-gray-900">
+                <CommandInput placeholder="Rechercher un ticket..." data-testid="input-search-ticket" />
+                <CommandList className="max-h-[300px]">
+                  <CommandEmpty>Aucun ticket trouvé.</CommandEmpty>
+                  <CommandGroup>
+                    {currentTicket && (
+                      <CommandItem
+                        onSelect={() => {
+                          handleUnlinkTicket();
+                          setEntitySelectorOpen(false);
+                        }}
+                        data-testid="option-unlink-ticket"
+                        className="text-destructive"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Délier du ticket
+                      </CommandItem>
+                    )}
+                    {allTickets.map((ticket) => (
+                      <CommandItem
+                        key={ticket.id}
+                        onSelect={() => handleSelectTicket(ticket)}
+                        data-testid={`option-ticket-${ticket.id}`}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            currentTicket?.id === ticket.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[9px] shrink-0">
+                              {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'US' : 'Task'}
+                            </Badge>
+                            <span className="font-medium truncate">{ticket.title}</span>
+                          </div>
+                          {ticket.backlogName && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {ticket.backlogName}
                             </div>
                           )}
                         </div>

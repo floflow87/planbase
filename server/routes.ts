@@ -5014,6 +5014,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all backlogs with their items (for note linking)
+  app.get("/api/backlogs-with-items", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogsList = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
+      
+      // For each backlog, fetch all items
+      const backlogsWithItems = await Promise.all(backlogsList.map(async (backlog) => {
+        const [epicsList, userStoriesList, tasksList] = await Promise.all([
+          db.select().from(epics).where(eq(epics.backlogId, backlog.id)),
+          db.select().from(userStories).where(eq(userStories.backlogId, backlog.id)),
+          db.select().from(backlogTasks).where(eq(backlogTasks.backlogId, backlog.id)),
+        ]);
+        
+        return {
+          id: backlog.id,
+          name: backlog.name,
+          epics: epicsList,
+          userStories: userStoriesList,
+          tasks: tasksList,
+        };
+      }));
+      
+      res.json(backlogsWithItems);
+    } catch (error) {
+      console.error("Error fetching backlogs with items:", error);
+      res.status(500).json({ error: "Failed to fetch backlogs with items" });
+    }
+  });
+
   // Create a new backlog
   app.post("/api/backlogs", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
