@@ -137,8 +137,8 @@ function ConfigEditor({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base">{title}</CardTitle>
-            <CardDescription className="text-xs mt-1">{description}</CardDescription>
+            <CardTitle className="text-xs">{title}</CardTitle>
+            <CardDescription className="text-[10px] mt-1">{description}</CardDescription>
           </div>
           <div className="flex gap-2">
             {hasChanges && (
@@ -257,21 +257,21 @@ function TJMEditor({
               <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-xs flex items-center gap-2">
                 TJM par défaut
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p className="text-sm">
+                    <p className="text-xs">
                       Ce taux journalier sera utilisé par défaut pour tous les projets.
                       Vous pouvez définir un TJM spécifique sur chaque projet pour l'overrider.
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
-              <CardDescription className="text-xs mt-1">
+              <CardDescription className="text-[10px] mt-1">
                 Taux journalier moyen utilisé pour le chiffrage et les calculs de rentabilité
               </CardDescription>
             </div>
@@ -307,7 +307,7 @@ function TJMEditor({
       <CardContent>
         <div className="flex items-center gap-4">
           <div className="space-y-2 flex-1 max-w-xs">
-            <Label htmlFor="tjmDefault" className="text-sm">Montant (€/jour)</Label>
+            <Label htmlFor="tjmDefault" className="text-xs">Montant (€/jour)</Label>
             <Input
               id="tjmDefault"
               type="number"
@@ -412,20 +412,20 @@ function SIRETEditor({
               <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-xs flex items-center gap-2">
                 SIRET
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p className="text-sm">
+                    <p className="text-xs">
                       Votre numéro SIRET (14 chiffres) est utilisé pour vos documents de facturation.
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
-              <CardDescription className="text-xs mt-1">
+              <CardDescription className="text-[10px] mt-1">
                 Numéro d'identification de votre entreprise (14 chiffres)
               </CardDescription>
             </div>
@@ -461,7 +461,7 @@ function SIRETEditor({
       <CardContent>
         <div className="flex items-center gap-4">
           <div className="space-y-2 flex-1 max-w-xs">
-            <Label htmlFor="siretNumber" className="text-sm">Numéro SIRET</Label>
+            <Label htmlFor="siretNumber" className="text-xs">Numéro SIRET</Label>
             <Input
               id="siretNumber"
               type="text"
@@ -534,11 +534,11 @@ function ThresholdEditor({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="w-4 h-4" />
+            <CardTitle className="text-xs flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5" />
               Seuils et délais
             </CardTitle>
-            <CardDescription className="text-xs mt-1">
+            <CardDescription className="text-[10px] mt-1">
               Configurez les seuils d'alerte pour la facturation et les projets
             </CardDescription>
           </div>
@@ -560,7 +560,7 @@ function ThresholdEditor({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="billingWarning" className="text-sm flex items-center gap-2">
+            <Label htmlFor="billingWarning" className="text-xs flex items-center gap-2">
               <AlertTriangle className="w-3 h-3 text-yellow-500" />
               Alerte facturation (jours)
             </Label>
@@ -575,7 +575,7 @@ function ThresholdEditor({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="billingCritical" className="text-sm flex items-center gap-2">
+            <Label htmlFor="billingCritical" className="text-xs flex items-center gap-2">
               <AlertTriangle className="w-3 h-3 text-red-500" />
               Critique facturation (jours)
             </Label>
@@ -590,7 +590,7 @@ function ThresholdEditor({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="projectOverdue" className="text-sm flex items-center gap-2">
+            <Label htmlFor="projectOverdue" className="text-xs flex items-center gap-2">
               <Clock className="w-3 h-3 text-orange-500" />
               Retard projet (jours)
             </Label>
@@ -794,16 +794,16 @@ export default function Settings() {
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3" data-testid="tabs-settings">
-            <TabsTrigger value="informations" data-testid="tab-informations">
-              <UserCircle className="w-4 h-4 mr-2" />
+            <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
+              <UserCircle className="w-3.5 h-3.5 mr-1.5" />
               Informations
             </TabsTrigger>
-            <TabsTrigger value="config" data-testid="tab-config">
-              <SettingsIcon className="w-4 h-4 mr-2" />
+            <TabsTrigger value="config" className="text-xs" data-testid="tab-config">
+              <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="integrations" data-testid="tab-integrations">
-              <Puzzle className="w-4 h-4 mr-2" />
+            <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
+              <Puzzle className="w-3.5 h-3.5 mr-1.5" />
               Intégrations
             </TabsTrigger>
           </TabsList>
@@ -813,8 +813,8 @@ export default function Settings() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
-                      <UserCircle className="w-5 h-5" />
+                    <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
+                      <UserCircle className="w-4 h-4" />
                       Informations personnelles
                     </CardTitle>
                   </div>
@@ -827,7 +827,7 @@ export default function Settings() {
                     </Badge>
                   )}
                 </div>
-                <CardDescription>
+                <CardDescription className="text-xs">
                   Ces informations seront visibles par les autres membres de votre équipe
                 </CardDescription>
               </CardHeader>
@@ -840,8 +840,8 @@ export default function Settings() {
                         name="firstName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <User className="w-4 h-4" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                              <User className="w-3.5 h-3.5" />
                               Prénom *
                             </FormLabel>
                             <FormControl>
@@ -861,8 +861,8 @@ export default function Settings() {
                         name="lastName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <User className="w-4 h-4" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                              <User className="w-3.5 h-3.5" />
                               Nom *
                             </FormLabel>
                             <FormControl>
@@ -878,8 +878,8 @@ export default function Settings() {
                       />
 
                       <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
+                        <Label className="flex items-center gap-2 text-xs">
+                          <Mail className="w-3.5 h-3.5" />
                           Email *
                         </Label>
                         <Input
@@ -899,7 +899,7 @@ export default function Settings() {
                         name="gender"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Civilité</FormLabel>
+                            <FormLabel className="text-xs">Civilité</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               value={field.value}
@@ -927,8 +927,8 @@ export default function Settings() {
                         name="position"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <Briefcase className="w-4 h-4" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                              <Briefcase className="w-3.5 h-3.5" />
                               Poste
                             </FormLabel>
                             <FormControl>
@@ -948,8 +948,8 @@ export default function Settings() {
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <Phone className="w-4 h-4" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                              <Phone className="w-3.5 h-3.5" />
                               Téléphone
                             </FormLabel>
                             <FormControl>
@@ -970,8 +970,8 @@ export default function Settings() {
                         name="company"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <Building2 className="w-4 h-4" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                              <Building2 className="w-3.5 h-3.5" />
                               Nom de société
                             </FormLabel>
                             <FormControl>
@@ -1017,11 +1017,11 @@ export default function Settings() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
-                  <Building2 className="w-5 h-5" />
+                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
+                  <Building2 className="w-4 h-4" />
                   Informations du compte
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs">
                   Informations de votre organisation
                 </CardDescription>
               </CardHeader>
@@ -1064,8 +1064,8 @@ export default function Settings() {
                             name="name"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="flex items-center gap-2">
-                                  <Building2 className="w-4 h-4" />
+                                <FormLabel className="flex items-center gap-2 text-xs">
+                                  <Building2 className="w-3.5 h-3.5" />
                                   Nom du compte *
                                 </FormLabel>
                                 <FormControl>
@@ -1085,8 +1085,8 @@ export default function Settings() {
                             name="siret"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="flex items-center gap-2">
-                                  <Building2 className="w-4 h-4" />
+                                <FormLabel className="flex items-center gap-2 text-xs">
+                                  <Building2 className="w-3.5 h-3.5" />
                                   SIRET
                                 </FormLabel>
                                 <FormControl>
@@ -1136,11 +1136,11 @@ export default function Settings() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-[18px]">
-                  <Lock className="w-5 h-5" />
+                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
+                  <Lock className="w-4 h-4" />
                   Modifier le mot de passe
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs">
                   Changez votre mot de passe pour sécuriser votre compte
                 </CardDescription>
               </CardHeader>
@@ -1153,7 +1153,7 @@ export default function Settings() {
                         name="newPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nouveau mot de passe *</FormLabel>
+                            <FormLabel className="text-xs">Nouveau mot de passe *</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -1186,7 +1186,7 @@ export default function Settings() {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirmer le mot de passe *</FormLabel>
+                            <FormLabel className="text-xs">Confirmer le mot de passe *</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
@@ -1246,11 +1246,11 @@ export default function Settings() {
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-cyan-100 dark:bg-cyan-900/30">
-                    <HelpCircle className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                    <HelpCircle className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                   </div>
                   <div>
-                    <CardTitle>Visite guidée</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-sm">Visite guidée</CardTitle>
+                    <CardDescription className="text-xs">
                       Redécouvrez les fonctionnalités de Planbase
                     </CardDescription>
                   </div>
@@ -1258,7 +1258,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
                   </p>
                   <Button
@@ -1289,8 +1289,8 @@ export default function Settings() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-semibold">Configuration du compte</h2>
-                    <p className="text-sm text-muted-foreground">
+                    <h2 className="text-sm font-semibold">Configuration du compte</h2>
+                    <p className="text-xs text-muted-foreground">
                       Personnalisez les étapes, statuts et seuils pour votre compte
                     </p>
                   </div>
@@ -1349,11 +1349,11 @@ export default function Settings() {
           <TabsContent value="integrations" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Intégrations</CardTitle>
+                <CardTitle className="text-xs">Intégrations</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                     <span className="text-muted-foreground">Google Calendar - Connectez votre calendrier depuis la page Calendrier</span>
                   </div>
