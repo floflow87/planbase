@@ -1812,9 +1812,9 @@ export default function ClientDetail() {
                                       {format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })}
                                     </span>
                                   )}
-                                  {project.budget && (
+                                  {(project.totalBilled || project.budget) && (
                                     <span className="font-medium">
-                                      {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                      {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
                                         style: "currency",
                                         currency: "EUR",
                                         minimumFractionDigits: 0,

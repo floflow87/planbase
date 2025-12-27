@@ -1606,10 +1606,10 @@ function DraggableProjectCard({
           </Badge>
         </div>
         
-        {project.budget && (
+        {(project.totalBilled || project.budget) && (
           <div className="text-[10px] mt-2 flex items-center gap-1">
             <span className="font-medium text-primary">
-              {parseFloat(project.budget).toLocaleString("fr-FR", {
+              {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
                 style: "currency",
                 currency: "EUR",
                 minimumFractionDigits: 0,
@@ -3312,9 +3312,9 @@ export default function Projects() {
                                 ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                                 : "Pas de date"}
                             </div>
-                            {project.budget && (
+                            {(project.totalBilled || project.budget) && (
                               <div className="font-medium text-foreground">
-                                {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
                                   style: "currency",
                                   currency: "EUR",
                                   minimumFractionDigits: 0,
@@ -3503,9 +3503,9 @@ export default function Projects() {
                                   ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                                   : "Pas de date"}
                               </div>
-                              {project.budget && (
+                              {(project.totalBilled || project.budget) && (
                                 <div className="font-medium text-foreground">
-                                  {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                  {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
                                     style: "currency",
                                     currency: "EUR",
                                     minimumFractionDigits: 0,
@@ -3895,9 +3895,9 @@ export default function Projects() {
                                       className="hover-elevate active-elevate-2 rounded-md px-2 py-1 text-right w-full"
                                       data-testid={`button-edit-budget-${project.id}`}
                                     >
-                                      {project.budget ? (
+                                      {(project.totalBilled || project.budget) ? (
                                         <span className="font-medium text-[11px]">
-                                          {parseFloat(project.budget).toLocaleString("fr-FR", {
+                                          {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
                                             style: "currency",
                                             currency: "EUR",
                                             minimumFractionDigits: 0,

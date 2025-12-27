@@ -645,7 +645,9 @@ export default function Dashboard() {
     tomorrow.setHours(0, 0, 0, 0);
     
     projects.forEach(project => {
-      if (project.startDate && project.budget && project.stage !== "prospection") {
+      // totalBilled has priority over budget
+      const effectiveBudget = project.totalBilled || project.budget;
+      if (project.startDate && effectiveBudget && project.stage !== "prospection") {
         const startDate = new Date(project.startDate);
         const projectMonth = startDate.getMonth();
         const projectYear = startDate.getFullYear();
@@ -663,7 +665,7 @@ export default function Dashboard() {
         );
         
         if (matchingMonth) {
-          monthlyBudgets[matchingMonth.key] += Number(project.budget) || 0;
+          monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
           monthlyProjectCounts[matchingMonth.key] += 1;
         }
       }
@@ -753,15 +755,16 @@ export default function Dashboard() {
   // Compter les tâches en cours (status !== 'done')
   const activeTasksCount = tasks.filter(t => t.status !== "done").length;
 
-  // Calculer le CA global (somme des budgets des projets hors prospection)
+  // Calculer le CA global (totalBilled prioritaire sur budget, hors prospection)
   const projectsHorsProspection = projects.filter(p => p.stage !== "prospection");
-  const globalRevenue = projectsHorsProspection.reduce((sum, p) => sum + parseFloat(p.budget || "0"), 0);
+  const globalRevenue = projectsHorsProspection.reduce((sum, p) => sum + parseFloat(p.totalBilled || p.budget || "0"), 0);
   
   // Calculer les paiements encaissés
   // Logique: Si un projet est marqué comme "paye", on prend son budget entier
   // Sinon, on prend la somme des paiements individuels pour ce projet
   const totalPaid = projectsHorsProspection.reduce((sum, project) => {
-    const projectBudget = parseFloat(project.budget || "0");
+    // totalBilled has priority over budget
+    const projectBudget = parseFloat(project.totalBilled || project.budget || "0");
     
     // Si le projet est marqué comme payé, on considère tout le budget comme encaissé
     if (project.billingStatus === "paye") {

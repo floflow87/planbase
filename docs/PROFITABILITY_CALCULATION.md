@@ -41,6 +41,11 @@ Le système de rentabilité permet de suivre la performance financière de chaqu
 const totalBilled = parseFloat(project.totalBilled?.toString() || project.budget?.toString() || '0');
 ```
 
+**Règle de priorité :**
+- **`totalBilled` a TOUJOURS la priorité sur `budget`**
+- Si `totalBilled` est renseigné, c'est lui qui est affiché et utilisé partout (badge budget, progression paiements, calculs CA, etc.)
+- `budget` sert uniquement de fallback quand `totalBilled` n'est pas défini
+
 **Affichage :** Onglet Facturation > "Montant facturé"
 
 ---
@@ -218,10 +223,28 @@ const marginRatio = (marginPercent / targetMarginPercent) * 100;
 
 ---
 
-## 6. Historique des modifications
+## 6. Priorité `totalBilled` sur `budget`
+
+Partout dans l'application, quand un montant "budget" est affiché, la logique est :
+
+```typescript
+const effectiveBudget = project.totalBilled || project.budget;
+```
+
+**Pages impactées :**
+- `project-detail.tsx` - Badge header, progression paiements, composant scope
+- `dashboard.tsx` - Calculs CA mensuel, CA global, paiements
+- `projects.tsx` - Cartes Kanban, tableau liste, vues mobiles
+- `client-detail.tsx` - Liste des projets du client
+- `profitabilityService.ts` - Tous les calculs de rentabilité
+
+---
+
+## 7. Historique des modifications
 
 | Date | Modification |
 |------|--------------|
+| 2025-12-27 | **totalBilled prioritaire sur budget** dans toute l'application |
 | 2025-12-27 | Marge calculée sur Montant facturé (au lieu de CA encaissé) |
 | 2025-12-27 | forfaitTJM appliqué uniquement aux projets `fixed_price` |
 | 2025-12-27 | Source du montant facturé : `totalBilled` prioritaire sur `budget` |

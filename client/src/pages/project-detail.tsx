@@ -2834,10 +2834,10 @@ export default function ProjectDetail() {
                     Client non défini
                   </p>
                 )}
-                {project.budget && (
+                {(project.totalBilled || project.budget) && (
                   <Badge className="bg-budget text-budget-foreground shrink-0" data-testid="badge-budget">
                     <Euro className="h-3 w-3 mr-1" />
-                    {project.budget}
+                    {project.totalBilled || project.budget}
                   </Badge>
                 )}
                 <Popover open={isBillingStatusPopoverOpen} onOpenChange={setIsBillingStatusPopoverOpen}>
@@ -3814,7 +3814,7 @@ export default function ProjectDetail() {
                 dailyRate={effectiveTJMData?.effectiveTJM || 0}
                 internalDailyCost={effectiveTJMData?.effectiveInternalDailyCost || 0}
                 targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
-                budget={parseFloat(project?.budget?.toString() || "0")}
+                budget={parseFloat(project?.totalBilled?.toString() || project?.budget?.toString() || "0")}
                 projectStage={project?.stage || 'prospection'}
                 tjmSource={effectiveTJMData?.source}
               />
@@ -3844,26 +3844,29 @@ export default function ProjectDetail() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Progress bar */}
-                {project?.budget && parseFloat(project.budget) > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progression du paiement</span>
-                      <span className="font-medium">
-                        {totalPaid.toFixed(2)} € / {parseFloat(project.budget).toFixed(2)} €
-                      </span>
+                {/* Progress bar - totalBilled has priority over budget */}
+                {(() => {
+                  const effectiveBudget = parseFloat(project?.totalBilled?.toString() || project?.budget?.toString() || "0");
+                  return effectiveBudget > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Progression du paiement</span>
+                        <span className="font-medium">
+                          {totalPaid.toFixed(2)} € / {effectiveBudget.toFixed(2)} €
+                        </span>
+                      </div>
+                      <Progress 
+                        value={Math.min(100, (totalPaid / effectiveBudget) * 100)} 
+                        className="h-2"
+                        data-testid="progress-payment"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{((totalPaid / effectiveBudget) * 100).toFixed(0)}% payé</span>
+                        <span>{remainingAmount > 0 ? `${remainingAmount.toFixed(2)} € restant` : "Entièrement payé"}</span>
+                      </div>
                     </div>
-                    <Progress 
-                      value={Math.min(100, (totalPaid / parseFloat(project.budget)) * 100)} 
-                      className="h-2"
-                      data-testid="progress-payment"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{((totalPaid / parseFloat(project.budget)) * 100).toFixed(0)}% payé</span>
-                      <span>{remainingAmount > 0 ? `${remainingAmount.toFixed(2)} € restant` : "Entièrement payé"}</span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Payment form */}
                 {showPaymentForm && (
