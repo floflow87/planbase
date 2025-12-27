@@ -1,11 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +38,8 @@ export default function RoadmapPage() {
   
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  const [projectSearchOpen, setProjectSearchOpen] = useState(false);
+  const [projectSearchValue, setProjectSearchValue] = useState("");
   const [itemForm, setItemForm] = useState({
     title: "",
     type: "deliverable",
@@ -349,6 +353,12 @@ export default function RoadmapPage() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
+  const filteredProjects = useMemo(() => {
+    if (!projectSearchValue.trim()) return projects;
+    const searchLower = projectSearchValue.toLowerCase();
+    return projects.filter(p => p.name.toLowerCase().includes(searchLower));
+  }, [projects, projectSearchValue]);
+
   if (isLoadingProjects) {
     return (
       <div className="h-full overflow-auto p-6">
@@ -371,18 +381,54 @@ export default function RoadmapPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <FolderKanban className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedProjectId || ""} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-[250px]" data-testid="select-project">
-                  <SelectValue placeholder="Sélectionner un projet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id} data-testid={`select-project-${project.id}`}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={projectSearchOpen}
+                    className="w-[280px] justify-between"
+                    data-testid="select-project"
+                  >
+                    {selectedProject ? selectedProject.name : "Sélectionner un projet..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0">
+                  <Command shouldFilter={false}>
+                    <CommandInput 
+                      placeholder="Rechercher un projet..." 
+                      value={projectSearchValue}
+                      onValueChange={setProjectSearchValue}
+                      data-testid="input-project-search"
+                    />
+                    <CommandList>
+                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredProjects.map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.id}
+                            onSelect={() => {
+                              setSelectedProjectId(project.id);
+                              setProjectSearchOpen(false);
+                              setProjectSearchValue("");
+                            }}
+                            data-testid={`select-project-${project.id}`}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                selectedProjectId === project.id ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
