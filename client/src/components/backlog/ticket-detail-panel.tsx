@@ -427,7 +427,7 @@ export function TicketDetailPanel({
         )}
         
         <div className="flex items-center gap-1">
-          {!readOnly && onCreateTask && projects.length > 0 && (
+          {!readOnly && onCreateTask && (
             <Button 
               variant="ghost" 
               size="icon" 
@@ -991,65 +991,74 @@ export function TicketDetailPanel({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="task-title">Titre de la tâche</Label>
-              <Input
-                id="task-title"
-                value={createTaskTitle}
-                onChange={(e) => setCreateTaskTitle(e.target.value)}
-                placeholder="Entrez le titre de la tâche"
-                data-testid="input-create-task-title"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Projet</Label>
-              <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={projectSearchOpen}
-                    className="w-full justify-between"
-                    data-testid="button-select-project"
-                  >
-                    {createTaskProjectId
-                      ? projects.find((p) => p.id === createTaskProjectId)?.name || "Sélectionner un projet"
-                      : "Sélectionner un projet"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Rechercher un projet..." />
-                    <CommandList>
-                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        {projects.map((project) => (
-                          <CommandItem
-                            key={project.id}
-                            value={project.name}
-                            onSelect={() => {
-                              setCreateTaskProjectId(project.id);
-                              setProjectSearchOpen(false);
-                            }}
-                            data-testid={`option-project-${project.id}`}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                createTaskProjectId === project.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {project.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+            {projects.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>Aucun projet disponible.</p>
+                <p className="text-sm">Créez d'abord un projet pour pouvoir créer des tâches.</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="task-title">Titre de la tâche</Label>
+                  <Input
+                    id="task-title"
+                    value={createTaskTitle}
+                    onChange={(e) => setCreateTaskTitle(e.target.value)}
+                    placeholder="Entrez le titre de la tâche"
+                    data-testid="input-create-task-title"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Projet</Label>
+                  <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={projectSearchOpen}
+                        className="w-full justify-between"
+                        data-testid="button-select-project"
+                      >
+                        {createTaskProjectId
+                          ? projects.find((p) => p.id === createTaskProjectId)?.name || "Sélectionner un projet"
+                          : "Sélectionner un projet"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un projet..." />
+                        <CommandList>
+                          <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {projects.map((project) => (
+                              <CommandItem
+                                key={project.id}
+                                value={project.name}
+                                onSelect={() => {
+                                  setCreateTaskProjectId(project.id);
+                                  setProjectSearchOpen(false);
+                                }}
+                                data-testid={`option-project-${project.id}`}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    createTaskProjectId === project.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {project.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button

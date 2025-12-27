@@ -4983,10 +4983,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: allTickets.length,
         };
         
+        // Get all sprints for this backlog
+        const sprintsList = await db.select().from(sprints)
+          .where(eq(sprints.backlogId, backlog.id))
+          .orderBy(sprints.position, sprints.startDate);
+        
         // Get active sprint (en_cours status)
         let activeSprint = null;
-        const [activeSprintRow] = await db.select().from(sprints)
-          .where(and(eq(sprints.backlogId, backlog.id), eq(sprints.status, "en_cours")));
+        const activeSprintRow = sprintsList.find(s => s.status === "en_cours");
         if (activeSprintRow) {
           activeSprint = {
             id: activeSprintRow.id,
@@ -5000,6 +5004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creator,
           ticketCounts,
           activeSprint,
+          sprints: sprintsList,
         };
       }));
       
