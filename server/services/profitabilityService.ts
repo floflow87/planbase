@@ -237,6 +237,10 @@ export function calculateMetrics(
   const timeOverrun = theoreticalDays > 0 ? actualDaysWorked - theoreticalDays : 0;
   const timeOverrunPercent = theoreticalDays > 0 ? (timeOverrun / theoreticalDays) * 100 : 0;
   
+  // For cost calculations: use actual days if available, otherwise fall back to theoretical days
+  // This allows users to see estimated costs based on planned days when no time has been tracked yet
+  const daysForCostCalculation = actualDaysWorked > 0 ? actualDaysWorked : theoreticalDays;
+  
   // Financial metrics
   // totalBilled = CA facturé (utilise project.budget comme source de vérité)
   // totalPaid = CA encaissé (uses same logic as Dashboard: if billingStatus='paye' => full budget)
@@ -275,7 +279,8 @@ export function calculateMetrics(
   // Marge = (Valeur/jour - Coût cible) * jours = CA encaissé - (Coût cible * jours)
   // Le coût cible est UNIQUEMENT le TJM cible (global ou projet) - jamais internalDailyCost du projet
   const internalDailyCost = targetTJM;
-  const totalCost = actualDaysWorked * internalDailyCost;
+  // Use daysForCostCalculation which falls back to theoretical days when no time is tracked
+  const totalCost = daysForCostCalculation * internalDailyCost;
   const margin = totalPaid - totalCost;
   const marginPercent = totalPaid > 0 ? (margin / totalPaid) * 100 : 0;
   const targetMarginPercent = parseFloat(project.targetMarginPercent?.toString() || THRESHOLDS.DEFAULT_TARGET_MARGIN.toString());
