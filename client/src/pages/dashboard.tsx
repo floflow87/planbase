@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X } from "lucide-react";
+import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +23,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { Switch } from "@/components/ui/switch";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Loader } from "@/components/Loader";
 import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
 import { getProjectStageColorClass, getProjectStageLabel, getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
@@ -155,6 +159,76 @@ interface ProfitabilitySummary {
   generatedAt: string;
 }
 
+// Dashboard block configuration
+type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay';
+
+interface DashboardBlockConfig {
+  id: DashboardBlockId;
+  label: string;
+  visible: boolean;
+}
+
+const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
+  { id: 'kpis', label: 'KPIs', visible: true },
+  { id: 'priorityAction', label: 'Action Prioritaire', visible: true },
+  { id: 'revenueChart', label: 'Revenus Mensuels', visible: true },
+  { id: 'activityFeed', label: 'Activités Récentes', visible: true },
+  { id: 'recentProjects', label: 'Projets Récents', visible: true },
+  { id: 'myDay', label: 'Ma Journée', visible: true },
+];
+
+const STORAGE_KEY = 'planbase_dashboard_config';
+
+// Sortable item component for settings dialog
+function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; onToggle: (id: DashboardBlockId, visible: boolean) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: block.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between p-3 border rounded-lg bg-card ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <div className="flex items-center gap-3">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none p-1 hover:bg-muted rounded"
+          data-testid={`drag-handle-${block.id}`}
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <span className="text-sm font-medium">{block.label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {block.visible ? (
+          <Eye className="w-4 h-4 text-muted-foreground" />
+        ) : (
+          <EyeOff className="w-4 h-4 text-muted-foreground" />
+        )}
+        <Switch
+          checked={block.visible}
+          onCheckedChange={(checked) => onToggle(block.id, checked)}
+          data-testid={`toggle-block-${block.id}`}
+        />
+      </div>
+    </div>
+  );
+}
+
 // Helpers for priority colors
 const getPriorityScoreColor = (score: number) => {
   if (score >= 80) return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-l-red-500' };
@@ -207,6 +281,62 @@ export default function Dashboard() {
     endDate: undefined as Date | undefined,
     budget: "",
   });
+
+  // Dashboard customization state
+  const [dashboardBlocks, setDashboardBlocks] = useState<DashboardBlockConfig[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return DEFAULT_DASHBOARD_BLOCKS;
+      }
+    }
+    return DEFAULT_DASHBOARD_BLOCKS;
+  });
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+
+  // DnD sensors for dashboard settings
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // Save dashboard config to localStorage
+  const saveDashboardConfig = useCallback((blocks: DashboardBlockConfig[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks));
+    setDashboardBlocks(blocks);
+  }, []);
+
+  // Toggle block visibility
+  const handleBlockToggle = useCallback((id: DashboardBlockId, visible: boolean) => {
+    const newBlocks = dashboardBlocks.map(b => 
+      b.id === id ? { ...b, visible } : b
+    );
+    saveDashboardConfig(newBlocks);
+  }, [dashboardBlocks, saveDashboardConfig]);
+
+  // Handle drag end for reordering
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = dashboardBlocks.findIndex(b => b.id === active.id);
+      const newIndex = dashboardBlocks.findIndex(b => b.id === over.id);
+      const newBlocks = arrayMove(dashboardBlocks, oldIndex, newIndex);
+      saveDashboardConfig(newBlocks);
+    }
+  }, [dashboardBlocks, saveDashboardConfig]);
+
+  // Reset dashboard config to default
+  const resetDashboardConfig = useCallback(() => {
+    saveDashboardConfig(DEFAULT_DASHBOARD_BLOCKS);
+  }, [saveDashboardConfig]);
+
+  // Helper to check if a block is visible
+  const isBlockVisible = useCallback((id: DashboardBlockId) => {
+    const block = dashboardBlocks.find(b => b.id === id);
+    return block?.visible ?? true;
+  }, [dashboardBlocks]);
 
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
@@ -1162,10 +1292,69 @@ export default function Dashboard() {
               <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline text-[12px]">Nouveau Projet</span>
             </Button>
+            <Button 
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSettingsDialogOpen(true)}
+              data-testid="button-dashboard-settings"
+              title="Personnaliser le tableau de bord"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
+        {/* Dashboard Settings Dialog */}
+        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+          <DialogContent className="sm:max-w-md" data-testid="dialog-dashboard-settings">
+            <DialogHeader>
+              <DialogTitle>Personnaliser le tableau de bord</DialogTitle>
+              <DialogDescription>
+                Glissez pour réorganiser les blocs et utilisez les interrupteurs pour les afficher/masquer.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={dashboardBlocks.map(b => b.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {dashboardBlocks.map((block) => (
+                      <SortableBlockItem
+                        key={block.id}
+                        block={block}
+                        onToggle={handleBlockToggle}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={resetDashboardConfig}
+                data-testid="button-reset-dashboard"
+              >
+                Réinitialiser
+              </Button>
+              <Button
+                onClick={() => setIsSettingsDialogOpen(false)}
+                data-testid="button-close-settings"
+              >
+                Fermer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* KPI Cards */}
+        {isBlockVisible('kpis') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="dashboard-kpis">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
@@ -1229,9 +1418,10 @@ export default function Dashboard() {
             );
           })}
         </div>
+        )}
 
         {/* Priority Action Card */}
-        {topPriorityAction && !isPriorityActionDismissed && (
+        {isBlockVisible('priorityAction') && topPriorityAction && !isPriorityActionDismissed && (
           <Card className={`border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action">
             <CardContent className="p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -1305,6 +1495,7 @@ export default function Dashboard() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Revenue Chart - Col Span 2 */}
+          {isBlockVisible('revenueChart') && (
           <Card className="lg:col-span-2 overflow-hidden flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-0">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1360,8 +1551,10 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Recent Activity Feed */}
+          {isBlockVisible('activityFeed') && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1436,11 +1629,13 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
 
         {/* Projets Récents & Ma Journée Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           {/* Recent Projects */}
+          {isBlockVisible('recentProjects') && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1488,8 +1683,10 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Ma Journée Widget - Today's Tasks + Overdue */}
+          {isBlockVisible('myDay') && (
           <Card>
             <CardHeader className="pb-2">
               <div className="flex flex-row items-center justify-between gap-2">
@@ -1713,6 +1910,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
       </div>
       {/* Task Detail Modal */}

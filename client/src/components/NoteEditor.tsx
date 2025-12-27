@@ -1436,8 +1436,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           {/* Notion-like outline bar on the right - hidden on mobile */}
           {!isMobile && headings.length > 0 && (
             <div 
-              className="sticky top-4 self-start ml-2 mr-4 flex flex-col gap-0.5 z-10"
-              style={{ marginTop: '60px' }}
+              className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 z-50"
               onMouseEnter={() => setShowOutlineToc(true)}
               onMouseLeave={() => setShowOutlineToc(false)}
             >
@@ -1463,7 +1462,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
               {/* TOC Panel on hover - scrollable */}
               {showOutlineToc && (
                 <div 
-                  className="absolute right-6 top-0 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-20"
+                  className="absolute right-8 top-1/2 -translate-y-1/2 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-50"
                   onMouseEnter={() => setShowOutlineToc(true)}
                   onMouseLeave={() => setShowOutlineToc(false)}
                 >
