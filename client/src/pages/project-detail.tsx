@@ -3411,21 +3411,23 @@ export default function ProjectDetail() {
                             <div 
                               className="text-xl font-bold" 
                               style={{
-                                color: marginPercent >= targetMarginPercent 
-                                  ? '#16a34a' // green-600
-                                  : marginPercent >= targetMarginPercent * 0.7 
-                                    ? '#eab308' // yellow-500
-                                    : marginPercent >= targetMarginPercent * 0.4 
-                                      ? '#f97316' // orange-500
-                                      : '#dc2626' // red-600
+                                color: (estimatedCost > 0 || profitabilityMetrics?.totalPaid)
+                                  ? (marginPercent >= targetMarginPercent 
+                                      ? '#16a34a' // green-600
+                                      : marginPercent >= targetMarginPercent * 0.7 
+                                        ? '#eab308' // yellow-500
+                                        : marginPercent >= targetMarginPercent * 0.4 
+                                          ? '#f97316' // orange-500
+                                          : '#dc2626') // red-600
+                                  : undefined
                               }}
                               data-testid="kpi-margin"
                             >
-                              {margin !== 0 
+                              {(estimatedCost > 0 || profitabilityMetrics?.totalPaid) 
                                 ? margin.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
                                 : "-"}
                             </div>
-                            {margin !== 0 && (
+                            {(estimatedCost > 0 || profitabilityMetrics?.totalPaid) && (
                               <div 
                                 className="text-[10px] mt-1"
                                 style={{
