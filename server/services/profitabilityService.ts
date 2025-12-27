@@ -242,10 +242,10 @@ export function calculateMetrics(
   const daysForCostCalculation = actualDaysWorked > 0 ? actualDaysWorked : theoreticalDays;
   
   // Financial metrics
-  // totalBilled = CA facturé (utilise project.budget comme source de vérité)
+  // totalBilled = Montant facturé (utilise project.totalBilled en priorité, puis project.budget comme fallback)
   // totalPaid = CA encaissé (uses same logic as Dashboard: if billingStatus='paye' => full budget)
-  // Profitability calculations use totalPaid as revenue (CA encaissé)
-  const totalBilled = parseFloat(project.budget?.toString() || '0');
+  // Profitability calculations use totalBilled as revenue for theoretical margin
+  const totalBilled = parseFloat(project.totalBilled?.toString() || project.budget?.toString() || '0');
   const totalPaid = calculateTotalPaid(project, payments);
   const remainingToPay = Math.max(0, totalBilled - totalPaid);
   const paymentProgress = totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0;
