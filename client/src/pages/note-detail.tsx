@@ -94,6 +94,8 @@ export default function NoteDetail() {
   const lastPersistedStateRef = useRef(lastPersistedState);
   const noteIdRef = useRef(id);
   const autoSaveEnabledRef = useRef(autoSaveEnabled);
+  // Track if the note originally had content (to prevent saving empty content over existing data)
+  const originalHadContentRef = useRef(false);
   
   // Keep refs in sync with state
   useEffect(() => { titleRef.current = title; }, [title]);
@@ -136,6 +138,17 @@ export default function NoteDetail() {
       };
       
       const plainText = extractPlainText(contentRef.current);
+      
+      // SAFETY CHECK: Don't save if content becomes empty and note originally had content
+      // This prevents accidental data loss from editor state bugs on unmount
+      const hasContentNow = plainText && plainText.trim().length > 0;
+      const titleChanged = titleRef.current !== currentPersisted.title;
+      
+      if (originalHadContentRef.current && !hasContentNow && !titleChanged) {
+        // Content disappeared but title didn't change - likely a bug, don't save
+        console.warn('Save on unmount blocked: content became empty unexpectedly');
+        return;
+      }
       
       // Use sendBeacon for reliable save on page unload/navigation
       const payload = JSON.stringify({
@@ -242,6 +255,9 @@ export default function NoteDetail() {
         status: note.status,
         visibility: note.visibility,
       });
+      // SAFETY: Track if note originally had content to prevent saving empty content over it
+      const hadContent = note.plainText && note.plainText.trim().length > 0;
+      originalHadContentRef.current = hadContent;
     }
   }, [note]);
 
@@ -276,6 +292,13 @@ export default function NoteDetail() {
         status: updatedNote.status,
         visibility: updatedNote.visibility,
       });
+      
+      // SAFETY: Update originalHadContentRef based on the saved content
+      // This ensures newly created content is protected from empty overwrites
+      const savedPlainText = updatedNote.plainText;
+      if (savedPlainText && savedPlainText.trim().length > 0) {
+        originalHadContentRef.current = true;
+      }
     },
     onError: (error: any, variables, context) => {
       // Rollback on error
@@ -332,14 +355,13 @@ export default function NoteDetail() {
 
     const plainText = extractPlainText(debouncedContent);
 
-    // SAFETY CHECK: Don't save if content becomes empty and note had content before
-    // This prevents accidental data loss from autosave bugs
-    const hadContent = note.plainText && note.plainText.trim().length > 0;
+    // SAFETY CHECK: Don't save if content becomes empty and note originally had content
+    // This prevents accidental data loss from autosave bugs (e.g., editor state not initialized)
     const hasContentNow = plainText && plainText.trim().length > 0;
     
-    if (hadContent && !hasContentNow && !titleChanged) {
-      // Content disappeared but title didn't change - likely a bug, don't save
-      console.warn('Autosave blocked: content became empty unexpectedly');
+    if (originalHadContentRef.current && !hasContentNow && !titleChanged) {
+      // Content disappeared but title didn't change - likely an editor bug, don't save
+      console.warn('Autosave blocked: content became empty unexpectedly (note originally had content)');
       return;
     }
 
