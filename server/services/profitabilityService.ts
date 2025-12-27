@@ -275,14 +275,15 @@ export function calculateMetrics(
   const tjmGap = targetTJM > 0 ? actualTJM - targetTJM : 0;
   const tjmGapPercent = targetTJM > 0 ? (tjmGap / targetTJM) * 100 : 0;
   
-  // Profitability metrics - Based on actual revenue received (CA encaissé)
-  // Marge = (Valeur/jour - Coût cible) * jours = CA encaissé - (Coût cible * jours)
+  // Profitability metrics - Based on billed amount (Montant facturé) for theoretical margin
+  // Marge = Montant facturé - (Coût cible * jours)
   // Le coût cible est UNIQUEMENT le TJM cible (global ou projet) - jamais internalDailyCost du projet
   const internalDailyCost = targetTJM;
   // Use daysForCostCalculation which falls back to theoretical days when no time is tracked
   const totalCost = daysForCostCalculation * internalDailyCost;
-  const margin = totalPaid - totalCost;
-  const marginPercent = totalPaid > 0 ? (margin / totalPaid) * 100 : 0;
+  // Use totalBilled (montant facturé) instead of totalPaid (CA encaissé) for theoretical margin
+  const margin = totalBilled - totalCost;
+  const marginPercent = totalBilled > 0 ? (margin / totalBilled) * 100 : 0;
   const targetMarginPercent = parseFloat(project.targetMarginPercent?.toString() || THRESHOLDS.DEFAULT_TARGET_MARGIN.toString());
   
   // Status

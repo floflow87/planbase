@@ -3447,8 +3447,8 @@ export default function ProjectDetail() {
                         </Card>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
-                        <p className="text-sm">Différence entre le CA encaissé et le coût actualisé.</p>
-                        <p className="text-xs text-muted-foreground mt-1">Formule : CA encaissé - Coût actualisé</p>
+                        <p className="text-sm">Différence entre le montant facturé et le coût actualisé.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Formule : Montant facturé - Coût actualisé</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
