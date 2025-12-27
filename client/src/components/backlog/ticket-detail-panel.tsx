@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,12 +23,15 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project } from "@shared/schema";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { 
   Popover, 
   PopoverContent, 
@@ -94,10 +97,13 @@ interface TicketDetailPanelProps {
   epics?: Epic[];
   sprints?: Sprint[];
   users?: AppUser[];
+  projects?: Project[];
+  backlogProjectId?: string | null;
   onClose: () => void;
   onUpdate: (ticketId: string, type: TicketType, data: Record<string, any>) => void;
   onDelete: (ticketId: string, type: TicketType) => void;
   onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
+  onCreateTask?: (ticket: FlatTicket, projectId: string, taskTitle: string) => void;
   readOnly?: boolean;
 }
 
@@ -106,10 +112,13 @@ export function TicketDetailPanel({
   epics = [],
   sprints = [],
   users = [],
+  projects = [],
+  backlogProjectId,
   onClose, 
   onUpdate,
   onDelete,
   onConvertType,
+  onCreateTask,
   readOnly = false
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -118,6 +127,12 @@ export function TicketDetailPanel({
   const [newComment, setNewComment] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editedCommentContent, setEditedCommentContent] = useState("");
+  
+  // Create task dialog state
+  const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
+  const [createTaskProjectId, setCreateTaskProjectId] = useState<string>("");
+  const [createTaskTitle, setCreateTaskTitle] = useState("");
+  const [projectSearchOpen, setProjectSearchOpen] = useState(false);
   
   // Fetch comments for the ticket - only fetch when ticket is selected
   const ticketId = ticket?.id;
@@ -329,6 +344,22 @@ export function TicketDetailPanel({
     }
   };
   
+  // Create task handler
+  const handleOpenCreateTaskDialog = () => {
+    // Pre-fill with backlog's linked project if available
+    setCreateTaskProjectId(backlogProjectId || "");
+    setCreateTaskTitle(ticket?.title || "");
+    setShowCreateTaskDialog(true);
+  };
+  
+  const handleCreateTask = () => {
+    if (!createTaskProjectId || !createTaskTitle.trim() || !ticket) return;
+    onCreateTask?.(ticket, createTaskProjectId, createTaskTitle.trim());
+    setShowCreateTaskDialog(false);
+    setCreateTaskProjectId("");
+    setCreateTaskTitle("");
+  };
+  
   return (
     <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -396,6 +427,18 @@ export function TicketDetailPanel({
         )}
         
         <div className="flex items-center gap-1">
+          {!readOnly && onCreateTask && projects.length > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 text-primary hover:text-primary"
+              onClick={handleOpenCreateTaskDialog}
+              data-testid="button-create-task-from-ticket"
+              title="Créer une tâche"
+            >
+              <ClipboardList className="h-4 w-4" />
+            </Button>
+          )}
           {!readOnly && (
             <Button 
               variant="ghost" 
@@ -937,6 +980,95 @@ export function TicketDetailPanel({
           </div>
         </div>
       </div>
+      
+      {/* Create Task Dialog */}
+      <Dialog open={showCreateTaskDialog} onOpenChange={setShowCreateTaskDialog}>
+        <DialogContent className="bg-popover">
+          <DialogHeader>
+            <DialogTitle>Créer une tâche</DialogTitle>
+            <DialogDescription>
+              Créer une tâche dans le gestionnaire de tâches à partir de ce ticket.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Titre de la tâche</Label>
+              <Input
+                id="task-title"
+                value={createTaskTitle}
+                onChange={(e) => setCreateTaskTitle(e.target.value)}
+                placeholder="Entrez le titre de la tâche"
+                data-testid="input-create-task-title"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Projet</Label>
+              <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={projectSearchOpen}
+                    className="w-full justify-between"
+                    data-testid="button-select-project"
+                  >
+                    {createTaskProjectId
+                      ? projects.find((p) => p.id === createTaskProjectId)?.name || "Sélectionner un projet"
+                      : "Sélectionner un projet"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un projet..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {projects.map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.name}
+                            onSelect={() => {
+                              setCreateTaskProjectId(project.id);
+                              setProjectSearchOpen(false);
+                            }}
+                            data-testid={`option-project-${project.id}`}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                createTaskProjectId === project.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateTaskDialog(false)}
+              data-testid="button-cancel-create-task"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleCreateTask}
+              disabled={!createTaskProjectId || !createTaskTitle.trim()}
+              data-testid="button-confirm-create-task"
+            >
+              Créer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

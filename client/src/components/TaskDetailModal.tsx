@@ -22,11 +22,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Star, Trash2, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, Star, Trash2, CheckCircle2, ListTodo, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Task, AppUser, Project, TaskColumn } from "@shared/schema";
+import type { Task, AppUser, Project, TaskColumn, Backlog, Sprint } from "@shared/schema";
 import { formatDateForStorage } from "@/lib/queryClient";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+
+type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
 
 // Helper function to derive task status from column name
 function getStatusFromColumnName(columnName: string): "todo" | "in_progress" | "review" | "done" {
@@ -50,10 +55,12 @@ interface TaskDetailModalProps {
   users: AppUser[];
   projects: Project[];
   columns: TaskColumn[];
+  backlogs?: BacklogWithSprints[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
   onDelete?: (task: Task) => void;
+  onCreateTicket?: (task: Task, backlogId: string, sprintId: string | null, ticketTitle: string) => void;
 }
 
 export function TaskDetailModal({
@@ -61,10 +68,12 @@ export function TaskDetailModal({
   users,
   projects,
   columns,
+  backlogs = [],
   isOpen,
   onClose,
   onSave,
   onDelete,
+  onCreateTicket,
 }: TaskDetailModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -74,6 +83,13 @@ export function TaskDetailModal({
   const [selectedColumnId, setSelectedColumnId] = useState<string>("");
   const [projectId, setProjectId] = useState<string | undefined>();
   const [effort, setEffort] = useState<number | null>(null);
+  
+  // Create ticket dialog state
+  const [showCreateTicketDialog, setShowCreateTicketDialog] = useState(false);
+  const [selectedBacklogId, setSelectedBacklogId] = useState<string>("");
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [ticketTitle, setTicketTitle] = useState("");
+  const [backlogSearchOpen, setBacklogSearchOpen] = useState(false);
 
   // Display ONLY columns from the task's project (no global columns to avoid duplicates)
   const columnOptions = useMemo(() => {
@@ -91,6 +107,30 @@ export function TaskDetailModal({
       status: getStatusFromColumnName(column.name),
     }));
   }, [columns, projectId]);
+
+  // Get sprints for selected backlog
+  const selectedBacklog = useMemo(() => {
+    return backlogs.find(b => b.id === selectedBacklogId);
+  }, [backlogs, selectedBacklogId]);
+  
+  const sprintsForBacklog = useMemo(() => {
+    return selectedBacklog?.sprints || [];
+  }, [selectedBacklog]);
+
+  // Handle opening create ticket dialog
+  const handleOpenCreateTicket = () => {
+    setTicketTitle(title); // Pre-fill with task title
+    setSelectedBacklogId("");
+    setSelectedSprintId(null);
+    setShowCreateTicketDialog(true);
+  };
+
+  // Handle creating ticket
+  const handleCreateTicket = () => {
+    if (!task || !selectedBacklogId || !ticketTitle.trim()) return;
+    onCreateTicket?.(task, selectedBacklogId, selectedSprintId, ticketTitle.trim());
+    setShowCreateTicketDialog(false);
+  };
 
   useEffect(() => {
     if (task) {
@@ -349,22 +389,34 @@ export function TaskDetailModal({
         </div>
 
         <div className="flex gap-2 justify-between pt-4 border-t">
-          {onDelete && (
-            <Button
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={() => {
-                if (task) {
-                  onDelete(task);
-                  onClose();
-                }
-              }}
-              data-testid="button-delete-task"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Supprimer
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {onDelete && (
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => {
+                  if (task) {
+                    onDelete(task);
+                    onClose();
+                  }
+                }}
+                data-testid="button-delete-task"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </Button>
+            )}
+            {onCreateTicket && backlogs.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleOpenCreateTicket}
+                data-testid="button-create-ticket-from-task"
+              >
+                <ListTodo className="h-4 w-4 mr-2" />
+                Créer un ticket
+              </Button>
+            )}
+          </div>
           <div className="flex gap-2 ml-auto">
             <Button 
               variant="outline" 
@@ -382,6 +434,118 @@ export function TaskDetailModal({
           </div>
         </div>
       </SheetContent>
+      
+      {/* Create Ticket Dialog */}
+      <Dialog open={showCreateTicketDialog} onOpenChange={setShowCreateTicketDialog}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-card">
+          <DialogHeader>
+            <DialogTitle>Créer un ticket</DialogTitle>
+            <DialogDescription>
+              Créer un ticket à partir de cette tâche dans un backlog.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="ticketTitle">Titre du ticket</Label>
+              <Input
+                id="ticketTitle"
+                value={ticketTitle}
+                onChange={(e) => setTicketTitle(e.target.value)}
+                placeholder="Titre du ticket"
+                data-testid="input-ticket-title"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label>Backlog</Label>
+              <Popover open={backlogSearchOpen} onOpenChange={setBacklogSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={backlogSearchOpen}
+                    className="justify-between"
+                    data-testid="select-backlog"
+                  >
+                    {selectedBacklogId
+                      ? backlogs.find(b => b.id === selectedBacklogId)?.name || "Sélectionner"
+                      : "Sélectionner un backlog"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 bg-white dark:bg-card">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un backlog..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun backlog trouvé</CommandEmpty>
+                      <CommandGroup>
+                        {backlogs.map((backlog) => (
+                          <CommandItem
+                            key={backlog.id}
+                            value={backlog.name}
+                            onSelect={() => {
+                              setSelectedBacklogId(backlog.id);
+                              setSelectedSprintId(null);
+                              setBacklogSearchOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedBacklogId === backlog.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {backlog.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            {selectedBacklogId && (
+              <div className="grid gap-2">
+                <Label htmlFor="sprint">Sprint (optionnel)</Label>
+                <Select
+                  value={selectedSprintId || "no-sprint"}
+                  onValueChange={(val) => setSelectedSprintId(val === "no-sprint" ? null : val)}
+                >
+                  <SelectTrigger data-testid="select-sprint">
+                    <SelectValue placeholder="Backlog (pas de sprint)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-sprint">Backlog (pas de sprint)</SelectItem>
+                    {sprintsForBacklog.map((sprint) => (
+                      <SelectItem key={sprint.id} value={sprint.id}>
+                        {sprint.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateTicketDialog(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleCreateTicket}
+              disabled={!selectedBacklogId || !ticketTitle.trim()}
+              data-testid="button-confirm-create-ticket"
+            >
+              Créer le ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }

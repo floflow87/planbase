@@ -988,6 +988,30 @@ export default function BacklogDetail() {
   const handleInlineFieldUpdate = async (ticketId: string, type: TicketType, field: string, value: any) => {
     await handleUpdateTicket(ticketId, type, { [field]: value });
   };
+  
+  // Create task from ticket handler
+  const handleCreateTaskFromTicket = async (ticket: FlatTicket, projectId: string, taskTitle: string) => {
+    try {
+      await apiRequest("/api/tasks", "POST", {
+        title: taskTitle,
+        description: ticket.description || "",
+        projectId: projectId,
+        status: "pending",
+        priority: ticket.priority || "medium",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toastSuccess({ 
+        title: "Tâche créée", 
+        description: "La tâche a été créée avec succès dans le gestionnaire de tâches." 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Erreur", 
+        description: error.message || "Impossible de créer la tâche.", 
+        variant: "destructive" 
+      });
+    }
+  };
 
   // Handle ticket actions from dropdown menu
   const handleTicketAction = async (action: TicketAction) => {
@@ -1854,10 +1878,13 @@ export default function BacklogDetail() {
                       epics={backlog.epics}
                       sprints={backlog.sprints}
                       users={users}
+                      projects={projects}
+                      backlogProjectId={backlog.projectId}
                       onClose={() => setSelectedTicket(null)}
                       onUpdate={handleUpdateTicket}
                       onDelete={handleDeleteTicket}
                       onConvertType={handleConvertType}
+                      onCreateTask={handleCreateTaskFromTicket}
                     />
                   </div>
                 </>
@@ -2018,6 +2045,8 @@ export default function BacklogDetail() {
                     epics={backlog.epics}
                     sprints={backlog.sprints}
                     users={users}
+                    projects={projects}
+                    backlogProjectId={backlog.projectId}
                     onClose={() => setSelectedTicket(null)}
                     onUpdate={handleUpdateTicket}
                     onDelete={handleDeleteTicket}

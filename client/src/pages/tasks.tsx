@@ -85,7 +85,11 @@ import type {
   Project,
   InsertTask,
   InsertTaskColumn,
+  Backlog,
+  Sprint,
 } from "@shared/schema";
+
+type BacklogWithSprints = Backlog & { sprints?: Sprint[] };
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
@@ -771,6 +775,12 @@ export default function Tasks() {
     enabled: !!accountId,
   });
 
+  // Fetch backlogs with sprints for creating tickets from tasks
+  const { data: backlogs = [] } = useQuery<BacklogWithSprints[]>({
+    queryKey: ["/api/backlogs"],
+    enabled: !!accountId,
+  });
+
   // Get columns for the project selected in the form
   const { data: newTaskProjectColumns = [] } = useQuery<TaskColumn[]>({
     queryKey: ["/api/projects", newTaskProjectId, "task-columns"],
@@ -1068,6 +1078,45 @@ export default function Tasks() {
       });
     },
   });
+
+  // Create ticket from task mutation
+  const createTicketFromTaskMutation = useMutation({
+    mutationFn: async ({ backlogId, sprintId, title, description }: { backlogId: string; sprintId: string | null; title: string; description?: string }) => {
+      const response = await apiRequest(`/api/backlogs/${backlogId}/tasks`, "POST", {
+        title,
+        description: description || "",
+        sprintId: sprintId,
+        state: "a_faire",
+        priority: "medium",
+      });
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", variables.backlogId] });
+      toast({
+        variant: "success",
+        title: "Ticket créé",
+        description: "Le ticket a été créé avec succès dans le backlog.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible de créer le ticket.",
+      });
+    },
+  });
+
+  // Handler to create ticket from task
+  const handleCreateTicketFromTask = (task: Task, backlogId: string, sprintId: string | null, ticketTitle: string) => {
+    createTicketFromTaskMutation.mutate({
+      backlogId,
+      sprintId,
+      title: ticketTitle,
+      description: task.description || "",
+    });
+  };
 
   // Create default columns when user has no columns at all
   const [hasCreatedDefaultColumns, setHasCreatedDefaultColumns] = useState(false);
@@ -2374,6 +2423,7 @@ export default function Tasks() {
               users={users}
               projects={projects}
               columns={sortedTaskColumns}
+              backlogs={backlogs}
               isOpen={isTaskDetailOpen}
               onClose={() => {
                 setIsTaskDetailOpen(false);
@@ -2384,6 +2434,7 @@ export default function Tasks() {
                 setSelectedTask(task);
                 setIsDeleteTaskDialogOpen(true);
               }}
+              onCreateTicket={handleCreateTicketFromTask}
             />
           );
         })()}
