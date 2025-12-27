@@ -3338,9 +3338,9 @@ export default function ProjectDetail() {
                                     : "-")
                               }
                             </div>
-                            {isForfait && effectiveDailyRate > 0 && (
+                            {isForfait && effectiveDailyRate > 0 && profitabilityMetrics?.targetTJM && (
                               <div className="text-[10px] text-muted-foreground mt-1">
-                                Montant ÷ Jours
+                                Cible : {profitabilityMetrics.targetTJM.toLocaleString("fr-FR")} €/j
                               </div>
                             )}
                           </CardContent>
