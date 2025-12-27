@@ -2175,7 +2175,8 @@ export default function ProjectDetail() {
   const [billingRateValue, setBillingRateValue] = useState<string>("");
   const [numberOfDaysValue, setNumberOfDaysValue] = useState<string>("");
   // Track if numberOfDays is manually overridden (not auto-synced from CDC)
-  const [isNumberOfDaysOverridden, setIsNumberOfDaysOverridden] = useState<boolean>(false);
+  // Default to true (locked/manual mode) - user must explicitly unlock to auto-sync
+  const [isNumberOfDaysOverridden, setIsNumberOfDaysOverridden] = useState<boolean>(true);
 
   // Payment tracking state
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -3373,7 +3374,8 @@ export default function ProjectDetail() {
                         </Card>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
-                        <p className="text-sm">Prix de vente minimum pour atteindre votre marge cible.</p>
+                        <p className="text-sm font-medium">Le prix de vente minimum à proposer au client pour garantir votre rentabilité.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Prix de vente minimum pour atteindre votre marge cible.</p>
                         <p className="text-xs text-muted-foreground mt-1">Formule : Coût actualisé ÷ (1 - Marge cible %)</p>
                       </TooltipContent>
                     </Tooltip>
@@ -3396,7 +3398,8 @@ export default function ProjectDetail() {
                         </Card>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
-                        <p className="text-sm">Coût interne basé sur le temps travaillé.</p>
+                        <p className="text-sm font-medium">Ce que le projet vous coûte réellement en ressources internes.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Coût interne basé sur le temps travaillé.</p>
                         <p className="text-xs text-muted-foreground mt-1">Formule : Jours travaillés × TJM cible</p>
                       </TooltipContent>
                     </Tooltip>
@@ -3405,13 +3408,36 @@ export default function ProjectDetail() {
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
                             <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
-                            <div className={`text-xl font-bold ${margin >= 0 ? "text-green-600" : "text-red-600"}`} data-testid="kpi-margin">
+                            <div 
+                              className="text-xl font-bold" 
+                              style={{
+                                color: marginPercent >= targetMarginPercent 
+                                  ? '#16a34a' // green-600
+                                  : marginPercent >= targetMarginPercent * 0.7 
+                                    ? '#eab308' // yellow-500
+                                    : marginPercent >= targetMarginPercent * 0.4 
+                                      ? '#f97316' // orange-500
+                                      : '#dc2626' // red-600
+                              }}
+                              data-testid="kpi-margin"
+                            >
                               {margin !== 0 
                                 ? margin.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
                                 : "-"}
                             </div>
                             {margin !== 0 && (
-                              <div className={`text-[10px] mt-1 ${marginPercent >= targetMarginPercent ? "text-green-600" : marginPercent >= 0 ? "text-muted-foreground" : "text-red-600"}`}>
+                              <div 
+                                className="text-[10px] mt-1"
+                                style={{
+                                  color: marginPercent >= targetMarginPercent 
+                                    ? '#16a34a' // green-600
+                                    : marginPercent >= targetMarginPercent * 0.7 
+                                      ? '#eab308' // yellow-500
+                                      : marginPercent >= targetMarginPercent * 0.4 
+                                        ? '#f97316' // orange-500
+                                        : '#dc2626' // red-600
+                                }}
+                              >
                                 {marginPercent.toFixed(1)}% de marge
                               </div>
                             )}
