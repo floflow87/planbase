@@ -1,0 +1,97 @@
+Contexte
+
+Nous souhaitons améliorer la page détail d’un projet dans PlanBase, sans refonte majeure (les onglets existants restent en place).
+L’objectif est d’améliorer la lisibilité, le pilotage et l’actionnabilité, en s’appuyant sur l’existant.
+
+1️⃣ Header projet plus informatif (sans changer la structure)
+
+Améliorer le header de la page projet en y ajoutant des informations clés, sans changer sa position ni son layout global :
+
+statut du projet (en cours / à risque / terminé)
+
+indicateur synthétique de santé (vert / orange / rouge)
+
+résumé rapide :
+Temps consommé / temps prévu – CA facturé / encaissé
+
+Le tout doit rester compact et lisible sur une seule ligne ou deux maximum.
+
+2️⃣ Renforcer le bloc “Temps” (pilotage)
+
+Améliorer le bloc Temps existant en ajoutant :
+
+une jauge par paliers (ex : 70% / 90% / 110%)
+
+un label contextuel :
+
+“En bonne voie”
+
+“Attention au dépassement”
+
+“Dépassement en cours”
+
+l’affichage de la catégorie de temps dominante (ex : Développement, Gestion, Support)
+
+Aucun nouvel écran : uniquement enrichir l’existant.
+
+3️⃣ Onglet “Activités” : meilleure hiérarchie visuelle
+
+Améliorer la lisibilité de l’onglet Activités :
+
+distinguer visuellement les types d’événements (mise à jour, ajout de temps, facture, tâche)
+
+réduire le bruit visuel
+
+rendre les actions clés (éditer / supprimer) plus discrètes mais accessibles
+
+Objectif : faciliter la lecture chronologique sans alourdir l’UI.
+
+4️⃣ Recommandations plus actionnables (sans nouveau moteur)
+
+À partir des recommandations existantes :
+
+ajouter des actions rapides contextuelles
+
+pré-remplir les champs selon la recommandation (ex : montant, durée, catégorie)
+
+afficher l’impact attendu (“+300 €”, “-2 jours”, etc.)
+
+Les actions doivent être déclenchables sans quitter la page projet.
+
+5️⃣ Amélioration douce des onglets (sans les supprimer)
+
+Améliorer l’ergonomie des onglets existants :
+
+réduire leur hauteur
+
+améliorer l’espacement et la hiérarchie visuelle
+
+éviter qu’ils prennent trop d’importance par rapport au contenu
+
+Les routes, noms et comportements restent inchangés.
+
+6️⃣ Indicateurs de données incomplètes (soft warning)
+
+Ajouter des alertes non bloquantes lorsque certaines données sont manquantes ou incohérentes :
+
+temps sans catégorie
+
+coûts non renseignés
+
+tâches sans estimation
+
+Ces alertes doivent être discrètes et orientées correction (“Corriger”, “Compléter”).
+
+7️⃣ Aucune refonte structurelle
+
+⚠️ Contraintes :
+
+pas de suppression d’onglets
+
+pas de changement de navigation
+
+pas de nouvelle page
+
+pas de refonte globale UI
+
+Toutes les améliorations doivent être progressives et compatibles avec l’existant.

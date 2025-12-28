@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2800,6 +2800,37 @@ export default function ProjectDetail() {
   const totalTasksCount = projectTasks.length;
   const progressPercentage = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
+  // Data completeness indicators
+  const dataWarnings: { type: 'info' | 'warning'; message: string; action?: string }[] = [];
+  
+  // Check if project has a budget
+  if (!project.totalBilled && !project.budget) {
+    dataWarnings.push({ type: 'info', message: "Aucun budget défini", action: "Modifier le projet" });
+  }
+  
+  // Check if project has time estimates (CDC)
+  const hasCdcItems = project.scopeItems && project.scopeItems.length > 0;
+  if (!hasCdcItems) {
+    dataWarnings.push({ type: 'info', message: "Pas de CDC défini", action: "Onglet Temps" });
+  } else {
+    // Only check for zero estimates when CDC items exist
+    const projectCdcEstimatedDays = project.scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+    if (projectCdcEstimatedDays === 0) {
+      dataWarnings.push({ type: 'warning', message: "CDC sans estimations de temps" });
+    }
+  }
+  
+  // Check if project has dates
+  if (!project.startDate && !project.endDate) {
+    dataWarnings.push({ type: 'info', message: "Dates non définies" });
+  }
+  
+  // Check if project has tasks but no sprint
+  const projectSprints = project.sprints || [];
+  if (projectTasks.length > 0 && projectSprints.length === 0) {
+    dataWarnings.push({ type: 'info', message: "Tâches sans sprint associé" });
+  }
+
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">
       <div className="container mx-auto p-6 max-w-7xl">
@@ -2918,6 +2949,110 @@ export default function ProjectDetail() {
           </div>
         </div>
 
+        {/* Project Health Summary Bar */}
+        {profitabilityData?.metrics && (
+          <div className="mb-4 p-3 rounded-lg border bg-card">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              {/* Health Indicator */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full",
+                    profitabilityData.metrics.status === 'profitable' && "bg-green-500",
+                    profitabilityData.metrics.status === 'at_risk' && "bg-amber-500",
+                    profitabilityData.metrics.status === 'deficit' && "bg-red-500"
+                  )}
+                  data-testid="health-indicator"
+                />
+                <span className={cn(
+                  "font-medium",
+                  profitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
+                  profitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
+                  profitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
+                )} data-testid="health-label">
+                  {profitabilityData.metrics.status === 'profitable' && "En bonne voie"}
+                  {profitabilityData.metrics.status === 'at_risk' && "À surveiller"}
+                  {profitabilityData.metrics.status === 'deficit' && "En difficulté"}
+                </span>
+              </div>
+              
+              <Separator orientation="vertical" className="h-4 hidden sm:block" />
+              
+              {/* Time Summary */}
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">Temps :</span>
+                <span className="font-medium" data-testid="time-consumed">
+                  {profitabilityData.metrics.actualDaysWorked.toFixed(1)}j
+                </span>
+                {profitabilityData.metrics.theoreticalDays > 0 && (
+                  <>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-muted-foreground" data-testid="time-planned">
+                      {profitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
+                    </span>
+                    {profitabilityData.metrics.timeOverrunPercent > 10 && (
+                      <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
+                        +{profitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              <Separator orientation="vertical" className="h-4 hidden sm:block" />
+              
+              {/* Revenue Summary */}
+              <div className="flex items-center gap-1.5">
+                <Euro className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground">Facturé :</span>
+                <span className="font-medium" data-testid="billed-amount">
+                  {(profitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
+                </span>
+                {profitabilityData.metrics.totalPaid > 0 && (
+                  <>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-green-600 dark:text-green-400" data-testid="paid-amount">
+                      {profitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
+                    </span>
+                  </>
+                )}
+                {profitabilityData.metrics.remainingToPay > 0 && (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
+                    {profitabilityData.metrics.remainingToPay.toLocaleString("fr-FR")} € à recevoir
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Data Completeness Indicators */}
+        {dataWarnings.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {dataWarnings.map((warning, index) => (
+              <Badge 
+                key={index}
+                variant="outline"
+                className={cn(
+                  "text-xs",
+                  warning.type === 'warning' 
+                    ? "border-amber-300 text-amber-600 dark:border-amber-600 dark:text-amber-400"
+                    : "border-muted-foreground/30 text-muted-foreground"
+                )}
+                data-testid={`warning-${index}`}
+              >
+                {warning.type === 'warning' ? (
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                ) : (
+                  <Info className="h-3 w-3 mr-1" />
+                )}
+                {warning.message}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {totalTasksCount > 0 && (
           <Card className="mb-6">
             <CardHeader className="pb-3">
@@ -2941,53 +3076,53 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue="activities" className="w-full">
-          <TabsList className="w-full justify-start mb-4 overflow-x-auto overflow-y-hidden flex-nowrap">
-            <TabsTrigger value="activities" className="gap-2 text-xs sm:text-sm" data-testid="tab-activities">
-              <MessageSquare className="h-4 w-4" />
-              Activités
-              <Badge variant="secondary" className="ml-1" data-testid="activities-count">
+          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-9 p-0.5">
+            <TabsTrigger value="activities" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-activities">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Activités</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
                 {projectActivities.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-2 text-xs sm:text-sm" data-testid="tab-billing">
-              <DollarSign className="h-4 w-4" />
-              Facturation
+            <TabsTrigger value="billing" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-billing">
+              <DollarSign className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Facturation</span>
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-2 text-xs sm:text-sm" data-testid="tab-time">
-              <Timer className="h-4 w-4" />
-              Temps
+            <TabsTrigger value="time" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-time">
+              <Timer className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Temps</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-2 text-xs sm:text-sm">
-              <Users className="h-4 w-4" />
-              Tâches
-              <Badge variant="secondary" className="ml-1" data-testid="tasks-count">
+            <TabsTrigger value="tasks" className="gap-1.5 text-xs h-8 px-3">
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tâches</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="tasks-count">
                 {projectTasks.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-2 text-xs sm:text-sm">
-              <FileText className="h-4 w-4" />
-              Notes
-              <Badge variant="secondary" className="ml-1" data-testid="notes-count">
+            <TabsTrigger value="notes" className="gap-1.5 text-xs h-8 px-3">
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Notes</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="notes-count">
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-2 text-xs sm:text-sm">
-              <FileText className="h-4 w-4" />
-              Documents
-              <Badge variant="secondary" className="ml-1" data-testid="documents-count">
+            <TabsTrigger value="documents" className="gap-1.5 text-xs h-8 px-3">
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Documents</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="documents-count">
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="backlogs" className="gap-2 text-xs sm:text-sm" data-testid="tab-backlogs">
-              <FolderKanban className="h-4 w-4" />
-              Backlogs
-              <Badge variant="secondary" className="ml-1" data-testid="backlogs-count">
+            <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-backlogs">
+              <FolderKanban className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Backlogs</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="backlogs-count">
                 {projectBacklogs.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="roadmap" className="gap-2 text-xs sm:text-sm" data-testid="tab-roadmap">
-              <Map className="h-4 w-4" />
-              Roadmap
+            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-roadmap">
+              <Map className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
           </TabsList>
 
@@ -4345,62 +4480,61 @@ export default function ProjectDetail() {
                       return (
                         <div 
                           key={activity.id} 
-                          className="p-4 border rounded-md hover-elevate"
+                          className="group flex items-start gap-3 p-2.5 rounded-md hover:bg-muted/50 transition-colors"
                           data-testid={`activity-${activity.id}`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <Badge className={cn("text-xs flex items-center gap-1", getKindColor(activity.kind))}>
-                                  {getKindIcon(activity.kind)}
-                                  {getKindLabel(activity.kind)}
-                                </Badge>
-                                {activity.kind === 'updated' && getUpdateDetails(activity) && (
-                                  <span className="text-xs text-muted-foreground italic">
-                                    ({getUpdateDetails(activity)})
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs">{activity.description}</p>
-                              <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-                                {user && (
-                                  <span>Par {user.firstName} {user.lastName}</span>
-                                )}
-                                {activity.createdAt && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-2.5 w-2.5" />
-                                    {format(new Date(activity.createdAt), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
-                                  </span>
-                                )}
-                                {activity.occurredAt && activity.occurredAt !== activity.createdAt && (
-                                  <span className="flex items-center gap-1">
-                                    <CalendarIcon className="h-2.5 w-2.5" />
-                                    {format(new Date(activity.occurredAt), "dd MMM yyyy", { locale: fr })}
-                                  </span>
-                                )}
-                              </div>
+                          {/* Icon indicator */}
+                          <div className={cn(
+                            "shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5",
+                            getKindColor(activity.kind)
+                          )}>
+                            {getKindIcon(activity.kind)}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-medium">{getKindLabel(activity.kind)}</span>
+                              {activity.kind === 'updated' && getUpdateDetails(activity) && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  · {getUpdateDetails(activity)}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                · {activity.createdAt && format(new Date(activity.createdAt), "dd MMM HH:mm", { locale: fr })}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openActivityDialog(activity)}
-                                data-testid={`button-edit-activity-${activity.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setDeleteActivityId(activity.id);
-                                  setIsDeleteActivityDialogOpen(true);
-                                }}
-                                data-testid={`button-delete-activity-${activity.id}`}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{activity.description}</p>
+                            {user && (
+                              <span className="text-[10px] text-muted-foreground/70 mt-1 block">
+                                {user.firstName} {user.lastName}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Actions - visible on hover */}
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openActivityDialog(activity)}
+                              data-testid={`button-edit-activity-${activity.id}`}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => {
+                                setDeleteActivityId(activity.id);
+                                setIsDeleteActivityDialogOpen(true);
+                              }}
+                              data-testid={`button-delete-activity-${activity.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                            </Button>
                           </div>
                         </div>
                       );
