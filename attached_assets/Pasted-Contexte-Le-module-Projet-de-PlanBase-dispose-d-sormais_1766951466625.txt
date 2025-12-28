@@ -1,0 +1,156 @@
+Contexte
+
+Le module Projet de PlanBase dispose désormais :
+
+d’un moteur de recommandations avancées (rentabilité, TJM, temps, projections),
+
+d’un bloc de comparaison avec projets similaires actuellement affiché dans le header du projet.
+
+Objectif :
+👉 améliorer la clarté des recommandations
+👉 déplacer la comparaison hors du header, dans un espace dédié, plus lisible et volontaire.
+
+1️⃣ Amélioration des recommandations (contenu & logique)
+Problème actuel
+
+Certaines recommandations peuvent afficher :
+
+un message positif (“au-dessus de la moyenne”)
+
+alors que la marge projetée reste négative
+➡️ Cela crée une ambiguïté pour l’utilisateur.
+
+Attendu — Ajustement des textes
+
+Mettre à jour les recommandations pour toujours contextualiser les comparaisons.
+
+Nouvelle règle de wording
+
+Quand une comparaison est positive mais que le projet reste non rentable, utiliser une formulation nuancée.
+
+Exemples de textes à utiliser :
+
+“Ce projet est plus performant que des projets similaires, mais reste sous le seuil de rentabilité attendu.”
+
+“Comparé à des projets équivalents, ce projet est mieux maîtrisé, cependant un ajustement est nécessaire pour atteindre la rentabilité.”
+
+“Les indicateurs sont meilleurs que la moyenne, mais la marge projetée reste négative à ce stade.”
+
+Structure standardisée des recommandations
+
+Chaque recommandation doit suivre ce format :
+
+Titre
+
+Action prioritaire claire (ex : “Ajuster le TJM”, “Accélérer la facturation”, “Limiter le temps restant”)
+
+Pourquoi
+
+Explication factuelle + comparaison (si applicable)
+
+Action recommandée
+
+Action concrète et mesurable
+
+Impact estimé
+
+Gain potentiel en € ou en jours
+
+2️⃣ Déplacement du bloc “Comparaison” — Option B (onglet + panel)
+Problème actuel
+
+Le bloc “Comparaison” est affiché dans le header du projet
+
+Il prend trop de place et mélange :
+
+identité du projet
+
+pilotage
+
+analyse avancée
+
+Objectif
+
+👉 Sortir la comparaison du header
+👉 La rendre accessible à la demande, comme un outil d’analyse
+
+3️⃣ Nouvelle organisation UI (Option B recommandée)
+Ajout d’un onglet ou bouton secondaire
+
+Dans la page projet, ajouter un accès clair :
+
+Onglet : “Analyse” ou “Comparaison”
+
+ou bouton discret : “Comparer ce projet”
+
+Comportement attendu
+
+Au clic :
+
+ouvrir un panel latéral (drawer) ou une section repliable
+
+sans changer de page
+
+sans recharger le projet
+
+4️⃣ Contenu du panel “Analyse / Comparaison”
+
+Le panel contient 3 sections, dans cet ordre :
+
+1. À ce rythme…
+
+Temps total projeté
+
+Marge projetée
+
+Rythme actuel (h/jour)
+
+Statut synthétique (ex : “Sous contrôle”, “À risque”, “Dérapage probable”)
+
+2. Comparaison avec projets similaires
+
+Écart de marge
+
+Écart de TJM
+
+Écart de temps
+
+Phrase de synthèse contextualisée (cf. règles de wording ci-dessus)
+
+3. Projets de référence
+
+Top 3 projets comparables
+
+Marge / TJM / Temps
+
+Message “Ce que ces projets ont en commun…”
+
+5️⃣ Règles UX importantes
+
+Le header du projet reste simple :
+
+nom
+
+statut
+
+alertes clés
+
+actions rapides
+
+Le panel “Analyse / Comparaison” :
+
+est non bloquant
+
+peut être ouvert / fermé librement
+
+est optionnel (lecture avancée)
+
+6️⃣ Critères de validation
+
+Aucune comparaison affichée directement dans le header
+
+Les recommandations sont toujours cohérentes avec la rentabilité réelle
+
+La comparaison devient un outil d’aide à la décision, pas une surcharge visuelle
+
+Le panel est accessible en ≤ 1 action depuis la page projet

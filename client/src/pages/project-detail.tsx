@@ -2487,6 +2487,9 @@ export default function ProjectDetail() {
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("activities");
+  
+  // Analysis drawer state
+  const [showAnalysisDrawer, setShowAnalysisDrawer] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
@@ -3226,6 +3229,15 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAnalysisDrawer(true)}
+              data-testid="button-analyze-project"
+              className="flex-1 sm:flex-none"
+            >
+              <TrendingUp className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Analyser</span>
+            </Button>
             <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none">
               <Edit className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Modifier</span>
@@ -3341,217 +3353,6 @@ export default function ProjectDetail() {
               </div>
             </Card>
           </div>
-        )}
-
-        {/* Comparison & Projections Section */}
-        {comparisonData && (
-          <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Projections Card */}
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">À ce rythme...</h3>
-                <Badge variant="outline" className="text-[10px] ml-auto">Projection</Badge>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Temps total projeté</span>
-                  <span className={cn(
-                    "text-sm font-medium",
-                    comparisonData.projections.atRiskOfOverrun ? "text-amber-600" : "text-foreground"
-                  )}>
-                    {comparisonData.projections.estimatedTotalDays.toFixed(1)} jours
-                    {comparisonData.projections.timeDeviation > 0 && (
-                      <span className="text-amber-600 ml-1">
-                        (+{comparisonData.projections.timeDeviation.toFixed(0)}%)
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Marge projetée</span>
-                  <span className={cn(
-                    "text-sm font-medium",
-                    comparisonData.projections.projectedMarginPercent >= 20 ? "text-green-600" :
-                    comparisonData.projections.projectedMarginPercent >= 0 ? "text-amber-600" : "text-red-600"
-                  )}>
-                    {comparisonData.projections.projectedMargin.toLocaleString("fr-FR")} €
-                    <span className="text-xs ml-1">({comparisonData.projections.projectedMarginPercent.toFixed(0)}%)</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Rythme actuel</span>
-                  <span className="text-sm font-medium">
-                    {(comparisonData.projections.pacePerDay * 8).toFixed(1)}h/jour
-                  </span>
-                </div>
-                {comparisonData.projections.atRiskOfOverrun && (
-                  <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-800 dark:text-amber-200">
-                        Risque de dépassement détecté. Ajustez le périmètre ou renégociez le budget.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Comparison Card */}
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Layers className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">Comparaison</h3>
-                <Badge variant="outline" className="text-[10px] ml-auto">
-                  {comparisonData.comparison.vsSimilar 
-                    ? `vs ${comparisonData.similarProjects?.projectCount} projets similaires`
-                    : "Pas assez de données"}
-                </Badge>
-              </div>
-              
-              {comparisonData.comparison.vsSimilar ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Écart marge</span>
-                    <span className={cn(
-                      "text-sm font-medium",
-                      comparisonData.comparison.vsSimilar.marginGap >= 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {comparisonData.comparison.vsSimilar.marginGap >= 0 ? "+" : ""}
-                      {comparisonData.comparison.vsSimilar.marginGap.toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Écart TJM</span>
-                    <span className={cn(
-                      "text-sm font-medium",
-                      comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "+" : ""}
-                      {comparisonData.comparison.vsSimilar.tjmGap.toFixed(0)} €/j
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Écart temps</span>
-                    <span className={cn(
-                      "text-sm font-medium",
-                      comparisonData.comparison.vsSimilar.timeGap <= 0 ? "text-green-600" : "text-amber-600"
-                    )}>
-                      {comparisonData.comparison.vsSimilar.timeGap >= 0 ? "+" : ""}
-                      {comparisonData.comparison.vsSimilar.timeGap.toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="mt-2 p-2 rounded border bg-muted/50">
-                    <p className="text-xs">
-                      {comparisonData.comparison.vsSimilar.verdict === 'above_average' 
-                        ? "Ce projet performe au-dessus de la moyenne." 
-                        : "Ce projet est en dessous de la moyenne. Des optimisations sont possibles."}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-4 text-center">
-                  <Info className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Pas assez de projets similaires pour comparer.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    La comparaison sera disponible avec plus de données.
-                  </p>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* Reference Projects (Templates) */}
-        {comparisonData?.bestProjects && comparisonData.bestProjects.topProjects.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader className="py-3 px-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-amber-500" />
-                  Projets de référence
-                </CardTitle>
-                <Badge variant="outline" className="text-[10px]">
-                  Top {comparisonData.bestProjects.topProjects.length} marge
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Les meilleurs projets comme modèles à suivre
-              </p>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {comparisonData.bestProjects.topProjects.map((refProject, index) => (
-                  <div 
-                    key={refProject.id} 
-                    className="p-3 rounded-lg border bg-card hover-elevate cursor-pointer"
-                    onClick={() => setLocation(`/projects/${refProject.id}`)}
-                    data-testid={`reference-project-${index}`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 px-1.5 py-0.5 rounded">
-                          #{index + 1}
-                        </span>
-                        <span className="text-sm font-medium line-clamp-1">{refProject.name}</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Marge</span>
-                        <span className={cn(
-                          "ml-1 font-medium",
-                          refProject.marginPercent >= 20 ? "text-green-600" : "text-amber-600"
-                        )}>
-                          {refProject.marginPercent.toFixed(0)}%
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">TJM</span>
-                        <span className="ml-1 font-medium">
-                          {refProject.actualTJM.toFixed(0)}€
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Temps</span>
-                        <span className={cn(
-                          "ml-1 font-medium",
-                          refProject.timeOverrunPercent <= 0 ? "text-green-600" : "text-amber-600"
-                        )}>
-                          {refProject.actualDaysWorked.toFixed(1)}j
-                          {refProject.timeOverrunPercent !== 0 && (
-                            <span className="text-[10px] ml-0.5">
-                              ({refProject.timeOverrunPercent > 0 ? "+" : ""}{refProject.timeOverrunPercent.toFixed(0)}%)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      {refProject.category && (
-                        <div>
-                          <span className="text-muted-foreground">Type</span>
-                          <span className="ml-1 font-medium truncate">{refProject.category}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Insights from reference projects */}
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Ce que ces projets ont en commun :</strong>{" "}
-                  TJM moyen de {comparisonData.bestProjects.avgActualTJM.toFixed(0)}€/j, 
-                  marge moyenne de {comparisonData.bestProjects.avgMarginPercent.toFixed(0)}%,
-                  {comparisonData.bestProjects.avgTimeOverrunPercent <= 0 
-                    ? " et aucun dépassement de temps."
-                    : ` avec ${comparisonData.bestProjects.avgTimeOverrunPercent.toFixed(0)}% de dépassement temps.`}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         {/* Data Completeness Indicators */}
@@ -5623,6 +5424,282 @@ export default function ProjectDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Analysis Drawer */}
+      <Sheet open={showAnalysisDrawer} onOpenChange={setShowAnalysisDrawer}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" data-testid="drawer-analysis">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Analyse du projet
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-6">
+            {/* Section 1: Projections */}
+            {comparisonData && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold">À ce rythme...</h3>
+                  <Badge variant="outline" className="text-[10px] ml-auto">Projection</Badge>
+                </div>
+                
+                <Card className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Temps total projeté</span>
+                      <span className={cn(
+                        "text-sm font-medium",
+                        comparisonData.projections.atRiskOfOverrun ? "text-amber-600" : "text-foreground"
+                      )}>
+                        {comparisonData.projections.estimatedTotalDays.toFixed(1)} jours
+                        {comparisonData.projections.timeDeviation > 0 && (
+                          <span className="text-amber-600 ml-1">
+                            (+{comparisonData.projections.timeDeviation.toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Marge projetée</span>
+                      <span className={cn(
+                        "text-sm font-medium",
+                        comparisonData.projections.projectedMarginPercent >= 20 ? "text-green-600" :
+                        comparisonData.projections.projectedMarginPercent >= 0 ? "text-amber-600" : "text-red-600"
+                      )}>
+                        {comparisonData.projections.projectedMargin.toLocaleString("fr-FR")} €
+                        <span className="text-xs ml-1">({comparisonData.projections.projectedMarginPercent.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Rythme actuel</span>
+                      <span className="text-sm font-medium">
+                        {(comparisonData.projections.pacePerDay * 8).toFixed(1)}h/jour
+                      </span>
+                    </div>
+                    
+                    {/* Status synthesis */}
+                    <div className={cn(
+                      "mt-3 p-3 rounded-lg border",
+                      comparisonData.projections.projectedMarginPercent >= 20 
+                        ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                        : comparisonData.projections.atRiskOfOverrun
+                          ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                          : comparisonData.projections.projectedMarginPercent < 0
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                            : "bg-muted/50"
+                    )}>
+                      <div className="flex items-start gap-2">
+                        {comparisonData.projections.projectedMarginPercent >= 20 ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        ) : comparisonData.projections.projectedMarginPercent < 0 ? (
+                          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className={cn(
+                            "text-sm font-medium",
+                            comparisonData.projections.projectedMarginPercent >= 20 
+                              ? "text-green-800 dark:text-green-200"
+                              : comparisonData.projections.projectedMarginPercent < 0
+                                ? "text-red-800 dark:text-red-200"
+                                : "text-amber-800 dark:text-amber-200"
+                          )}>
+                            {comparisonData.projections.projectedMarginPercent >= 20 
+                              ? "Sous contrôle"
+                              : comparisonData.projections.projectedMarginPercent < 0
+                                ? "Dérapage probable"
+                                : "À risque"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {comparisonData.projections.projectedMarginPercent >= 20 
+                              ? "Le projet est rentable au rythme actuel."
+                              : comparisonData.projections.projectedMarginPercent < 0
+                                ? "La marge projetée est négative. Ajustez le périmètre ou renégociez."
+                                : "La marge est faible. Surveillez le temps restant."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Section 2: Comparison with similar projects */}
+            {comparisonData && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold">Comparaison</h3>
+                  <Badge variant="outline" className="text-[10px] ml-auto">
+                    {comparisonData.comparison.vsSimilar 
+                      ? `vs ${comparisonData.similarProjects?.projectCount} projets similaires`
+                      : "Pas assez de données"}
+                  </Badge>
+                </div>
+
+                <Card className="p-4">
+                  {comparisonData.comparison.vsSimilar ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Écart marge</span>
+                        <span className={cn(
+                          "text-sm font-medium",
+                          comparisonData.comparison.vsSimilar.marginGap >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {comparisonData.comparison.vsSimilar.marginGap >= 0 ? "+" : ""}
+                          {comparisonData.comparison.vsSimilar.marginGap.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Écart TJM</span>
+                        <span className={cn(
+                          "text-sm font-medium",
+                          comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "+" : ""}
+                          {comparisonData.comparison.vsSimilar.tjmGap.toFixed(0)} €/j
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Écart temps</span>
+                        <span className={cn(
+                          "text-sm font-medium",
+                          comparisonData.comparison.vsSimilar.timeGap <= 0 ? "text-green-600" : "text-amber-600"
+                        )}>
+                          {comparisonData.comparison.vsSimilar.timeGap >= 0 ? "+" : ""}
+                          {comparisonData.comparison.vsSimilar.timeGap.toFixed(0)}%
+                        </span>
+                      </div>
+                      
+                      {/* Contextual synthesis - improved messaging */}
+                      <div className="mt-3 p-3 rounded-lg border bg-muted/50">
+                        <p className="text-sm">
+                          {(() => {
+                            const isAboveAverage = comparisonData.comparison.vsSimilar?.verdict === 'above_average';
+                            const isProjectProfitable = comparisonData.projections.projectedMarginPercent >= 0;
+                            
+                            if (isAboveAverage && isProjectProfitable) {
+                              return "Ce projet performe au-dessus de la moyenne et reste rentable.";
+                            } else if (isAboveAverage && !isProjectProfitable) {
+                              return "Ce projet est plus performant que des projets similaires, mais reste sous le seuil de rentabilité attendu.";
+                            } else if (!isAboveAverage && isProjectProfitable) {
+                              return "Ce projet est en dessous de la moyenne mais reste rentable. Des optimisations sont possibles.";
+                            } else {
+                              return "Ce projet est en dessous de la moyenne et n'est pas rentable. Des ajustements urgents sont nécessaires.";
+                            }
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                      <Info className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Pas assez de projets similaires pour comparer.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        La comparaison sera disponible avec plus de données.
+                      </p>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            {/* Section 3: Reference Projects */}
+            {comparisonData?.bestProjects && comparisonData.bestProjects.topProjects.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <h3 className="font-semibold">Projets de référence</h3>
+                  <Badge variant="outline" className="text-[10px] ml-auto">
+                    Top {comparisonData.bestProjects.topProjects.length} marge
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  {comparisonData.bestProjects.topProjects.map((refProject, index) => (
+                    <Card 
+                      key={refProject.id} 
+                      className="p-3 hover-elevate cursor-pointer"
+                      onClick={() => {
+                        setShowAnalysisDrawer(false);
+                        setLocation(`/projects/${refProject.id}`);
+                      }}
+                      data-testid={`drawer-reference-project-${index}`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 px-1.5 py-0.5 rounded">
+                            #{index + 1}
+                          </span>
+                          <span className="text-sm font-medium line-clamp-1">{refProject.name}</span>
+                        </div>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Marge</span>
+                          <span className={cn(
+                            "ml-1 font-medium",
+                            refProject.marginPercent >= 20 ? "text-green-600" : "text-amber-600"
+                          )}>
+                            {refProject.marginPercent.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">TJM</span>
+                          <span className="ml-1 font-medium">
+                            {refProject.actualTJM.toFixed(0)}€
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Temps</span>
+                          <span className={cn(
+                            "ml-1 font-medium",
+                            refProject.timeOverrunPercent <= 0 ? "text-green-600" : "text-amber-600"
+                          )}>
+                            {refProject.actualDaysWorked.toFixed(1)}j
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Insights from reference projects */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Ce que ces projets ont en commun :</strong>{" "}
+                    TJM moyen de {comparisonData.bestProjects.avgActualTJM.toFixed(0)}€/j, 
+                    marge moyenne de {comparisonData.bestProjects.avgMarginPercent.toFixed(0)}%,
+                    {comparisonData.bestProjects.avgTimeOverrunPercent <= 0 
+                      ? " et aucun dépassement de temps."
+                      : ` avec ${comparisonData.bestProjects.avgTimeOverrunPercent.toFixed(0)}% de dépassement temps.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* No data state */}
+            {!comparisonData && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Info className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground">
+                  Pas de données d'analyse disponibles.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Ajoutez des entrées de temps et un budget pour voir les projections.
+                </p>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
