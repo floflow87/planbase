@@ -1490,7 +1490,7 @@ export default function Dashboard() {
                 Glissez pour réorganiser les blocs et utilisez les interrupteurs pour les afficher/masquer.
               </p>
             </SheetHeader>
-            <div className="py-6">
+            <div className="py-6 overflow-y-auto max-h-[calc(100vh-180px)]">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
