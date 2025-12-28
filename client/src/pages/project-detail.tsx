@@ -735,15 +735,126 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 )}
               </div>
               {totalEstimatedDays > 0 && (
-                <Progress value={Math.min(100, consumptionPercent)} className="h-2 mt-1" />
+                <div className="relative h-2 mt-1">
+                  <div className="absolute inset-0 bg-muted rounded-full" />
+                  <div 
+                    className={cn(
+                      "absolute top-0 left-0 h-full rounded-full transition-all",
+                      consumptionPercent >= 100 ? "bg-red-600" : consumptionPercent >= 80 ? "bg-amber-500" : "bg-green-600"
+                    )}
+                    style={{ width: `${Math.min(100, consumptionPercent)}%` }}
+                  />
+                  {/* Threshold markers - positioned inside the bar */}
+                  <div className="absolute top-0 h-full w-0.5 bg-amber-400/80" style={{ left: "80%", transform: "translateX(-50%)" }} />
+                  <div className="absolute top-0 h-full w-0.5 bg-red-400/80" style={{ left: "calc(100% - 1px)" }} />
+                </div>
               )}
             </div>
           </div>
+          
+          {/* Contextual status message */}
+          {totalEstimatedDays > 0 && (() => {
+            const overageDays = totalTimeDays - totalEstimatedDays;
+            const actualRemaining = totalEstimatedDays - totalTimeDays;
+            
+            return (
+              <div className={cn(
+                "mt-4 p-3 rounded-lg border-l-4 text-sm",
+                consumptionPercent >= 100 
+                  ? "bg-red-50 dark:bg-red-950/30 border-l-red-500 text-red-800 dark:text-red-200"
+                  : consumptionPercent >= 80 
+                    ? "bg-amber-50 dark:bg-amber-950/30 border-l-amber-500 text-amber-800 dark:text-amber-200"
+                    : "bg-green-50 dark:bg-green-950/30 border-l-green-500 text-green-800 dark:text-green-200"
+              )} data-testid="time-status-message">
+                <div className="flex items-center gap-2">
+                  {consumptionPercent >= 100 ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span><strong>Dépassement confirmé</strong> - +{overageDays.toFixed(1)} jours au-delà du budget ({(consumptionPercent - 100).toFixed(0)}% de dépassement). Renégociez le périmètre ou le budget.</span>
+                    </>
+                  ) : consumptionPercent >= 80 ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span><strong>Attention au rythme actuel</strong> - {consumptionPercent.toFixed(0)}% consommé, vigilance requise pour les {actualRemaining.toFixed(1)} jours restants.</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span><strong>Rythme maîtrisé</strong> - {consumptionPercent.toFixed(0)}% consommé, marge confortable de {actualRemaining.toFixed(1)} jours.</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          
           {scopeItems.length === 0 && (
             <p className="text-xs text-muted-foreground mt-4 text-center">
               Ajoutez des étapes dans l'onglet CDC pour activer le pilotage temps.
             </p>
           )}
+          
+          {/* Incomplete data signals - subtle warnings */}
+          {(() => {
+            const signals: { id: string; message: string; icon: JSX.Element }[] = [];
+            
+            // Check for uncategorized time
+            const uncategorizedTime = timeEntries.filter(e => !e.scopeItemId);
+            if (uncategorizedTime.length > 0) {
+              const uncatHours = uncategorizedTime.reduce((sum, e) => sum + (e.duration || 0), 0) / 3600;
+              signals.push({
+                id: "uncategorized",
+                message: `${uncatHours.toFixed(1)}h non catégorisées (${uncategorizedTime.length} entrées)`,
+                icon: <Clock className="h-3 w-3" />
+              });
+            }
+            
+            // Check for scope items without estimation
+            const scopeWithoutEstimation = scopeItems.filter(item => !item.estimatedDays || parseFloat(item.estimatedDays.toString()) === 0);
+            if (scopeWithoutEstimation.length > 0 && scopeItems.length > 0) {
+              signals.push({
+                id: "no-estimation",
+                message: `${scopeWithoutEstimation.length} étape(s) CDC sans estimation`,
+                icon: <List className="h-3 w-3" />
+              });
+            }
+            
+            // Check for no internal cost defined
+            if (!project?.internalDailyCost || project.internalDailyCost === 0) {
+              signals.push({
+                id: "no-cost",
+                message: "Aucun coût journalier défini",
+                icon: <Euro className="h-3 w-3" />
+              });
+            }
+            
+            // Check for tasks without estimation (if there are tasks)
+            const tasksWithoutEstimation = projectTasks.filter(t => !t.estimatedHours || t.estimatedHours === 0);
+            if (tasksWithoutEstimation.length > 0 && projectTasks.length > 3) {
+              signals.push({
+                id: "tasks-no-estimation",
+                message: `${tasksWithoutEstimation.length} tâche(s) sans estimation`,
+                icon: <CheckCircle2 className="h-3 w-3" />
+              });
+            }
+            
+            if (signals.length === 0) return null;
+            
+            return (
+              <div className="mt-3 flex flex-wrap gap-2" data-testid="incomplete-data-signals">
+                {signals.map((signal) => (
+                  <div
+                    key={signal.id}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/60 text-muted-foreground text-xs"
+                    data-testid={`signal-${signal.id}`}
+                  >
+                    {signal.icon}
+                    <span>{signal.message}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           
           {/* Add Time Form - Collapsible */}
           {showAddTimeForm && (
@@ -1393,31 +1504,92 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           }
         };
         
+        // Enhanced recommendations with actions
+        const getActionForRecommendation = (rec: Recommendation) => {
+          switch (rec.type) {
+            case "exceeded": 
+              return { label: "Voir CDC", action: () => document.querySelector('[data-tab="cdc"]')?.dispatchEvent(new MouseEvent('click')) };
+            case "approaching": 
+              return { label: "Voir temps", action: () => {} };
+            case "drift": 
+              return { label: "Catégoriser", action: () => setShowAddTimeForm(true) };
+            case "ahead": 
+              return null;
+            default: 
+              return null;
+          }
+        };
+
+        const getImpactForRecommendation = (rec: Recommendation) => {
+          switch (rec.type) {
+            case "exceeded":
+              return `Dépassement de ${(consumptionPercent - 100).toFixed(0)}% du budget temps`;
+            case "approaching":
+              return `Risque de dépassement de ${remainingDays.toFixed(1)} jours`;
+            case "drift":
+              return `Temps non catégorisé à risque`;
+            default:
+              return null;
+          }
+        };
+
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Info className="h-4 w-4" />
+          <Card className="border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
                 Recommandations temps
+                <Badge variant="outline" className="ml-auto bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300">
+                  {recommendations.length} alerte{recommendations.length > 1 ? "s" : ""}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {recommendations.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className={`border-l-4 p-3 rounded-r-md ${getSeverityStyles(rec.severity)}`}
-                    data-testid={`recommendation-${rec.id}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className={`text-xs ${getHorizonStyles(rec.horizon)}`}>
-                        {getHorizonLabel(rec.horizon)}
-                      </Badge>
-                      <span className="font-medium text-sm">{rec.title}</span>
+              <div className="space-y-4">
+                {recommendations.map((rec) => {
+                  const actionInfo = getActionForRecommendation(rec);
+                  const impact = getImpactForRecommendation(rec);
+                  
+                  return (
+                    <div
+                      key={rec.id}
+                      className={cn(
+                        "border-l-4 p-4 rounded-r-lg",
+                        getSeverityStyles(rec.severity)
+                      )}
+                      data-testid={`recommendation-${rec.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className={`text-xs ${getHorizonStyles(rec.horizon)}`}>
+                              {getHorizonLabel(rec.horizon)}
+                            </Badge>
+                            <span className="font-semibold text-sm">{rec.title}</span>
+                          </div>
+                          <p className="text-sm">{rec.description}</p>
+                          {impact && rec.severity !== "info" && (
+                            <p className="text-xs mt-2 font-medium text-muted-foreground flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3" />
+                              Impact: {impact}
+                            </p>
+                          )}
+                        </div>
+                        {actionInfo && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="shrink-0"
+                            onClick={actionInfo.action}
+                            data-testid={`action-${rec.id}`}
+                          >
+                            {actionInfo.label}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">{rec.description}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -4362,46 +4534,98 @@ export default function ProjectDetail() {
 
           <TabsContent value="activities" className="mt-0">
             {/* Project Info Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-semibold tracking-tight text-[16px]">Description</CardTitle>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <Card className="border-l-4 border-l-primary">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-semibold tracking-tight text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Description
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground text-[12px]" data-testid="project-description-tab">
+                  <p className={cn(
+                    "text-sm leading-relaxed",
+                    project.description ? "text-foreground" : "text-muted-foreground italic"
+                  )} data-testid="project-description-tab">
                     {project.description || "Aucune description renseignée"}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="tracking-tight font-semibold text-foreground text-[16px]">Période</CardTitle>
+              <Card className="border-l-4 border-l-cyan-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="tracking-tight font-semibold text-sm flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-cyan-500" />
+                    Période
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-[12px]">Début:</span>
-                        <span className="text-[12px]" data-testid="project-start-date-tab">
+                  <div className="space-y-3">
+                    {/* Dates row */}
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Début:</span>
+                        <span className="font-medium" data-testid="project-start-date-tab">
                           {project.startDate 
                             ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                             : "Non définie"}
                         </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-[12px]">Fin:</span>
-                        <span className="text-[12px]" data-testid="project-end-date-tab">
+                      <span className="text-muted-foreground">→</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Fin:</span>
+                        <span className="font-medium" data-testid="project-end-date-tab">
                           {project.endDate 
                             ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
                             : "Non définie"}
                         </span>
                       </div>
                     </div>
+                    
+                    {/* Duration & Progress indicator */}
+                    {project.startDate && project.endDate && (() => {
+                      const start = new Date(project.startDate);
+                      const end = new Date(project.endDate);
+                      const today = new Date();
+                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                      const remainingDays = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+                      const progressPercent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+                      const isOverdue = today > end;
+                      const overdueDays = isOverdue ? Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                      
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Durée totale: <span className="font-medium text-foreground">{totalDays} jours</span></span>
+                            {isOverdue ? (
+                              <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                                +{overdueDays}j de retard
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                {elapsedDays}j écoulés / {remainingDays}j restants
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                isOverdue ? "bg-red-500" : progressPercent > 80 ? "bg-amber-500" : "bg-cyan-500"
+                              )}
+                              style={{ width: `${Math.min(100, progressPercent)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {(!project.startDate || !project.endDate) && (
+                      <p className="text-xs text-muted-foreground italic">
+                        Définissez les dates pour voir la progression
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

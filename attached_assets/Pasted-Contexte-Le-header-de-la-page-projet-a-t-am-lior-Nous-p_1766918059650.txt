@@ -1,0 +1,87 @@
+Contexte
+
+Le header de la page projet a été amélioré.
+Nous poursuivons maintenant l’amélioration du contenu principal de la page projet, sans modifier la structure globale ni les onglets existants.
+
+⚠️ Cette étape doit explicitement modifier plusieurs zones de la page, pas uniquement le header.
+
+1️⃣ Bloc Description & Période : rendre utile, pas décoratif
+
+Améliorer le bloc Description / Période :
+
+rendre la description plus lisible (hiérarchie, contraste, longueur)
+
+afficher clairement la durée totale du projet (en jours)
+
+ajouter un micro-indicateur :
+“X jours écoulés / Y jours restants”
+
+Aucun champ supplémentaire, uniquement enrichir l’existant.
+
+2️⃣ Bloc Activités : le transformer en vrai journal de pilotage
+
+Améliorer le bloc Activités pour qu’il serve réellement au pilotage :
+
+différencier visuellement les types d’événements (temps, facture, tâche, update)
+
+réduire la répétition des labels (“Mise à jour”)
+
+mettre en avant les événements à impact financier ou planning
+
+L’ordre chronologique reste inchangé.
+
+3️⃣ Bloc Temps : renforcer la lecture “où j’en suis”
+
+Enrichir la lecture du temps projet :
+
+ajouter un seuil visuel de vigilance (ex : >80%, >100%)
+
+afficher un message de statut contextualisé :
+
+“Rythme maîtrisé”
+
+“Attention au rythme actuel”
+
+“Dépassement probable”
+
+Aucun nouveau graphique complexe : réutiliser la jauge existante.
+
+4️⃣ Recommandations : les rendre impossibles à ignorer
+
+Améliorer la section Recommandations existante :
+
+la rendre plus visible dans la page
+
+afficher clairement :
+
+le problème détecté
+
+l’impact chiffré potentiel
+
+proposer une action immédiate (CTA)
+
+Les actions doivent être déclenchables sans quitter la page projet.
+
+5️⃣ États incomplets : signal faible mais constant
+
+Ajouter des signaux discrets quand certaines données sont manquantes :
+
+temps non catégorisé
+
+absence de coûts projet
+
+tâches sans estimation
+
+Le ton doit être informatif, jamais bloquant.
+
+6️⃣ Contraintes
+
+Pas de refonte UI globale
+
+Pas de suppression d’onglets
+
+Pas de nouvelle route
+
+Pas de nouvelle page
+
+Chaque amélioration doit être visible directement dans la page projet existante.
