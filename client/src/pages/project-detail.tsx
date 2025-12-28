@@ -2951,10 +2951,10 @@ export default function ProjectDetail() {
 
         {/* Project Health Summary KPI Cards */}
         {projectProfitabilityData?.metrics && (
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Health Status Card */}
             <Card className={cn(
-              "border-l-4 p-5",
+              "border-l-4 p-4",
               projectProfitabilityData.metrics.status === 'profitable' && "border-l-green-500",
               projectProfitabilityData.metrics.status === 'at_risk' && "border-l-amber-500",
               projectProfitabilityData.metrics.status === 'deficit' && "border-l-red-500"
@@ -2990,7 +2990,7 @@ export default function ProjectDetail() {
             </Card>
 
             {/* Time Summary Card */}
-            <Card className="border-l-4 border-l-primary p-5">
+            <Card className="border-l-4 border-l-primary p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Clock className="h-5 w-5 text-primary" />
@@ -3019,7 +3019,7 @@ export default function ProjectDetail() {
             </Card>
 
             {/* Revenue Summary Card */}
-            <Card className="border-l-4 border-l-cyan-500 p-5">
+            <Card className="border-l-4 border-l-cyan-500 p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
                   <Euro className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
