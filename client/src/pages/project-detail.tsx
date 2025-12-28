@@ -2595,6 +2595,12 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  // Fetch time entries for this project (for cross-module navigation)
+  const { data: projectTimeEntries = [] } = useQuery<TimeEntry[]>({
+    queryKey: ['/api/time-entries', { projectId: id }],
+    enabled: !!id,
+  });
+
   // Fetch scope items (CDC) for this project - used for auto-completing numberOfDays
   const { data: projectScopeItemsData } = useQuery<{ scopeItems: ProjectScopeItem[] }>({
     queryKey: ['/api/projects', id, 'scope-items'],
