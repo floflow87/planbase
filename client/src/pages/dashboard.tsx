@@ -26,7 +26,7 @@ import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Switch } from "@/components/ui/switch";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Loader } from "@/components/Loader";
@@ -300,7 +300,13 @@ export default function Dashboard() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -1308,16 +1314,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Dashboard Settings Dialog */}
-        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-          <DialogContent className="sm:max-w-md" data-testid="dialog-dashboard-settings">
-            <DialogHeader>
-              <DialogTitle>Personnaliser le tableau de bord</DialogTitle>
-              <DialogDescription>
+        {/* Dashboard Settings Panel */}
+        <Sheet open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+          <SheetContent side="right" className="w-[350px] sm:w-[400px]" data-testid="panel-dashboard-settings">
+            <SheetHeader>
+              <SheetTitle>Personnaliser le tableau de bord</SheetTitle>
+              <p className="text-sm text-muted-foreground">
                 Glissez pour réorganiser les blocs et utilisez les interrupteurs pour les afficher/masquer.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
+              </p>
+            </SheetHeader>
+            <div className="py-6">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -1339,23 +1345,25 @@ export default function Dashboard() {
                 </SortableContext>
               </DndContext>
             </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 mt-4">
               <Button
                 variant="outline"
                 onClick={resetDashboardConfig}
                 data-testid="button-reset-dashboard"
+                className="flex-1"
               >
                 Réinitialiser
               </Button>
               <Button
                 onClick={() => setIsSettingsDialogOpen(false)}
                 data-testid="button-close-settings"
+                className="flex-1"
               >
                 Fermer
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* KPI Cards */}
         {isBlockVisible('kpis') && (
