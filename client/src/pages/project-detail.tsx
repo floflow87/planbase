@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2949,81 +2949,104 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Project Health Summary Bar */}
+        {/* Project Health Summary KPI Cards */}
         {projectProfitabilityData?.metrics && (
-          <div className="mb-4 p-3 rounded-lg border bg-card">
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              {/* Health Indicator */}
-              <div className="flex items-center gap-2">
-                <div 
-                  className={cn(
-                    "w-2.5 h-2.5 rounded-full",
-                    projectProfitabilityData.metrics.status === 'profitable' && "bg-green-500",
-                    projectProfitabilityData.metrics.status === 'at_risk' && "bg-amber-500",
-                    projectProfitabilityData.metrics.status === 'deficit' && "bg-red-500"
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Health Status Card */}
+            <Card className={cn(
+              "border-l-4 p-5",
+              projectProfitabilityData.metrics.status === 'profitable' && "border-l-green-500",
+              projectProfitabilityData.metrics.status === 'at_risk' && "border-l-amber-500",
+              projectProfitabilityData.metrics.status === 'deficit' && "border-l-red-500"
+            )}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  projectProfitabilityData.metrics.status === 'profitable' && "bg-green-100 dark:bg-green-900/30",
+                  projectProfitabilityData.metrics.status === 'at_risk' && "bg-amber-100 dark:bg-amber-900/30",
+                  projectProfitabilityData.metrics.status === 'deficit' && "bg-red-100 dark:bg-red-900/30"
+                )}>
+                  {projectProfitabilityData.metrics.status === 'profitable' && <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />}
+                  {projectProfitabilityData.metrics.status === 'at_risk' && <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+                  {projectProfitabilityData.metrics.status === 'deficit' && <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Santé projet</p>
+                  <p className={cn(
+                    "text-lg font-semibold",
+                    projectProfitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
+                    projectProfitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
+                    projectProfitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
+                  )} data-testid="health-label">
+                    {projectProfitabilityData.metrics.status === 'profitable' && "En bonne voie"}
+                    {projectProfitabilityData.metrics.status === 'at_risk' && "À surveiller"}
+                    {projectProfitabilityData.metrics.status === 'deficit' && "En difficulté"}
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Marge : {projectProfitabilityData.metrics.theoreticalMargin?.toFixed(0) || 0} %
+              </div>
+            </Card>
+
+            {/* Time Summary Card */}
+            <Card className="border-l-4 border-l-primary p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Temps consommé</p>
+                  <p className="text-lg font-semibold" data-testid="time-consumed">
+                    {projectProfitabilityData.metrics.actualDaysWorked.toFixed(1)} jours
+                  </p>
+                </div>
+              </div>
+              {projectProfitabilityData.metrics.theoreticalDays > 0 ? (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground" data-testid="time-planned">
+                    sur {projectProfitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
+                  </span>
+                  {projectProfitabilityData.metrics.timeOverrunPercent > 10 && (
+                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                      +{projectProfitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
+                    </Badge>
                   )}
-                  data-testid="health-indicator"
-                />
-                <span className={cn(
-                  "font-medium",
-                  projectProfitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
-                  projectProfitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
-                  projectProfitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
-                )} data-testid="health-label">
-                  {projectProfitabilityData.metrics.status === 'profitable' && "En bonne voie"}
-                  {projectProfitabilityData.metrics.status === 'at_risk' && "À surveiller"}
-                  {projectProfitabilityData.metrics.status === 'deficit' && "En difficulté"}
-                </span>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Aucune estimation définie</p>
+              )}
+            </Card>
+
+            {/* Revenue Summary Card */}
+            <Card className="border-l-4 border-l-cyan-500 p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+                  <Euro className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Montant facturé</p>
+                  <p className="text-lg font-semibold" data-testid="billed-amount">
+                    {(projectProfitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
+                  </p>
+                </div>
               </div>
-              
-              <Separator orientation="vertical" className="h-4 hidden sm:block" />
-              
-              {/* Time Summary */}
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-muted-foreground">Temps :</span>
-                <span className="font-medium" data-testid="time-consumed">
-                  {projectProfitabilityData.metrics.actualDaysWorked.toFixed(1)}j
-                </span>
-                {projectProfitabilityData.metrics.theoreticalDays > 0 && (
-                  <>
-                    <span className="text-muted-foreground">/</span>
-                    <span className="text-muted-foreground" data-testid="time-planned">
-                      {projectProfitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
-                    </span>
-                    {projectProfitabilityData.metrics.timeOverrunPercent > 10 && (
-                      <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
-                        +{projectProfitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </div>
-              
-              <Separator orientation="vertical" className="h-4 hidden sm:block" />
-              
-              {/* Revenue Summary */}
-              <div className="flex items-center gap-1.5">
-                <Euro className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-muted-foreground">Facturé :</span>
-                <span className="font-medium" data-testid="billed-amount">
-                  {(projectProfitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
-                </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 {projectProfitabilityData.metrics.totalPaid > 0 && (
-                  <>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-green-600 dark:text-green-400" data-testid="paid-amount">
-                      {projectProfitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
-                    </span>
-                  </>
+                  <span className="text-green-600 dark:text-green-400" data-testid="paid-amount">
+                    {projectProfitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
+                  </span>
                 )}
                 {projectProfitabilityData.metrics.remainingToPay > 0 && (
-                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
+                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
                     {projectProfitabilityData.metrics.remainingToPay.toLocaleString("fr-FR")} € à recevoir
                   </Badge>
                 )}
+                {!projectProfitabilityData.metrics.totalPaid && !projectProfitabilityData.metrics.remainingToPay && (
+                  <span className="text-muted-foreground">Aucun paiement reçu</span>
+                )}
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
