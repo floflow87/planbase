@@ -1,0 +1,157 @@
+Objectif global
+
+Faire évoluer la page projet existante vers un véritable centre de pilotage décisionnel, en ajoutant :
+
+de la comparaison,
+
+de l’anticipation,
+
+des actions guidées,
+sans modifier la structure fondamentale (routes, onglets, navigation).
+
+⚠️ Cette étape ne doit pas se limiter à de l’UI.
+Elle doit introduire de la lecture stratégique et des aides à la décision.
+
+1️⃣ Comparaison projet (lecture relative, pas isolée)
+
+Ajouter une capacité de comparaison contextuelle :
+
+comparer ce projet à :
+
+la moyenne des projets similaires (type, catégorie)
+
+les projets les plus rentables
+
+afficher des écarts simples :
+
+temps consommé
+
+marge
+
+TJM réel
+
+La comparaison doit être :
+
+lisible en 5 secondes
+
+intégrée dans la page (pas de page dédiée)
+
+Objectif : répondre à
+“Ce projet est-il normal… ou problématique ?”
+
+2️⃣ Projection & anticipation (si on continue comme ça)
+
+Ajouter une lecture prospective basée sur le rythme actuel :
+
+projection du temps total à ce rythme
+
+projection de la marge finale
+
+détection des risques de dépassement
+
+Les projections doivent être clairement identifiées comme telles :
+
+“À ce rythme…”
+
+“Projection estimée”
+
+Aucun calcul complexe visible pour l’utilisateur.
+
+3️⃣ Actions guidées depuis les recommandations
+
+Transformer certaines recommandations en actions pré-remplies :
+
+ajuster un TJM
+
+ajouter un coût manquant
+
+reclasser du temps
+
+planifier une action (tâche, relance, facturation)
+
+Lors du clic :
+
+ouvrir un formulaire déjà pré-rempli
+
+expliquer pourquoi cette action est suggérée
+
+Objectif : passer de l’insight à l’action sans friction.
+
+4️⃣ Templates de projet (sans créer une usine à gaz)
+
+Introduire la notion de “Template de projet” :
+
+basé sur des projets existants réussis
+
+inclut :
+
+structure type
+
+catégories de temps
+
+ordre logique des étapes
+
+Le template sert à :
+
+comparer un projet réel à un “idéal”
+
+aider à cadrer les futurs projets
+
+Aucun workflow obligatoire, uniquement une référence.
+
+5️⃣ Lecture “santé projet” synthétique
+
+Ajouter un indicateur global de santé du projet :
+
+vert / orange / rouge
+
+basé sur :
+
+temps
+
+marge
+
+avancement
+
+données manquantes
+
+L’objectif n’est pas la précision mathématique,
+mais la clarté décisionnelle.
+
+6️⃣ Cohérence inter-modules (force de PlanBase)
+
+Dans chaque ajout, renforcer le lien entre modules :
+
+temps ↔ rentabilité
+
+tâches ↔ backlog
+
+recommandations ↔ actions
+
+Chaque information doit idéalement :
+
+renvoyer vers une action
+
+ou expliquer son impact ailleurs
+
+7️⃣ Contraintes strictes
+
+Pas de refonte complète
+
+Pas de nouvelle navigation principale
+
+Pas de duplication d’information
+
+Pas de jargon financier excessif
+
+Tout doit rester compréhensible pour un freelance ou une petite équipe.
+
+🧠 Intention produit à respecter
+
+Cette page doit permettre à l’utilisateur de répondre à 3 questions :
+
+Où j’en suis ?
+
+Où je vais si je continue comme ça ?
+
+Quelle est la meilleure action maintenant ?

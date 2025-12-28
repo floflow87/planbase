@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +194,67 @@ interface ProfitabilityAnalysis {
   projectName: string;
   metrics: ProfitabilityMetrics;
   recommendations: any[];
+  healthScore?: number;
+  generatedAt: string;
+}
+
+// Type for project comparison data
+interface ProjectComparison {
+  currentProject: {
+    id: string;
+    name: string;
+    category: string | null;
+    metrics: ProfitabilityMetrics;
+    healthScore: number;
+  };
+  similarProjects: {
+    avgMarginPercent: number;
+    avgActualTJM: number;
+    avgTimeOverrunPercent: number;
+    avgPaymentProgress: number;
+    projectCount: number;
+  } | null;
+  bestProjects: {
+    avgMarginPercent: number;
+    avgActualTJM: number;
+    avgTimeOverrunPercent: number;
+    projectCount: number;
+    topProjects: { 
+      id: string;
+      name: string; 
+      category: string | null;
+      marginPercent: number;
+      actualTJM: number;
+      actualDaysWorked: number;
+      theoreticalDays: number;
+      timeOverrunPercent: number;
+      status: 'profitable' | 'at_risk' | 'deficit';
+    }[];
+  } | null;
+  projections: {
+    pacePerDay: number;
+    estimatedTotalDays: number;
+    projectedMargin: number;
+    projectedMarginPercent: number;
+    timeDeviation: number;
+    atRiskOfOverrun: boolean;
+    projectedEndDate: string | null;
+  };
+  comparison: {
+    vsSimilar: {
+      marginGap: number;
+      tjmGap: number;
+      timeGap: number;
+      paymentGap: number;
+      verdict: 'above_average' | 'below_average';
+    } | null;
+    vsBest: {
+      marginGap: number;
+      tjmGap: number;
+      timeGap: number;
+      verdict: 'top_performer' | 'improvement_possible';
+    } | null;
+  };
   generatedAt: string;
 }
 
@@ -213,6 +274,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   
   // Free time entry form state
   const [showAddTimeForm, setShowAddTimeForm] = useState(false);
+  const [activeTab, setActiveTab] = useState("activities");
   const [timeInputMode, setTimeInputMode] = useState<'hours' | 'days'>('hours');
   const [newTimeDate, setNewTimeDate] = useState<Date | undefined>(new Date());
   const [newTimeDates, setNewTimeDates] = useState<Date[]>([]);
@@ -1505,15 +1567,52 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           }
         };
         
-        // Enhanced recommendations with actions
-        const getActionForRecommendation = (rec: Recommendation) => {
+        // Enhanced recommendations with guided actions
+        type ActionInfo = {
+          label: string;
+          action: () => void;
+          why?: string; // Explanation of why this action is suggested
+          prefillData?: Record<string, any>; // Data to prefill in forms
+        };
+
+        const getActionForRecommendation = (rec: Recommendation): ActionInfo | null => {
           switch (rec.type) {
-            case "exceeded": 
-              return { label: "Voir CDC", action: () => document.querySelector('[data-tab="cdc"]')?.dispatchEvent(new MouseEvent('click')) };
-            case "approaching": 
-              return { label: "Voir temps", action: () => {} };
+            case "overflow": 
+              return { 
+                label: "Renégocier", 
+                action: () => {
+                  toast({
+                    title: "Action suggérée",
+                    description: "Contactez le client pour renégocier le périmètre ou le budget du projet.",
+                    variant: "default",
+                  });
+                },
+                why: "Le temps prévu est dépassé. Une discussion avec le client est nécessaire pour ajuster le périmètre ou le budget.",
+              };
             case "drift": 
-              return { label: "Catégoriser", action: () => setShowAddTimeForm(true) };
+              return { 
+                label: "Catégoriser le temps", 
+                action: () => setShowAddTimeForm(true),
+                why: "Du temps non catégorisé rend difficile le suivi de l'avancement par étape CDC.",
+              };
+            case "imbalance":
+              return {
+                label: "Revoir les estimations",
+                action: () => {
+                  toast({
+                    title: "Étapes déséquilibrées",
+                    description: "Certaines étapes ont dépassé leur enveloppe. Révisez les estimations pour les prochains projets similaires.",
+                    variant: "default",
+                  });
+                },
+                why: "Des étapes ont consommé plus de temps que prévu. Ajustez les estimations futures.",
+              };
+            case "uncategorized":
+              return {
+                label: "Catégoriser",
+                action: () => setShowAddTimeForm(true),
+                why: `${(timeEntries.filter(e => !e.scopeItemId).reduce((s, e) => s + (e.duration || 0), 0) / 3600).toFixed(1)}h de temps ne sont pas liées à une étape CDC.`,
+              };
             case "ahead": 
               return null;
             default: 
@@ -1523,11 +1622,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
 
         const getImpactForRecommendation = (rec: Recommendation) => {
           switch (rec.type) {
-            case "exceeded":
+            case "overflow":
               return `Dépassement de ${(consumptionPercent - 100).toFixed(0)}% du budget temps`;
-            case "approaching":
-              return `Risque de dépassement de ${remainingDays.toFixed(1)} jours`;
             case "drift":
+              return `Risque de dépassement de ${remainingDays.toFixed(1)} jours`;
+            case "imbalance":
+              return `Temps non prévu sur certaines étapes`;
+            case "uncategorized":
               return `Temps non catégorisé à risque`;
             default:
               return null;
@@ -1575,11 +1676,16 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                               Impact: {impact}
                             </p>
                           )}
+                          {actionInfo?.why && (
+                            <p className="text-xs mt-2 italic text-muted-foreground border-l-2 border-muted-foreground/30 pl-2">
+                              Pourquoi : {actionInfo.why}
+                            </p>
+                          )}
                         </div>
                         {actionInfo && (
                           <Button 
                             size="sm" 
-                            variant="outline"
+                            variant="default"
                             className="shrink-0"
                             onClick={actionInfo.action}
                             data-testid={`action-${rec.id}`}
@@ -2470,6 +2576,12 @@ export default function ProjectDetail() {
   });
   const profitabilityMetrics = projectProfitabilityData?.metrics;
 
+  // Fetch comparison data for decision-making
+  const { data: comparisonData } = useQuery<ProjectComparison>({
+    queryKey: ['/api/projects', id, 'comparison'],
+    enabled: !!id,
+  });
+
   // Extract data from API response
   const payments = paymentsData?.payments || [];
   const totalPaid = paymentsData?.totalPaid || 0;
@@ -3223,6 +3335,217 @@ export default function ProjectDetail() {
           </div>
         )}
 
+        {/* Comparison & Projections Section */}
+        {comparisonData && (
+          <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Projections Card */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">À ce rythme...</h3>
+                <Badge variant="outline" className="text-[10px] ml-auto">Projection</Badge>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Temps total projeté</span>
+                  <span className={cn(
+                    "text-sm font-medium",
+                    comparisonData.projections.atRiskOfOverrun ? "text-amber-600" : "text-foreground"
+                  )}>
+                    {comparisonData.projections.estimatedTotalDays.toFixed(1)} jours
+                    {comparisonData.projections.timeDeviation > 0 && (
+                      <span className="text-amber-600 ml-1">
+                        (+{comparisonData.projections.timeDeviation.toFixed(0)}%)
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Marge projetée</span>
+                  <span className={cn(
+                    "text-sm font-medium",
+                    comparisonData.projections.projectedMarginPercent >= 20 ? "text-green-600" :
+                    comparisonData.projections.projectedMarginPercent >= 0 ? "text-amber-600" : "text-red-600"
+                  )}>
+                    {comparisonData.projections.projectedMargin.toLocaleString("fr-FR")} €
+                    <span className="text-xs ml-1">({comparisonData.projections.projectedMarginPercent.toFixed(0)}%)</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Rythme actuel</span>
+                  <span className="text-sm font-medium">
+                    {(comparisonData.projections.pacePerDay * 8).toFixed(1)}h/jour
+                  </span>
+                </div>
+                {comparisonData.projections.atRiskOfOverrun && (
+                  <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Risque de dépassement détecté. Ajustez le périmètre ou renégociez le budget.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Comparison Card */}
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Layers className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Comparaison</h3>
+                <Badge variant="outline" className="text-[10px] ml-auto">
+                  {comparisonData.comparison.vsSimilar 
+                    ? `vs ${comparisonData.similarProjects?.projectCount} projets similaires`
+                    : "Pas assez de données"}
+                </Badge>
+              </div>
+              
+              {comparisonData.comparison.vsSimilar ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Écart marge</span>
+                    <span className={cn(
+                      "text-sm font-medium",
+                      comparisonData.comparison.vsSimilar.marginGap >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {comparisonData.comparison.vsSimilar.marginGap >= 0 ? "+" : ""}
+                      {comparisonData.comparison.vsSimilar.marginGap.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Écart TJM</span>
+                    <span className={cn(
+                      "text-sm font-medium",
+                      comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {comparisonData.comparison.vsSimilar.tjmGap >= 0 ? "+" : ""}
+                      {comparisonData.comparison.vsSimilar.tjmGap.toFixed(0)} €/j
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Écart temps</span>
+                    <span className={cn(
+                      "text-sm font-medium",
+                      comparisonData.comparison.vsSimilar.timeGap <= 0 ? "text-green-600" : "text-amber-600"
+                    )}>
+                      {comparisonData.comparison.vsSimilar.timeGap >= 0 ? "+" : ""}
+                      {comparisonData.comparison.vsSimilar.timeGap.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 p-2 rounded border bg-muted/50">
+                    <p className="text-xs">
+                      {comparisonData.comparison.vsSimilar.verdict === 'above_average' 
+                        ? "Ce projet performe au-dessus de la moyenne." 
+                        : "Ce projet est en dessous de la moyenne. Des optimisations sont possibles."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-4 text-center">
+                  <Info className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Pas assez de projets similaires pour comparer.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    La comparaison sera disponible avec plus de données.
+                  </p>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* Reference Projects (Templates) */}
+        {comparisonData?.bestProjects && comparisonData.bestProjects.topProjects.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  Projets de référence
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px]">
+                  Top {comparisonData.bestProjects.topProjects.length} marge
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Les meilleurs projets comme modèles à suivre
+              </p>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {comparisonData.bestProjects.topProjects.map((refProject, index) => (
+                  <div 
+                    key={refProject.id} 
+                    className="p-3 rounded-lg border bg-card hover-elevate cursor-pointer"
+                    onClick={() => setLocation(`/projects/${refProject.id}`)}
+                    data-testid={`reference-project-${index}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 px-1.5 py-0.5 rounded">
+                          #{index + 1}
+                        </span>
+                        <span className="text-sm font-medium line-clamp-1">{refProject.name}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Marge</span>
+                        <span className={cn(
+                          "ml-1 font-medium",
+                          refProject.marginPercent >= 20 ? "text-green-600" : "text-amber-600"
+                        )}>
+                          {refProject.marginPercent.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">TJM</span>
+                        <span className="ml-1 font-medium">
+                          {refProject.actualTJM.toFixed(0)}€
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Temps</span>
+                        <span className={cn(
+                          "ml-1 font-medium",
+                          refProject.timeOverrunPercent <= 0 ? "text-green-600" : "text-amber-600"
+                        )}>
+                          {refProject.actualDaysWorked.toFixed(1)}j
+                          {refProject.timeOverrunPercent !== 0 && (
+                            <span className="text-[10px] ml-0.5">
+                              ({refProject.timeOverrunPercent > 0 ? "+" : ""}{refProject.timeOverrunPercent.toFixed(0)}%)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      {refProject.category && (
+                        <div>
+                          <span className="text-muted-foreground">Type</span>
+                          <span className="ml-1 font-medium truncate">{refProject.category}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Insights from reference projects */}
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Ce que ces projets ont en commun :</strong>{" "}
+                  TJM moyen de {comparisonData.bestProjects.avgActualTJM.toFixed(0)}€/j, 
+                  marge moyenne de {comparisonData.bestProjects.avgMarginPercent.toFixed(0)}%,
+                  {comparisonData.bestProjects.avgTimeOverrunPercent <= 0 
+                    ? " et aucun dépassement de temps."
+                    : ` avec ${comparisonData.bestProjects.avgTimeOverrunPercent.toFixed(0)}% de dépassement temps.`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Data Completeness Indicators */}
         {dataWarnings.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -3249,7 +3572,7 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        <Tabs defaultValue="activities" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5">
             <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
@@ -3302,6 +3625,28 @@ export default function ProjectDetail() {
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <div className="space-y-4">
+              {/* Cross-module context: Link to Backlog */}
+              {projectBacklogs.length > 0 && (
+                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg border border-muted">
+                  <div className="flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4 text-primary" />
+                    <span className="text-xs text-muted-foreground">
+                      {projectBacklogs.length} backlog{projectBacklogs.length > 1 ? 's' : ''} associé{projectBacklogs.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-xs gap-1"
+                    onClick={() => setActiveTab("backlogs")}
+                    data-testid="link-to-backlogs"
+                  >
+                    Voir backlogs
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
               {/* Barre de progression des tâches */}
               {totalTasksCount > 0 && (
                 <Card>
@@ -3639,6 +3984,29 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="billing" className="mt-0">
+            {/* Cross-module context: Link to Time tracking */}
+            {projectTimeEntries.length > 0 && (
+              <div className="flex items-center justify-between p-2 mb-4 bg-muted/30 rounded-lg border border-muted">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-primary" />
+                  <span className="text-xs text-muted-foreground">
+                    {(projectTimeEntries.reduce((sum, e) => sum + (e.duration || 0), 0) / 3600).toFixed(1)}h enregistrées 
+                    {profitabilityMetrics && ` = ${profitabilityMetrics.actualDaysWorked.toFixed(1)}j travaillés`}
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-xs gap-1"
+                  onClick={() => setActiveTab("time")}
+                  data-testid="link-to-time"
+                >
+                  Voir temps
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+
             {/* KPIs Facturation - 2 lignes de 3 cartes */}
             {(() => {
               // Use reactive state values for real-time KPI updates

@@ -1654,6 +1654,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get project comparison and projections for decision-making
+  app.get("/api/projects/:projectId/comparison", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get all projects for comparison
+      const allProjects = await storage.getProjectsByAccountId(req.accountId!);
+      const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
+      
+      // Get global TJM from account settings
+      const globalTJMSetting = await storage.getSetting('ACCOUNT', req.accountId!, 'billing.defaultTJM');
+      const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : undefined;
+
+      // Generate analysis for current project
+      const currentTimeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, req.params.projectId);
+      const currentPayments = await storage.getPaymentsByProjectId(req.params.projectId);
+      const currentAnalysis = generateProfitabilityAnalysis(project, currentTimeEntries, currentPayments, globalTJM);
+
+      // Filter similar projects (same category or business type)
+      const similarProjects = allProjects.filter(p => 
+        p.id !== project.id && 
+        p.businessType !== 'internal' && 
+        p.stage !== 'prospection' &&
+        (p.category === project.category || p.businessType === project.businessType)
+      );
+
+      // Generate analyses for similar projects
+      const similarAnalyses = await Promise.all(
+        similarProjects.map(async (p) => {
+          const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, p.id);
+          const payments = await storage.getPaymentsByProjectId(p.id);
+          return generateProfitabilityAnalysis(p, timeEntries, payments, globalTJM);
+        })
+      );
+
+      // Calculate averages for similar projects
+      const validSimilar = similarAnalyses.filter(a => a.metrics.actualDaysWorked > 0);
+      const avgMetrics = validSimilar.length > 0 ? {
+        avgMarginPercent: validSimilar.reduce((sum, a) => sum + a.metrics.marginPercent, 0) / validSimilar.length,
+        avgActualTJM: validSimilar.reduce((sum, a) => sum + a.metrics.actualTJM, 0) / validSimilar.length,
+        avgTimeOverrunPercent: validSimilar.reduce((sum, a) => sum + a.metrics.timeOverrunPercent, 0) / validSimilar.length,
+        avgPaymentProgress: validSimilar.reduce((sum, a) => sum + a.metrics.paymentProgress, 0) / validSimilar.length,
+        projectCount: validSimilar.length,
+      } : null;
+
+      // Find best performing projects
+      const allActiveProjects = allProjects.filter(p => 
+        p.id !== project.id && 
+        p.businessType !== 'internal' && 
+        p.stage !== 'prospection'
+      );
+      const allAnalyses = await Promise.all(
+        allActiveProjects.map(async (p) => {
+          const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, p.id);
+          const payments = await storage.getPaymentsByProjectId(p.id);
+          return { project: p, analysis: generateProfitabilityAnalysis(p, timeEntries, payments, globalTJM) };
+        })
+      );
+      
+      // Top 3 by margin
+      const topByMargin = allAnalyses
+        .filter(a => a.analysis.metrics.actualDaysWorked > 0)
+        .sort((a, b) => b.analysis.metrics.marginPercent - a.analysis.metrics.marginPercent)
+        .slice(0, 3);
+
+      const bestMetrics = topByMargin.length > 0 ? {
+        avgMarginPercent: topByMargin.reduce((sum, a) => sum + a.analysis.metrics.marginPercent, 0) / topByMargin.length,
+        avgActualTJM: topByMargin.reduce((sum, a) => sum + a.analysis.metrics.actualTJM, 0) / topByMargin.length,
+        avgTimeOverrunPercent: topByMargin.reduce((sum, a) => sum + a.analysis.metrics.timeOverrunPercent, 0) / topByMargin.length,
+        projectCount: topByMargin.length,
+        topProjects: topByMargin.map(a => ({ 
+          id: a.project.id,
+          name: a.project.name, 
+          category: a.project.category,
+          marginPercent: a.analysis.metrics.marginPercent,
+          actualTJM: a.analysis.metrics.actualTJM,
+          actualDaysWorked: a.analysis.metrics.actualDaysWorked,
+          theoreticalDays: a.analysis.metrics.theoreticalDays,
+          timeOverrunPercent: a.analysis.metrics.timeOverrunPercent,
+          status: a.analysis.metrics.status,
+        })),
+      } : null;
+
+      // Calculate projections based on current pace
+      const daysSinceStart = project.startDate 
+        ? Math.max(1, Math.ceil((Date.now() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24)))
+        : 30; // Default to 30 days if no start date
+      
+      const pacePerDay = currentAnalysis.metrics.actualDaysWorked / daysSinceStart;
+      const remainingDays = Math.max(0, currentAnalysis.metrics.theoreticalDays - currentAnalysis.metrics.actualDaysWorked);
+      
+      // Project total time at current pace (assuming project runs for another X days)
+      const estimatedTotalDays = project.endDate
+        ? currentAnalysis.metrics.actualDaysWorked + pacePerDay * Math.max(0, Math.ceil((new Date(project.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : currentAnalysis.metrics.actualDaysWorked + remainingDays;
+
+      // Project margin at current TJM
+      const projectedTotalCost = estimatedTotalDays * currentAnalysis.metrics.internalDailyCost;
+      const projectedMargin = currentAnalysis.metrics.totalBilled - projectedTotalCost;
+      const projectedMarginPercent = currentAnalysis.metrics.totalBilled > 0 
+        ? (projectedMargin / currentAnalysis.metrics.totalBilled) * 100 
+        : 0;
+
+      // Determine deviation from budget
+      const timeDeviation = currentAnalysis.metrics.theoreticalDays > 0
+        ? ((estimatedTotalDays / currentAnalysis.metrics.theoreticalDays) - 1) * 100
+        : 0;
+
+      const projections = {
+        pacePerDay: pacePerDay,
+        estimatedTotalDays: estimatedTotalDays,
+        projectedMargin: projectedMargin,
+        projectedMarginPercent: projectedMarginPercent,
+        timeDeviation: timeDeviation,
+        atRiskOfOverrun: timeDeviation > 10,
+        projectedEndDate: project.endDate ? new Date(project.endDate).toISOString() : null,
+      };
+
+      // Compare current project to averages
+      const comparison = {
+        vsSimilar: avgMetrics ? {
+          marginGap: currentAnalysis.metrics.marginPercent - avgMetrics.avgMarginPercent,
+          tjmGap: currentAnalysis.metrics.actualTJM - avgMetrics.avgActualTJM,
+          timeGap: currentAnalysis.metrics.timeOverrunPercent - avgMetrics.avgTimeOverrunPercent,
+          paymentGap: currentAnalysis.metrics.paymentProgress - avgMetrics.avgPaymentProgress,
+          verdict: currentAnalysis.metrics.marginPercent >= avgMetrics.avgMarginPercent ? 'above_average' : 'below_average',
+        } : null,
+        vsBest: bestMetrics ? {
+          marginGap: currentAnalysis.metrics.marginPercent - bestMetrics.avgMarginPercent,
+          tjmGap: currentAnalysis.metrics.actualTJM - bestMetrics.avgActualTJM,
+          timeGap: currentAnalysis.metrics.timeOverrunPercent - bestMetrics.avgTimeOverrunPercent,
+          verdict: currentAnalysis.metrics.marginPercent >= bestMetrics.avgMarginPercent ? 'top_performer' : 'improvement_possible',
+        } : null,
+      };
+
+      res.json({
+        currentProject: {
+          id: project.id,
+          name: project.name,
+          category: project.category,
+          metrics: currentAnalysis.metrics,
+          healthScore: currentAnalysis.healthScore,
+        },
+        similarProjects: avgMetrics,
+        bestProjects: bestMetrics,
+        projections,
+        comparison,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error generating project comparison:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // RECOMMENDATION ACTIONS - Protected Routes
   // ============================================
