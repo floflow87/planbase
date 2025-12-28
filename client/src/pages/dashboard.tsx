@@ -22,7 +22,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment, Note, Backlog } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -161,52 +161,125 @@ interface ProfitabilitySummary {
 }
 
 // Dashboard block configuration
-type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay';
+type DashboardBlockId = 'kpis' | 'priorityAction' | 'revenueChart' | 'activityFeed' | 'recentProjects' | 'myDay' | 'recentNotes' | 'recentBacklog';
+
+type BlockSizeOption = 'full' | 'half' | 'two-thirds' | 'one-third';
+
+interface BlockSizeConfig {
+  allowedSizes: BlockSizeOption[];
+  defaultSize: BlockSizeOption;
+}
+
+// Size options per block
+const BLOCK_SIZE_OPTIONS: Record<DashboardBlockId, BlockSizeConfig> = {
+  kpis: { allowedSizes: ['full'], defaultSize: 'full' },
+  priorityAction: { allowedSizes: ['full', 'half'], defaultSize: 'full' },
+  revenueChart: { allowedSizes: ['two-thirds', 'full'], defaultSize: 'two-thirds' },
+  activityFeed: { allowedSizes: ['one-third', 'two-thirds'], defaultSize: 'one-third' },
+  recentProjects: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+  myDay: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+  recentNotes: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+  recentBacklog: { allowedSizes: ['half', 'full'], defaultSize: 'half' },
+};
+
+// Convert size option to col-span class
+const SIZE_TO_COLSPAN: Record<BlockSizeOption, string> = {
+  full: 'lg:col-span-6',
+  half: 'lg:col-span-3',
+  'two-thirds': 'lg:col-span-4',
+  'one-third': 'lg:col-span-2',
+};
+
+const SIZE_LABELS: Record<BlockSizeOption, string> = {
+  full: 'Pleine largeur',
+  half: '1/2 largeur',
+  'two-thirds': '2/3 largeur',
+  'one-third': '1/3 largeur',
+};
 
 interface DashboardBlockConfig {
   id: DashboardBlockId;
   label: string;
   visible: boolean;
+  size?: BlockSizeOption;
 }
 
 const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
-  { id: 'kpis', label: 'KPIs', visible: true },
-  { id: 'priorityAction', label: 'Action Prioritaire', visible: true },
-  { id: 'revenueChart', label: 'Revenus Mensuels', visible: true },
-  { id: 'activityFeed', label: 'Activités Récentes', visible: true },
-  { id: 'recentProjects', label: 'Projets Récents', visible: true },
-  { id: 'myDay', label: 'Ma Journée', visible: true },
+  { id: 'kpis', label: 'KPIs', visible: true, size: 'full' },
+  { id: 'priorityAction', label: 'Action Prioritaire', visible: true, size: 'full' },
+  { id: 'revenueChart', label: 'Revenus Mensuels', visible: true, size: 'two-thirds' },
+  { id: 'activityFeed', label: 'Activités Récentes', visible: true, size: 'one-third' },
+  { id: 'recentProjects', label: 'Projets Récents', visible: true, size: 'half' },
+  { id: 'myDay', label: 'Ma Journée', visible: true, size: 'half' },
+  { id: 'recentNotes', label: 'Notes Récentes', visible: true, size: 'half' },
+  { id: 'recentBacklog', label: 'Backlog Récent', visible: true, size: 'half' },
 ];
 
-const STORAGE_KEY = 'planbase_dashboard_config';
+const STORAGE_KEY = 'planbase_dashboard_config_v2';
+const LEGACY_STORAGE_KEY = 'planbase_dashboard_config';
 
-// Block metadata for responsive grid layout
-const BLOCK_COLUMN_SPANS: Record<DashboardBlockId, string> = {
-  kpis: 'lg:col-span-6',
-  priorityAction: 'lg:col-span-6',
-  revenueChart: 'lg:col-span-4',
-  activityFeed: 'lg:col-span-2',
-  recentProjects: 'lg:col-span-3',
-  myDay: 'lg:col-span-3',
+// Migrate legacy config to v2 format
+const migrateLegacyConfig = (): DashboardBlockConfig[] | null => {
+  const legacyConfig = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!legacyConfig) return null;
+  
+  try {
+    const parsed = JSON.parse(legacyConfig);
+    // Migrate by preserving order and visibility, adding default sizes
+    const migrated = DEFAULT_DASHBOARD_BLOCKS.map(defaultBlock => {
+      const legacy = parsed.find((b: any) => b.id === defaultBlock.id);
+      if (legacy) {
+        return {
+          ...defaultBlock,
+          visible: legacy.visible ?? defaultBlock.visible,
+        };
+      }
+      return defaultBlock;
+    });
+    
+    // Preserve order from legacy config
+    const orderedMigrated: DashboardBlockConfig[] = [];
+    parsed.forEach((legacyBlock: any) => {
+      const found = migrated.find(b => b.id === legacyBlock.id);
+      if (found) orderedMigrated.push(found);
+    });
+    // Add any new blocks that weren't in legacy
+    migrated.forEach(block => {
+      if (!orderedMigrated.find(b => b.id === block.id)) {
+        orderedMigrated.push(block);
+      }
+    });
+    
+    // Remove legacy key after migration
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return orderedMigrated;
+  } catch {
+    return null;
+  }
 };
 
 // Helper to get readable column span label
-const getColumnSpanLabel = (blockId: DashboardBlockId): string => {
-  const span = BLOCK_COLUMN_SPANS[blockId];
-  const match = span.match(/lg:col-span-(\d+)/);
-  if (match) {
-    const cols = parseInt(match[1]);
-    if (cols === 6) return "Pleine largeur";
-    if (cols === 4) return "2/3 largeur";
-    if (cols === 3) return "1/2 largeur";
-    if (cols === 2) return "1/3 largeur";
-    return `${cols} col`;
-  }
-  return "";
+const getColumnSpanLabel = (block: DashboardBlockConfig): string => {
+  const size = block.size || BLOCK_SIZE_OPTIONS[block.id].defaultSize;
+  return SIZE_LABELS[size];
+};
+
+// Helper to get col-span class for a block
+const getBlockColSpan = (block: DashboardBlockConfig): string => {
+  const size = block.size || BLOCK_SIZE_OPTIONS[block.id].defaultSize;
+  return SIZE_TO_COLSPAN[size];
 };
 
 // Sortable item component for settings dialog
-function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; onToggle: (id: DashboardBlockId, visible: boolean) => void }) {
+function SortableBlockItem({ 
+  block, 
+  onToggle,
+  onSizeChange 
+}: { 
+  block: DashboardBlockConfig; 
+  onToggle: (id: DashboardBlockId, visible: boolean) => void;
+  onSizeChange: (id: DashboardBlockId, size: BlockSizeOption) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -222,7 +295,9 @@ function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; o
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const columnLabel = getColumnSpanLabel(block.id);
+  const sizeOptions = BLOCK_SIZE_OPTIONS[block.id];
+  const currentSize = block.size || sizeOptions.defaultSize;
+  const hasMultipleSizes = sizeOptions.allowedSizes.length > 1;
 
   return (
     <div
@@ -241,7 +316,25 @@ function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; o
         </button>
         <div className="flex flex-col">
           <span className="text-sm font-medium">{block.label}</span>
-          <span className="text-[10px] text-muted-foreground">{columnLabel}</span>
+          {hasMultipleSizes ? (
+            <Select 
+              value={currentSize} 
+              onValueChange={(value: BlockSizeOption) => onSizeChange(block.id, value)}
+            >
+              <SelectTrigger className="h-6 w-[120px] text-[10px] border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground" data-testid={`select-size-${block.id}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sizeOptions.allowedSizes.map(size => (
+                  <SelectItem key={size} value={size} className="text-xs">
+                    {SIZE_LABELS[size]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">{SIZE_LABELS[currentSize]}</span>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -315,13 +408,37 @@ export default function Dashboard() {
 
   // Dashboard customization state
   const [dashboardBlocks, setDashboardBlocks] = useState<DashboardBlockConfig[]>(() => {
+    // First check for v2 config
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Ensure all new blocks are present
+        const allBlocks = DEFAULT_DASHBOARD_BLOCKS.map(defaultBlock => {
+          const existing = parsed.find((b: DashboardBlockConfig) => b.id === defaultBlock.id);
+          return existing ? { ...defaultBlock, ...existing } : defaultBlock;
+        });
+        // Preserve order from saved config, add new blocks at end
+        const ordered: DashboardBlockConfig[] = [];
+        parsed.forEach((savedBlock: DashboardBlockConfig) => {
+          const found = allBlocks.find(b => b.id === savedBlock.id);
+          if (found) ordered.push(found);
+        });
+        allBlocks.forEach(block => {
+          if (!ordered.find(b => b.id === block.id)) {
+            ordered.push(block);
+          }
+        });
+        return ordered;
       } catch {
         return DEFAULT_DASHBOARD_BLOCKS;
       }
+    }
+    // Try to migrate from legacy config
+    const migrated = migrateLegacyConfig();
+    if (migrated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
     }
     return DEFAULT_DASHBOARD_BLOCKS;
   });
@@ -353,6 +470,14 @@ export default function Dashboard() {
   const handleBlockToggle = useCallback((id: DashboardBlockId, visible: boolean) => {
     const newBlocks = dashboardBlocks.map(b => 
       b.id === id ? { ...b, visible } : b
+    );
+    saveDashboardConfig(newBlocks);
+  }, [dashboardBlocks, saveDashboardConfig]);
+
+  // Change block size
+  const handleBlockSizeChange = useCallback((id: DashboardBlockId, size: BlockSizeOption) => {
+    const newBlocks = dashboardBlocks.map(b => 
+      b.id === id ? { ...b, size } : b
     );
     saveDashboardConfig(newBlocks);
   }, [dashboardBlocks, saveDashboardConfig]);
@@ -390,6 +515,15 @@ export default function Dashboard() {
     return dashboardBlocks.filter(b => b.visible);
   }, [dashboardBlocks]);
 
+  // Helper to get col-span class for a block by ID
+  const getBlockColSpanById = useCallback((id: DashboardBlockId): string => {
+    const block = dashboardBlocks.find(b => b.id === id);
+    if (block) {
+      return getBlockColSpan(block);
+    }
+    return SIZE_TO_COLSPAN[BLOCK_SIZE_OPTIONS[id].defaultSize];
+  }, [dashboardBlocks]);
+
   // Fetch current user to get accountId
   const { data: currentUser } = useQuery<AppUser>({
     queryKey: ["/api/me"],
@@ -409,6 +543,16 @@ export default function Dashboard() {
 
   const { data: activities = [], isLoading: activitiesLoading } = useQuery<Activity[]>({
     queryKey: ["/api/activities"],
+    enabled: !!accountId,
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<Note[]>({
+    queryKey: ["/api/notes"],
+    enabled: !!accountId,
+  });
+
+  const { data: backlogs = [], isLoading: backlogsLoading } = useQuery<Backlog[]>({
+    queryKey: ["/api/backlogs"],
     enabled: !!accountId,
   });
 
@@ -1362,6 +1506,7 @@ export default function Dashboard() {
                         key={block.id}
                         block={block}
                         onToggle={handleBlockToggle}
+                        onSizeChange={handleBlockSizeChange}
                       />
                     ))}
                   </div>
@@ -1390,7 +1535,7 @@ export default function Dashboard() {
 
         {/* KPI Cards */}
         {isBlockVisible('kpis') && (
-        <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="dashboard-kpis" style={{ order: getBlockOrder('kpis') }}>
+        <div className={`${getBlockColSpanById('kpis')} grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4`} data-testid="dashboard-kpis" style={{ order: getBlockOrder('kpis') }}>
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon;
             return (
@@ -1457,8 +1602,8 @@ export default function Dashboard() {
 
         {/* Priority Action Card */}
         {isBlockVisible('priorityAction') && topPriorityAction && !isPriorityActionDismissed && (
-          <Card className={`lg:col-span-6 border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action" style={{ order: getBlockOrder('priorityAction') }}>
-            <CardContent className="p-4 sm:p-5">
+          <Card className={`${getBlockColSpanById('priorityAction')} border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action" style={{ order: getBlockOrder('priorityAction') }}>
+            <CardContent className="p-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {/* Left: Icon + Content */}
                 <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -1529,7 +1674,7 @@ export default function Dashboard() {
 
         {/* Revenue Chart */}
         {isBlockVisible('revenueChart') && (
-          <Card className="lg:col-span-4 overflow-hidden flex flex-col" style={{ order: getBlockOrder('revenueChart') }}>
+          <Card className={`${getBlockColSpanById('revenueChart')} overflow-hidden flex flex-col`} style={{ order: getBlockOrder('revenueChart') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-0">
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
@@ -1588,7 +1733,7 @@ export default function Dashboard() {
 
         {/* Recent Activity Feed */}
         {isBlockVisible('activityFeed') && (
-          <Card className="lg:col-span-2" style={{ order: getBlockOrder('activityFeed') }}>
+          <Card className={getBlockColSpanById('activityFeed')} style={{ order: getBlockOrder('activityFeed') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Activités Récentes
@@ -1666,7 +1811,7 @@ export default function Dashboard() {
 
         {/* Recent Projects */}
         {isBlockVisible('recentProjects') && (
-          <Card className="lg:col-span-3" style={{ order: getBlockOrder('recentProjects') }}>
+          <Card className={getBlockColSpanById('recentProjects')} style={{ order: getBlockOrder('recentProjects') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
                 Projets Récents
@@ -1717,7 +1862,7 @@ export default function Dashboard() {
 
         {/* Ma Journée Widget - Today's Tasks + Overdue */}
         {isBlockVisible('myDay') && (
-          <Card className="lg:col-span-3" style={{ order: getBlockOrder('myDay') }}>
+          <Card className={getBlockColSpanById('myDay')} style={{ order: getBlockOrder('myDay') }}>
             <CardHeader className="pb-2">
               <div className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="text-base font-heading font-semibold">
@@ -1941,6 +2086,115 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           )}
+
+        {/* Recent Notes */}
+        {isBlockVisible('recentNotes') && (
+          <Card className={getBlockColSpanById('recentNotes')} style={{ order: getBlockOrder('recentNotes') }}>
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
+              <CardTitle className="text-base font-heading font-semibold">
+                Notes Récentes
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setLocation("/notes")}
+                data-testid="button-view-all-notes"
+              >
+                Voir tout
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {notesLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader />
+                </div>
+              ) : notes.length === 0 ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Aucune note
+                </div>
+              ) : (
+                notes.slice(0, 5).map((note) => (
+                  <div
+                    key={note.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover-elevate cursor-pointer border"
+                    onClick={() => setLocation(`/notes/${note.id}`)}
+                    data-testid={`note-item-${note.id}`}
+                  >
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{note.title || "Sans titre"}</p>
+                      {note.updatedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(new Date(note.updatedAt), "d MMM", { locale: fr })}
+                        </p>
+                      )}
+                    </div>
+                    {note.isFavorite && (
+                      <Badge variant="outline" className="shrink-0 text-xs">Favori</Badge>
+                    )}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent Backlog */}
+        {isBlockVisible('recentBacklog') && (
+          <Card className={getBlockColSpanById('recentBacklog')} style={{ order: getBlockOrder('recentBacklog') }}>
+            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
+              <CardTitle className="text-base font-heading font-semibold">
+                Backlog Récent
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setLocation("/product")}
+                data-testid="button-view-all-backlogs"
+              >
+                Voir tout
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {backlogsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader />
+                </div>
+              ) : backlogs.length === 0 ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Aucun backlog
+                </div>
+              ) : (
+                backlogs.slice(0, 5).map((backlog) => {
+                  const project = projects?.find(p => p.id === backlog.projectId);
+                  return (
+                    <div
+                      key={backlog.id}
+                      className="flex items-center gap-3 p-2 rounded-md hover-elevate cursor-pointer border"
+                      onClick={() => setLocation(`/product/backlog/${backlog.id}`)}
+                      data-testid={`backlog-item-${backlog.id}`}
+                    >
+                      <FolderKanban className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{backlog.name}</p>
+                        {project && (
+                          <p className="text-xs text-muted-foreground truncate">{project.name}</p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="shrink-0 text-xs capitalize">
+                        {backlog.mode === 'scrum' ? 'Scrum' : backlog.mode === 'kanban' ? 'Kanban' : backlog.mode}
+                      </Badge>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
       {/* Task Detail Modal */}
       <TaskDetailModal

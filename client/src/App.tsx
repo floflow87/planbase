@@ -381,7 +381,7 @@ function QuickCreateMenu() {
             <span className="hidden sm:inline">Nouveau</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48 bg-background" data-testid="dropdown-quick-create">
+        <DropdownMenuContent align="start" className="w-48 bg-card" data-testid="dropdown-quick-create">
           <DropdownMenuItem onClick={() => setIsClientSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-client">
             <Users className="w-4 h-4 mr-2" />
             Nouveau client
