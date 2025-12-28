@@ -30,6 +30,7 @@ import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient
 import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { cn } from "@/lib/utils";
 import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass, PROJECT_STAGES } from "@shared/config";
 
@@ -3248,28 +3249,6 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {totalTasksCount > 0 && (
-          <Card className="mb-6">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Progression des tâches</CardTitle>
-                <span className="text-sm font-semibold" data-testid="progress-percentage">
-                  {progressPercentage}%
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Progress value={progressPercentage} className="h-2" data-testid="progress-bar" />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span data-testid="completed-tasks-count">{completedTasksCount} tâche{completedTasksCount !== 1 ? 's' : ''} terminée{completedTasksCount !== 1 ? 's' : ''}</span>
-                  <span data-testid="total-tasks-count">{totalTasksCount} tâche{totalTasksCount !== 1 ? 's' : ''} au total</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <Tabs defaultValue="activities" className="w-full">
           <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5">
             <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
@@ -3322,111 +3301,159 @@ export default function ProjectDetail() {
           </TabsList>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-end mb-4">
-                  <Button 
-                    size="sm" 
-                    onClick={() => createTaskMutation.mutate()}
-                    disabled={createTaskMutation.isPending}
-                    data-testid="button-create-task"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {createTaskMutation.isPending ? "Création..." : "Créer une tâche"}
-                  </Button>
-                </div>
-                {projectTasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-[12px]">
-                    Aucune tâche associée à ce projet.
+            <div className="space-y-4">
+              {/* Barre de progression des tâches */}
+              {totalTasksCount > 0 && (
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Progression</span>
+                        <span className="text-sm font-semibold" data-testid="progress-percentage">
+                          {progressPercentage}%
+                        </span>
+                      </div>
+                      <Progress value={progressPercentage} className="h-2" data-testid="progress-bar" />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span data-testid="completed-tasks-count">{completedTasksCount} tâche{completedTasksCount !== 1 ? 's' : ''} terminée{completedTasksCount !== 1 ? 's' : ''}</span>
+                        <span data-testid="total-tasks-count">{totalTasksCount} tâche{totalTasksCount !== 1 ? 's' : ''} au total</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Liste des tâches */}
+              <Card className="bg-white dark:bg-card">
+                <CardContent className="pt-6">
+                  <div className="flex justify-end mb-4">
+                    <Button 
+                      size="sm" 
+                      onClick={() => createTaskMutation.mutate()}
+                      disabled={createTaskMutation.isPending}
+                      data-testid="button-create-task"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {createTaskMutation.isPending ? "Création..." : "Créer une tâche"}
+                    </Button>
                   </div>
-                ) : (
-                  <Accordion type="multiple" defaultValue={[]} className="space-y-2">
-                    {columns.map((column) => {
-                      const columnTasks = tasksByStatus[column.id] || [];
-                      if (columnTasks.length === 0) return null;
-                      
-                      return (
-                        <AccordionItem key={column.id} value={column.id} className="border rounded-md">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                            <div className="flex items-center gap-2">
+                  {projectTasks.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-[12px]">
+                      Aucune tâche associée à ce projet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {columns.map((column) => {
+                        const columnTasks = tasksByStatus[column.id] || [];
+                        if (columnTasks.length === 0) return null;
+                        
+                        return (
+                          <div key={column.id} className="space-y-2">
+                            <div className="flex items-center gap-2 py-2">
                               <div 
                                 className="w-3 h-3 rounded-full"
                                 style={{ backgroundColor: column.color }}
                               />
                               <h3 className="text-sm font-semibold">{column.name}</h3>
-                              <Badge variant="outline">{columnTasks.length}</Badge>
+                              <Badge variant="outline" className="text-xs">{columnTasks.length}</Badge>
                             </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3">
-                            <div className="space-y-2">
-                              {columnTasks.map((task) => {
-                                const assignedUser = users.find(u => u.id === task.assignedToId);
-                                
-                                return (
-                                  <div 
-                                    key={task.id}
-                                    className="p-3 border rounded-md hover-elevate cursor-pointer"
-                                    onClick={() => {
-                                      setSelectedTask(task);
-                                      setIsTaskDetailDialogOpen(true);
-                                    }}
-                                    data-testid={`task-${task.id}`}
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex-1">
+                            {columnTasks.map((task) => {
+                              const assignedUser = users.find(u => u.id === task.assignedToId);
+                              const taskColumn = columns.find(c => c.id === task.columnId);
+                              
+                              return (
+                                <div 
+                                  key={task.id}
+                                  className="p-3 bg-white dark:bg-card border rounded-md hover-elevate cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setIsTaskDetailDialogOpen(true);
+                                  }}
+                                  data-testid={`task-${task.id}`}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
                                         <h4 
-                                          className="text-sm font-medium mb-1"
+                                          className="text-sm font-medium"
                                           data-testid={`title-task-${task.id}`}
                                         >
                                           {task.title}
                                         </h4>
-                                        {task.description && (
-                                          <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {task.description}
-                                          </p>
+                                        {task.priority && task.priority !== "medium" && (
+                                          <Badge 
+                                            variant="outline" 
+                                            className={cn(
+                                              "text-[10px] h-5",
+                                              task.priority === "high" && "border-red-500 text-red-500",
+                                              task.priority === "low" && "border-gray-400 text-gray-400"
+                                            )}
+                                          >
+                                            {task.priority === "high" ? "Haute" : "Basse"}
+                                          </Badge>
                                         )}
+                                      </div>
+                                      {task.description && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                          {task.description}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center gap-3 mt-2">
                                         {task.dueDate && (
-                                          <div className="flex items-center gap-1 mt-2 text-[11px] text-muted-foreground">
+                                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                                             <CalendarIcon className="h-3 w-3" />
                                             {format(new Date(task.dueDate), "dd MMM yyyy", { locale: fr })}
                                           </div>
                                         )}
-                                      </div>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        {assignedUser && (
-                                          <Avatar className="h-8 w-8">
-                                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                              {assignedUser.firstName?.[0]}{assignedUser.lastName?.[0]}
-                                            </AvatarFallback>
-                                          </Avatar>
+                                        {task.estimatedHours && (
+                                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                            <Clock className="h-3 w-3" />
+                                            {task.estimatedHours}h
+                                          </div>
                                         )}
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-8 w-8"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteTaskId(task.id);
-                                            setIsDeleteTaskDialogOpen(true);
-                                          }}
-                                          data-testid={`button-delete-task-${task.id}`}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
                                       </div>
                                     </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {assignedUser && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Avatar className="h-7 w-7">
+                                              <AvatarFallback className="text-[10px] bg-primary text-primary-foreground">
+                                                {assignedUser.firstName?.[0]}{assignedUser.lastName?.[0]}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            {assignedUser.firstName} {assignedUser.lastName}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteTaskId(task.id);
+                                          setIsDeleteTaskDialogOpen(true);
+                                        }}
+                                        data-testid={`button-delete-task-${task.id}`}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                  </Accordion>
-                )}
-              </CardContent>
-            </Card>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="notes" className="mt-0">
@@ -5072,149 +5099,26 @@ export default function ProjectDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Sheet open={isTaskDetailDialogOpen} onOpenChange={setIsTaskDetailDialogOpen}>
-        <SheetContent className="sm:max-w-xl w-full overflow-y-auto bg-background" data-testid="dialog-task-detail">
-          <SheetHeader>
-            <SheetTitle>Détails de la tâche</SheetTitle>
-          </SheetHeader>
-          {selectedTask && taskEditData.id && (
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="task-title">Titre *</Label>
-                <Input
-                  id="task-title"
-                  value={taskEditData.title || ""}
-                  onChange={(e) => setTaskEditData({ ...taskEditData, title: e.target.value })}
-                  data-testid="input-task-title"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="task-description">Description</Label>
-                <Textarea
-                  id="task-description"
-                  value={taskEditData.description || ""}
-                  onChange={(e) => setTaskEditData({ ...taskEditData, description: e.target.value })}
-                  rows={3}
-                  data-testid="input-task-description"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="task-priority">Priorité</Label>
-                  <Select
-                    value={taskEditData.priority || "medium"}
-                    onValueChange={(value) => setTaskEditData({ ...taskEditData, priority: value })}
-                  >
-                    <SelectTrigger id="task-priority" data-testid="select-task-priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Basse</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
-                      <SelectItem value="high">Haute</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="task-assigned">Assigné à</Label>
-                  <Select
-                    value={taskEditData.assignedToId || "none"}
-                    onValueChange={(value) => setTaskEditData({ 
-                      ...taskEditData, 
-                      assignedToId: value === "none" ? null : value 
-                    })}
-                  >
-                    <SelectTrigger id="task-assigned" data-testid="select-task-assigned">
-                      <SelectValue placeholder="Non assigné" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non assigné</SelectItem>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="task-due-date">Date d'échéance</Label>
-                  <Input
-                    id="task-due-date"
-                    type="date"
-                    value={taskEditData.dueDate || ""}
-                    onChange={(e) => setTaskEditData({ ...taskEditData, dueDate: e.target.value || null })}
-                    data-testid="input-task-due-date"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="task-effort">Effort</Label>
-                  <Select
-                    value={taskEditData.effort?.toString() || "none"}
-                    onValueChange={(value) => setTaskEditData({ 
-                      ...taskEditData, 
-                      effort: value === "none" ? null : parseInt(value) 
-                    })}
-                  >
-                    <SelectTrigger id="task-effort" data-testid="select-task-effort">
-                      <SelectValue placeholder="Non défini" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non défini</SelectItem>
-                      <SelectItem value="1">1 - Très facile</SelectItem>
-                      <SelectItem value="2">2 - Facile</SelectItem>
-                      <SelectItem value="3">3 - Moyen</SelectItem>
-                      <SelectItem value="4">4 - Difficile</SelectItem>
-                      <SelectItem value="5">5 - Très difficile</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="task-column">Statut</Label>
-                <Select
-                  value={taskEditData.columnId || ""}
-                  onValueChange={(value) => setTaskEditData({ ...taskEditData, columnId: value || null })}
-                >
-                  <SelectTrigger id="task-column" data-testid="select-task-column">
-                    <SelectValue placeholder="Sélectionner un statut" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.map((column) => (
-                      <SelectItem key={column.id} value={column.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: column.color }}
-                          />
-                          {column.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          <div className="flex justify-end pt-4 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsTaskDetailDialogOpen(false)}
-              data-testid="button-close-task-detail"
-            >
-              Fermer
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <TaskDetailModal
+        task={selectedTask}
+        users={users}
+        projects={[project]}
+        columns={columns}
+        isOpen={isTaskDetailDialogOpen}
+        onClose={() => setIsTaskDetailDialogOpen(false)}
+        onSave={async (updatedTask) => {
+          if (selectedTask) {
+            await apiRequest(`/api/tasks/${selectedTask.id}`, 'PATCH', updatedTask);
+            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+            queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+          }
+        }}
+        onDelete={async (task) => {
+          setDeleteTaskId(task.id);
+          setIsDeleteTaskDialogOpen(true);
+          setIsTaskDetailDialogOpen(false);
+        }}
+      />
       <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
         <AlertDialogContent data-testid="dialog-delete-task-confirm">
           <AlertDialogHeader>
