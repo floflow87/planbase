@@ -699,14 +699,14 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Temps passé</p>
-              <p className="text-xl font-semibold" data-testid="kpi-time-spent">
+              <p className="text-lg font-semibold" data-testid="kpi-time-spent">
                 {totalTimeDays.toFixed(1)}j
               </p>
               <p className="text-xs text-muted-foreground">{totalTimeHours.toFixed(1)}h</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Temps prévu (CDC)</p>
-              <p className="text-xl font-semibold" data-testid="kpi-time-estimated">
+              <p className="text-lg font-semibold" data-testid="kpi-time-estimated">
                 {totalEstimatedDays > 0 ? `${totalEstimatedDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
@@ -715,7 +715,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Temps restant</p>
-              <p className={`text-xl font-semibold ${remainingDays < 0 ? "text-red-600" : ""}`} data-testid="kpi-time-remaining">
+              <p className={`text-lg font-semibold ${remainingDays < 0 ? "text-red-600" : ""}`} data-testid="kpi-time-remaining">
                 {totalEstimatedDays > 0 ? `${remainingDays.toFixed(1)}j` : "—"}
               </p>
               {totalEstimatedDays > 0 && (
@@ -725,7 +725,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Consommation</p>
               <div className="flex items-center gap-2">
-                <p className={`text-xl font-semibold ${timeStatus.color}`} data-testid="kpi-consumption-percent">
+                <p className={`text-lg font-semibold ${timeStatus.color}`} data-testid="kpi-consumption-percent">
                   {totalEstimatedDays > 0 ? `${consumptionPercent.toFixed(0)}%` : "—"}
                 </p>
                 {totalEstimatedDays > 0 && (
@@ -3271,51 +3271,51 @@ export default function ProjectDetail() {
         )}
 
         <Tabs defaultValue="activities" className="w-full">
-          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-9 p-0.5">
-            <TabsTrigger value="activities" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-activities">
+          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5">
+            <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Activités</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
                 {projectActivities.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-billing">
+            <TabsTrigger value="billing" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Facturation</span>
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-time">
+            <TabsTrigger value="time" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-time">
               <Timer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Temps</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-1.5 text-xs h-8 px-3">
+            <TabsTrigger value="tasks" className="gap-1.5 text-xs h-9 px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="tasks-count">
                 {projectTasks.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-1.5 text-xs h-8 px-3">
+            <TabsTrigger value="notes" className="gap-1.5 text-xs h-9 px-3">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Notes</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="notes-count">
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1.5 text-xs h-8 px-3">
+            <TabsTrigger value="documents" className="gap-1.5 text-xs h-9 px-3">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Documents</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="documents-count">
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-backlogs">
+            <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-backlogs">
               <FolderKanban className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Backlogs</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="backlogs-count">
                 {projectBacklogs.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-roadmap">
+            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
@@ -3638,7 +3638,7 @@ export default function ProjectDetail() {
                     <Card>
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
-                        <div className="text-xl font-bold text-primary" data-testid="kpi-total-billed">
+                        <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
                           {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                         </div>
                       </CardContent>
@@ -3646,7 +3646,7 @@ export default function ProjectDetail() {
                     <Card>
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Nombre de jours facturé</div>
-                        <div className="text-xl font-bold" data-testid="kpi-number-of-days">
+                        <div className="text-lg font-bold" data-testid="kpi-number-of-days">
                           {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
                         </div>
                       </CardContent>
@@ -3658,7 +3658,7 @@ export default function ProjectDetail() {
                             <div className="text-xs text-muted-foreground mb-1">
                               {isForfait ? "TJM facturé" : "TJM projet"}
                             </div>
-                            <div className="text-xl font-bold" data-testid="kpi-effective-tjm">
+                            <div className="text-lg font-bold" data-testid="kpi-effective-tjm">
                               {isForfait 
                                 ? (effectiveDailyRate > 0 
                                     ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
@@ -3690,7 +3690,7 @@ export default function ProjectDetail() {
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
                             <div className="text-xs text-muted-foreground mb-1">Prix minimum recommandé</div>
-                            <div className="text-xl font-bold" data-testid="kpi-recommended-price">
+                            <div className="text-lg font-bold" data-testid="kpi-recommended-price">
                               {recommendedPrice > 0 
                                 ? recommendedPrice.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
                                 : "-"}
@@ -3714,7 +3714,7 @@ export default function ProjectDetail() {
                         <Card className="cursor-help">
                           <CardContent className="pt-4 pb-4">
                             <div className="text-xs text-muted-foreground mb-1">Coût actualisé</div>
-                            <div className="text-xl font-bold" data-testid="kpi-estimated-cost">
+                            <div className="text-lg font-bold" data-testid="kpi-estimated-cost">
                               {estimatedCost > 0 
                                 ? estimatedCost.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
                                 : "-"}
@@ -3739,7 +3739,7 @@ export default function ProjectDetail() {
                           <CardContent className="pt-4 pb-4">
                             <div className="text-xs text-muted-foreground mb-1">Marge prévisionnelle</div>
                             <div 
-                              className="text-xl font-bold" 
+                              className="text-lg font-bold" 
                               style={{
                                 color: (estimatedCost > 0 || profitabilityMetrics?.totalPaid)
                                   ? (marginPercent >= targetMarginPercent 
