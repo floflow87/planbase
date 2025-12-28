@@ -190,6 +190,21 @@ const BLOCK_COLUMN_SPANS: Record<DashboardBlockId, string> = {
   myDay: 'lg:col-span-3',
 };
 
+// Helper to get readable column span label
+const getColumnSpanLabel = (blockId: DashboardBlockId): string => {
+  const span = BLOCK_COLUMN_SPANS[blockId];
+  const match = span.match(/lg:col-span-(\d+)/);
+  if (match) {
+    const cols = parseInt(match[1]);
+    if (cols === 6) return "Pleine largeur";
+    if (cols === 4) return "2/3 largeur";
+    if (cols === 3) return "1/2 largeur";
+    if (cols === 2) return "1/3 largeur";
+    return `${cols} col`;
+  }
+  return "";
+};
+
 // Sortable item component for settings dialog
 function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; onToggle: (id: DashboardBlockId, visible: boolean) => void }) {
   const {
@@ -207,6 +222,8 @@ function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; o
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const columnLabel = getColumnSpanLabel(block.id);
+
   return (
     <div
       ref={setNodeRef}
@@ -222,7 +239,10 @@ function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; o
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <span className="text-sm font-medium">{block.label}</span>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{block.label}</span>
+          <span className="text-[10px] text-muted-foreground">{columnLabel}</span>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         {block.visible ? (
@@ -1306,34 +1326,15 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold text-foreground" data-testid="text-greeting">
             Bonjour{currentUser?.firstName ? `, ${currentUser.firstName}` : ''}
           </h2>
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsCreateClientDialogOpen(true)}
-              data-testid="button-new-client"
-              className="flex-1 sm:flex-none"
-            >
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
-            </Button>
-            <Button 
-              onClick={() => setIsCreateProjectDialogOpen(true)}
-              data-testid="button-new-project"
-              className="flex-1 sm:flex-none"
-            >
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline text-[12px]">Nouveau Projet</span>
-            </Button>
-            <Button 
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSettingsDialogOpen(true)}
-              data-testid="button-dashboard-settings"
-              title="Personnaliser le tableau de bord"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-          </div>
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSettingsDialogOpen(true)}
+            data-testid="button-dashboard-settings"
+            title="Personnaliser le tableau de bord"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Dashboard Settings Panel */}

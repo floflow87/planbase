@@ -36,7 +36,7 @@ import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
-import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun } from "lucide-react";
+import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SafeAreaTopBar, useIsStandalone } from "@/design-system/primitives/SafeAreaTopBar";
@@ -50,6 +50,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TimeTracker } from "@/components/TimeTracker";
 import { UnifiedAvatar } from "@/onboarding/UnifiedAvatar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function Router() {
   return (
@@ -191,6 +202,506 @@ function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// Schemas for quick create forms
+const clientSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  type: z.enum(["company", "individual"]),
+  email: z.string().email("Email invalide").optional().or(z.literal("")),
+  phone: z.string().optional(),
+});
+
+const projectSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  description: z.string().optional(),
+  clientId: z.string().optional(),
+  stage: z.enum(["prospection", "proposal", "negotiation", "signed", "in_progress", "completed", "lost"]),
+});
+
+const taskSchema = z.object({
+  title: z.string().min(1, "Le titre est requis"),
+  description: z.string().optional(),
+  priority: z.enum(["low", "medium", "high"]),
+  projectId: z.string().optional(),
+});
+
+const noteSchema = z.object({
+  title: z.string().min(1, "Le titre est requis"),
+});
+
+function QuickCreateMenu() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  
+  const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
+  const [isProjectSheetOpen, setIsProjectSheetOpen] = useState(false);
+  const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false);
+  const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
+
+  // Get account ID from user metadata
+  const accountId = user?.user_metadata?.account_id;
+
+  // Fetch clients for project form
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ["/api/clients"],
+    enabled: !!accountId,
+  });
+
+  // Fetch projects for task form
+  const { data: projects = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects"],
+    enabled: !!accountId,
+  });
+
+  // Forms
+  const clientForm = useForm({
+    resolver: zodResolver(clientSchema),
+    defaultValues: { name: "", type: "company" as const, email: "", phone: "" },
+  });
+
+  const projectForm = useForm({
+    resolver: zodResolver(projectSchema),
+    defaultValues: { name: "", description: "", clientId: "", stage: "prospection" as const },
+  });
+
+  const taskForm = useForm({
+    resolver: zodResolver(taskSchema),
+    defaultValues: { title: "", description: "", priority: "medium" as const, projectId: "" },
+  });
+
+  const noteForm = useForm({
+    resolver: zodResolver(noteSchema),
+    defaultValues: { title: "" },
+  });
+
+  // Mutations - Server adds accountId and createdBy from auth context
+  const createClientMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof clientSchema>) => {
+      return apiRequest("/api/clients", {
+        method: "POST",
+        body: JSON.stringify({ 
+          name: data.name,
+          type: data.type,
+          contacts: data.email || data.phone ? [{ name: "", email: data.email || "", phone: data.phone || "", role: "" }] : [],
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Client créé avec succès" });
+      setIsClientSheetOpen(false);
+      clientForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof projectSchema>) => {
+      return apiRequest("/api/projects", {
+        method: "POST",
+        body: JSON.stringify({ 
+          name: data.name,
+          description: data.description || null,
+          stage: data.stage,
+          clientId: data.clientId || null,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Projet créé avec succès" });
+      setIsProjectSheetOpen(false);
+      projectForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof taskSchema>) => {
+      return apiRequest("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({ 
+          title: data.title,
+          description: data.description || null,
+          priority: data.priority,
+          projectId: data.projectId || null,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Tâche créée avec succès" });
+      setIsTaskSheetOpen(false);
+      taskForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof noteSchema>) => {
+      return apiRequest("/api/notes", {
+        method: "POST",
+        body: JSON.stringify({ 
+          title: data.title,
+          content: [],
+        }),
+      });
+    },
+    onSuccess: (newNote: any) => {
+      toast({ title: "Note créée avec succès" });
+      setIsNoteSheetOpen(false);
+      noteForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      if (newNote?.id) {
+        setLocation(`/notes/${newNote.id}`);
+      }
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de la création", variant: "destructive" });
+    },
+  });
+
+  if (!user) return null;
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" className="gap-1" data-testid="button-quick-create">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Nouveau</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48 bg-background" data-testid="dropdown-quick-create">
+          <DropdownMenuItem onClick={() => setIsClientSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-client">
+            <Users className="w-4 h-4 mr-2" />
+            Nouveau client
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsProjectSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-project">
+            <FolderKanban className="w-4 h-4 mr-2" />
+            Nouveau projet
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsTaskSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-task">
+            <CheckSquare className="w-4 h-4 mr-2" />
+            Nouvelle tâche
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsNoteSheetOpen(true)} className="cursor-pointer" data-testid="dropdown-new-note">
+            <StickyNote className="w-4 h-4 mr-2" />
+            Nouvelle note
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Client Sheet */}
+      <Sheet open={isClientSheetOpen} onOpenChange={setIsClientSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-client">
+          <SheetHeader>
+            <SheetTitle>Nouveau client</SheetTitle>
+          </SheetHeader>
+          <Form {...clientForm}>
+            <form onSubmit={clientForm.handleSubmit((data) => createClientMutation.mutate(data))} className="space-y-4 mt-4">
+              <FormField
+                control={clientForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nom</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-client-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={clientForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-client-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="company">Entreprise</SelectItem>
+                        <SelectItem value="individual">Particulier</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={clientForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" data-testid="input-client-email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={clientForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Téléphone</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-client-phone" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsClientSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createClientMutation.isPending} className="flex-1" data-testid="button-submit-client">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Project Sheet */}
+      <Sheet open={isProjectSheetOpen} onOpenChange={setIsProjectSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-project">
+          <SheetHeader>
+            <SheetTitle>Nouveau projet</SheetTitle>
+          </SheetHeader>
+          <Form {...projectForm}>
+            <form onSubmit={projectForm.handleSubmit((data) => createProjectMutation.mutate(data))} className="space-y-4 mt-4">
+              <FormField
+                control={projectForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nom</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-project-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} data-testid="input-project-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-project-client">
+                          <SelectValue placeholder="Sélectionner un client" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients.map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={projectForm.control}
+                name="stage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Étape</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-project-stage">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="prospection">Prospection</SelectItem>
+                        <SelectItem value="proposal">Proposition</SelectItem>
+                        <SelectItem value="negotiation">Négociation</SelectItem>
+                        <SelectItem value="signed">Signé</SelectItem>
+                        <SelectItem value="in_progress">En cours</SelectItem>
+                        <SelectItem value="completed">Terminé</SelectItem>
+                        <SelectItem value="lost">Perdu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsProjectSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createProjectMutation.isPending} className="flex-1" data-testid="button-submit-project">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Task Sheet */}
+      <Sheet open={isTaskSheetOpen} onOpenChange={setIsTaskSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-task">
+          <SheetHeader>
+            <SheetTitle>Nouvelle tâche</SheetTitle>
+          </SheetHeader>
+          <Form {...taskForm}>
+            <form onSubmit={taskForm.handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4 mt-4">
+              <FormField
+                control={taskForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Titre</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-task-title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={taskForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} data-testid="input-task-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={taskForm.control}
+                name="projectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Projet</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-task-project">
+                          <SelectValue placeholder="Sélectionner un projet" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {projects.map((project: any) => (
+                          <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={taskForm.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priorité</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-task-priority">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="low">Basse</SelectItem>
+                        <SelectItem value="medium">Moyenne</SelectItem>
+                        <SelectItem value="high">Haute</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsTaskSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createTaskMutation.isPending} className="flex-1" data-testid="button-submit-task">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Note Sheet */}
+      <Sheet open={isNoteSheetOpen} onOpenChange={setIsNoteSheetOpen}>
+        <SheetContent className="sm:max-w-md" data-testid="sheet-create-note">
+          <SheetHeader>
+            <SheetTitle>Nouvelle note</SheetTitle>
+          </SheetHeader>
+          <Form {...noteForm}>
+            <form onSubmit={noteForm.handleSubmit((data) => createNoteMutation.mutate(data))} className="space-y-4 mt-4">
+              <FormField
+                control={noteForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Titre</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-note-title" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsNoteSheetOpen(false)} className="flex-1">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createNoteMutation.isPending} className="flex-1" data-testid="button-submit-note">
+                  Créer
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
@@ -397,6 +908,7 @@ function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              <QuickCreateMenu />
               <TimeTracker />
               <Button variant="ghost" size="icon" data-testid="button-mail">
                 <Mail className="w-4 h-4 text-primary" />
