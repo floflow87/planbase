@@ -274,7 +274,6 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   
   // Free time entry form state
   const [showAddTimeForm, setShowAddTimeForm] = useState(false);
-  const [activeTab, setActiveTab] = useState("activities");
   const [timeInputMode, setTimeInputMode] = useState<'hours' | 'days'>('hours');
   const [newTimeDate, setNewTimeDate] = useState<Date | undefined>(new Date());
   const [newTimeDates, setNewTimeDates] = useState<Date[]>([]);
@@ -2485,6 +2484,9 @@ export default function ProjectDetail() {
     occurredAt: "",
   });
   const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
+  
+  // Tab state for controlled navigation
+  const [activeTab, setActiveTab] = useState("activities");
 
   const { data: project, isLoading: projectLoading } = useQuery<ProjectWithRelations>({
     queryKey: ['/api/projects', id],
