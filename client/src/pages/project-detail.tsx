@@ -2950,7 +2950,7 @@ export default function ProjectDetail() {
         </div>
 
         {/* Project Health Summary Bar */}
-        {profitabilityData?.metrics && (
+        {projectProfitabilityData?.metrics && (
           <div className="mb-4 p-3 rounded-lg border bg-card">
             <div className="flex flex-wrap items-center gap-4 text-sm">
               {/* Health Indicator */}
@@ -2958,21 +2958,21 @@ export default function ProjectDetail() {
                 <div 
                   className={cn(
                     "w-2.5 h-2.5 rounded-full",
-                    profitabilityData.metrics.status === 'profitable' && "bg-green-500",
-                    profitabilityData.metrics.status === 'at_risk' && "bg-amber-500",
-                    profitabilityData.metrics.status === 'deficit' && "bg-red-500"
+                    projectProfitabilityData.metrics.status === 'profitable' && "bg-green-500",
+                    projectProfitabilityData.metrics.status === 'at_risk' && "bg-amber-500",
+                    projectProfitabilityData.metrics.status === 'deficit' && "bg-red-500"
                   )}
                   data-testid="health-indicator"
                 />
                 <span className={cn(
                   "font-medium",
-                  profitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
-                  profitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
-                  profitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
+                  projectProfitabilityData.metrics.status === 'profitable' && "text-green-600 dark:text-green-400",
+                  projectProfitabilityData.metrics.status === 'at_risk' && "text-amber-600 dark:text-amber-400",
+                  projectProfitabilityData.metrics.status === 'deficit' && "text-red-600 dark:text-red-400"
                 )} data-testid="health-label">
-                  {profitabilityData.metrics.status === 'profitable' && "En bonne voie"}
-                  {profitabilityData.metrics.status === 'at_risk' && "À surveiller"}
-                  {profitabilityData.metrics.status === 'deficit' && "En difficulté"}
+                  {projectProfitabilityData.metrics.status === 'profitable' && "En bonne voie"}
+                  {projectProfitabilityData.metrics.status === 'at_risk' && "À surveiller"}
+                  {projectProfitabilityData.metrics.status === 'deficit' && "En difficulté"}
                 </span>
               </div>
               
@@ -2983,17 +2983,17 @@ export default function ProjectDetail() {
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-muted-foreground">Temps :</span>
                 <span className="font-medium" data-testid="time-consumed">
-                  {profitabilityData.metrics.actualDaysWorked.toFixed(1)}j
+                  {projectProfitabilityData.metrics.actualDaysWorked.toFixed(1)}j
                 </span>
-                {profitabilityData.metrics.theoreticalDays > 0 && (
+                {projectProfitabilityData.metrics.theoreticalDays > 0 && (
                   <>
                     <span className="text-muted-foreground">/</span>
                     <span className="text-muted-foreground" data-testid="time-planned">
-                      {profitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
+                      {projectProfitabilityData.metrics.theoreticalDays.toFixed(1)}j prévus
                     </span>
-                    {profitabilityData.metrics.timeOverrunPercent > 10 && (
+                    {projectProfitabilityData.metrics.timeOverrunPercent > 10 && (
                       <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
-                        +{profitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
+                        +{projectProfitabilityData.metrics.timeOverrunPercent.toFixed(0)}%
                       </Badge>
                     )}
                   </>
@@ -3007,19 +3007,19 @@ export default function ProjectDetail() {
                 <Euro className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-muted-foreground">Facturé :</span>
                 <span className="font-medium" data-testid="billed-amount">
-                  {(profitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
+                  {(projectProfitabilityData.metrics.totalBilled || 0).toLocaleString("fr-FR")} €
                 </span>
-                {profitabilityData.metrics.totalPaid > 0 && (
+                {projectProfitabilityData.metrics.totalPaid > 0 && (
                   <>
                     <span className="text-muted-foreground">·</span>
                     <span className="text-green-600 dark:text-green-400" data-testid="paid-amount">
-                      {profitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
+                      {projectProfitabilityData.metrics.totalPaid.toLocaleString("fr-FR")} € encaissés
                     </span>
                   </>
                 )}
-                {profitabilityData.metrics.remainingToPay > 0 && (
+                {projectProfitabilityData.metrics.remainingToPay > 0 && (
                   <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs ml-1">
-                    {profitabilityData.metrics.remainingToPay.toLocaleString("fr-FR")} € à recevoir
+                    {projectProfitabilityData.metrics.remainingToPay.toLocaleString("fr-FR")} € à recevoir
                   </Badge>
                 )}
               </div>
