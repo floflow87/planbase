@@ -1,4 +1,5 @@
 import { ArrowUp, ArrowDown, FolderKanban, Users, Euro, CheckSquare, Plus, FileText, TrendingUp, ChevronRight, Calendar as CalendarIcon, Check, CreditCard, AlertTriangle, Zap, ArrowRight, Clock, DollarSign, CheckCircle2, ExternalLink, X, Settings, GripVertical, Eye, EyeOff } from "lucide-react";
+import { clsx } from "clsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -179,6 +180,16 @@ const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
 
 const STORAGE_KEY = 'planbase_dashboard_config';
 
+// Block metadata for responsive grid layout
+const BLOCK_COLUMN_SPANS: Record<DashboardBlockId, string> = {
+  kpis: 'lg:col-span-6',
+  priorityAction: 'lg:col-span-6',
+  revenueChart: 'lg:col-span-4',
+  activityFeed: 'lg:col-span-2',
+  recentProjects: 'lg:col-span-3',
+  myDay: 'lg:col-span-3',
+};
+
 // Sortable item component for settings dialog
 function SortableBlockItem({ block, onToggle }: { block: DashboardBlockConfig; onToggle: (id: DashboardBlockId, visible: boolean) => void }) {
   const {
@@ -348,7 +359,13 @@ export default function Dashboard() {
     return block?.visible ?? true;
   }, [dashboardBlocks]);
 
-  // Get visible blocks in configured order
+  // Helper to get block order for CSS
+  const getBlockOrder = useCallback((id: DashboardBlockId): number => {
+    const index = dashboardBlocks.findIndex(b => b.id === id);
+    return index >= 0 ? index : 999;
+  }, [dashboardBlocks]);
+
+  // Get ordered visible blocks for rendering
   const orderedVisibleBlocks = useMemo(() => {
     return dashboardBlocks.filter(b => b.visible);
   }, [dashboardBlocks]);
@@ -988,7 +1005,7 @@ export default function Dashboard() {
 
   return (
     <div className="h-full overflow-auto overflow-x-hidden">
-      <div className="p-6 space-y-6">
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-6">
         {/* Create Client Sheet */}
         <Sheet open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>
           <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-create-client">
@@ -1285,7 +1302,7 @@ export default function Dashboard() {
         </Sheet>
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="lg:col-span-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h2 className="text-xl font-semibold text-foreground" data-testid="text-greeting">
             Bonjour{currentUser?.firstName ? `, ${currentUser.firstName}` : ''}
           </h2>
@@ -1370,82 +1387,76 @@ export default function Dashboard() {
           </SheetContent>
         </Sheet>
 
-        {/* Dynamic Dashboard Blocks Container - Rendered in user-configured order */}
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-6">
-          {orderedVisibleBlocks.map((block) => {
-            // KPI Cards
-            if (block.id === 'kpis') {
-              return (
-                <div key={block.id} className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="dashboard-kpis">
-                  {kpis.map((kpi, index) => {
-                    const Icon = kpi.icon;
-                    return (
-                      <Card key={index} data-testid={`card-kpi-${index}`}>
-                        <CardContent className="p-4 sm:p-6">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground font-medium">
-                                {kpi.title}
-                              </p>
-                              <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">
-                                {kpi.value}
-                              </h3>
-                              <p className={`text-[10px] flex items-center gap-1 mt-2 ${
-                                kpi.changeType === "positive" 
-                                  ? "text-green-600" 
-                                  : kpi.changeType === "negative" 
-                                    ? "text-red-600"
-                                    : "text-muted-foreground"
-                              }`}>
-                                {kpi.changeType === "positive" ? (
-                                  <ArrowUp className="w-3 h-3" />
-                                ) : kpi.changeType === "negative" ? (
-                                  <ArrowDown className="w-3 h-3" />
-                                ) : null}
-                                {kpi.change}
-                              </p>
-                              {kpi.subValue && (
-                                <p className="text-[10px] text-amber-600 mt-1">
-                                  {kpi.subValue}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
-                                <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
-                              </div>
-                              {kpi.link && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-[10px] hover:text-primary h-auto py-1 px-0" 
-                                  onClick={() => {
-                                    if (kpi.link!.href.includes('?')) {
-                                      window.location.href = kpi.link!.href;
-                                    } else {
-                                      setLocation(kpi.link!.href);
-                                    }
-                                  }}
-                                  data-testid={`button-kpi-${index}-view-all`}
-                                >
-                                  {kpi.link.label}
-                                  <ChevronRight className="w-3 h-3 ml-1" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              );
-            }
+        {/* KPI Cards */}
+        {isBlockVisible('kpis') && (
+        <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="dashboard-kpis" style={{ order: getBlockOrder('kpis') }}>
+          {kpis.map((kpi, index) => {
+            const Icon = kpi.icon;
+            return (
+              <Card key={index} data-testid={`card-kpi-${index}`}>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {kpi.title}
+                      </p>
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">
+                        {kpi.value}
+                      </h3>
+                      <p className={`text-[10px] flex items-center gap-1 mt-2 ${
+                        kpi.changeType === "positive" 
+                          ? "text-green-600" 
+                          : kpi.changeType === "negative" 
+                            ? "text-red-600"
+                            : "text-muted-foreground"
+                      }`}>
+                        {kpi.changeType === "positive" ? (
+                          <ArrowUp className="w-3 h-3" />
+                        ) : kpi.changeType === "negative" ? (
+                          <ArrowDown className="w-3 h-3" />
+                        ) : null}
+                        {kpi.change}
+                      </p>
+                      {kpi.subValue && (
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          {kpi.subValue}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
+                        <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
+                      </div>
+                      {kpi.link && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-[10px] hover:text-primary h-auto py-1 px-0" 
+                          onClick={() => {
+                            if (kpi.link!.href.includes('?')) {
+                              window.location.href = kpi.link!.href;
+                            } else {
+                              setLocation(kpi.link!.href);
+                            }
+                          }}
+                          data-testid={`button-kpi-${index}-view-all`}
+                        >
+                          {kpi.link.label}
+                          <ChevronRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+        )}
 
-            // Priority Action Card
-            if (block.id === 'priorityAction' && topPriorityAction && !isPriorityActionDismissed) {
-              return (
-                <Card key={block.id} className={`lg:col-span-6 border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action">
+        {/* Priority Action Card */}
+        {isBlockVisible('priorityAction') && topPriorityAction && !isPriorityActionDismissed && (
+          <Card className={`lg:col-span-6 border-l-4 ${getPriorityScoreColor(topPriorityAction.priorityScore).border} bg-gradient-to-r from-white to-gray-50/30 dark:from-gray-900 dark:to-gray-800/30`} data-testid="card-priority-action" style={{ order: getBlockOrder('priorityAction') }}>
             <CardContent className="p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {/* Left: Icon + Content */}
@@ -1515,8 +1526,8 @@ export default function Dashboard() {
           </Card>
         )}
 
-          {/* Revenue Chart - Spans 4 columns */}
-          {isBlockVisible('revenueChart') && (
+        {/* Revenue Chart */}
+        {isBlockVisible('revenueChart') && (
           <Card className="lg:col-span-4 overflow-hidden flex flex-col" style={{ order: getBlockOrder('revenueChart') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-0">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1574,8 +1585,8 @@ export default function Dashboard() {
           </Card>
           )}
 
-          {/* Recent Activity Feed - Spans 2 columns */}
-          {isBlockVisible('activityFeed') && (
+        {/* Recent Activity Feed */}
+        {isBlockVisible('activityFeed') && (
           <Card className="lg:col-span-2" style={{ order: getBlockOrder('activityFeed') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1652,8 +1663,8 @@ export default function Dashboard() {
           </Card>
           )}
 
-          {/* Recent Projects - Spans 3 columns */}
-          {isBlockVisible('recentProjects') && (
+        {/* Recent Projects */}
+        {isBlockVisible('recentProjects') && (
           <Card className="lg:col-span-3" style={{ order: getBlockOrder('recentProjects') }}>
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2 space-y-0 pb-2">
               <CardTitle className="text-base font-heading font-semibold">
@@ -1703,8 +1714,8 @@ export default function Dashboard() {
           </Card>
           )}
 
-          {/* Ma Journée Widget - Spans 3 columns */}
-          {isBlockVisible('myDay') && (
+        {/* Ma Journée Widget - Today's Tasks + Overdue */}
+        {isBlockVisible('myDay') && (
           <Card className="lg:col-span-3" style={{ order: getBlockOrder('myDay') }}>
             <CardHeader className="pb-2">
               <div className="flex flex-row items-center justify-between gap-2">
@@ -1929,7 +1940,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           )}
-        </div>
       </div>
       {/* Task Detail Modal */}
       <TaskDetailModal
