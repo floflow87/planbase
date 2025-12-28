@@ -1261,9 +1261,9 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                 </Tooltip>
 
                 <Popover>
-                  <PopoverTrigger asChild>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1272,10 +1272,10 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         >
                           <Smile className="w-4 h-4" />
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Ajouter un emoji</TooltipContent>
-                    </Tooltip>
-                  </PopoverTrigger>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Ajouter un emoji</TooltipContent>
+                  </Tooltip>
                   <PopoverContent 
                     className="w-auto p-0 bg-white dark:bg-card"
                     onPointerDownOutside={(e) => e.preventDefault()}
@@ -1436,35 +1436,14 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
           {/* Notion-like outline bar on the right - hidden on mobile */}
           {!isMobile && headings.length > 0 && (
             <div 
-              className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 z-50"
+              className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex items-center"
               onMouseEnter={() => setShowOutlineToc(true)}
               onMouseLeave={() => setShowOutlineToc(false)}
             >
-              {headings.map((heading) => {
-                const isActive = activeHeadingId === heading.id;
-                const width = heading.level === 1 ? 'w-3' : heading.level === 2 ? 'w-2.5' : 'w-2';
-                
-                return (
-                  <button
-                    key={heading.id}
-                    onClick={() => scrollToHeading(heading.id)}
-                    className={`${width} h-1.5 rounded-sm transition-all cursor-pointer ${
-                      isActive 
-                        ? 'bg-primary' 
-                        : 'bg-muted-foreground/20 hover:bg-muted-foreground/40'
-                    }`}
-                    title={heading.text}
-                    data-testid={`outline-bar-${heading.id}`}
-                  />
-                );
-              })}
-              
               {/* TOC Panel on hover - scrollable */}
               {showOutlineToc && (
                 <div 
-                  className="absolute right-8 top-1/2 -translate-y-1/2 w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 z-50"
-                  onMouseEnter={() => setShowOutlineToc(true)}
-                  onMouseLeave={() => setShowOutlineToc(false)}
+                  className="w-64 max-h-80 bg-card border border-border rounded-lg shadow-lg p-3 mr-2"
                 >
                   <div 
                     className="space-y-1 max-h-72 overflow-y-auto overscroll-contain"
@@ -1496,6 +1475,28 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   </div>
                 </div>
               )}
+              
+              {/* Outline bar indicators */}
+              <div className="flex flex-col gap-0.5 pr-4">
+                {headings.map((heading) => {
+                  const isActive = activeHeadingId === heading.id;
+                  const width = heading.level === 1 ? 'w-3' : heading.level === 2 ? 'w-2.5' : 'w-2';
+                  
+                  return (
+                    <button
+                      key={heading.id}
+                      onClick={() => scrollToHeading(heading.id)}
+                      className={`${width} h-1.5 rounded-sm transition-all cursor-pointer ${
+                        isActive 
+                          ? 'bg-primary' 
+                          : 'bg-muted-foreground/20 hover:bg-muted-foreground/40'
+                      }`}
+                      title={heading.text}
+                      data-testid={`outline-bar-${heading.id}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
