@@ -2940,7 +2940,7 @@ export default function Projects() {
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden">
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
       <div className="p-4 md:p-6 space-y-4" data-testid="projects-list">
         {/* Projects View Header */}
             <div className="flex items-center justify-between gap-4">

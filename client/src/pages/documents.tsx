@@ -551,7 +551,7 @@ export default function Documents() {
   );
 
   return (
-    <div className="flex-1 overflow-hidden bg-background flex" data-testid="page-documents">
+    <div className="flex-1 overflow-hidden bg-[#F8FAFC] dark:bg-background flex" data-testid="page-documents">
       {/* Left Sidebar - Folder Explorer (Collapsible) */}
       <div 
         className={`border-r border-border flex flex-col transition-all duration-300 ease-in-out ${

@@ -846,7 +846,7 @@ export default function CRM() {
   };
 
   return (
-    <div className="h-full overflow-auto" data-testid="page-crm">
+    <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background" data-testid="page-crm">
       {!accountId ? (
         <div className="flex items-center justify-center h-full">
           <Loader size="lg" />

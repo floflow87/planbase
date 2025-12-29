@@ -1221,7 +1221,7 @@ export default function Finance() {
   const highPriorityCount = criticalRecommendations.length;
 
   return (
-    <div className="p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden h-full" data-testid="page-finance">
+    <div className="p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden h-full bg-[#F8FAFC] dark:bg-background" data-testid="page-finance">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="overflow-x-auto w-full md:w-auto -mx-4 px-4 md:mx-0 md:px-0">

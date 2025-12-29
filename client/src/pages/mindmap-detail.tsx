@@ -2768,7 +2768,7 @@ function MindmapCanvas() {
   const CurrentKindIcon = KIND_ICONS[currentKind] || Brain;
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full bg-[#F8FAFC] dark:bg-background">
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center gap-4">
           <Button

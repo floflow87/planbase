@@ -370,7 +370,7 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="h-full overflow-auto p-6" data-testid="roadmap-view">
+    <div className="h-full overflow-auto p-6 bg-[#F8FAFC] dark:bg-background" data-testid="roadmap-view">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">

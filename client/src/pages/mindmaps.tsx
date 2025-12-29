@@ -165,7 +165,7 @@ export default function Mindmaps() {
   }
 
   return (
-    <div className="p-6 h-full overflow-auto">
+    <div className="p-6 h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
       <div className="flex justify-end items-center mb-6">
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>

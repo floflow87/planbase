@@ -940,7 +940,7 @@ export default function NoteDetail() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#F8FAFC] dark:bg-background">
       {/* Fixed Header */}
       <div className="flex-none border-b border-border bg-background">
         {/* MOBILE HEADER: Compact single line */}

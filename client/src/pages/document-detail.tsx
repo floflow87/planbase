@@ -392,7 +392,7 @@ export default function DocumentDetail() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#F8FAFC] dark:bg-background">
       {/* Fixed Header */}
       <div className="flex-none border-b border-border bg-background">
         <div className="p-6 space-y-4">

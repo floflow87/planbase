@@ -3249,22 +3249,24 @@ export default function ProjectDetail() {
             {/* Navigation précédent/suivant */}
             <div className="flex gap-1 mr-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 disabled={!projectNavigation.isReady || !projectNavigation.prevProject}
                 onClick={() => projectNavigation.prevProject && setLocation(`/projects/${projectNavigation.prevProject.id}`)}
                 data-testid="button-prev-project"
                 title={projectNavigation.prevProject ? `Projet précédent : ${projectNavigation.prevProject.name}` : "Pas de projet précédent"}
+                className="bg-white dark:bg-card"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 disabled={!projectNavigation.isReady || !projectNavigation.nextProject}
                 onClick={() => projectNavigation.nextProject && setLocation(`/projects/${projectNavigation.nextProject.id}`)}
                 data-testid="button-next-project"
                 title={projectNavigation.nextProject ? `Projet suivant : ${projectNavigation.nextProject.name}` : "Pas de projet suivant"}
+                className="bg-white dark:bg-card"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -3274,7 +3276,7 @@ export default function ProjectDetail() {
               size="sm"
               onClick={() => setShowAnalysisDrawer(true)}
               data-testid="button-analyze-project"
-              className="flex-1 sm:flex-none"
+              className="flex-1 sm:flex-none bg-white dark:bg-card"
             >
               <TrendingUp className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline text-xs">Analyser</span>
@@ -3284,7 +3286,7 @@ export default function ProjectDetail() {
               size="sm"
               onClick={handleEditProject} 
               data-testid="button-edit-project" 
-              className="flex-1 sm:flex-none"
+              className="flex-1 sm:flex-none bg-white dark:bg-card"
             >
               <Edit className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline text-xs">Modifier</span>

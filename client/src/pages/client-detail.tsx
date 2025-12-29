@@ -872,7 +872,7 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
         {/* Edit Client Dialog */}
         <Dialog open={isEditClientDialogOpen} onOpenChange={setIsEditClientDialogOpen}>

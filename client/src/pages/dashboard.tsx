@@ -1168,7 +1168,7 @@ export default function Dashboard() {
   const activityFeed = activities.slice(0, 50);
 
   return (
-    <div className="h-full overflow-auto overflow-x-hidden">
+    <div className="h-full overflow-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
       <div className="p-6 grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-6">
         {/* Create Client Sheet */}
         <Sheet open={isCreateClientDialogOpen} onOpenChange={setIsCreateClientDialogOpen}>

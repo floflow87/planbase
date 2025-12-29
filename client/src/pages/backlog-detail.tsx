@@ -1524,7 +1524,7 @@ export default function BacklogDetail() {
   const hasActiveSprint = backlog.sprints.some(s => s.status === "en_cours");
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#F8FAFC] dark:bg-background">
       <div className="flex items-center gap-4 p-4 md:p-6 border-b">
         <Button variant="ghost" size="icon" onClick={() => navigate("/product")} data-testid="button-back">
           <ArrowLeft className="h-5 w-5" />

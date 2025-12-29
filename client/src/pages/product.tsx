@@ -212,7 +212,7 @@ export default function Product() {
   ];
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
       <div className="p-6 space-y-6" data-testid="backlog-board">
         {/* KPIs - Style CRM */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
