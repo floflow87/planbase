@@ -18,6 +18,7 @@
 - Error Red: `#EF4444` - High priority, errors, urgent items
 
 **Neutral Scale:**
+- Page background: `#F8FAFC` - Default background for all main page content areas
 - Light backgrounds: `#FFFFFF`, `#F9FAFB`, `#F3F4F6`
 - Borders: `#E5E7EB`, `#D1D5DB`
 - Text: `#111827` (headings), `#6B7280` (body), `#9CA3AF` (muted)

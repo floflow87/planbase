@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2642,6 +2642,23 @@ export default function ProjectDetail() {
     return allBacklogs.filter((b) => b.projectId === id);
   }, [allBacklogs, id]);
   
+  // Memoized navigation for prev/next projects (sorted alphabetically)
+  const projectNavigation = useMemo(() => {
+    if (!id || allProjects.length === 0) {
+      return { prevProject: null, nextProject: null, isReady: false };
+    }
+    const sortedProjects = [...allProjects].sort((a, b) => a.name.localeCompare(b.name));
+    const currentIndex = sortedProjects.findIndex(p => p.id === id);
+    if (currentIndex === -1) {
+      return { prevProject: null, nextProject: null, isReady: false };
+    }
+    return {
+      prevProject: currentIndex > 0 ? sortedProjects[currentIndex - 1] : null,
+      nextProject: currentIndex < sortedProjects.length - 1 ? sortedProjects[currentIndex + 1] : null,
+      isReady: true
+    };
+  }, [allProjects, id]);
+  
   // Toggle backlog expansion
   const toggleBacklogExpanded = (backlogId: string) => {
     setExpandedBacklogs(prev => {
@@ -3104,13 +3121,13 @@ export default function ProjectDetail() {
     dataWarnings.push({ type: 'info', message: "Aucun budget défini", action: "Modifier le projet" });
   }
   
-  // Check if project has time estimates (CDC)
-  const hasCdcItems = project.scopeItems && project.scopeItems.length > 0;
+  // Check if project has time estimates (CDC) - use projectScopeItems from dedicated query
+  const hasCdcItems = projectScopeItems && projectScopeItems.length > 0;
   if (!hasCdcItems) {
     dataWarnings.push({ type: 'info', message: "Pas de CDC défini", action: "Onglet Temps" });
   } else {
     // Only check for zero estimates when CDC items exist
-    const projectCdcEstimatedDays = project.scopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
+    const projectCdcEstimatedDays = projectScopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
     if (projectCdcEstimatedDays === 0) {
       dataWarnings.push({ type: 'warning', message: "CDC sans estimations de temps" });
     }
@@ -3228,28 +3245,59 @@ export default function ProjectDetail() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto items-center">
+            {/* Navigation précédent/suivant */}
+            <div className="flex gap-1 mr-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!projectNavigation.isReady || !projectNavigation.prevProject}
+                onClick={() => projectNavigation.prevProject && setLocation(`/projects/${projectNavigation.prevProject.id}`)}
+                data-testid="button-prev-project"
+                title={projectNavigation.prevProject ? `Projet précédent : ${projectNavigation.prevProject.name}` : "Pas de projet précédent"}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!projectNavigation.isReady || !projectNavigation.nextProject}
+                onClick={() => projectNavigation.nextProject && setLocation(`/projects/${projectNavigation.nextProject.id}`)}
+                data-testid="button-next-project"
+                title={projectNavigation.nextProject ? `Projet suivant : ${projectNavigation.nextProject.name}` : "Pas de projet suivant"}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => setShowAnalysisDrawer(true)}
               data-testid="button-analyze-project"
               className="flex-1 sm:flex-none"
             >
-              <TrendingUp className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Analyser</span>
+              <TrendingUp className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline text-xs">Analyser</span>
             </Button>
-            <Button variant="outline" onClick={handleEditProject} data-testid="button-edit-project" className="flex-1 sm:flex-none">
-              <Edit className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Modifier</span>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleEditProject} 
+              data-testid="button-edit-project" 
+              className="flex-1 sm:flex-none"
+            >
+              <Edit className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline text-xs">Modifier</span>
             </Button>
             <Button 
               variant="destructive" 
+              size="sm"
               onClick={() => setIsDeleteDialogOpen(true)}
               data-testid="button-delete-project"
               className="flex-1 sm:flex-none"
             >
-              <Trash2 className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-[12px]">Supprimer</span>
+              <Trash2 className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline text-xs">Supprimer</span>
             </Button>
           </div>
         </div>
