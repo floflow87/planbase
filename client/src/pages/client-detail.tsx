@@ -1088,7 +1088,7 @@ export default function ClientDetail() {
                 variant="outline"
                 size="icon"
                 disabled={!clientNavigation.isReady || !clientNavigation.prevClient}
-                onClick={() => clientNavigation.prevClient && setLocation(`/clients/${clientNavigation.prevClient.id}`)}
+                onClick={() => clientNavigation.prevClient && setLocation(`/crm/${clientNavigation.prevClient.id}`)}
                 data-testid="button-prev-client"
                 title={clientNavigation.prevClient ? `Client précédent : ${clientNavigation.prevClient.name}` : "Pas de client précédent"}
                 className="bg-white dark:bg-card"
@@ -1099,7 +1099,7 @@ export default function ClientDetail() {
                 variant="outline"
                 size="icon"
                 disabled={!clientNavigation.isReady || !clientNavigation.nextClient}
-                onClick={() => clientNavigation.nextClient && setLocation(`/clients/${clientNavigation.nextClient.id}`)}
+                onClick={() => clientNavigation.nextClient && setLocation(`/crm/${clientNavigation.nextClient.id}`)}
                 data-testid="button-next-client"
                 title={clientNavigation.nextClient ? `Client suivant : ${clientNavigation.nextClient.name}` : "Pas de client suivant"}
                 className="bg-white dark:bg-card"
