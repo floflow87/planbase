@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Mail, Phone, MapPin, Building2, User, Briefcase, MessageSquare, Clock, CheckCircle2, UserPlus, FileText, Pencil, FolderKanban, Calendar as CalendarIcon, Save, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +115,29 @@ export default function ClientDetail() {
     queryKey: ['/api/clients', id],
     enabled: !!accountId && !!id,
   });
+
+  // Fetch all clients for prev/next navigation
+  const { data: allClients = [] } = useQuery<Client[]>({
+    queryKey: ['/api/clients'],
+    enabled: !!accountId,
+  });
+
+  // Memoized navigation for prev/next clients (sorted alphabetically)
+  const clientNavigation = useMemo(() => {
+    if (!id || allClients.length === 0) {
+      return { prevClient: null, nextClient: null, isReady: false };
+    }
+    const sortedClients = [...allClients].sort((a, b) => a.name.localeCompare(b.name));
+    const currentIndex = sortedClients.findIndex(c => c.id === id);
+    if (currentIndex === -1) {
+      return { prevClient: null, nextClient: null, isReady: false };
+    }
+    return {
+      prevClient: currentIndex > 0 ? sortedClients[currentIndex - 1] : null,
+      nextClient: currentIndex < sortedClients.length - 1 ? sortedClients[currentIndex + 1] : null,
+      isReady: true
+    };
+  }, [allClients, id]);
 
   const { data: contacts = [] } = useQuery<Contact[]>({
     queryKey: ['/api/contacts'],
@@ -1059,6 +1082,31 @@ export default function ClientDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Navigation précédent/suivant */}
+            <div className="flex gap-1 mr-2">
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!clientNavigation.isReady || !clientNavigation.prevClient}
+                onClick={() => clientNavigation.prevClient && setLocation(`/clients/${clientNavigation.prevClient.id}`)}
+                data-testid="button-prev-client"
+                title={clientNavigation.prevClient ? `Client précédent : ${clientNavigation.prevClient.name}` : "Pas de client précédent"}
+                className="bg-white dark:bg-card"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!clientNavigation.isReady || !clientNavigation.nextClient}
+                onClick={() => clientNavigation.nextClient && setLocation(`/clients/${clientNavigation.nextClient.id}`)}
+                data-testid="button-next-client"
+                title={clientNavigation.nextClient ? `Client suivant : ${clientNavigation.nextClient.name}` : "Pas de client suivant"}
+                className="bg-white dark:bg-card"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
             <Button
               variant="destructive"
               onClick={() => setIsDeleteDialogOpen(true)}
