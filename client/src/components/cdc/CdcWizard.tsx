@@ -184,6 +184,14 @@ export function CdcWizard({
     onSuccess: () => {
       refetchSession();
     },
+    onError: (error: any) => {
+      console.error('Update scope item error:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour l'élément",
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteScopeItemMutation = useMutation({
@@ -402,8 +410,9 @@ export function CdcWizard({
                         min="0"
                         className="w-20"
                         placeholder="jours"
-                        value={item.estimatedDays?.toString() || ''}
-                        onChange={(e) => {
+                        defaultValue={item.estimatedDays?.toString() || ''}
+                        onBlur={(e) => {
+                          console.log('Days input blur:', item.id, e.target.value);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { estimatedDays: e.target.value || null },
@@ -416,8 +425,9 @@ export function CdcWizard({
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground">Facturable</Label>
                       <Switch
-                        checked={item.isBillable === 1}
+                        checked={Boolean(item.isBillable)}
                         onCheckedChange={(checked) => {
+                          console.log('Billable toggle:', item.id, checked);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { isBillable: checked ? 1 : 0 },
@@ -429,8 +439,9 @@ export function CdcWizard({
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground">Optionnel</Label>
                       <Switch
-                        checked={item.isOptional === 1}
+                        checked={Boolean(item.isOptional)}
                         onCheckedChange={(checked) => {
+                          console.log('Optional toggle:', item.id, checked);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { isOptional: checked ? 1 : 0 },
