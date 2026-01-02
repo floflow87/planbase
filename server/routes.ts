@@ -415,6 +415,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile type (for onboarding)
+  app.patch("/api/me/profile-type", requireAuth, async (req, res) => {
+    try {
+      const { profileType } = req.body;
+      const validTypes = ['freelance', 'designer', 'pm', 'project_manager', 'cto', 'developer'];
+      
+      if (!profileType || !validTypes.includes(profileType)) {
+        return res.status(400).json({ error: "Type de profil invalide" });
+      }
+
+      // Get current user to merge with existing profile
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Merge new profileType with existing profile data
+      const updatedProfile = {
+        ...(typeof user.profile === 'object' && user.profile !== null ? user.profile : {}),
+        type: profileType,
+      };
+
+      // Update user with new profile
+      await db.update(appUsers)
+        .set({ profile: updatedProfile, updatedAt: new Date() })
+        .where(eq(appUsers.id, req.userId!));
+
+      res.json({ success: true, profileType });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // USER ONBOARDING
   // ============================================

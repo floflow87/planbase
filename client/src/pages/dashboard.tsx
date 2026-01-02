@@ -33,6 +33,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Loader } from "@/components/Loader";
 import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
 import { getProjectStageColorClass, getProjectStageLabel, getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
+import { DASHBOARD_CONFIG_BY_PROFILE, type UserProfileType, type DashboardBlockId as ProfileBlockId } from "@shared/userProfiles";
 
 // Use centralized config for stage colors and labels
 const getStageColor = (stage: string) => getProjectStageColorClass(stage);
@@ -217,6 +218,35 @@ const DEFAULT_DASHBOARD_BLOCKS: DashboardBlockConfig[] = [
 
 const STORAGE_KEY = 'planbase_dashboard_config_v2';
 const LEGACY_STORAGE_KEY = 'planbase_dashboard_config';
+const PROFILE_APPLIED_KEY = 'planbase_profile_applied';
+
+// Generate dashboard config from user profile
+const generateConfigFromProfile = (profileType: UserProfileType): DashboardBlockConfig[] => {
+  const profileConfig = DASHBOARD_CONFIG_BY_PROFILE[profileType];
+  if (!profileConfig) return DEFAULT_DASHBOARD_BLOCKS;
+
+  // Create config based on profile's block order and visibility
+  const result: DashboardBlockConfig[] = [];
+  
+  for (const blockId of profileConfig.blockOrder) {
+    const defaultBlock = DEFAULT_DASHBOARD_BLOCKS.find(b => b.id === blockId);
+    if (defaultBlock) {
+      result.push({
+        ...defaultBlock,
+        visible: profileConfig.visibleBlocks.includes(blockId),
+      });
+    }
+  }
+  
+  // Add any blocks not in the profile order (shouldn't happen, but safety first)
+  for (const defaultBlock of DEFAULT_DASHBOARD_BLOCKS) {
+    if (!result.find(b => b.id === defaultBlock.id)) {
+      result.push({ ...defaultBlock, visible: false });
+    }
+  }
+  
+  return result;
+};
 
 // Migrate legacy config to v2 format
 const migrateLegacyConfig = (): DashboardBlockConfig[] | null => {
@@ -530,6 +560,39 @@ export default function Dashboard() {
   });
 
   const accountId = currentUser?.accountId;
+
+  // Apply user profile configuration on first load if profile is set
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const userProfile = currentUser.profile as { type?: UserProfileType } | null;
+    const profileType = userProfile?.type;
+    
+    if (!profileType) return;
+    
+    // Check if we've already applied this profile
+    const appliedProfile = localStorage.getItem(PROFILE_APPLIED_KEY);
+    if (appliedProfile === profileType) return;
+    
+    // Check if user has custom config saved - only apply profile on first-time setup
+    // If appliedProfile exists (user selected a profile before), don't override their customizations
+    const existingConfig = localStorage.getItem(STORAGE_KEY);
+    if (existingConfig && appliedProfile) return;
+    
+    // Only apply profile config if no existing config OR if this is a fresh profile selection (appliedProfile is null)
+    if (existingConfig && !appliedProfile) {
+      // User has existing config but no applied profile - they may have customized before profiles existed
+      // Don't override their settings, just mark the profile as "applied"
+      localStorage.setItem(PROFILE_APPLIED_KEY, profileType);
+      return;
+    }
+    
+    // Apply profile configuration (fresh setup or no existing config)
+    const profileConfig = generateConfigFromProfile(profileType);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profileConfig));
+    localStorage.setItem(PROFILE_APPLIED_KEY, profileType);
+    setDashboardBlocks(profileConfig);
+  }, [currentUser]);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],

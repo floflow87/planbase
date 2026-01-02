@@ -17,8 +17,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check
 } from "lucide-react";
+import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
@@ -610,6 +611,136 @@ function ThresholdEditor({
   );
 }
 
+const PROFILE_ICONS: Record<string, typeof Briefcase> = {
+  Briefcase,
+  Palette,
+  Target,
+  FolderKanban,
+  Code,
+  Terminal,
+};
+
+function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProfileType }) {
+  const { toast } = useToast();
+  const [selectedProfile, setSelectedProfile] = useState<UserProfileType | undefined>(currentProfileType);
+
+  useEffect(() => {
+    setSelectedProfile(currentProfileType);
+  }, [currentProfileType]);
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async (profileType: UserProfileType) => {
+      await apiRequest("PATCH", "/api/me/profile-type", { profileType });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      toast({
+        title: "Profil mis à jour",
+        description: "Votre profil a été sauvegardé.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le profil.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleProfileChange = (profileId: UserProfileType) => {
+    if (profileId === selectedProfile) return;
+    setSelectedProfile(profileId);
+    saveProfileMutation.mutate(profileId);
+  };
+
+  const handleResetDashboard = () => {
+    if (!selectedProfile) return;
+    
+    localStorage.removeItem('planbase_profile_applied');
+    localStorage.removeItem('planbase_dashboard_config_v2');
+    
+    toast({
+      title: "Dashboard réinitialisé",
+      description: "Le dashboard sera adapté à votre profil au prochain chargement.",
+    });
+    
+    window.location.href = '/';
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
+          <Target className="w-4 h-4" />
+          Mon profil métier
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Choisissez le profil qui correspond à votre façon de travailler.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {USER_PROFILES.map((profile) => {
+            const IconComponent = PROFILE_ICONS[profile.icon] || Briefcase;
+            const isSelected = selectedProfile === profile.id;
+            
+            return (
+              <div
+                key={profile.id}
+                className={`cursor-pointer transition-all border rounded-lg p-3 hover-elevate ${
+                  isSelected 
+                    ? "ring-2 ring-primary bg-primary/5 border-primary" 
+                    : "hover:bg-accent/50"
+                }`}
+                onClick={() => handleProfileChange(profile.id)}
+                data-testid={`settings-profile-option-${profile.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${isSelected ? "bg-primary/10" : "bg-muted"}`}>
+                    <IconComponent className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-xs">{profile.label}</h3>
+                      {isSelected && <Check className="w-3 h-3 text-primary" />}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{profile.description}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <div className="text-xs text-muted-foreground">
+            Réinitialiser le dashboard avec la configuration de votre profil
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetDashboard}
+            disabled={!selectedProfile || saveProfileMutation.isPending}
+            data-testid="button-reset-dashboard"
+            className="text-xs"
+          >
+            <RotateCcw className="w-3 h-3 mr-1" />
+            Réinitialiser
+          </Button>
+        </div>
+        
+        {saveProfileMutation.isPending && (
+          <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Mise à jour...
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -1014,6 +1145,10 @@ export default function Settings() {
                 </Form>
               </CardContent>
             </Card>
+
+            <ProfileTypeCard 
+              currentProfileType={(userProfile?.profile as { type?: UserProfileType } | null)?.type}
+            />
 
             <Card>
               <CardHeader>

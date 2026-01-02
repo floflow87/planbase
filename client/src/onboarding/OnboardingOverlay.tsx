@@ -4,9 +4,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Spotlight } from "./Spotlight";
 import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
+import { ProfileSelector } from "./ProfileSelector";
 import { ONBOARDING_STEPS, ONBOARDING_VERSION, getStepById, getNextStep, isLastStep, type OnboardingStep } from "./steps";
 
 import type { UserOnboarding } from "@shared/schema";
+import type { UserProfileType } from "@shared/userProfiles";
 
 function getMoodForStep(stepId: string): AvatarMood {
   if (stepId === "intro") return "waving";
@@ -173,8 +175,35 @@ export function OnboardingOverlay() {
     setCurrentStepId(null);
   }, []);
 
+  const handleProfileSelected = useCallback((profileType: UserProfileType) => {
+    const nextStep = getNextStep("profile");
+    if (nextStep) {
+      progressMutation.mutate(nextStep.id);
+      setCurrentStepId(nextStep.id);
+      setIsElementReady(false);
+    }
+  }, [progressMutation]);
+
+  const handleProfileSkip = useCallback(() => {
+    const nextStep = getNextStep("profile");
+    if (nextStep) {
+      progressMutation.mutate(nextStep.id);
+      setCurrentStepId(nextStep.id);
+      setIsElementReady(false);
+    }
+  }, [progressMutation]);
+
   if (!isActive || !currentStep || !isElementReady) {
     return null;
+  }
+
+  if (currentStep.id === "profile") {
+    return (
+      <ProfileSelector
+        onProfileSelected={handleProfileSelected}
+        onSkip={handleProfileSkip}
+      />
+    );
   }
 
   const showSpotlight = currentStep.highlightSelector && currentStep.placement !== "center";
@@ -209,7 +238,7 @@ export function OnboardingOverlay() {
             : undefined
         }
         tertiaryAction={
-          currentStep.id !== "intro" && currentStep.id !== "complete"
+          currentStep.id !== "intro" && currentStep.id !== "complete" && currentStep.id !== "profile"
             ? { label: "Plus tard", onClick: handleLater }
             : undefined
         }

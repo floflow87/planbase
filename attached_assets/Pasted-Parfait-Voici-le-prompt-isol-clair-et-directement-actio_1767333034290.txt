@@ -1,0 +1,198 @@
+Parfait.
+Voici le prompt isolé, clair et directement actionnable, pour la V1 de l’onboarding orienté profil + dashboard personnalisé, sans refonte lourde, en s’appuyant uniquement sur les blocs existants.
+
+Tu peux l’envoyer tel quel.
+
+⸻
+
+🎯 PROMPT — Onboarding Profil & Dashboard personnalisé (V1, non destructif)
+
+Contexte
+
+PlanBase dispose déjà :
+	•	d’un Dashboard composé de blocs existants (KPIs, alertes, temps, projets, rentabilité, etc.)
+	•	d’un onboarding utilisateur
+	•	d’un système de settings utilisateur
+
+Objectif :
+👉 Ajouter une étape de choix de profil à l’onboarding,
+👉 Utiliser ce profil pour prioriser, masquer et réorganiser les blocs du Dashboard,
+👉 Sans supprimer aucune fonctionnalité ni créer de nouveaux blocs.
+
+⸻
+
+1️⃣ Étape Onboarding : Choix du profil
+
+Nouvelle étape à ajouter à l’onboarding
+
+Texte à afficher (tutoiement) :
+
+Comment travailles-tu le plus souvent aujourd’hui ?
+Cela nous aide à te montrer en priorité les informations qui comptent le plus pour toi.
+Tu pourras modifier ce choix à tout moment dans les paramètres.
+
+Profils proposés
+	•	Designer
+	•	Product Owner / Product Manager
+	•	Chargé·e de projet
+	•	CTO / Tech lead
+	•	Développeur·se
+	•	Freelance (vision complète)
+
+Règle importante
+	•	Le profil n’enlève jamais des fonctionnalités
+	•	Il influence uniquement :
+	•	l’ordre des blocs
+	•	leur visibilité par défaut
+	•	les KPIs mis en avant
+
+⸻
+
+2️⃣ Stockage du profil utilisateur
+
+Backend / DB
+
+Ajouter ou utiliser un champ existant :
+
+user.profile = 'designer' | 'pm' | 'project_manager' | 'cto' | 'developer' | 'freelance'
+
+Contraintes
+	•	Modifiable à tout moment
+	•	Aucun impact sur les permissions
+	•	Sert uniquement à l’UX et à la priorisation
+
+⸻
+
+3️⃣ Dashboard : personnalisation par profil (sans refonte)
+
+Principe
+
+Tous les blocs du Dashboard existent déjà.
+Il faut uniquement :
+	•	afficher / masquer certains blocs par défaut
+	•	définir un ordre par profil
+
+Exemple de mapping (à implémenter)
+
+Freelance (vision complète)
+	•	Tous les blocs visibles
+	•	Ordre :
+	1.	Alertes
+	2.	Rentabilité
+	3.	Temps
+	4.	Projets
+	5.	Activité
+
+⸻
+
+Designer
+Blocs visibles en priorité :
+	•	Projets
+	•	Tâches
+	•	Temps
+	•	Notes
+
+Blocs masqués par défaut :
+	•	Rentabilité détaillée (reste accessible via navigation)
+
+⸻
+
+Chargé·e de projet
+Blocs visibles :
+	•	Projets
+	•	Alertes
+	•	Tâches
+	•	Roadmap
+
+Blocs secondaires :
+	•	Temps global
+	•	Rentabilité synthétique
+
+⸻
+
+Product Owner / PM
+Blocs visibles :
+	•	Backlog
+	•	Roadmap
+	•	Projets
+	•	Alertes
+
+⸻
+
+CTO / Tech lead
+Blocs visibles :
+	•	Backlog
+	•	Temps
+	•	Alertes
+	•	Projets techniques
+
+⸻
+
+Développeur·se
+Blocs visibles :
+	•	Tâches
+	•	Projets
+	•	Temps
+	•	Notes
+
+⸻
+
+4️⃣ Implémentation technique attendue
+
+Frontend
+	•	Créer une config par profil :
+
+dashboardLayoutByProfile = {
+  freelance: [...],
+  designer: [...],
+  pm: [...],
+  ...
+}
+
+	•	Au chargement du Dashboard :
+	•	récupérer user.profile
+	•	appliquer l’ordre + visibilité correspondants
+	•	Ne pas supprimer les blocs du DOM si possible :
+	•	préférer hidden / collapsed pour permettre évolution future
+
+⸻
+
+5️⃣ Interaction utilisateur (important)
+
+Message discret à afficher sur le Dashboard (une seule fois)
+
+Ton tableau de bord est adapté à ton profil.
+Tu peux modifier ce choix à tout moment dans les paramètres.
+
+Dans les paramètres
+
+Section Profil & priorités
+	•	Profil actuel
+	•	Description courte de l’impact
+	•	Bouton : Changer mon profil
+
+⸻
+
+6️⃣ Contraintes strictes
+	•	❌ Pas de création de nouveaux blocs
+	•	❌ Pas de suppression définitive
+	•	❌ Pas de refonte UI
+	•	✅ Utiliser uniquement les blocs existants
+	•	✅ Approche progressive et réversible
+
+⸻
+
+7️⃣ Critères de succès
+	•	À l’inscription, l’utilisateur choisit un profil
+	•	Le Dashboard s’adapte immédiatement
+	•	Le profil Freelance affiche tout
+	•	Les autres profils voient une version plus lisible et ciblée
+	•	Le choix est modifiable sans effet destructif
+
+⸻
+
+Si tu veux, prochaine étape naturelle après ce prompt :
+👉 Prompt 2 : Premier projet guidé selon le profil
+👉 Prompt 3 : CDC intelligent adapté au profil
+
+Tu poses là une base très saine.

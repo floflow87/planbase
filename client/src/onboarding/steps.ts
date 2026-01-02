@@ -24,6 +24,15 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     ctaSecondaryLabel: "Passer",
   },
   {
+    id: "profile",
+    title: "Ton profil",
+    route: "/",
+    placement: "center",
+    copy: "Comment travailles-tu le plus souvent aujourd'hui ? Cela m'aide a te montrer en priorite les informations qui comptent le plus pour toi. Tu pourras modifier ce choix a tout moment dans les parametres.",
+    ctaPrimaryLabel: "Continuer",
+    ctaSecondaryLabel: "Passer",
+  },
+  {
     id: "dashboard",
     title: "Tableau de bord",
     route: "/",
