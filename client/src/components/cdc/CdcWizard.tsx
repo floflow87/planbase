@@ -111,7 +111,6 @@ export function CdcWizard({
 
   const { data: session, refetch: refetchSession } = useQuery<CdcSession & { scopeItems: ProjectScopeItem[] }>({
     queryKey: ['/api/cdc-sessions', sessionId],
-    queryFn: () => fetch(`/api/cdc-sessions/${sessionId}`, { credentials: 'include' }).then(r => r.json()),
     enabled: !!sessionId,
   });
 
