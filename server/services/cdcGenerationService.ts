@@ -26,6 +26,7 @@ const SCOPE_TYPE_COLORS: { [key: string]: string } = {
   'technical': '#06B6D4',
   'design': '#F59E0B',
   'gestion': '#10B981',
+  'strategy': '#3B82F6',
   'autre': '#6B7280',
 };
 
@@ -34,6 +35,7 @@ const SCOPE_TYPE_LABELS: { [key: string]: string } = {
   'technical': 'Technique',
   'design': 'Design',
   'gestion': 'Gestion de projet',
+  'strategy': 'Stratégie',
   'autre': 'Autre',
 };
 
@@ -181,9 +183,9 @@ export async function generateRoadmapFromCdc(
         createdBy,
       }).returning();
 
-      await db.update(sql`project_scope_items`)
+      await db.update(projectScopeItems)
         .set({ generatedRoadmapItemId: roadmapItem.id })
-        .where(eq(sql`id`, item.id));
+        .where(eq(projectScopeItems.id, item.id));
     }
   }
 
@@ -212,9 +214,9 @@ export async function generateRoadmapFromCdc(
         createdBy,
       }).returning();
 
-      await db.update(sql`project_scope_items`)
+      await db.update(projectScopeItems)
         .set({ generatedRoadmapItemId: roadmapItem.id })
-        .where(eq(sql`id`, item.id));
+        .where(eq(projectScopeItems.id, item.id));
     }
   }
 

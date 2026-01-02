@@ -1185,7 +1185,7 @@ export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems
   estimatedDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString() ?? null).optional().nullable(),
   isOptional: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
   isBillable: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
-  scopeType: z.enum(['functional', 'technical', 'design', 'gestion', 'autre']).default('functional').optional(),
+  scopeType: z.enum(['functional', 'technical', 'design', 'gestion', 'strategy', 'autre']).default('functional').optional(),
   phase: z.enum(['T1', 'T2', 'T3', 'T4', 'LT']).optional().nullable(),
 });
 export const updateProjectScopeItemSchema = insertProjectScopeItemSchema.omit({ accountId: true, projectId: true }).partial();
