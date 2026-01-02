@@ -3949,6 +3949,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get backlogs by project ID
+  app.get("/api/projects/:projectId/backlogs", requireAuth, async (req, res) => {
+    try {
+      const projectBacklogs = await db.select().from(backlogs)
+        .where(and(
+          eq(backlogs.accountId, req.accountId!),
+          eq(backlogs.projectId, req.params.projectId)
+        ))
+        .orderBy(desc(backlogs.createdAt));
+      res.json(projectBacklogs);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // ROADMAP ITEM LINKS
   // ============================================
@@ -5571,6 +5586,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   // BACKLOG TASKS
   // ============================================
+
+  // Get all tasks for a backlog
+  app.get("/api/backlogs/:backlogId/tasks", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      // Verify backlog belongs to account
+      const [backlog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog not found" });
+      }
+      
+      const tasks = await db.select().from(backlogTasks)
+        .where(eq(backlogTasks.backlogId, backlogId))
+        .orderBy(backlogTasks.position);
+      
+      res.json(tasks);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 
   // Create standalone task for backlog (without user story)
   app.post("/api/backlogs/:backlogId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {

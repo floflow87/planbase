@@ -747,21 +747,25 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                             {item.type !== "milestone" && onUpdateItemDates && (
                               <>
                                 <div
-                                  className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover/bar:opacity-100 bg-primary/20 hover:bg-primary/40 rounded-l-md transition-opacity z-10"
+                                  className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-l-md transition-colors z-10 flex items-center justify-center"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-start");
                                   }}
                                   data-testid={`resize-start-${item.id}`}
-                                />
+                                >
+                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+                                </div>
                                 <div
-                                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover/bar:opacity-100 bg-primary/20 hover:bg-primary/40 rounded-r-md transition-opacity z-10"
+                                  className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-r-md transition-colors z-10 flex items-center justify-center"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-end");
                                   }}
                                   data-testid={`resize-end-${item.id}`}
-                                />
+                                >
+                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+                                </div>
                               </>
                             )}
                             {item.type !== "milestone" && (
