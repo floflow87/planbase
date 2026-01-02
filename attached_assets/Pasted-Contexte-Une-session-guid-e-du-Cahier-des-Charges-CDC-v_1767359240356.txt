@@ -1,0 +1,183 @@
+Contexte
+
+Une session guidée du Cahier des Charges (CDC) vient d’être complétée sur un projet.
+Cette session a permis de définir :
+
+des lignes de CDC
+
+des estimations de temps
+
+le caractère facturable / non facturable
+
+des phases temporelles (T1 → LT)
+
+une génération automatique de backlog et de roadmap
+
+Objectif :
+👉 transformer cette structuration en base de pilotage concrète,
+👉 sans brusquer l’utilisateur,
+👉 en préparant la comparaison estimé / réel et les futures recommandations.
+
+1️⃣ Création automatique d’une baseline projet (référence initiale)
+Principe
+
+À la fin de la session CDC guidée, créer une baseline figée représentant l’état de référence du projet.
+
+Données de la baseline
+
+Temps total estimé
+
+Temps facturable estimé
+
+Temps non facturable estimé
+
+Répartition par type (fonctionnel, technique, gestion, etc.)
+
+Répartition par phase (T1, T2, T3, T4, LT)
+
+Date de création de la baseline
+
+⚠️ Cette baseline :
+
+n’est pas modifiée automatiquement
+
+sert uniquement de point de comparaison
+
+reste accessible dans l’historique du projet
+
+2️⃣ Écran de validation post-CDC (indispensable)
+UX
+
+Afficher un écran ou panneau dédié intitulé :
+
+Base projet générée
+
+Contenu :
+
+Résumé du CDC (temps, phases, facturable)
+
+Aperçu du backlog généré
+
+Aperçu de la roadmap générée
+
+Message explicatif :
+
+Voici la base de travail générée à partir de ton cahier des charges. Elle servira de référence pour le suivi du projet.
+
+Actions possibles
+
+✅ Valider la base
+
+✏️ Ajuster avant de continuer
+
+⚠️ Tant que la base n’est pas validée :
+
+pas de recommandations avancées
+
+pas d’alertes critiques
+
+3️⃣ Activation du lien CDC ↔ Exécution réelle
+Principe
+
+Dès que la base est validée, permettre de lier l’exécution réelle au CDC, sans obligation.
+
+Cas d’usage
+
+Quand l’utilisateur :
+
+saisit du temps
+
+crée une tâche
+
+clôture un ticket
+
+Il peut (optionnellement) rattacher l’action :
+
+à une ligne de CDC
+
+ou à une Epic / ticket issu du CDC
+
+Message discret :
+
+Lier cette action à un élément du CDC permet un suivi plus précis.
+
+4️⃣ Premiers indicateurs de comparaison (soft)
+
+Une fois du réel saisi, afficher progressivement :
+
+Temps consommé vs temps estimé
+
+Temps non facturable réel vs prévu
+
+Phases en surconsommation
+
+Types de travail sous-estimés
+
+⚠️ Ces indicateurs sont :
+
+descriptifs
+
+non jugeants
+
+sans code couleur agressif
+
+5️⃣ Déclenchement des premières recommandations (niveau 1)
+Principe
+
+Introduire des recommandations douces, orientées observation.
+
+Exemples
+
+“Tu passes plus de temps en gestion que prévu.”
+
+“La phase T1 est presque entièrement consommée.”
+
+“Ce type de tâche est souvent sous-estimé.”
+
+Chaque recommandation doit proposer :
+
+une explication
+
+une action possible (ajuster, anticiper, lisser)
+
+6️⃣ Mise en place du pilotage quotidien
+
+Une fois ces éléments en place :
+
+le Dashboard s’appuie sur la baseline
+
+l’onglet Temps affiche :
+
+passé
+
+restant
+
+projection “à ce rythme”
+
+la Rentabilité devient lisible et contextualisée
+
+Le projet entre alors dans une phase de pilotage continu.
+
+7️⃣ Contraintes strictes
+
+❌ Pas de modification automatique de la baseline
+
+❌ Pas de recommandations agressives trop tôt
+
+❌ Pas de blocage utilisateur
+
+✅ Comparaison toujours explicite (estimé vs réel)
+
+✅ Toutes les liaisons sont optionnelles
+
+🎯 Critères de succès
+
+L’utilisateur comprend la différence entre prévu et réel
+
+Le CDC devient une référence vivante
+
+Les KPIs sont crédibles
+
+Les recommandations sont perçues comme utiles, pas intrusives
+
+PlanBase passe de “structuration” à “pilotage”
