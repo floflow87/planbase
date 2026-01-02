@@ -45,7 +45,7 @@ interface CdcWizardProps {
   onComplete: (sessionId: string, backlogId?: string, roadmapId?: string) => void;
 }
 
-type ScopeType = 'functional' | 'technical' | 'design' | 'gestion' | 'autre';
+type ScopeType = 'functional' | 'technical' | 'design' | 'gestion' | 'strategy' | 'autre';
 type Phase = 'T1' | 'T2' | 'T3' | 'T4' | 'LT';
 
 interface ScopeItemForm {
@@ -63,6 +63,7 @@ const SCOPE_TYPES: { value: ScopeType; label: string; color: string }[] = [
   { value: 'technical', label: 'Technique', color: 'bg-cyan-500' },
   { value: 'design', label: 'Design', color: 'bg-amber-500' },
   { value: 'gestion', label: 'Gestion', color: 'bg-emerald-500' },
+  { value: 'strategy', label: 'Stratégie', color: 'bg-blue-500' },
   { value: 'autre', label: 'Autre', color: 'bg-gray-500' },
 ];
 

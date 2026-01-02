@@ -129,10 +129,10 @@ export async function runStartupMigrations() {
         -- Drop old constraint if it exists
         ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_subject_type_check;
         
-        -- Add new constraint with extended values including mindmap and backlog types
+        -- Add new constraint with extended values including mindmap, backlog and roadmap types
         ALTER TABLE activities 
         ADD CONSTRAINT activities_subject_type_check 
-        CHECK (subject_type IN ('client','deal','project','note','task','document','mindmap','backlog','epic','user_story','backlog_task'));
+        CHECK (subject_type IN ('client','deal','project','note','task','document','mindmap','backlog','epic','user_story','backlog_task','roadmap'));
       EXCEPTION
         WHEN duplicate_object THEN
           NULL;

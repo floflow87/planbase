@@ -1664,7 +1664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new CDC session
+  // Create a new CDC session (or return existing active session)
   app.post("/api/projects/:projectId/cdc-sessions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
@@ -1675,6 +1675,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Check for existing active session first
+      const existingSession = await storage.getActiveCdcSessionByProjectId(req.params.projectId);
+      if (existingSession) {
+        const scopeItems = await storage.getScopeItemsByCdcSessionId(existingSession.id);
+        return res.json({ ...existingSession, scopeItems });
+      }
+
+      // Create new session
       const validatedData = insertCdcSessionSchema.parse({
         accountId: req.accountId!,
         projectId: req.params.projectId,
@@ -1684,7 +1692,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const session = await storage.createCdcSession(validatedData);
-      res.json(session);
+      
+      // Load existing project scope items (without cdcSessionId) and link them to this session
+      const existingItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+      const orphanItems = existingItems.filter(item => !item.cdcSessionId);
+      
+      for (const item of orphanItems) {
+        await storage.updateScopeItem(item.id, { cdcSessionId: session.id });
+      }
+      
+      // Fetch and return the session with its items
+      const scopeItems = await storage.getScopeItemsByCdcSessionId(session.id);
+      res.json({ ...session, scopeItems });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
