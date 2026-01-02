@@ -786,7 +786,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                             )}
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs">
+                        <TooltipContent side="top" className="max-w-xs bg-white dark:bg-slate-900 text-foreground border shadow-lg">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               {isParent && <Folder className="h-3.5 w-3.5 text-amber-500" />}
@@ -855,7 +855,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                             <Plus className="h-4 w-4 text-primary/30 group-hover:text-primary/60 transition-colors" />
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent side="top">
+                        <TooltipContent side="top" className="bg-white dark:bg-slate-900 text-foreground border shadow-lg">
                           <p className="text-xs">
                             Cliquer pour créer au {format(col, zoom === "month" ? "MMM yyyy" : "d MMM", { locale: fr })}
                           </p>

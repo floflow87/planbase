@@ -473,6 +473,11 @@ export default function RoadmapPage() {
         orderIndex: newOrderIndex,
       });
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      toast({
+        title: "Élément déplacé",
+        description: "Le statut a été mis à jour avec succès.",
+        className: "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
+      });
     } catch {
       toast({
         title: "Erreur",
@@ -756,7 +761,7 @@ export default function RoadmapPage() {
         )}
       </div>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+      <Sheet open={isCreateDialogOpen} onOpenChange={(open) => {
         setIsCreateDialogOpen(open);
         if (!open) {
           setCreateStep(1);
@@ -766,86 +771,88 @@ export default function RoadmapPage() {
           setImportTickets(false);
         }
       }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
+        <SheetContent className="w-[450px] sm:max-w-[450px] overflow-y-auto bg-white dark:bg-slate-900">
+          <SheetHeader>
+            <SheetTitle>
               {createStep === 1 ? "Créer une roadmap" : "Importer des éléments"}
-            </DialogTitle>
-            <DialogDescription>
+            </SheetTitle>
+            <SheetDescription>
               {createStep === 1 
                 ? "Donnez un nom à votre roadmap et définissez optionnellement un horizon temporel."
                 : "Importez automatiquement les Epics et Tickets depuis votre backlog."}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
           
-          {createStep === 1 ? (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="roadmap-name">Nom de la roadmap</Label>
-                <Input
-                  id="roadmap-name"
-                  value={newRoadmapName}
-                  onChange={(e) => setNewRoadmapName(e.target.value)}
-                  placeholder="Ex: Roadmap Q1 2025"
-                  data-testid="input-roadmap-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="roadmap-horizon">Horizon (optionnel)</Label>
-                <Input
-                  id="roadmap-horizon"
-                  value={newRoadmapHorizon}
-                  onChange={(e) => setNewRoadmapHorizon(e.target.value)}
-                  placeholder="Ex: 2025-Q1"
-                  data-testid="input-roadmap-horizon"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 py-4">
-              <div className="rounded-lg border p-4 space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox 
-                    id="import-epics" 
-                    checked={importEpics} 
-                    onCheckedChange={(checked) => setImportEpics(!!checked)}
-                    data-testid="checkbox-import-epics"
+          <div className="py-4">
+            {createStep === 1 ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="roadmap-name">Nom de la roadmap</Label>
+                  <Input
+                    id="roadmap-name"
+                    value={newRoadmapName}
+                    onChange={(e) => setNewRoadmapName(e.target.value)}
+                    placeholder="Ex: Roadmap Q1 2025"
+                    data-testid="input-roadmap-name"
                   />
-                  <div className="flex-1">
-                    <Label htmlFor="import-epics" className="flex items-center gap-2 cursor-pointer">
-                      <Package className="h-4 w-4 text-primary" />
-                      Importer les Epics
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      {epics.length} epic(s) disponible(s)
-                    </p>
-                  </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Checkbox 
-                    id="import-tickets" 
-                    checked={importTickets} 
-                    onCheckedChange={(checked) => setImportTickets(!!checked)}
-                    data-testid="checkbox-import-tickets"
+                <div className="space-y-2">
+                  <Label htmlFor="roadmap-horizon">Horizon (optionnel)</Label>
+                  <Input
+                    id="roadmap-horizon"
+                    value={newRoadmapHorizon}
+                    onChange={(e) => setNewRoadmapHorizon(e.target.value)}
+                    placeholder="Ex: 2025-Q1"
+                    data-testid="input-roadmap-horizon"
                   />
-                  <div className="flex-1">
-                    <Label htmlFor="import-tickets" className="flex items-center gap-2 cursor-pointer">
-                      <ListTodo className="h-4 w-4 text-accent" />
-                      Importer les User Stories
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      {userStories.length} user story(ies) disponible(s)
-                    </p>
-                  </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Les éléments importés seront ajoutés comme livrables à la roadmap.
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4 space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox 
+                      id="import-epics" 
+                      checked={importEpics} 
+                      onCheckedChange={(checked) => setImportEpics(!!checked)}
+                      data-testid="checkbox-import-epics"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="import-epics" className="flex items-center gap-2 cursor-pointer">
+                        <Package className="h-4 w-4 text-primary" />
+                        Importer les Epics
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {epics.length} epic(s) disponible(s)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox 
+                      id="import-tickets" 
+                      checked={importTickets} 
+                      onCheckedChange={(checked) => setImportTickets(!!checked)}
+                      data-testid="checkbox-import-tickets"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="import-tickets" className="flex items-center gap-2 cursor-pointer">
+                        <ListTodo className="h-4 w-4 text-accent" />
+                        Importer les User Stories
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {userStories.length} user story(ies) disponible(s)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les éléments importés seront ajoutés comme livrables à la roadmap.
+                </p>
+              </div>
+            )}
+          </div>
           
-          <DialogFooter>
+          <SheetFooter className="flex-row gap-2 sm:justify-end">
             {createStep === 1 ? (
               <>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -873,12 +880,12 @@ export default function RoadmapPage() {
                 </Button>
               </>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
-        <SheetContent className="w-[450px] sm:max-w-[450px] overflow-y-auto">
+        <SheetContent className="w-[450px] sm:max-w-[450px] overflow-y-auto bg-white dark:bg-slate-900">
           <SheetHeader>
             <SheetTitle>{editingItem ? "Modifier l'élément" : "Ajouter un élément"}</SheetTitle>
             <SheetDescription>
@@ -951,29 +958,23 @@ export default function RoadmapPage() {
                 <Tag className="h-4 w-4" />
                 Version
               </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={itemForm.releaseTag}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, releaseTag: e.target.value }))}
-                  placeholder="Ex: v1.0, Q1-2026..."
-                  list="available-versions"
-                  data-testid="input-version"
-                />
-                <datalist id="available-versions">
-                  {availableVersions.map(version => (
-                    <option key={version} value={version} />
-                  ))}
-                </datalist>
-                {itemForm.releaseTag && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setItemForm(prev => ({ ...prev, releaseTag: "" }))}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Select 
+                value={itemForm.releaseTag || "none"} 
+                onValueChange={(v) => setItemForm(prev => ({ ...prev, releaseTag: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger data-testid="select-version">
+                  <SelectValue placeholder="Sélectionner une version..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune version</SelectItem>
+                  <SelectItem value="MVP">MVP</SelectItem>
+                  <SelectItem value="V1">V1</SelectItem>
+                  <SelectItem value="V2">V2</SelectItem>
+                  <SelectItem value="V3">V3</SelectItem>
+                  <SelectItem value="Hotfix">Hotfix</SelectItem>
+                  <SelectItem value="Soon">Soon</SelectItem>
+                </SelectContent>
+              </Select>
               {itemForm.releaseTag && (
                 <Badge variant="outline" className="text-xs w-fit">
                   <Tag className="h-3 w-3 mr-1" />
