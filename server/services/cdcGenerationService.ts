@@ -6,9 +6,10 @@ import {
   userStories,
   roadmaps,
   roadmapItems,
+  projectScopeItems,
   type ProjectScopeItem,
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 type PhaseOrder = { [key: string]: number };
 
@@ -98,15 +99,15 @@ export async function generateBacklogFromCdc(
         createdBy,
       }).returning();
 
-      await db.update(sql`project_scope_items`)
+      await db.update(projectScopeItems)
         .set({ generatedUserStoryId: story.id })
-        .where(eq(sql`id`, item.id));
+        .where(eq(projectScopeItems.id, item.id));
     }
 
     for (const item of items.filter(i => !i.generatedEpicId)) {
-      await db.update(sql`project_scope_items`)
+      await db.update(projectScopeItems)
         .set({ generatedEpicId: epic.id })
-        .where(eq(sql`id`, item.id));
+        .where(eq(projectScopeItems.id, item.id));
     }
   }
 

@@ -181,16 +181,41 @@ export function CdcWizard({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ProjectScopeItem> }) => {
       return apiRequest(`/api/scope-items/${id}`, 'PATCH', data);
     },
-    onSuccess: () => {
-      refetchSession();
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/cdc-sessions', sessionId] });
+      
+      // Snapshot previous value
+      const previousSession = queryClient.getQueryData(['/api/cdc-sessions', sessionId]);
+      
+      // Optimistic update
+      queryClient.setQueryData(['/api/cdc-sessions', sessionId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          scopeItems: old.scopeItems?.map((item: ProjectScopeItem) =>
+            item.id === id ? { ...item, ...data } : item
+          ),
+        };
+      });
+      
+      return { previousSession };
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousSession) {
+        queryClient.setQueryData(['/api/cdc-sessions', sessionId], context.previousSession);
+      }
       console.error('Update scope item error:', error);
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour l'élément",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Refetch to sync
+      queryClient.invalidateQueries({ queryKey: ['/api/cdc-sessions', sessionId] });
     },
   });
 
@@ -412,7 +437,6 @@ export function CdcWizard({
                         placeholder="jours"
                         defaultValue={item.estimatedDays?.toString() || ''}
                         onBlur={(e) => {
-                          console.log('Days input blur:', item.id, e.target.value);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { estimatedDays: e.target.value || null },
@@ -427,7 +451,6 @@ export function CdcWizard({
                       <Switch
                         checked={Boolean(item.isBillable)}
                         onCheckedChange={(checked) => {
-                          console.log('Billable toggle:', item.id, checked);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { isBillable: checked ? 1 : 0 },
@@ -441,7 +464,6 @@ export function CdcWizard({
                       <Switch
                         checked={Boolean(item.isOptional)}
                         onCheckedChange={(checked) => {
-                          console.log('Optional toggle:', item.id, checked);
                           updateScopeItemMutation.mutate({
                             id: item.id,
                             data: { isOptional: checked ? 1 : 0 },
