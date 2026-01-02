@@ -418,16 +418,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update user profile type (for onboarding)
   app.patch("/api/me/profile-type", requireAuth, async (req, res) => {
     try {
+      console.log("📝 Profile type update request:", { userId: req.userId, body: req.body });
       const { profileType } = req.body;
       const validTypes = ['freelance', 'designer', 'pm', 'project_manager', 'cto', 'developer'];
       
       if (!profileType || !validTypes.includes(profileType)) {
+        console.log("❌ Invalid profile type:", profileType);
         return res.status(400).json({ error: "Type de profil invalide" });
       }
 
       // Get current user to merge with existing profile
       const user = await storage.getUser(req.userId!);
       if (!user) {
+        console.log("❌ User not found:", req.userId);
         return res.status(404).json({ error: "User not found" });
       }
 
@@ -437,13 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: profileType,
       };
 
+      console.log("📝 Updating profile for user:", req.userId, "->", updatedProfile);
+      
       // Update user with new profile
       await db.update(appUsers)
         .set({ profile: updatedProfile, updatedAt: new Date() })
         .where(eq(appUsers.id, req.userId!));
 
+      console.log("✅ Profile updated successfully for user:", req.userId);
       res.json({ success: true, profileType });
     } catch (error: any) {
+      console.error("❌ Profile update error:", error);
       res.status(400).json({ error: error.message });
     }
   });
