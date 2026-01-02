@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Timer, Play, Square, ChevronDown, Pause, Check, Search } from "lucide-react";
+import { Timer, Play, Square, ChevronDown, Pause, Check, Search, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,6 +15,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,13 @@ type Project = {
   id: string;
   name: string;
   clientId: string | null;
+};
+
+type ScopeItem = {
+  id: string;
+  label: string;
+  scopeType: string | null;
+  phase: string | null;
 };
 
 type TimeEntry = {
@@ -49,9 +58,11 @@ export function TimeTracker() {
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [stoppedEntryId, setStoppedEntryId] = useState<string | null>(null);
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [selectedScopeItemId, setSelectedScopeItemId] = useState<string>("");
   
   // Use ref to capture latest selected project value for assignment
   const selectedProjectRef = useRef<string>("");
+  const selectedScopeItemRef = useRef<string>("");
 
   // Auto-open popover when project selector is shown
   useEffect(() => {
@@ -71,6 +82,13 @@ export function TimeTracker() {
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     enabled: !!user && (open || showProjectSelector), // Only when authenticated AND popover is open
+  });
+
+  // Fetch scope items for selected project (CDC lines)
+  const actualProjectId = selectedProjectId && selectedProjectId !== "none" ? selectedProjectId : null;
+  const { data: scopeItems = [] } = useQuery<ScopeItem[]>({
+    queryKey: ['/api/projects', actualProjectId, 'scope-items'],
+    enabled: !!user && !!actualProjectId && showProjectSelector,
   });
 
   // Update elapsed time when active entry changes
@@ -176,10 +194,11 @@ export function TimeTracker() {
   
   // Assign project to stopped entry mutation
   const assignProjectMutation = useMutation({
-    mutationFn: async ({ entryId, projectId }: { entryId: string; projectId: string | null }) => {
-      console.log('🚀 assignProjectMutation - Starting', { entryId, projectId });
+    mutationFn: async ({ entryId, projectId, scopeItemId }: { entryId: string; projectId: string | null; scopeItemId: string | null }) => {
+      console.log('🚀 assignProjectMutation - Starting', { entryId, projectId, scopeItemId });
       const response = await apiRequest(`/api/time-entries/${entryId}`, "PATCH", {
         projectId: projectId || null,
+        scopeItemId: scopeItemId || null,
       });
       const data = await response.json();
       console.log('✅ assignProjectMutation - Success', data);
@@ -200,6 +219,8 @@ export function TimeTracker() {
       setShowProjectSelector(false);
       setStoppedEntryId(null);
       setElapsedTime(0);
+      setSelectedScopeItemId("");
+      selectedScopeItemRef.current = "";
       setOpen(false);
     },
     onError: (error: Error) => {
@@ -292,12 +313,13 @@ export function TimeTracker() {
   };
   
   const handleAssignProject = () => {
-    console.log('🎯 handleAssignProject CALLED', { stoppedEntryId, selectedProjectRef: selectedProjectRef.current });
+    console.log('🎯 handleAssignProject CALLED', { stoppedEntryId, selectedProjectRef: selectedProjectRef.current, selectedScopeItemRef: selectedScopeItemRef.current });
     if (stoppedEntryId) {
       // Use ref to get the latest value, avoiding stale state
       const projectId = selectedProjectRef.current === "none" || !selectedProjectRef.current ? null : selectedProjectRef.current;
-      console.log('🔍 TimeTracker - Assigning project:', { stoppedEntryId, selectedProjectId: selectedProjectRef.current, projectId });
-      assignProjectMutation.mutate({ entryId: stoppedEntryId, projectId });
+      const scopeItemId = selectedScopeItemRef.current === "none" || !selectedScopeItemRef.current ? null : selectedScopeItemRef.current;
+      console.log('🔍 TimeTracker - Assigning project:', { stoppedEntryId, selectedProjectId: selectedProjectRef.current, projectId, scopeItemId });
+      assignProjectMutation.mutate({ entryId: stoppedEntryId, projectId, scopeItemId });
     } else {
       console.error('❌ No stoppedEntryId found!');
     }
@@ -374,6 +396,8 @@ export function TimeTracker() {
                         onSelect={() => {
                           setSelectedProjectId("none");
                           selectedProjectRef.current = "none";
+                          setSelectedScopeItemId("");
+                          selectedScopeItemRef.current = "";
                           setProjectSearchQuery("");
                         }}
                         data-testid="option-no-project"
@@ -390,6 +414,8 @@ export function TimeTracker() {
                             onSelect={() => {
                               setSelectedProjectId(project.id);
                               selectedProjectRef.current = project.id;
+                              setSelectedScopeItemId("");
+                              selectedScopeItemRef.current = "";
                               setProjectSearchQuery("");
                             }}
                             data-testid={`option-project-${project.id}`}
@@ -407,6 +433,53 @@ export function TimeTracker() {
                   </p>
                 )}
               </div>
+
+              {/* Scope Item Selection (CDC Lines) - Optional */}
+              {selectedProjectId && selectedProjectId !== "none" && scopeItems.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Rattacher à une ligne CDC (optionnel)
+                  </Label>
+                  <Select
+                    value={selectedScopeItemId}
+                    onValueChange={(value) => {
+                      setSelectedScopeItemId(value);
+                      selectedScopeItemRef.current = value;
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-scope-item">
+                      <SelectValue placeholder="Aucune ligne sélectionnée" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune ligne</SelectItem>
+                      {scopeItems.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          <span className="flex items-center gap-2">
+                            <span 
+                              className={cn(
+                                "w-2 h-2 rounded-full",
+                                item.scopeType === 'functional' && 'bg-violet-500',
+                                item.scopeType === 'technical' && 'bg-cyan-500',
+                                item.scopeType === 'design' && 'bg-amber-500',
+                                item.scopeType === 'gestion' && 'bg-emerald-500',
+                                item.scopeType === 'strategy' && 'bg-blue-500',
+                                (!item.scopeType || item.scopeType === 'autre') && 'bg-gray-500'
+                              )} 
+                            />
+                            {item.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedScopeItemId && selectedScopeItemId !== "none" && (
+                    <p className="text-xs text-muted-foreground">
+                      Ce temps sera comptabilisé pour le suivi KPI de cette ligne
+                    </p>
+                  )}
+                </div>
+              )}
 
               <Button
                 onClick={handleAssignProject}

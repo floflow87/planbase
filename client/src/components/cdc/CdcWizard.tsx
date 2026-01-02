@@ -33,8 +33,11 @@ import {
   Loader2,
   CheckCheck,
   Euro,
+  Target,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
-import type { ProjectScopeItem, CdcSession } from "@shared/schema";
+import type { ProjectScopeItem, CdcSession, ProjectBaseline } from "@shared/schema";
 
 interface CdcWizardProps {
   projectId: string;
@@ -80,6 +83,7 @@ const STEPS = [
   { id: 2, title: 'Estimation', icon: Clock },
   { id: 3, title: 'Phase', icon: Layers },
   { id: 4, title: 'Génération', icon: Wand2 },
+  { id: 5, title: 'Confirmation', icon: CheckCircle2 },
 ];
 
 const emptyForm: ScopeItemForm = {
@@ -108,6 +112,11 @@ export function CdcWizard({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
+  const [generationResult, setGenerationResult] = useState<{
+    backlogId?: string;
+    roadmapId?: string;
+    baseline?: ProjectBaseline;
+  } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
   const { data: session, refetch: refetchSession } = useQuery<CdcSession & { scopeItems: ProjectScopeItem[] }>({
@@ -238,15 +247,16 @@ export function CdcWizard({
     },
     onSuccess: (result: any) => {
       setIsGenerating(false);
-      toast({
-        title: "Génération terminée",
-        description: "Le backlog et la roadmap ont été créés",
-        variant: "success",
+      setGenerationResult({
+        backlogId: result.generatedBacklogId,
+        roadmapId: result.generatedRoadmapId,
+        baseline: result.baseline,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
       queryClient.invalidateQueries({ queryKey: ['/api/backlogs'] });
       queryClient.invalidateQueries({ queryKey: ['/api/roadmaps'] });
-      onComplete(sessionId!, result.generatedBacklogId, result.generatedRoadmapId);
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'baselines'] });
+      setCurrentStep(5);
     },
     onError: (error: any) => {
       setIsGenerating(false);
@@ -283,7 +293,15 @@ export function CdcWizard({
     setCurrentStep(1);
     setSessionId(null);
     setNewItemForm({ ...emptyForm });
+    setGenerationResult(null);
     onClose();
+  };
+
+  const handleFinish = () => {
+    if (generationResult) {
+      onComplete(sessionId!, generationResult.backlogId, generationResult.roadmapId);
+    }
+    handleClose();
   };
 
   const totalDays = scopeItems.reduce((sum, item) => {
@@ -606,22 +624,147 @@ export function CdcWizard({
               </Card>
             </div>
           )}
+
+          {currentStep === 5 && generationResult && (
+            <div className="space-y-6 py-4">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-semibold">Session CDC terminée !</h3>
+                <p className="text-sm text-muted-foreground">
+                  Le périmètre projet a été validé et la baseline de pilotage est créée.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                {generationResult.baseline && (
+                  <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Target className="h-4 w-4 text-violet-600" />
+                        Baseline de pilotage créée
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        La baseline capture vos estimations initiales comme référence pour le suivi du projet.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-background border">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-xs text-muted-foreground">Total estimé</span>
+                            <p className="font-semibold">
+                              {parseFloat(generationResult.baseline.totalEstimatedDays?.toString() || '0').toFixed(1)} jours
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-background border">
+                          <Euro className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-xs text-muted-foreground">Facturable</span>
+                            <p className="font-semibold">
+                              {parseFloat(generationResult.baseline.billableEstimatedDays?.toString() || '0').toFixed(1)} jours
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {generationResult.baseline.byType && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground">Répartition par type</span>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(generationResult.baseline.byType as Record<string, number>).map(([type, days]) => {
+                              const typeConfig = SCOPE_TYPES.find(t => t.value === type);
+                              return (
+                                <Badge key={type} variant="outline" className="text-xs">
+                                  <span className={`w-2 h-2 rounded-full mr-1 ${typeConfig?.color || 'bg-gray-500'}`} />
+                                  {typeConfig?.label || type}: {days.toFixed(1)}j
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {generationResult.backlogId && (
+                  <Card>
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-cyan-100 dark:bg-cyan-950 flex items-center justify-center">
+                          <Layers className="h-5 w-5 text-cyan-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">Backlog généré</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Epics et User Stories créés à partir du périmètre
+                          </p>
+                        </div>
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500 ml-auto" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {generationResult.roadmapId && (
+                  <Card>
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center">
+                          <TrendingUp className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">Roadmap générée</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Items planifiés selon les phases définies
+                          </p>
+                        </div>
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500 ml-auto" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-muted/50">
+                  <CardContent className="py-4">
+                    <div className="flex items-start gap-3">
+                      <BarChart3 className="h-5 w-5 text-violet-600 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="font-medium">Pilotage activé</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Vous pouvez maintenant suivre l'avancement réel vs. estimé dans l'onglet Temps du projet, 
+                          et rattacher vos entrées de temps aux lignes du périmètre CDC.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
         </ScrollArea>
 
         <div className="flex items-center justify-between pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 1}
-            data-testid="button-wizard-back"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Précédent
-          </Button>
+          {currentStep < 5 && (
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={currentStep === 1}
+              data-testid="button-wizard-back"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Précédent
+            </Button>
+          )}
+
+          {currentStep === 5 && <div />}
 
           <div className="flex items-center gap-2">
-            <Progress value={(currentStep / 4) * 100} className="w-24 h-2" />
-            <span className="text-sm text-muted-foreground">{currentStep}/4</span>
+            <Progress value={(currentStep / 5) * 100} className="w-24 h-2" />
+            <span className="text-sm text-muted-foreground">{currentStep}/5</span>
           </div>
 
           {currentStep < 4 ? (
@@ -633,7 +776,7 @@ export function CdcWizard({
               Suivant
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-          ) : (
+          ) : currentStep === 4 ? (
             <Button
               onClick={handleComplete}
               disabled={isGenerating || (!generateBacklog && !generateRoadmap)}
@@ -650,6 +793,14 @@ export function CdcWizard({
                   Générer
                 </>
               )}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleFinish}
+              data-testid="button-wizard-finish"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Terminer
             </Button>
           )}
         </div>
