@@ -757,25 +757,51 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                           >
                             {item.type !== "milestone" && onUpdateItemDates && (
                               <>
+                                {/* Resize handle - left */}
                                 <div
-                                  className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize bg-slate-600/50 hover:bg-slate-600/80 rounded-l-md transition-colors z-10 flex items-center justify-center border-r border-white/30"
+                                  className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-l-md transition-colors z-10 flex items-center justify-center"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-start");
                                   }}
                                   data-testid={`resize-start-${item.id}`}
                                 >
-                                  <div className="w-0.5 h-4 bg-white rounded-full" />
+                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
                                 </div>
+                                {/* Resize handle - right */}
                                 <div
-                                  className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize bg-slate-600/50 hover:bg-slate-600/80 rounded-r-md transition-colors z-10 flex items-center justify-center border-l border-white/30"
+                                  className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-r-md transition-colors z-10 flex items-center justify-center"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-end");
                                   }}
                                   data-testid={`resize-end-${item.id}`}
                                 >
-                                  <div className="w-0.5 h-4 bg-white rounded-full" />
+                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+                                </div>
+                                {/* Dependency connector - left (incoming) */}
+                                <div
+                                  className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-md cursor-pointer hover:scale-125 hover:bg-blue-600 transition-all z-20 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // TODO: Handle incoming dependency connection
+                                  }}
+                                  data-testid={`dependency-in-${item.id}`}
+                                  title="Point d'entrée de dépendance"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                </div>
+                                {/* Dependency connector - right (outgoing) */}
+                                <div
+                                  className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-orange-500 border-2 border-white shadow-md cursor-pointer hover:scale-125 hover:bg-orange-600 transition-all z-20 flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // TODO: Handle outgoing dependency connection
+                                  }}
+                                  data-testid={`dependency-out-${item.id}`}
+                                  title="Point de sortie de dépendance"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full bg-white" />
                                 </div>
                               </>
                             )}
