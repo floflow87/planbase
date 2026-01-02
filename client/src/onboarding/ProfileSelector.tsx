@@ -26,7 +26,7 @@ export function ProfileSelector({ onProfileSelected, onSkip, isLoading }: Profil
 
   const saveProfileMutation = useMutation({
     mutationFn: async (profileType: UserProfileType) => {
-      await apiRequest("PATCH", "/api/me/profile-type", { profileType });
+      await apiRequest("/api/me/profile-type", "PATCH", { profileType });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/me"] });
