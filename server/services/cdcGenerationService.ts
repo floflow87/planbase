@@ -59,7 +59,7 @@ export async function generateBacklogFromCdc(
     projectId,
     name: `CDC - ${project.name}`,
     description: `Backlog généré à partir du Cahier des Charges de ${project.name}`,
-    mode: 'kanban',
+    mode: 'scrum',
     createdBy,
   }).returning();
 

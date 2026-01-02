@@ -416,11 +416,28 @@ export function ProjectScopeSection({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ProjectScopeItem> }) => {
       return apiRequest(`/api/scope-items/${id}`, "PATCH", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+      const previousData = queryClient.getQueryData(['/api/projects', projectId, 'scope-items']);
+      queryClient.setQueryData(['/api/projects', projectId, 'scope-items'], (old: typeof scopeData) => {
+        if (!old) return old;
+        return {
+          ...old,
+          scopeItems: old.scopeItems.map((item: ProjectScopeItem) =>
+            item.id === id ? { ...item, ...data } : item
+          ),
+        };
+      });
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/projects', projectId, 'scope-items'], context.previousData);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
     },
   });
 
