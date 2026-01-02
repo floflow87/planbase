@@ -1,0 +1,234 @@
+Contexte
+
+PlanBase a un module Roadmap avec deux vues :
+
+Gantt (timeline)
+
+Output (colonnes type “Now / Next / Later” ou équivalent)
+
+Aujourd’hui la roadmap est trop “isolée”. Je veux qu’elle devienne un hub interconnecté avec :
+
+Projets
+
+Backlog (Epic / Tickets)
+
+CDC (rubriques)
+
+Tâches
+
+1) Lier un bloc roadmap à une EPIC ou un ticket
+Objectif
+
+Chaque bloc de roadmap doit pouvoir être rattaché à un élément existant :
+
+Epic (backlog)
+
+Ticket (US / task)
+
+Rubrique de CDC (optionnel)
+
+(et aussi laisser “bloc libre” possible)
+
+UX attendu
+
+Dans la création/édition d’un bloc :
+
+champ Type de bloc : Libre | Epic | Ticket | CDC
+
+champ Élément lié (autocomplete) qui dépend du type choisi
+
+afficher ensuite sur le bloc :
+
+badge Epic/Ticket/CDC
+
+titre de l’élément lié
+
+statut (si existant : todo/in progress/done)
+
+progression (si possible via tickets liés)
+
+Règle
+
+Si un bloc est lié à Epic/Ticket :
+
+le titre se synchronise (ou au minimum proposer “Synchroniser titre”)
+
+l’état peut remonter (ex : ticket done → bloc terminé)
+
+2) Dépendances visuelles (poignées + drag pour relier)
+Objectif
+
+Créer des dépendances comme sur les outils pro (linear/jira advanced roadmaps) :
+
+on clique sur une poignée sur un bloc
+
+on “tire” une ligne
+
+on lâche sur la poignée d’un autre bloc
+
+cela crée une dépendance A dépend de B (ou B → A selon sens choisi)
+
+UI attendu
+
+Sur chaque bloc Gantt :
+
+afficher 2 poignées discrètes :
+
+à gauche : dépendance entrante
+
+à droite : dépendance sortante
+
+au hover : poignées visibles + cursor “crosshair”
+
+au drag : ligne de prévisualisation + highlight du bloc cible
+
+stocker en DB : roadmap_dependencies avec from_block_id, to_block_id, type (finish-to-start par défaut)
+
+Règles minimales
+
+empêcher boucle (A dépend de A ou cycles)
+
+si suppression d’un bloc : supprimer ses dépendances
+
+afficher les dépendances dans le Gantt (courbes/traits)
+
+3) Création de roadmap depuis un projet + import intelligent
+Objectif
+
+Quand je crée une roadmap depuis une fiche projet, je veux un “starter” :
+
+Importer les rubriques du CDC comme blocs
+
+OU Importer les items du backlog (epics/tickets) comme blocs
+
+OU partir de zéro
+
+UX attendu
+
+Dans “Créer une roadmap” :
+
+step 1 : nom + projet + template éventuel
+
+step 2 : “Voulez-vous pré-remplir la roadmap ?”
+
+✅ Importer rubriques CDC
+
+✅ Importer Epics
+
+✅ Importer Tickets
+
+(checkbox multiples possibles)
+
+step 3 : mapping :
+
+CDC → blocs type CDC liés
+
+Epics → blocs type Epic liés
+
+Tickets → blocs type Ticket liés
+
+dates par défaut :
+
+soit vides
+
+soit étalées automatiquement (option “étaler sur 4 semaines”)
+
+Règle d’interconnexion
+
+Les blocs importés doivent être liés à la source :
+
+bloc CDC → référence cdc_section_id
+
+bloc Epic → référence epic_id
+
+bloc Ticket → référence ticket_id
+
+4) Persistance : garder la dernière vue / dernier projet
+Objectif
+
+Quand je reviens sur Roadmap, je veux retrouver :
+
+le dernier projet consulté
+
+la dernière roadmap sélectionnée
+
+la dernière vue (Gantt/Output)
+
+l’échelle (Jour/Semaine/Mois)
+
+Tech attendu
+
+Persistance côté DB (préféré) ou au minimum user settings :
+
+user_preferences.roadmap_last_project_id
+
+user_preferences.roadmap_last_roadmap_id
+
+user_preferences.roadmap_last_view
+
+user_preferences.roadmap_last_zoom
+
+5) Gestion des “rubriques” de roadmap (sélecteur)
+Problème
+
+Le sélecteur (dropdown en haut à gauche) liste des “rubriques/roadmaps” d’un projet (ex : “Launch MVP”, “Modèle de données”).
+
+Objectif
+
+Dans ce sélecteur je veux pouvoir :
+
+créer une rubrique
+
+renommer
+
+supprimer
+
+réordonner (option bonus)
+
+UX attendu
+
+Dans le dropdown :
+
+chaque item a un menu “…” :
+
+Renommer
+
+Dupliquer (optionnel)
+
+Supprimer
+
+suppression doit demander confirmation
+
+si on supprime la rubrique active → fallback sur la première disponible
+
+6) Output view : drag & drop d’un bloc d’une colonne à l’autre
+Objectif
+
+Dans la vue Output, chaque bloc doit être draggable :
+
+déplacer un bloc de Now → Next
+
+ordre dans chaque colonne réorganisable par drag
+
+Tech attendu
+
+utiliser DnD kit
+
+stocker status_column + position
+
+supporter le tri stable (position float ou index)
+
+Règles
+
+si bloc lié à un ticket : proposer option “Synchroniser statut ticket” (toggle)
+
+si OFF : le bloc peut vivre indépendamment
+
+7) Critères d’acceptation
+
+✅ Je peux lier un bloc à une Epic ou un ticket (et le voir clairement).
+✅ Je peux créer des dépendances via poignées + drag.
+✅ Je peux créer une roadmap depuis un projet en important CDC / backlog.
+✅ La dernière roadmap/projet/vue est persistante.
+✅ Je peux éditer/supprimer une rubrique via le sélecteur.
+✅ En Output, je drag & drop un bloc entre colonnes + réordonnancement.

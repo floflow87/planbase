@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,9 +21,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { GanttView } from "@/components/roadmap/gantt-view";
 import { OutputView } from "@/components/roadmap/output-view";
-import type { Roadmap, RoadmapItem, Project, RoadmapDependency } from "@shared/schema";
+import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory } from "@shared/schema";
 
 type ViewMode = "gantt" | "output";
+type LinkedType = "free" | "epic" | "ticket" | "cdc";
 
 export default function RoadmapPage() {
   const { toast } = useToast();
@@ -30,16 +34,31 @@ export default function RoadmapPage() {
     const saved = localStorage.getItem("roadmap-selected-project");
     return saved || null;
   });
-  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("gantt");
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(() => {
+    const saved = localStorage.getItem("roadmap-selected-roadmap");
+    return saved || null;
+  });
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("roadmap-view-mode");
+    return (saved as ViewMode) || "gantt";
+  });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [newRoadmapName, setNewRoadmapName] = useState("");
   const [newRoadmapHorizon, setNewRoadmapHorizon] = useState("");
+  const [importEpics, setImportEpics] = useState(false);
+  const [importTickets, setImportTickets] = useState(false);
   
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
   const [projectSearchOpen, setProjectSearchOpen] = useState(false);
   const [projectSearchValue, setProjectSearchValue] = useState("");
+  
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [roadmapToManage, setRoadmapToManage] = useState<Roadmap | null>(null);
+  
   const [itemForm, setItemForm] = useState({
     title: "",
     type: "deliverable",
@@ -48,6 +67,9 @@ export default function RoadmapPage() {
     startDate: "",
     endDate: "",
     description: "",
+    linkedType: "free" as LinkedType,
+    linkedId: null as string | null,
+    linkedTitle: "",
   });
 
   useEffect(() => {
@@ -55,6 +77,16 @@ export default function RoadmapPage() {
       localStorage.setItem("roadmap-selected-project", selectedProjectId);
     }
   }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedRoadmapId) {
+      localStorage.setItem("roadmap-selected-roadmap", selectedRoadmapId);
+    }
+  }, [selectedRoadmapId]);
+
+  useEffect(() => {
+    localStorage.setItem("roadmap-view-mode", viewMode);
+  }, [viewMode]);
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -77,23 +109,50 @@ export default function RoadmapPage() {
     enabled: !!activeRoadmapId,
   });
 
+  const { data: backlogs = [] } = useQuery<{ id: string }[]>({
+    queryKey: [`/api/projects/${selectedProjectId}/backlogs`],
+    enabled: !!selectedProjectId,
+  });
+
+  const backlogId = backlogs.length > 0 ? backlogs[0].id : null;
+
+  const { data: epics = [] } = useQuery<Epic[]>({
+    queryKey: [`/api/backlogs/${backlogId}/epics`],
+    enabled: !!backlogId,
+  });
+
+  const { data: userStories = [] } = useQuery<UserStory[]>({
+    queryKey: [`/api/backlogs/${backlogId}/user-stories`],
+    enabled: !!backlogId,
+  });
+
   useEffect(() => {
-    setSelectedRoadmapId(null);
-  }, [selectedProjectId]);
+    const savedRoadmapId = localStorage.getItem("roadmap-selected-roadmap");
+    if (savedRoadmapId && roadmaps.some(r => r.id === savedRoadmapId)) {
+      setSelectedRoadmapId(savedRoadmapId);
+    } else {
+      setSelectedRoadmapId(null);
+    }
+  }, [selectedProjectId, roadmaps]);
 
   const createRoadmapMutation = useMutation({
-    mutationFn: async (data: { name: string; horizon?: string }) => {
+    mutationFn: async (data: { name: string; horizon?: string; importEpics?: boolean; importTickets?: boolean }) => {
       return apiRequest('/api/roadmaps', 'POST', {
         accountId,
         projectId: selectedProjectId,
         name: data.name,
         horizon: data.horizon || null,
+        importEpics: data.importEpics || false,
+        importTickets: data.importTickets || false,
       });
     },
     onMutate: async () => {
       setIsCreateDialogOpen(false);
       setNewRoadmapName("");
       setNewRoadmapHorizon("");
+      setCreateStep(1);
+      setImportEpics(false);
+      setImportTickets(false);
     },
     onSuccess: (newRoadmap: Roadmap) => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
@@ -101,6 +160,7 @@ export default function RoadmapPage() {
       toast({
         title: "Roadmap créée",
         description: `La roadmap "${newRoadmap.name}" a été créée avec succès.`,
+        variant: "success",
       });
     },
     onError: () => {
@@ -112,12 +172,74 @@ export default function RoadmapPage() {
     },
   });
 
+  const renameRoadmapMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return apiRequest(`/api/roadmaps/${id}`, 'PATCH', { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      setIsRenameDialogOpen(false);
+      setRoadmapToManage(null);
+      toast({
+        title: "Roadmap renommée",
+        description: "Le nom a été mis à jour.",
+        variant: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de renommer la roadmap.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteRoadmapMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/roadmaps/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      setIsDeleteDialogOpen(false);
+      setRoadmapToManage(null);
+      if (selectedRoadmapId === roadmapToManage?.id) {
+        setSelectedRoadmapId(null);
+      }
+      toast({
+        title: "Roadmap supprimée",
+        description: "La roadmap a été supprimée.",
+        variant: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la roadmap.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateRoadmap = () => {
     if (!newRoadmapName.trim()) return;
     createRoadmapMutation.mutate({
       name: newRoadmapName.trim(),
       horizon: newRoadmapHorizon.trim() || undefined,
+      importEpics,
+      importTickets,
     });
+  };
+
+  const handleOpenRename = (roadmap: Roadmap) => {
+    setRoadmapToManage(roadmap);
+    setRenameValue(roadmap.name);
+    setIsRenameDialogOpen(true);
+  };
+
+  const handleOpenDelete = (roadmap: Roadmap) => {
+    setRoadmapToManage(roadmap);
+    setIsDeleteDialogOpen(true);
   };
 
   const createItemMutation = useMutation({
@@ -133,6 +255,7 @@ export default function RoadmapPage() {
         endDate: data.endDate || null,
         description: data.description || null,
         orderIndex: roadmapItems.length,
+        epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
     },
     onMutate: async () => {
@@ -165,6 +288,7 @@ export default function RoadmapPage() {
         startDate: data.startDate || null,
         endDate: data.endDate || null,
         description: data.description || null,
+        epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
     },
     onMutate: async ({ id, data }) => {
@@ -270,6 +394,9 @@ export default function RoadmapPage() {
       startDate: "",
       endDate: "",
       description: "",
+      linkedType: "free",
+      linkedId: null,
+      linkedTitle: "",
     });
   };
 
@@ -281,6 +408,17 @@ export default function RoadmapPage() {
 
   const handleOpenEditItem = (item: RoadmapItem) => {
     setEditingItem(item);
+    let linkedType: LinkedType = "free";
+    let linkedId: string | null = null;
+    let linkedTitle = "";
+    
+    if (item.epicId) {
+      linkedType = "epic";
+      linkedId = item.epicId;
+      const epic = epics.find(e => e.id === item.epicId);
+      linkedTitle = epic?.title || "";
+    }
+    
     setItemForm({
       title: item.title,
       type: item.type,
@@ -289,6 +427,9 @@ export default function RoadmapPage() {
       startDate: item.startDate || "",
       endDate: item.endDate || "",
       description: item.description || "",
+      linkedType,
+      linkedId,
+      linkedTitle,
     });
     setIsItemDialogOpen(true);
   };
@@ -473,22 +614,45 @@ export default function RoadmapPage() {
           <Card>
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  {roadmaps.length > 1 ? (
-                    <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
-                      <SelectTrigger className="w-[200px]" data-testid="select-roadmap">
-                        <SelectValue placeholder="Sélectionner une roadmap" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roadmaps.map((roadmap) => (
-                          <SelectItem key={roadmap.id} value={roadmap.id}>
-                            {roadmap.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <CardTitle className="text-base font-semibold">{activeRoadmap?.name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
+                    <SelectTrigger className="w-[200px]" data-testid="select-roadmap">
+                      <SelectValue placeholder="Sélectionner une roadmap" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roadmaps.map((roadmap) => (
+                        <SelectItem key={roadmap.id} value={roadmap.id}>
+                          {roadmap.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {activeRoadmap && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-roadmap-menu">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleOpenRename(activeRoadmap)} data-testid="button-rename-roadmap">
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Renommer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          navigator.clipboard.writeText(activeRoadmap.id);
+                          toast({ title: "ID copié", variant: "success" });
+                        }}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copier l'ID
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleOpenDelete(activeRoadmap)} className="text-destructive" data-testid="button-delete-roadmap">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Supprimer
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                   {activeRoadmap?.horizon && (
                     <Badge variant="outline" className="text-xs">
@@ -570,47 +734,123 @@ export default function RoadmapPage() {
         )}
       </div>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+        setIsCreateDialogOpen(open);
+        if (!open) {
+          setCreateStep(1);
+          setNewRoadmapName("");
+          setNewRoadmapHorizon("");
+          setImportEpics(false);
+          setImportTickets(false);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Créer une roadmap</DialogTitle>
+            <DialogTitle>
+              {createStep === 1 ? "Créer une roadmap" : "Importer des éléments"}
+            </DialogTitle>
             <DialogDescription>
-              Donnez un nom à votre roadmap et définissez optionnellement un horizon temporel.
+              {createStep === 1 
+                ? "Donnez un nom à votre roadmap et définissez optionnellement un horizon temporel."
+                : "Importez automatiquement les Epics et Tickets depuis votre backlog."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="roadmap-name">Nom de la roadmap</Label>
-              <Input
-                id="roadmap-name"
-                value={newRoadmapName}
-                onChange={(e) => setNewRoadmapName(e.target.value)}
-                placeholder="Ex: Roadmap Q1 2025"
-                data-testid="input-roadmap-name"
-              />
+          
+          {createStep === 1 ? (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="roadmap-name">Nom de la roadmap</Label>
+                <Input
+                  id="roadmap-name"
+                  value={newRoadmapName}
+                  onChange={(e) => setNewRoadmapName(e.target.value)}
+                  placeholder="Ex: Roadmap Q1 2025"
+                  data-testid="input-roadmap-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="roadmap-horizon">Horizon (optionnel)</Label>
+                <Input
+                  id="roadmap-horizon"
+                  value={newRoadmapHorizon}
+                  onChange={(e) => setNewRoadmapHorizon(e.target.value)}
+                  placeholder="Ex: 2025-Q1"
+                  data-testid="input-roadmap-horizon"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="roadmap-horizon">Horizon (optionnel)</Label>
-              <Input
-                id="roadmap-horizon"
-                value={newRoadmapHorizon}
-                onChange={(e) => setNewRoadmapHorizon(e.target.value)}
-                placeholder="Ex: 2025-Q1"
-                data-testid="input-roadmap-horizon"
-              />
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex items-center space-x-3">
+                  <Checkbox 
+                    id="import-epics" 
+                    checked={importEpics} 
+                    onCheckedChange={(checked) => setImportEpics(!!checked)}
+                    data-testid="checkbox-import-epics"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="import-epics" className="flex items-center gap-2 cursor-pointer">
+                      <Package className="h-4 w-4 text-primary" />
+                      Importer les Epics
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {epics.length} epic(s) disponible(s)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Checkbox 
+                    id="import-tickets" 
+                    checked={importTickets} 
+                    onCheckedChange={(checked) => setImportTickets(!!checked)}
+                    data-testid="checkbox-import-tickets"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="import-tickets" className="flex items-center gap-2 cursor-pointer">
+                      <ListTodo className="h-4 w-4 text-accent" />
+                      Importer les User Stories
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {userStories.length} user story(ies) disponible(s)
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Les éléments importés seront ajoutés comme livrables à la roadmap.
+              </p>
             </div>
-          </div>
+          )}
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button 
-              onClick={handleCreateRoadmap} 
-              disabled={!newRoadmapName.trim() || createRoadmapMutation.isPending}
-              data-testid="button-confirm-create-roadmap"
-            >
-              {createRoadmapMutation.isPending ? "Création..." : "Créer"}
-            </Button>
+            {createStep === 1 ? (
+              <>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button 
+                  onClick={() => setCreateStep(2)} 
+                  disabled={!newRoadmapName.trim()}
+                  data-testid="button-next-step"
+                >
+                  Suivant
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCreateStep(1)}>
+                  Retour
+                </Button>
+                <Button 
+                  onClick={handleCreateRoadmap} 
+                  disabled={createRoadmapMutation.isPending}
+                  data-testid="button-confirm-create-roadmap"
+                >
+                  {createRoadmapMutation.isPending ? "Création..." : "Créer la roadmap"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -682,6 +922,62 @@ export default function RoadmapPage() {
                   <SelectItem value="blocked">Bloqué</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Lier à un élément du backlog
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select 
+                  value={itemForm.linkedType} 
+                  onValueChange={(v) => setItemForm(prev => ({ 
+                    ...prev, 
+                    linkedType: v as LinkedType, 
+                    linkedId: null,
+                    linkedTitle: "" 
+                  }))}
+                >
+                  <SelectTrigger data-testid="select-linked-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Libre (non lié)</SelectItem>
+                    <SelectItem value="epic">Epic</SelectItem>
+                  </SelectContent>
+                </Select>
+                {itemForm.linkedType === "epic" && (
+                  <Select 
+                    value={itemForm.linkedId || ""} 
+                    onValueChange={(v) => {
+                      const epic = epics.find(e => e.id === v);
+                      setItemForm(prev => ({ 
+                        ...prev, 
+                        linkedId: v,
+                        linkedTitle: epic?.title || ""
+                      }));
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-linked-epic">
+                      <SelectValue placeholder="Choisir un epic..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {epics.map(epic => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          {epic.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              {itemForm.linkedId && itemForm.linkedType === "epic" && (
+                <Badge variant="outline" className="text-xs w-fit">
+                  <Package className="h-3 w-3 mr-1" />
+                  Lié à: {itemForm.linkedTitle || itemForm.linkedId}
+                </Badge>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -823,6 +1119,69 @@ export default function RoadmapPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renommer la roadmap</DialogTitle>
+            <DialogDescription>
+              Entrez un nouveau nom pour cette roadmap.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rename-roadmap">Nouveau nom</Label>
+            <Input
+              id="rename-roadmap"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Nom de la roadmap"
+              data-testid="input-rename-roadmap"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={() => {
+                if (roadmapToManage && renameValue.trim()) {
+                  renameRoadmapMutation.mutate({ id: roadmapToManage.id, name: renameValue.trim() });
+                }
+              }}
+              disabled={!renameValue.trim() || renameRoadmapMutation.isPending}
+              data-testid="button-confirm-rename"
+            >
+              {renameRoadmapMutation.isPending ? "Enregistrement..." : "Renommer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la roadmap</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer la roadmap "{roadmapToManage?.name}" ?
+              Cette action est irréversible et tous les éléments seront perdus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (roadmapToManage) {
+                  deleteRoadmapMutation.mutate(roadmapToManage.id);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteRoadmapMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

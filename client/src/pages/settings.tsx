@@ -637,6 +637,7 @@ function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProf
       toast({
         title: "Profil mis à jour",
         description: "Votre profil a été sauvegardé.",
+        variant: "success",
       });
     },
     onError: () => {
@@ -663,6 +664,7 @@ function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProf
     toast({
       title: "Dashboard réinitialisé",
       description: "Le dashboard sera adapté à votre profil au prochain chargement.",
+      variant: "success",
     });
     
     window.location.href = '/';

@@ -17,12 +17,9 @@ const ToastViewport = React.forwardRef<
       "fixed z-[200] flex max-h-screen flex-col-reverse p-4 sm:flex-col md:max-w-[420px]",
       "w-[calc(100vw-24px)] max-w-[420px] left-3 right-3",
       "sm:left-auto sm:right-4 sm:w-full",
+      "bottom-0 sm:bottom-4",
       className
     )}
-    style={{
-      top: "calc(var(--safe-top, 0px) + 12px)",
-      bottom: "auto"
-    }}
     {...props}
   />
 ))
