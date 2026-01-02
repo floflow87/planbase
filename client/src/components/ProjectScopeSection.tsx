@@ -53,15 +53,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ProjectScopeItem } from "@shared/schema";
+import { CdcWizard } from "@/components/cdc/CdcWizard";
+import { Wand2 } from "lucide-react";
 
 interface ProjectScopeSectionProps {
   projectId: string;
+  projectName?: string;
   dailyRate: number;
   internalDailyCost: number;
   targetMarginPercent: number;
   budget: number;
   projectStage?: string;
-  tjmSource?: 'project' | 'global' | null; // Source of the TJM (project override or global default)
+  tjmSource?: 'project' | 'global' | null;
 }
 
 const stageBadges: Record<string, { emoji: string; label: string }> = {
@@ -240,6 +243,7 @@ interface ScopeRecommendation {
 
 export function ProjectScopeSection({ 
   projectId, 
+  projectName = 'Projet',
   dailyRate, 
   internalDailyCost, 
   targetMarginPercent,
@@ -253,6 +257,7 @@ export function ProjectScopeSection({
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemDays, setNewItemDays] = useState("");
   const [showCdcDraft, setShowCdcDraft] = useState(false);
+  const [showCdcWizard, setShowCdcWizard] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const sensors = useSensors(
@@ -658,7 +663,17 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
               <FileText className="h-5 w-5 text-violet-600" />
               Cahier des Charges - Chiffrage
             </div>
-            {scopeData?.scopeItems && scopeData.scopeItems.filter(item => item.isOptional !== 1).length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowCdcWizard(true)}
+                data-testid="button-cdc-wizard"
+              >
+                <Wand2 className="h-4 w-4 mr-1" />
+                Session guidée
+              </Button>
+              {scopeData?.scopeItems && scopeData.scopeItems.filter(item => item.isOptional !== 1).length > 0 && (
               <Dialog open={showCdcDraft} onOpenChange={setShowCdcDraft}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" data-testid="button-generate-cdc-draft">
@@ -700,6 +715,7 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
                 </DialogContent>
               </Dialog>
             )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -877,6 +893,25 @@ FIN DU DOCUMENT - BROUILLON À VALIDER
           </CardContent>
         </Card>
       )}
+
+      <CdcWizard
+        projectId={projectId}
+        projectName={projectName}
+        dailyRate={dailyRate}
+        isOpen={showCdcWizard}
+        onClose={() => setShowCdcWizard(false)}
+        onComplete={(sessionId, backlogId, roadmapId) => {
+          setShowCdcWizard(false);
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
+          toast({
+            title: "Session CDC terminée",
+            description: backlogId || roadmapId 
+              ? "Le backlog et/ou la roadmap ont été générés avec succès"
+              : "La session a été enregistrée",
+            variant: "success",
+          });
+        }}
+      />
     </div>
   );
 }

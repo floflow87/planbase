@@ -30,6 +30,10 @@ import {
   insertRoadmapItemSchema,
   insertRoadmapItemLinkSchema,
   insertRoadmapDependencySchema,
+  insertCdcSessionSchema,
+  updateCdcSessionSchema,
+  insertProjectScopeItemSchema,
+  updateProjectScopeItemSchema,
   insertClientCommentSchema,
   insertAppointmentSchema,
   updateAppointmentSchema,
@@ -1588,6 +1592,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.reorderScopeItems(req.params.projectId, orders);
       res.json({ success: true });
     } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // CDC SESSIONS - Cahier des Charges (Project Scoping)
+  // ============================================
+
+  // Get all CDC sessions for a project
+  app.get("/api/projects/:projectId/cdc-sessions", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const sessions = await storage.getCdcSessionsByProjectId(req.params.projectId);
+      res.json(sessions);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get active/current CDC session for a project (most recent non-completed)
+  app.get("/api/projects/:projectId/cdc-sessions/active", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const session = await storage.getActiveCdcSessionByProjectId(req.params.projectId);
+      if (!session) {
+        return res.status(404).json({ error: "No active CDC session" });
+      }
+      
+      // Also get the scope items for this session
+      const scopeItems = await storage.getScopeItemsByCdcSessionId(session.id);
+      res.json({ ...session, scopeItems });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get a specific CDC session
+  app.get("/api/cdc-sessions/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      // Check access via project
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Also get the scope items for this session
+      const scopeItems = await storage.getScopeItemsByCdcSessionId(session.id);
+      res.json({ ...session, scopeItems });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new CDC session
+  app.post("/api/projects/:projectId/cdc-sessions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const validatedData = insertCdcSessionSchema.parse({
+        accountId: req.accountId!,
+        projectId: req.params.projectId,
+        createdBy: req.userId!,
+        status: 'draft',
+        currentStep: 1,
+      });
+
+      const session = await storage.createCdcSession(validatedData);
+      res.json(session);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a CDC session (step progression, status)
+  app.patch("/api/cdc-sessions/:sessionId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const validatedData = updateCdcSessionSchema.parse(req.body);
+      const updatedSession = await storage.updateCdcSession(req.params.sessionId, validatedData);
+      res.json(updatedSession);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a CDC session
+  app.delete("/api/cdc-sessions/:sessionId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteCdcSession(req.params.sessionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create scope item within a CDC session
+  app.post("/api/cdc-sessions/:sessionId/scope-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get current items to determine next order
+      const existingItems = await storage.getScopeItemsByCdcSessionId(req.params.sessionId);
+      const maxOrder = existingItems.length > 0 ? Math.max(...existingItems.map(i => i.order || 0)) : -1;
+
+      const validatedData = insertProjectScopeItemSchema.parse({
+        ...req.body,
+        accountId: req.accountId!,
+        projectId: session.projectId,
+        cdcSessionId: session.id,
+        order: maxOrder + 1,
+      });
+
+      const scopeItem = await storage.createScopeItem(validatedData);
+      res.json(scopeItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get scope items for a CDC session
+  app.get("/api/cdc-sessions/:sessionId/scope-items", requireAuth, async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const scopeItems = await storage.getScopeItemsByCdcSessionId(req.params.sessionId);
+      res.json(scopeItems);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Complete CDC session and trigger generation
+  app.post("/api/cdc-sessions/:sessionId/complete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const session = await storage.getCdcSession(req.params.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "CDC session not found" });
+      }
+      
+      const project = await storage.getProject(session.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get all scope items for this session
+      const scopeItems = await storage.getScopeItemsByCdcSessionId(req.params.sessionId);
+      if (scopeItems.length === 0) {
+        return res.status(400).json({ error: "Cannot complete session with no scope items" });
+      }
+
+      // Generate backlog and roadmap from scope items
+      const { generateBacklogFromCdc, generateRoadmapFromCdc } = await import("./services/cdcGenerationService");
+      
+      const { generateBacklog = true, generateRoadmap = true } = req.body;
+      
+      let generatedBacklogId: string | undefined;
+      let generatedRoadmapId: string | undefined;
+
+      if (generateBacklog) {
+        generatedBacklogId = await generateBacklogFromCdc(
+          req.accountId!,
+          session.projectId,
+          scopeItems,
+          req.userId!
+        );
+      }
+
+      if (generateRoadmap) {
+        generatedRoadmapId = await generateRoadmapFromCdc(
+          req.accountId!,
+          session.projectId,
+          scopeItems,
+          req.userId!
+        );
+      }
+
+      // Complete the session with generated references
+      const completedSession = await storage.completeCdcSession(
+        req.params.sessionId,
+        generatedBacklogId,
+        generatedRoadmapId
+      );
+
+      res.json({
+        session: completedSession,
+        generatedBacklogId,
+        generatedRoadmapId,
+      });
+    } catch (error: any) {
+      console.error("Error completing CDC session:", error);
       res.status(400).json({ error: error.message });
     }
   });

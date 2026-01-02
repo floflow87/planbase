@@ -4395,6 +4395,7 @@ export default function ProjectDetail() {
             <div id="scope-section" className="mt-4">
               <ProjectScopeSection
                 projectId={id!}
+                projectName={project?.name || 'Projet'}
                 dailyRate={effectiveTJMData?.effectiveTJM || 0}
                 internalDailyCost={effectiveTJMData?.effectiveInternalDailyCost || 0}
                 targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
