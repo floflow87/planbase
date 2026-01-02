@@ -1,6 +1,14 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { addDays, differenceInDays, format, startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, startOfWeek, addMonths, isSameMonth, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+
+// Helper to safely parse dates that might be Date objects or strings
+const safeParseDate = (date: Date | string | null | undefined): Date | null => {
+  if (!date) return null;
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return parseISO(date);
+  return null;
+};
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -202,8 +210,9 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const getItemPosition = useCallback((item: RoadmapItem) => {
     if (!item.startDate) return null;
     
-    const start = parseISO(item.startDate);
-    const end = item.endDate ? parseISO(item.endDate) : addDays(start, 1);
+    const start = safeParseDate(item.startDate);
+    if (!start) return null;
+    const end = item.endDate ? safeParseDate(item.endDate) || addDays(start, 1) : addDays(start, 1);
     
     const startOffset = differenceInDays(start, viewStartDate);
     const duration = Math.max(1, differenceInDays(end, start) + 1);
@@ -383,14 +392,16 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
 
   const handleDragStart = useCallback((e: React.MouseEvent, item: RoadmapItem, type: DragType) => {
     if (!onUpdateItemDates || !item.startDate) return;
+    const startDate = safeParseDate(item.startDate);
+    if (!startDate) return;
     e.preventDefault();
     e.stopPropagation();
     setDragState({
       itemId: item.id,
       type,
       initialX: e.clientX,
-      initialStartDate: parseISO(item.startDate),
-      initialEndDate: item.endDate ? parseISO(item.endDate) : addDays(parseISO(item.startDate), 1),
+      initialStartDate: startDate,
+      initialEndDate: item.endDate ? safeParseDate(item.endDate) || addDays(startDate, 1) : addDays(startDate, 1),
     });
   }, [onUpdateItemDates]);
 
@@ -813,10 +824,10 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                                 Groupe avec sous-éléments
                               </p>
                             )}
-                            {item.startDate && (
+                            {item.startDate && safeParseDate(item.startDate) && (
                               <p className="text-xs text-muted-foreground">
-                                {format(parseISO(item.startDate), "d MMM yyyy", { locale: fr })}
-                                {item.endDate && ` - ${format(parseISO(item.endDate), "d MMM yyyy", { locale: fr })}`}
+                                {format(safeParseDate(item.startDate)!, "d MMM yyyy", { locale: fr })}
+                                {item.endDate && safeParseDate(item.endDate) && ` - ${format(safeParseDate(item.endDate)!, "d MMM yyyy", { locale: fr })}`}
                               </p>
                             )}
                             {displayProgress > 0 && (

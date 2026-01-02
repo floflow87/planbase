@@ -702,7 +702,7 @@ export default function RoadmapPage() {
                       className="h-7 px-3"
                       data-testid="button-view-gantt"
                     >
-                      <Calendar className="h-4 w-4 mr-1" />
+                      <CalendarIcon className="h-4 w-4 mr-1" />
                       Gantt
                     </Button>
                     <Button
@@ -731,7 +731,7 @@ export default function RoadmapPage() {
                 </div>
               ) : roadmapItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
-                  <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+                  <CalendarIcon className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground mb-4">
                     Cette roadmap est vide. Ajoutez des éléments pour commencer.
                   </p>
