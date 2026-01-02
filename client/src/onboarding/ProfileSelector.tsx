@@ -46,9 +46,9 @@ export function ProfileSelector({ onProfileSelected, onSkip, isLoading }: Profil
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
       <div className="bg-card rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold mb-2">Comment travailles-tu ?</h2>
+          <h2 className="text-xl font-semibold mb-2">Quel est ton rôle principal aujourd'hui ?</h2>
           <p className="text-muted-foreground text-sm">
-            Choisis le profil qui te correspond le mieux. Ton dashboard sera personnalise en fonction.
+            Cela nous permet d'utiliser les bons termes et de te montrer les informations les plus utiles en priorité.
           </p>
         </div>
 
@@ -68,16 +68,18 @@ export function ProfileSelector({ onProfileSelected, onSkip, isLoading }: Profil
                 onClick={() => setSelectedProfile(profile.id)}
                 data-testid={`profile-option-${profile.id}`}
               >
-                <CardContent className="p-4 flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${isSelected ? "bg-primary/10" : "bg-muted"}`}>
-                    <IconComponent className={`w-5 h-5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-sm">{profile.label}</h3>
-                      {isSelected && <Check className="w-4 h-4 text-primary" />}
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg shrink-0 ${isSelected ? "bg-primary/10" : "bg-muted"}`}>
+                      <IconComponent className={`w-5 h-5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{profile.description}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-sm">{profile.label}</h3>
+                        {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{profile.description}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -85,11 +87,16 @@ export function ProfileSelector({ onProfileSelected, onSkip, isLoading }: Profil
           })}
         </div>
 
-        <div className="flex gap-3 justify-end">
+        <div className="text-center text-xs text-muted-foreground mb-4">
+          Tu pourras modifier ce choix à tout moment dans les paramètres.
+        </div>
+
+        <div className="flex gap-3">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={onSkip}
             disabled={isLoading || saveProfileMutation.isPending}
+            className="flex-1"
             data-testid="button-skip-profile"
           >
             Passer
@@ -97,6 +104,7 @@ export function ProfileSelector({ onProfileSelected, onSkip, isLoading }: Profil
           <Button
             onClick={handleConfirm}
             disabled={!selectedProfile || isLoading || saveProfileMutation.isPending}
+            className="flex-1"
             data-testid="button-confirm-profile"
           >
             {saveProfileMutation.isPending ? "Enregistrement..." : "Continuer"}

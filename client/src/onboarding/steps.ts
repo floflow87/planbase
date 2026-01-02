@@ -9,28 +9,49 @@ export interface OnboardingStep {
   ctaSecondaryLabel?: string;
   onEnter?: () => void;
   waitFor?: () => Promise<boolean>;
+  isCustomScreen?: boolean;
 }
 
 export const ONBOARDING_VERSION = "v1";
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
-    id: "intro",
+    id: "welcome",
     title: "Bienvenue",
     route: "/",
     placement: "center",
-    copy: "Salut ! Je vais t'aider a prendre Planbase en main. Ici, tout est connecte : clients, projets, temps, taches, rentabilite. On ne va pas tout voir d'un coup - je te guide, pas a pas.",
-    ctaPrimaryLabel: "C'est parti",
-    ctaSecondaryLabel: "Passer",
+    copy: "",
+    ctaPrimaryLabel: "Continuer",
+    isCustomScreen: true,
   },
   {
     id: "profile",
     title: "Ton profil",
     route: "/",
     placement: "center",
-    copy: "Comment travailles-tu le plus souvent aujourd'hui ? Cela m'aide a te montrer en priorite les informations qui comptent le plus pour toi. Tu pourras modifier ce choix a tout moment dans les parametres.",
+    copy: "",
     ctaPrimaryLabel: "Continuer",
     ctaSecondaryLabel: "Passer",
+    isCustomScreen: true,
+  },
+  {
+    id: "project-transition",
+    title: "Premier projet",
+    route: "/",
+    placement: "center",
+    copy: "",
+    ctaPrimaryLabel: "Créer mon premier projet",
+    ctaSecondaryLabel: "Plus tard",
+    isCustomScreen: true,
+  },
+  {
+    id: "guided-project",
+    title: "Création du projet",
+    route: "/",
+    placement: "center",
+    copy: "",
+    ctaPrimaryLabel: "Créer",
+    isCustomScreen: true,
   },
   {
     id: "dashboard",
@@ -127,7 +148,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: "Félicitations",
     route: "/",
     placement: "center",
-    copy: "Voila. Tu as une vision claire de comment tout s'imbrique. Je reste la si tu as besoin d'aide, mais maintenant, c'est toi qui pilotes !",
+    copy: "Voila. Tu as une vision claire de comment tout s'imbrique. Tu peux maintenant approfondir tes projets, ajouter des taches ou lancer le chiffrage detaille quand tu te sentiras pret. Je reste la si tu as besoin d'aide !",
     ctaPrimaryLabel: "Terminer",
   },
 ];
@@ -162,4 +183,8 @@ export function getPreviousStep(currentId: string): OnboardingStep | undefined {
 
 export function getTotalSteps(): number {
   return ONBOARDING_STEPS.length;
+}
+
+export function getFirstNonCustomStep(): OnboardingStep | undefined {
+  return ONBOARDING_STEPS.find(step => !step.isCustomScreen);
 }

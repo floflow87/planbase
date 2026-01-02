@@ -4,14 +4,17 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Spotlight } from "./Spotlight";
 import { AvatarCompanion, type AvatarMood } from "./AvatarCompanion";
+import { WelcomeScreen } from "./WelcomeScreen";
 import { ProfileSelector } from "./ProfileSelector";
+import { ProjectTransition } from "./ProjectTransition";
+import { GuidedProjectCreation } from "./GuidedProjectCreation";
 import { ONBOARDING_STEPS, ONBOARDING_VERSION, getStepById, getNextStep, isLastStep, type OnboardingStep } from "./steps";
 
-import type { UserOnboarding } from "@shared/schema";
+import type { UserOnboarding, User } from "@shared/schema";
 import type { UserProfileType } from "@shared/userProfiles";
 
 function getMoodForStep(stepId: string): AvatarMood {
-  if (stepId === "intro") return "waving";
+  if (stepId === "welcome") return "waving";
   if (stepId === "complete") return "celebrating";
   return "neutral";
 }
@@ -30,6 +33,7 @@ export function OnboardingOverlay() {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [isElementReady, setIsElementReady] = useState(false);
   const lastNavigatedStepRef = useRef<string | null>(null);
+  const [selectedProfileType, setSelectedProfileType] = useState<UserProfileType | null>(null);
 
   const { data: onboardingData, isLoading } = useQuery<UserOnboarding>({
     queryKey: ["/api/onboarding"],
@@ -37,9 +41,14 @@ export function OnboardingOverlay() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: userData } = useQuery<User>({
+    queryKey: ["/api/me"],
+    retry: false,
+  });
+
   const progressMutation = useMutation({
     mutationFn: async (lastStep: string) => {
-      await apiRequest("POST", "/api/onboarding/progress", { lastStep });
+      await apiRequest("/api/onboarding/progress", "POST", { lastStep });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -48,7 +57,7 @@ export function OnboardingOverlay() {
 
   const completeMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/complete");
+      await apiRequest("/api/onboarding/complete", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -59,7 +68,7 @@ export function OnboardingOverlay() {
 
   const skipMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/onboarding/skip");
+      await apiRequest("/api/onboarding/skip", "POST");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
@@ -70,6 +79,12 @@ export function OnboardingOverlay() {
       console.error("Error skipping onboarding:", error);
     },
   });
+
+  useEffect(() => {
+    if (userData?.profile && typeof userData.profile === 'object' && 'type' in userData.profile) {
+      setSelectedProfileType((userData.profile as { type: UserProfileType }).type);
+    }
+  }, [userData]);
 
   useEffect(() => {
     if (!isLoading && onboardingData) {
@@ -83,11 +98,11 @@ export function OnboardingOverlay() {
             setCurrentStepId(onboardingData.lastStep);
             setIsActive(true);
           } else {
-            setCurrentStepId("intro");
+            setCurrentStepId("welcome");
             setIsActive(true);
           }
         } else {
-          setCurrentStepId("intro");
+          setCurrentStepId("welcome");
           setIsActive(true);
         }
       }
@@ -98,6 +113,11 @@ export function OnboardingOverlay() {
 
   useEffect(() => {
     if (!isActive || !currentStep) return;
+
+    if (currentStep.isCustomScreen) {
+      setIsElementReady(true);
+      return;
+    }
 
     if (lastNavigatedStepRef.current !== currentStep.id && location !== currentStep.route) {
       lastNavigatedStepRef.current = currentStep.id;
@@ -150,6 +170,12 @@ export function OnboardingOverlay() {
     }
   }, [isActive, currentStep, location, setLocation]);
 
+  const goToStep = useCallback((stepId: string) => {
+    progressMutation.mutate(stepId);
+    setCurrentStepId(stepId);
+    setIsElementReady(false);
+  }, [progressMutation]);
+
   const handleNext = useCallback(() => {
     if (!currentStepId) return;
 
@@ -160,11 +186,9 @@ export function OnboardingOverlay() {
 
     const nextStep = getNextStep(currentStepId);
     if (nextStep) {
-      progressMutation.mutate(nextStep.id);
-      setCurrentStepId(nextStep.id);
-      setIsElementReady(false);
+      goToStep(nextStep.id);
     }
-  }, [currentStepId, progressMutation, completeMutation]);
+  }, [currentStepId, goToStep, completeMutation]);
 
   const handleSkip = useCallback(() => {
     skipMutation.mutate();
@@ -175,26 +199,42 @@ export function OnboardingOverlay() {
     setCurrentStepId(null);
   }, []);
 
+  const handleWelcomeContinue = useCallback(() => {
+    goToStep("profile");
+  }, [goToStep]);
+
   const handleProfileSelected = useCallback((profileType: UserProfileType) => {
-    const nextStep = getNextStep("profile");
-    if (nextStep) {
-      progressMutation.mutate(nextStep.id);
-      setCurrentStepId(nextStep.id);
-      setIsElementReady(false);
-    }
-  }, [progressMutation]);
+    setSelectedProfileType(profileType);
+    goToStep("project-transition");
+  }, [goToStep]);
 
   const handleProfileSkip = useCallback(() => {
-    const nextStep = getNextStep("profile");
-    if (nextStep) {
-      progressMutation.mutate(nextStep.id);
-      setCurrentStepId(nextStep.id);
-      setIsElementReady(false);
-    }
-  }, [progressMutation]);
+    goToStep("project-transition");
+  }, [goToStep]);
+
+  const handleProjectTransitionCreate = useCallback(() => {
+    goToStep("guided-project");
+  }, [goToStep]);
+
+  const handleProjectTransitionSkip = useCallback(() => {
+    goToStep("dashboard");
+  }, [goToStep]);
+
+  const handleProjectCreationComplete = useCallback((projectId: string) => {
+    setLocation(`/projects/${projectId}`);
+    goToStep("dashboard");
+  }, [goToStep, setLocation]);
+
+  const handleProjectCreationBack = useCallback(() => {
+    goToStep("project-transition");
+  }, [goToStep]);
 
   if (!isActive || !currentStep || !isElementReady) {
     return null;
+  }
+
+  if (currentStep.id === "welcome") {
+    return <WelcomeScreen onContinue={handleWelcomeContinue} />;
   }
 
   if (currentStep.id === "profile") {
@@ -202,6 +242,26 @@ export function OnboardingOverlay() {
       <ProfileSelector
         onProfileSelected={handleProfileSelected}
         onSkip={handleProfileSkip}
+      />
+    );
+  }
+
+  if (currentStep.id === "project-transition") {
+    return (
+      <ProjectTransition
+        profileType={selectedProfileType}
+        onCreateProject={handleProjectTransitionCreate}
+        onSkip={handleProjectTransitionSkip}
+      />
+    );
+  }
+
+  if (currentStep.id === "guided-project") {
+    return (
+      <GuidedProjectCreation
+        profileType={selectedProfileType}
+        onComplete={handleProjectCreationComplete}
+        onBack={handleProjectCreationBack}
       />
     );
   }
@@ -238,7 +298,7 @@ export function OnboardingOverlay() {
             : undefined
         }
         tertiaryAction={
-          currentStep.id !== "intro" && currentStep.id !== "complete" && currentStep.id !== "profile"
+          currentStep.id !== "welcome" && currentStep.id !== "complete" && currentStep.id !== "profile"
             ? { label: "Plus tard", onClick: handleLater }
             : undefined
         }

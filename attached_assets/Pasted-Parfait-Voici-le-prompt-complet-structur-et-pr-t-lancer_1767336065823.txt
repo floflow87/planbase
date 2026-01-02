@@ -1,0 +1,206 @@
+Parfait.
+Voici le prompt complet, structuré et prêt à lancer, qui :
+	•	ajoute une étape préalable à l’onboarding
+	•	utilise un vocabulaire métier différencié selon le profil
+	•	enchaîne proprement vers le premier projet guidé
+	•	reste léger, progressif, non bloquant
+
+Tu peux l’envoyer tel quel.
+
+⸻
+
+🎯 PROMPT — Pré-onboarding + Onboarding profil métier + Premier projet guidé
+
+Contexte général
+
+PlanBase est une application de gestion de projet et de pilotage d’activité.
+L’objectif est d’améliorer l’adoption et la pertinence dès les premières minutes en :
+	1.	Posant le contexte d’utilisation avant l’onboarding
+	2.	Demandant le profil métier avec un vocabulaire adapté
+	3.	Ajustant les termes, exemples et priorités selon ce profil
+	4.	Guidant ensuite la création du premier projet, sans aller trop vite vers le CDC complet
+
+⚠️ L’approche doit être humaine, simple, non intrusive et modifiable à tout moment.
+
+⸻
+
+1️⃣ Étape préalable (pré-onboarding) — Poser l’intention
+
+Déclenchement
+
+Juste après l’inscription (avant l’onboarding classique).
+
+Écran à afficher
+
+Message introductif, en tutoiement :
+
+Bienvenue sur PlanBase
+PlanBase t’aide à structurer ton travail, piloter tes projets et prendre de meilleures décisions au quotidien.
+Avant de commencer, on va juste te poser deux questions pour adapter l’expérience à ta façon de travailler.
+
+Bouton :
+	•	Continuer
+
+⸻
+
+2️⃣ Étape 1 — Choix du profil métier (vocabulaire différencié)
+
+Question affichée
+
+Quel est ton rôle principal aujourd’hui ?
+Cela nous permet d’utiliser les bons termes et de te montrer les informations les plus utiles en priorité.
+
+Profils proposés (avec micro-description métier)
+
+🎨 Designer
+Je conçois des interfaces, des identités ou des expériences. Je travaille par phases créatives, itérations et livrables.
+
+📦 Chargé·e de projet
+Je coordonne des projets, des équipes et des délais. Mon objectif est de livrer dans les temps et d’anticiper les risques.
+
+🧠 Product Owner / Product Manager
+Je définis la vision produit, priorise le backlog et arbitre le périmètre pour maximiser la valeur.
+
+🧑‍💻 CTO / Tech Lead
+Je pilote les choix techniques, l’architecture et la dette. Je sécurise la delivery et la scalabilité.
+
+💻 Développeur·se
+Je développe des fonctionnalités, corrige des bugs et contribue au produit au quotidien.
+
+🧑‍💼 Freelance (vision complète)
+Je gère mes projets de bout en bout : production, temps, facturation et rentabilité.
+
+Texte rassurant (footer) :
+
+Tu pourras modifier ce choix à tout moment dans les paramètres.
+
+⸻
+
+3️⃣ Stockage & impact du profil
+
+Backend
+
+Stocker :
+
+user.profile = 'designer' | 'project_manager' | 'pm' | 'cto' | 'developer' | 'freelance'
+
+Effets du profil
+
+Le profil influence uniquement :
+	•	le vocabulaire utilisé dans l’UI
+	•	l’ordre et la visibilité des blocs du Dashboard
+	•	les exemples et suggestions
+	•	les templates proposés
+
+⚠️ Aucune fonctionnalité n’est cachée définitivement.
+
+⸻
+
+4️⃣ Étape 2 — Transition vers le premier projet
+
+Écran de transition
+
+Texte dynamique selon le profil.
+
+Exemple — Designer
+Structurons ton premier projet créatif
+On va poser les grandes phases, les livrables et t’aider à garder une vision claire du temps passé.
+
+Exemple — Chargé·e de projet
+Créons ton premier projet
+On commence par le cadre : périmètre, délais et points de vigilance.
+
+Exemple — Freelance
+Créons ton premier projet client
+On va poser les bases pour suivre le temps, le budget et la rentabilité.
+
+Bouton :
+	•	Créer mon premier projet
+
+⸻
+
+5️⃣ Étape 3 — Création du premier projet guidée (profil-aware)
+
+Étape 3.1 — Informations communes
+
+Champs :
+	•	Nom du projet
+	•	Client / Interne
+	•	Type de projet (libellés adaptés au profil)
+	•	Durée estimée (en semaines ou mois)
+
+⸻
+
+Étape 3.2 — Ajustements selon le profil (vocabulaire métier)
+
+Designer
+	•	Phases créatives (Recherche, Conception, Itérations, Livraison)
+	•	Livrables attendus
+
+Chargé·e de projet
+	•	Jalons principaux
+	•	Contraintes de planning
+	•	Parties prenantes
+
+PM / PO
+	•	Vision produit
+	•	Objectifs business
+	•	Hypothèses clés
+
+CTO / Tech Lead
+	•	Contraintes techniques
+	•	Infra / dette
+	•	Zones de risque
+
+Freelance
+	•	Budget cible
+	•	TJM
+	•	Objectif de marge
+
+⚠️ Tous les champs sont :
+	•	optionnels
+	•	modifiables plus tard
+	•	expliqués simplement
+
+⸻
+
+6️⃣ Étape 4 — Proposition de structure (sans CDC complet)
+
+À partir des infos saisies :
+	•	proposer :
+	•	une structure de projet
+	•	un backlog minimal
+	•	une roadmap simple (phases ou T1/T2/T3)
+	•	message affiché :
+
+Voici une base de travail. Tu pourras affiner, chiffrer et structurer plus finement ensuite.
+
+⸻
+
+7️⃣ Sortie & suite logique
+	•	Rediriger vers la page projet
+	•	Afficher une aide contextuelle discrète :
+
+Tu peux maintenant approfondir ton projet, ajouter des tâches ou lancer le chiffrage détaillé quand tu te sentiras prêt.
+
+⸻
+
+8️⃣ Contraintes importantes
+	•	❌ Pas de CDC détaillé à ce stade
+	•	❌ Pas de surcharge cognitive
+	•	✅ Vocabulaire métier adapté
+	•	✅ Progressif et réversible
+	•	✅ Compatible avec tous les profils
+
+⸻
+
+🎯 Critères de succès
+	•	L’utilisateur se reconnaît dans les termes utilisés
+	•	Il crée un premier projet sans friction
+	•	Les données initiales sont propres et exploitables
+	•	Le CDC complet arrive comme une suite logique, pas comme un mur
+
+⸻
+
+Si tu veux, prochaine étape naturelle :
+👉 Prompt suivant : CDC comme session guidée (avec facturable / phases T1–LT / génération backlog & roadmap)
