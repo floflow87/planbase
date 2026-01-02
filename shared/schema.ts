@@ -226,20 +226,46 @@ export const projectPayments = pgTable("project_payments", {
   accountProjectIdx: index().on(table.accountId, table.projectId),
 }));
 
+// CDC Sessions (Cahier des Charges structured sessions)
+export const cdcSessions = pgTable("cdc_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("draft"), // 'draft', 'in_progress', 'completed'
+  currentStep: integer("current_step").notNull().default(1), // 1-4 steps
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  generatedBacklogId: uuid("generated_backlog_id"), // Reference to generated backlog
+  generatedRoadmapId: uuid("generated_roadmap_id"), // Reference to generated roadmap
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+}));
+
 // Project Scope Items (CDC - Cahier des Charges / Statement of Work items for quoting)
 export const projectScopeItems = pgTable("project_scope_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  cdcSessionId: uuid("cdc_session_id").references(() => cdcSessions.id, { onDelete: "set null" }), // Link to CDC session
   label: text("label").notNull(),
-  estimatedDays: numeric("estimated_days", { precision: 10, scale: 2 }).notNull(), // Temps estimé en jours
+  description: text("description"), // Description optionnelle de la rubrique
+  scopeType: text("scope_type").notNull().default("functional"), // 'functional', 'technical', 'design', 'gestion', 'autre'
+  isBillable: integer("is_billable").notNull().default(1), // 0 = non facturable, 1 = facturable
+  estimatedDays: numeric("estimated_days", { precision: 10, scale: 2 }), // Temps estimé en jours (nullable now)
+  phase: text("phase"), // 'T1', 'T2', 'T3', 'T4', 'LT' - temporal phase
   isOptional: integer("is_optional").notNull().default(0), // 0 = obligatoire, 1 = optionnel
   order: integer("order").notNull().default(0), // Pour le tri
-  description: text("description"), // Description optionnelle de la rubrique
+  // Generated entity tracking
+  generatedEpicId: uuid("generated_epic_id"), // If generated as an Epic
+  generatedUserStoryId: uuid("generated_user_story_id"), // If generated as a User Story
+  generatedRoadmapItemId: uuid("generated_roadmap_item_id"), // If generated as a Roadmap item
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountProjectIdx: index().on(table.accountId, table.projectId),
+  cdcSessionIdx: index().on(table.cdcSessionId),
 }));
 
 // Recommendation Actions (for tracking "treated" or "ignored" recommendations)
@@ -1151,9 +1177,16 @@ export const insertProjectCategorySchema = createInsertSchema(projectCategories)
 export const insertProjectPaymentSchema = createInsertSchema(projectPayments).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   amount: z.union([z.string(), z.number()]).transform((val) => val.toString()),
 });
-export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems).omit({ id: true, createdAt: true, updatedAt: true }).extend({
-  estimatedDays: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+// CDC Session schemas
+export const insertCdcSessionSchema = createInsertSchema(cdcSessions).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
+export const updateCdcSessionSchema = insertCdcSessionSchema.omit({ accountId: true, projectId: true, createdBy: true }).partial();
+
+export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems).omit({ id: true, createdAt: true, updatedAt: true, generatedEpicId: true, generatedUserStoryId: true, generatedRoadmapItemId: true }).extend({
+  estimatedDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString() ?? null).optional().nullable(),
   isOptional: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
+  isBillable: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
+  scopeType: z.enum(['functional', 'technical', 'design', 'gestion', 'autre']).default('functional').optional(),
+  phase: z.enum(['T1', 'T2', 'T3', 'T4', 'LT']).optional().nullable(),
 });
 export const updateProjectScopeItemSchema = insertProjectScopeItemSchema.omit({ accountId: true, projectId: true }).partial();
 export const insertRecommendationActionSchema = createInsertSchema(recommendationActions).omit({ id: true, createdAt: true }).extend({
@@ -1345,6 +1378,9 @@ export type ClientCustomFieldValue = typeof clientCustomFieldValues.$inferSelect
 export type Project = typeof projects.$inferSelect;
 export type ProjectCategory = typeof projectCategories.$inferSelect;
 export type ProjectPayment = typeof projectPayments.$inferSelect;
+export type CdcSession = typeof cdcSessions.$inferSelect;
+export type InsertCdcSession = z.infer<typeof insertCdcSessionSchema>;
+export type UpdateCdcSession = z.infer<typeof updateCdcSessionSchema>;
 export type ProjectScopeItem = typeof projectScopeItems.$inferSelect;
 export type RecommendationAction = typeof recommendationActions.$inferSelect;
 export type InsertRecommendationAction = z.infer<typeof insertRecommendationActionSchema>;

@@ -11,6 +11,7 @@ import {
   type Project, type InsertProject,
   type ProjectCategory, type InsertProjectCategory,
   type ProjectPayment, type InsertProjectPayment,
+  type CdcSession, type InsertCdcSession, type UpdateCdcSession,
   type ProjectScopeItem, type InsertProjectScopeItem,
   type RecommendationAction, type InsertRecommendationAction,
   type TaskColumn, type InsertTaskColumn,
@@ -39,7 +40,7 @@ import {
   type EntityLink, type InsertEntityLink,
   type Settings, type InsertSettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, projectPayments, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, cdcSessions, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
@@ -128,8 +129,18 @@ export interface IStorage {
   updatePayment(id: string, payment: Partial<InsertProjectPayment>): Promise<ProjectPayment | undefined>;
   deletePayment(id: string): Promise<boolean>;
 
+  // CDC Sessions
+  getCdcSessionsByProjectId(projectId: string): Promise<CdcSession[]>;
+  getCdcSession(id: string): Promise<CdcSession | undefined>;
+  getActiveCdcSessionByProjectId(projectId: string): Promise<CdcSession | undefined>;
+  createCdcSession(session: InsertCdcSession): Promise<CdcSession>;
+  updateCdcSession(id: string, session: UpdateCdcSession): Promise<CdcSession | undefined>;
+  deleteCdcSession(id: string): Promise<boolean>;
+  completeCdcSession(id: string, generatedBacklogId?: string, generatedRoadmapId?: string): Promise<CdcSession | undefined>;
+
   // Project Scope Items (CDC/Statement of Work)
   getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]>;
+  getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]>;
   getScopeItem(id: string): Promise<ProjectScopeItem | undefined>;
   createScopeItem(scopeItem: InsertProjectScopeItem): Promise<ProjectScopeItem>;
   updateScopeItem(id: string, scopeItem: Partial<InsertProjectScopeItem>): Promise<ProjectScopeItem | undefined>;
@@ -707,12 +718,83 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  // CDC Sessions
+  async getCdcSessionsByProjectId(projectId: string): Promise<CdcSession[]> {
+    return await db
+      .select()
+      .from(cdcSessions)
+      .where(eq(cdcSessions.projectId, projectId))
+      .orderBy(desc(cdcSessions.createdAt));
+  }
+
+  async getCdcSession(id: string): Promise<CdcSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(cdcSessions)
+      .where(eq(cdcSessions.id, id));
+    return session || undefined;
+  }
+
+  async getActiveCdcSessionByProjectId(projectId: string): Promise<CdcSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(cdcSessions)
+      .where(and(eq(cdcSessions.projectId, projectId), sql`${cdcSessions.status} != 'completed'`))
+      .orderBy(desc(cdcSessions.createdAt));
+    return session || undefined;
+  }
+
+  async createCdcSession(sessionData: InsertCdcSession): Promise<CdcSession> {
+    const [session] = await db
+      .insert(cdcSessions)
+      .values(sessionData)
+      .returning();
+    return session;
+  }
+
+  async updateCdcSession(id: string, updateData: UpdateCdcSession): Promise<CdcSession | undefined> {
+    const [session] = await db
+      .update(cdcSessions)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(cdcSessions.id, id))
+      .returning();
+    return session || undefined;
+  }
+
+  async deleteCdcSession(id: string): Promise<boolean> {
+    const result = await db.delete(cdcSessions).where(eq(cdcSessions.id, id));
+    return result.length > 0;
+  }
+
+  async completeCdcSession(id: string, generatedBacklogId?: string, generatedRoadmapId?: string): Promise<CdcSession | undefined> {
+    const [session] = await db
+      .update(cdcSessions)
+      .set({ 
+        status: 'completed', 
+        completedAt: new Date(),
+        generatedBacklogId,
+        generatedRoadmapId,
+        updatedAt: new Date() 
+      })
+      .where(eq(cdcSessions.id, id))
+      .returning();
+    return session || undefined;
+  }
+
   // Project Scope Items (CDC/Statement of Work)
   async getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]> {
     return await db
       .select()
       .from(projectScopeItems)
       .where(eq(projectScopeItems.projectId, projectId))
+      .orderBy(projectScopeItems.order);
+  }
+
+  async getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]> {
+    return await db
+      .select()
+      .from(projectScopeItems)
+      .where(eq(projectScopeItems.cdcSessionId, cdcSessionId))
       .orderBy(projectScopeItems.order);
   }
 

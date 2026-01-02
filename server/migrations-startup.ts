@@ -985,6 +985,50 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Backlog state check constraints updated to include testing and to_fix");
 
+    // Create CDC sessions table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS cdc_sessions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        status text NOT NULL DEFAULT 'draft',
+        current_step integer NOT NULL DEFAULT 1,
+        completed_at timestamp with time zone,
+        generated_backlog_id uuid,
+        generated_roadmap_id uuid,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS cdc_sessions_account_project_idx 
+      ON cdc_sessions(account_id, project_id);
+    `);
+    console.log("✅ CDC sessions table created");
+
+    // Add new columns to project_scope_items
+    await db.execute(sql`
+      ALTER TABLE project_scope_items 
+      ADD COLUMN IF NOT EXISTS cdc_session_id uuid REFERENCES cdc_sessions(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS scope_type text NOT NULL DEFAULT 'functional',
+      ADD COLUMN IF NOT EXISTS is_billable integer NOT NULL DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS phase text,
+      ADD COLUMN IF NOT EXISTS generated_epic_id uuid,
+      ADD COLUMN IF NOT EXISTS generated_user_story_id uuid,
+      ADD COLUMN IF NOT EXISTS generated_roadmap_item_id uuid;
+    `);
+    // Make estimated_days nullable for CDC workflow
+    await db.execute(sql`
+      ALTER TABLE project_scope_items 
+      ALTER COLUMN estimated_days DROP NOT NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_scope_items_cdc_session_idx 
+      ON project_scope_items(cdc_session_id);
+    `);
+    console.log("✅ Project scope items updated with CDC fields");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
