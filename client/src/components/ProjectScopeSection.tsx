@@ -143,7 +143,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
   };
 
   const scopeTypeInfo = SCOPE_TYPES.find(t => t.value === item.scopeType);
-  const hasEnrichment = item.scopeType || item.phase || item.isBillable !== null;
+  const hasEnrichment = item.scopeType || item.phase || (item.isBillable !== null && item.isBillable !== 1);
 
   return (
     <div
@@ -218,7 +218,7 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
                     {item.phase}
                   </Badge>
                 )}
-                {item.isBillable === true && (
+                {item.isBillable === 1 && (
                   <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
                     <DollarSign className="h-2.5 w-2.5" />
                   </Badge>
@@ -308,8 +308,8 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
             <Label htmlFor={`billable-${item.id}`} className="text-xs text-muted-foreground">Facturable:</Label>
             <Switch
               id={`billable-${item.id}`}
-              checked={item.isBillable === true}
-              onCheckedChange={(checked) => onUpdate(item.id, { isBillable: checked })}
+              checked={item.isBillable === 1}
+              onCheckedChange={(checked) => onUpdate(item.id, { isBillable: checked ? 1 : 0 })}
               className="scale-75"
               data-testid={`switch-billable-${item.id}`}
             />
