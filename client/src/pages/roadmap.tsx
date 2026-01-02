@@ -136,6 +136,11 @@ export default function RoadmapPage() {
     enabled: !!backlogId,
   });
 
+  // CDC tasks are standalone tasks without a userStoryId
+  const cdcTasks = useMemo(() => {
+    return backlogTasks.filter(task => !task.userStoryId);
+  }, [backlogTasks]);
+
   const availableVersions = useMemo(() => {
     const tags = new Set<string>();
     roadmapItems.forEach(item => {
@@ -1068,7 +1073,7 @@ export default function RoadmapPage() {
                   <Select 
                     value={itemForm.linkedId || ""} 
                     onValueChange={(v) => {
-                      const task = backlogTasks.find(t => t.id === v);
+                      const task = cdcTasks.find(t => t.id === v);
                       setItemForm(prev => ({ 
                         ...prev, 
                         linkedId: v,
@@ -1077,13 +1082,13 @@ export default function RoadmapPage() {
                     }}
                   >
                     <SelectTrigger data-testid="select-linked-cdc">
-                      <SelectValue placeholder="Choisir une tâche..." />
+                      <SelectValue placeholder="Choisir une tâche CDC..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {backlogTasks.length === 0 ? (
-                        <div className="py-2 px-3 text-sm text-muted-foreground">Aucune tâche disponible</div>
+                      {cdcTasks.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">Aucune tâche CDC disponible</div>
                       ) : (
-                        backlogTasks.map(task => (
+                        cdcTasks.map(task => (
                           <SelectItem key={task.id} value={task.id}>
                             {task.title}
                           </SelectItem>
