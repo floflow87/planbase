@@ -526,8 +526,10 @@ export default function RoadmapPage() {
 
   const handleCreateDependency = async (fromItemId: string, toItemId: string, type: string = "finish_to_start") => {
     try {
-      await apiRequest(`/api/roadmap-items/${fromItemId}/dependencies`, 'POST', {
-        dependsOnRoadmapItemId: toItemId,
+      // When dragging from A to B: "B depends on A" - arrow goes from A to B
+      // roadmapItemId = B (the item that depends), dependsOnRoadmapItemId = A (the item it depends on)
+      await apiRequest(`/api/roadmap-items/${toItemId}/dependencies`, 'POST', {
+        dependsOnRoadmapItemId: fromItemId,
         type,
       });
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });

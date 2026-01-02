@@ -1,0 +1,262 @@
+Contexte
+
+PlanBase dispose déjà :
+
+d’un module Projet
+
+d’un module Backlog (Epics / US / Tasks)
+
+d’un module Roadmap
+
+d’un module Temps & Rentabilité
+
+Objectif :
+Transformer le Cahier des Charges en une session guidée structurante, pensée comme un moment à part, qui permet de :
+
+cadrer le projet
+
+estimer le temps
+
+identifier le facturable / non facturable
+
+générer automatiquement :
+
+un backlog intelligent
+
+une roadmap exploitable
+
+une base fiable pour la rentabilité
+
+⚠️ Ce n’est pas un formulaire classique.
+C’est une session de travail, progressive et explicative.
+
+1️⃣ Déclenchement de la session CDC
+
+Depuis la fiche projet, bouton clair :
+
+Chiffrer et structurer le projet (CDC)
+
+Message introductif (modal ou page dédiée) :
+
+Cette session t’aide à structurer ton projet, estimer le temps et vérifier sa rentabilité avant ou pendant la réalisation.
+
+Boutons :
+
+Commencer la session
+
+Plus tard
+
+2️⃣ Structure globale de la session
+
+La session est découpée en 4 étapes simples, avec progression visible.
+
+Étape 1 — Structuration du périmètre
+Étape 2 — Estimation & facturation
+Étape 3 — Phases temporelles (T1 → LT)
+Étape 4 — Génération automatique
+
+Chaque étape peut être :
+
+complétée
+
+modifiée plus tard
+
+relancée à tout moment
+
+3️⃣ Étape 1 — Structuration du périmètre (CDC)
+Principe
+
+Le CDC est composé de lignes représentant :
+
+une fonctionnalité
+
+un livrable
+
+une phase
+
+une contrainte
+
+une tâche transverse
+
+Pour chaque ligne de CDC
+
+Champs proposés :
+
+Titre
+
+Description (optionnelle)
+
+Type :
+
+Fonctionnel
+
+Technique
+
+Design
+
+Gestion / coordination
+
+Autre
+
+Facturable ?
+
+Oui / Non
+
+Texte d’aide discret :
+
+Les éléments non facturables sont pris en compte dans la rentabilité.
+
+4️⃣ Étape 2 — Estimation du temps
+
+Pour chaque ligne :
+
+Temps estimé (en jours ou demi-journées)
+
+Champ facultatif, mais encouragé
+
+Affichage en temps réel :
+
+Temps total estimé
+
+Temps facturable
+
+Temps non facturable
+
+Message contextuel :
+
+Tu peux affiner plus tard. L’objectif est d’avoir un ordre de grandeur.
+
+5️⃣ Étape 3 — Phases temporelles (clé)
+Pour chaque ligne de CDC
+
+Sélecteur de phase :
+
+T1 – Court terme / démarrage
+
+T2 – Phase suivante
+
+T3 – Évolution
+
+T4 – Optimisation
+
+LT – Long terme / vision
+
+Texte pédagogique :
+
+Les phases permettent de structurer la roadmap et de prioriser l’effort.
+
+6️⃣ Étape 4 — Génération automatique (le moment “wow”)
+
+À la validation de la session :
+
+6.1 Génération du Backlog
+
+Chaque ligne de CDC devient :
+
+une Epic (si structurante)
+
+ou une User Story
+
+Les lignes sont regroupées par :
+
+type
+
+phase
+
+Tags automatiques ajoutés :
+
+facturable / non facturable
+
+phase (T1–LT)
+
+Message affiché :
+
+Un backlog initial a été généré. Tu peux l’ajuster librement.
+
+6.2 Génération de la Roadmap
+
+Création automatique d’une roadmap projet
+
+Colonnes / sections :
+
+T1 / T2 / T3 / T4 / LT
+
+Les blocs sont reliés :
+
+aux Epics
+
+aux tickets du backlog
+
+aux lignes du CDC
+
+Message affiché :
+
+Ta roadmap est prête. Elle évoluera avec le projet.
+
+6.3 Initialisation Rentabilité & Temps
+
+Le temps estimé alimente :
+
+le temps restant
+
+les projections “à ce rythme”
+
+Distinction claire :
+
+temps facturable
+
+temps non facturable
+
+Message affiché :
+
+Ces estimations servent de base aux indicateurs de rentabilité.
+
+7️⃣ Sortie de session
+
+À la fin :
+
+Redirection vers la fiche projet
+
+Affichage d’un résumé :
+
+Temps total estimé
+
+% non facturable
+
+Phases définies
+
+Backlog et roadmap créés
+
+Call to action :
+
+Voir le backlog
+
+Voir la roadmap
+
+Suivre le temps réel
+
+8️⃣ Contraintes UX & Produit
+
+❌ Pas de jargon excessif
+
+❌ Pas de blocage si une étape est incomplète
+
+❌ Pas de surcharge visuelle
+
+✅ Toujours expliquer “pourquoi”
+
+✅ Tout est modifiable après coup
+
+✅ La session peut être relancée
+
+🎯 Critères de succès
+
+L’utilisateur comprend mieux son projet
+
+Le backlog n’est plus vide
+
+La roadmap n’est plus abstraite
+
+Les KPIs de temps et de rentabilité deviennent pertinents
+
+Le CDC devient un outil vivant, pas un document figé
