@@ -1,0 +1,221 @@
+Contexte
+
+PlanBase dispose désormais :
+
+d’un CDC guidé validé
+
+de lignes de CDC structurées (type, phase, facturable, estimation)
+
+d’une génération automatique de backlog Scrum et de roadmap
+
+d’une UX fluide (optimistic updates)
+
+Objectif :
+👉 Passer de la structuration au pilotage réel,
+👉 en comparant ce qui était prévu avec ce qui est réellement fait,
+👉 de manière progressive, lisible et non anxiogène.
+
+1️⃣ Création automatique de la baseline projet (référence)
+Déclenchement
+
+À la validation finale du wizard CDC.
+
+Principe
+
+Créer une baseline figée représentant l’état de référence du projet à cet instant.
+
+Données stockées dans la baseline
+
+Temps total estimé (jours)
+
+Temps facturable estimé
+
+Temps non facturable estimé
+
+Répartition par type :
+
+Fonctionnel
+
+Technique
+
+Design
+
+Gestion / Coordination
+
+Autre
+
+Répartition par phase :
+
+T1 / T2 / T3 / T4 / LT
+
+Date de création de la baseline
+
+ID du projet
+
+⚠️ La baseline :
+
+n’est jamais modifiée automatiquement
+
+sert uniquement de point de comparaison
+
+peut être versionnée plus tard (pas obligatoire maintenant)
+
+2️⃣ Écran de confirmation “Base projet créée”
+UX à afficher juste après le CDC
+
+Titre :
+
+Base projet créée
+
+Contenu :
+
+Récapitulatif clair :
+
+Temps total estimé
+
+% facturable / non facturable
+
+Répartition par phase
+
+Message pédagogique :
+
+Cette base servira de référence pour suivre l’avancement réel de ton projet.
+
+Actions :
+
+✅ Continuer vers le projet
+
+✏️ Revenir au CDC
+
+⚠️ Tant que cette base n’existe pas :
+
+pas de comparaison estimé / réel
+
+pas de recommandations avancées
+
+3️⃣ Collecte du réel (sans friction)
+Principe
+
+Le réel provient :
+
+du time tracking
+
+des tâches / tickets
+
+des actions projet
+
+Lors de la saisie d’un temps, proposer (optionnellement) :
+
+rattachement à :
+
+une ligne de CDC
+
+une épic ou un ticket issu du CDC
+
+une phase (si non déjà déduite)
+
+Texte discret :
+
+Associer ce temps à un élément du CDC permet un suivi plus précis.
+
+Aucune obligation.
+
+4️⃣ Calcul de la comparaison estimé / réel
+
+Une fois du réel saisi, calculer automatiquement :
+
+Indicateurs globaux projet
+
+Temps consommé vs temps estimé
+
+Temps restant (théorique)
+
+Écart global (en jours)
+
+Indicateurs par axe
+
+Par type (fonctionnel, gestion, etc.)
+
+Par phase (T1 → LT)
+
+Facturable vs non facturable
+
+⚠️ Si certaines lignes CDC ne sont pas enrichies :
+
+elles sont simplement ignorées dans le détail
+
+elles restent comptées dans le global
+
+5️⃣ Affichage des premiers KPIs (soft, explicatifs)
+Emplacements recommandés
+
+Onglet Temps du projet
+
+Bloc synthèse dans la fiche projet
+
+Pas encore sur le dashboard global
+
+Ton & UX
+
+Pas de rouge agressif
+
+Pas de jugement
+
+Langage descriptif
+
+Exemples :
+
+“62 % du temps estimé a été consommé.”
+
+“La phase T1 est la plus avancée.”
+
+“Le temps de gestion progresse plus vite que prévu.”
+
+6️⃣ Premières recommandations (niveau 1 — observation)
+Principe
+
+Introduire des recommandations douces, basées sur des tendances.
+
+Exemples de recommandations
+
+“Tu passes plus de temps en gestion que prévu dans le CDC.”
+
+“La phase T1 approche de sa limite estimée.”
+
+“Certains types de tâches semblent sous-estimés.”
+
+Chaque recommandation doit contenir :
+
+Pourquoi (constat factuel)
+
+Ce que ça implique
+
+Une action possible (facultative)
+
+⚠️ Pas de décision imposée.
+
+7️⃣ Contraintes produit importantes
+
+❌ Pas de modification automatique de la baseline
+
+❌ Pas de scoring brutal
+
+❌ Pas de projection financière agressive à ce stade
+
+✅ Comparaison toujours explicite (prévu vs réel)
+
+✅ Tous les rattachements sont optionnels
+
+✅ Approche pédagogique avant prescriptive
+
+🎯 Critères de succès
+
+L’utilisateur comprend où il en est par rapport à ce qu’il avait prévu
+
+Le CDC devient une référence vivante
+
+Les écarts sont visibles mais non stressants
+
+Les données sont fiables pour les prochaines phases
+
+PlanBase entre clairement dans une logique de pilotage quotidien

@@ -1029,6 +1029,34 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project scope items updated with CDC fields");
 
+    // Create project baselines table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_baselines (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        cdc_session_id uuid REFERENCES cdc_sessions(id) ON DELETE SET NULL,
+        total_estimated_days numeric(10, 2) NOT NULL,
+        billable_estimated_days numeric(10, 2) NOT NULL,
+        non_billable_estimated_days numeric(10, 2) NOT NULL,
+        by_type jsonb NOT NULL DEFAULT '{}',
+        by_phase jsonb NOT NULL DEFAULT '{}',
+        scope_items_snapshot jsonb NOT NULL DEFAULT '[]',
+        version integer NOT NULL DEFAULT 1,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_baselines_account_project_idx 
+      ON project_baselines(account_id, project_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_baselines_project_idx 
+      ON project_baselines(project_id);
+    `);
+    console.log("✅ Project baselines table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

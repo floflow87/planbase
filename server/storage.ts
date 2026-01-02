@@ -12,6 +12,7 @@ import {
   type ProjectCategory, type InsertProjectCategory,
   type ProjectPayment, type InsertProjectPayment,
   type CdcSession, type InsertCdcSession, type UpdateCdcSession,
+  type ProjectBaseline, type InsertProjectBaseline,
   type ProjectScopeItem, type InsertProjectScopeItem,
   type RecommendationAction, type InsertRecommendationAction,
   type TaskColumn, type InsertTaskColumn,
@@ -40,7 +41,7 @@ import {
   type EntityLink, type InsertEntityLink,
   type Settings, type InsertSettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, projectPayments, cdcSessions, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
@@ -137,6 +138,11 @@ export interface IStorage {
   updateCdcSession(id: string, session: UpdateCdcSession): Promise<CdcSession | undefined>;
   deleteCdcSession(id: string): Promise<boolean>;
   completeCdcSession(id: string, generatedBacklogId?: string, generatedRoadmapId?: string): Promise<CdcSession | undefined>;
+
+  // Project Baselines
+  getBaselinesByProjectId(projectId: string): Promise<ProjectBaseline[]>;
+  getLatestBaselineByProjectId(projectId: string): Promise<ProjectBaseline | undefined>;
+  createBaseline(baseline: InsertProjectBaseline): Promise<ProjectBaseline>;
 
   // Project Scope Items (CDC/Statement of Work)
   getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]>;
@@ -779,6 +785,33 @@ export class DatabaseStorage implements IStorage {
       .where(eq(cdcSessions.id, id))
       .returning();
     return session || undefined;
+  }
+
+  // Project Baselines
+  async getBaselinesByProjectId(projectId: string): Promise<ProjectBaseline[]> {
+    return await db
+      .select()
+      .from(projectBaselines)
+      .where(eq(projectBaselines.projectId, projectId))
+      .orderBy(desc(projectBaselines.createdAt));
+  }
+
+  async getLatestBaselineByProjectId(projectId: string): Promise<ProjectBaseline | undefined> {
+    const [baseline] = await db
+      .select()
+      .from(projectBaselines)
+      .where(eq(projectBaselines.projectId, projectId))
+      .orderBy(desc(projectBaselines.createdAt))
+      .limit(1);
+    return baseline || undefined;
+  }
+
+  async createBaseline(baselineData: InsertProjectBaseline): Promise<ProjectBaseline> {
+    const [baseline] = await db
+      .insert(projectBaselines)
+      .values(baselineData)
+      .returning();
+    return baseline;
   }
 
   // Project Scope Items (CDC/Statement of Work)

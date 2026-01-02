@@ -1854,13 +1854,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
         generatedRoadmapId
       );
 
+      // Create project baseline from scope items
+      const byType: Record<string, number> = {};
+      const byPhase: Record<string, number> = {};
+      let totalEstimated = 0;
+      let billableEstimated = 0;
+      let nonBillableEstimated = 0;
+
+      scopeItems.forEach(item => {
+        const days = parseFloat(item.estimatedDays?.toString() || '0');
+        totalEstimated += days;
+        
+        if (item.isBillable === 1) {
+          billableEstimated += days;
+        } else {
+          nonBillableEstimated += days;
+        }
+
+        // Group by type
+        const type = item.scopeType || 'autre';
+        byType[type] = (byType[type] || 0) + days;
+
+        // Group by phase
+        const phase = item.phase || 'LT';
+        byPhase[phase] = (byPhase[phase] || 0) + days;
+      });
+
+      // Create baseline
+      const baseline = await storage.createBaseline({
+        accountId: req.accountId!,
+        projectId: session.projectId,
+        cdcSessionId: req.params.sessionId,
+        totalEstimatedDays: totalEstimated.toString(),
+        billableEstimatedDays: billableEstimated.toString(),
+        nonBillableEstimatedDays: nonBillableEstimated.toString(),
+        byType,
+        byPhase,
+        scopeItemsSnapshot: scopeItems,
+        createdBy: req.userId!,
+      });
+
       res.json({
         session: completedSession,
         generatedBacklogId,
         generatedRoadmapId,
+        baseline,
       });
     } catch (error: any) {
       console.error("Error completing CDC session:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // PROJECT BASELINES - Protected Routes
+  // ============================================
+
+  // Get all baselines for a project
+  app.get("/api/projects/:projectId/baselines", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const baselines = await storage.getBaselinesByProjectId(req.params.projectId);
+      res.json(baselines);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get latest baseline for a project
+  app.get("/api/projects/:projectId/baselines/latest", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const baseline = await storage.getLatestBaselineByProjectId(req.params.projectId);
+      if (!baseline) {
+        return res.status(404).json({ error: "No baseline found" });
+      }
+      res.json(baseline);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get project KPIs (estimated vs actual)
+  app.get("/api/projects/:projectId/kpis", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get baseline
+      const baseline = await storage.getLatestBaselineByProjectId(req.params.projectId);
+      
+      // Get time entries
+      const timeEntries = await storage.getTimeEntriesByProjectId(req.accountId!, req.params.projectId);
+      
+      // Get scope items for breakdown
+      const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+
+      // Calculate actual time spent
+      let actualTotalSeconds = 0;
+      let actualBillableSeconds = 0;
+      let actualNonBillableSeconds = 0;
+      const actualByType: Record<string, number> = {};
+      const actualByPhase: Record<string, number> = {};
+
+      timeEntries.forEach(entry => {
+        const seconds = entry.duration || 0;
+        actualTotalSeconds += seconds;
+        
+        if (entry.isBillable === 1) {
+          actualBillableSeconds += seconds;
+        } else {
+          actualNonBillableSeconds += seconds;
+        }
+
+        // If linked to a scope item, group by its type and phase
+        if (entry.scopeItemId) {
+          const scopeItem = scopeItems.find(s => s.id === entry.scopeItemId);
+          if (scopeItem) {
+            const type = scopeItem.scopeType || 'autre';
+            actualByType[type] = (actualByType[type] || 0) + seconds;
+            
+            const phase = scopeItem.phase || 'LT';
+            actualByPhase[phase] = (actualByPhase[phase] || 0) + seconds;
+          }
+        }
+      });
+
+      // Convert seconds to days (8 hours = 1 day)
+      const secondsToDays = (s: number) => s / (8 * 3600);
+
+      const kpis = {
+        hasBaseline: !!baseline,
+        estimated: baseline ? {
+          totalDays: parseFloat(baseline.totalEstimatedDays?.toString() || '0'),
+          billableDays: parseFloat(baseline.billableEstimatedDays?.toString() || '0'),
+          nonBillableDays: parseFloat(baseline.nonBillableEstimatedDays?.toString() || '0'),
+          byType: baseline.byType as Record<string, number>,
+          byPhase: baseline.byPhase as Record<string, number>,
+        } : null,
+        actual: {
+          totalDays: secondsToDays(actualTotalSeconds),
+          billableDays: secondsToDays(actualBillableSeconds),
+          nonBillableDays: secondsToDays(actualNonBillableSeconds),
+          byType: Object.fromEntries(
+            Object.entries(actualByType).map(([k, v]) => [k, secondsToDays(v)])
+          ),
+          byPhase: Object.fromEntries(
+            Object.entries(actualByPhase).map(([k, v]) => [k, secondsToDays(v)])
+          ),
+        },
+        comparison: baseline ? {
+          progressPercent: (secondsToDays(actualTotalSeconds) / parseFloat(baseline.totalEstimatedDays?.toString() || '1')) * 100,
+          remainingDays: parseFloat(baseline.totalEstimatedDays?.toString() || '0') - secondsToDays(actualTotalSeconds),
+          variance: secondsToDays(actualTotalSeconds) - parseFloat(baseline.totalEstimatedDays?.toString() || '0'),
+        } : null,
+      };
+
+      res.json(kpis);
+    } catch (error: any) {
+      console.error("Error calculating KPIs:", error);
       res.status(400).json({ error: error.message });
     }
   });

@@ -243,6 +243,31 @@ export const cdcSessions = pgTable("cdc_sessions", {
   accountProjectIdx: index().on(table.accountId, table.projectId),
 }));
 
+// Project Baselines (frozen reference point after CDC validation)
+export const projectBaselines = pgTable("project_baselines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  cdcSessionId: uuid("cdc_session_id").references(() => cdcSessions.id, { onDelete: "set null" }),
+  // Total estimates
+  totalEstimatedDays: numeric("total_estimated_days", { precision: 10, scale: 2 }).notNull(),
+  billableEstimatedDays: numeric("billable_estimated_days", { precision: 10, scale: 2 }).notNull(),
+  nonBillableEstimatedDays: numeric("non_billable_estimated_days", { precision: 10, scale: 2 }).notNull(),
+  // Breakdown by type (stored as JSONB for flexibility)
+  byType: jsonb("by_type").notNull().default({}), // { functional: 5, technical: 3, design: 2, gestion: 1, autre: 0 }
+  // Breakdown by phase
+  byPhase: jsonb("by_phase").notNull().default({}), // { T1: 3, T2: 4, T3: 2, T4: 1, LT: 1 }
+  // Snapshot of scope items at creation time
+  scopeItemsSnapshot: jsonb("scope_items_snapshot").notNull().default([]),
+  // Metadata
+  version: integer("version").notNull().default(1), // For future versioning
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+  projectIdx: index().on(table.projectId),
+}));
+
 // Project Scope Items (CDC - Cahier des Charges / Statement of Work items for quoting)
 export const projectScopeItems = pgTable("project_scope_items", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1181,6 +1206,16 @@ export const insertProjectPaymentSchema = createInsertSchema(projectPayments).om
 export const insertCdcSessionSchema = createInsertSchema(cdcSessions).omit({ id: true, createdAt: true, updatedAt: true, completedAt: true });
 export const updateCdcSessionSchema = insertCdcSessionSchema.omit({ accountId: true, projectId: true, createdBy: true }).partial();
 
+// Project Baseline schemas
+export const insertProjectBaselineSchema = createInsertSchema(projectBaselines).omit({ id: true, createdAt: true }).extend({
+  totalEstimatedDays: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  billableEstimatedDays: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  nonBillableEstimatedDays: z.union([z.string(), z.number()]).transform((val) => val.toString()),
+  byType: z.record(z.number()).default({}),
+  byPhase: z.record(z.number()).default({}),
+  scopeItemsSnapshot: z.array(z.any()).default([]),
+});
+
 export const insertProjectScopeItemSchema = createInsertSchema(projectScopeItems).omit({ id: true, createdAt: true, updatedAt: true, generatedEpicId: true, generatedUserStoryId: true, generatedRoadmapItemId: true }).extend({
   estimatedDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString() ?? null).optional().nullable(),
   isOptional: z.union([z.boolean(), z.number()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
@@ -1381,6 +1416,8 @@ export type ProjectPayment = typeof projectPayments.$inferSelect;
 export type CdcSession = typeof cdcSessions.$inferSelect;
 export type InsertCdcSession = z.infer<typeof insertCdcSessionSchema>;
 export type UpdateCdcSession = z.infer<typeof updateCdcSessionSchema>;
+export type ProjectBaseline = typeof projectBaselines.$inferSelect;
+export type InsertProjectBaseline = z.infer<typeof insertProjectBaselineSchema>;
 export type ProjectScopeItem = typeof projectScopeItems.$inferSelect;
 export type RecommendationAction = typeof recommendationActions.$inferSelect;
 export type InsertRecommendationAction = z.infer<typeof insertRecommendationActionSchema>;
