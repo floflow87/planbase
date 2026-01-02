@@ -1,7 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, Map, LayoutGrid, Calendar, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo } from "lucide-react";
+import { fr } from "date-fns/locale";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,19 +10,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { GanttView } from "@/components/roadmap/gantt-view";
 import { OutputView } from "@/components/roadmap/output-view";
-import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory } from "@shared/schema";
+import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory, BacklogTask } from "@shared/schema";
 
 type ViewMode = "gantt" | "output";
 type LinkedType = "free" | "epic" | "ticket" | "cdc";
@@ -64,9 +68,10 @@ export default function RoadmapPage() {
     type: "deliverable",
     priority: "normal",
     status: "planned",
-    startDate: "",
-    endDate: "",
+    startDate: null as Date | null,
+    endDate: null as Date | null,
     description: "",
+    releaseTag: "",
     linkedType: "free" as LinkedType,
     linkedId: null as string | null,
     linkedTitle: "",
@@ -125,6 +130,19 @@ export default function RoadmapPage() {
     queryKey: [`/api/backlogs/${backlogId}/user-stories`],
     enabled: !!backlogId,
   });
+
+  const { data: backlogTasks = [] } = useQuery<BacklogTask[]>({
+    queryKey: [`/api/backlogs/${backlogId}/tasks`],
+    enabled: !!backlogId,
+  });
+
+  const availableVersions = useMemo(() => {
+    const tags = new Set<string>();
+    roadmapItems.forEach(item => {
+      if (item.releaseTag) tags.add(item.releaseTag);
+    });
+    return Array.from(tags).sort();
+  }, [roadmapItems]);
 
   useEffect(() => {
     const savedRoadmapId = localStorage.getItem("roadmap-selected-roadmap");
@@ -251,9 +269,10 @@ export default function RoadmapPage() {
         type: data.type,
         priority: data.priority,
         status: data.status,
-        startDate: data.startDate || null,
-        endDate: data.endDate || null,
+        startDate: data.startDate ? format(data.startDate, "yyyy-MM-dd") : null,
+        endDate: data.endDate ? format(data.endDate, "yyyy-MM-dd") : null,
         description: data.description || null,
+        releaseTag: data.releaseTag || null,
         orderIndex: roadmapItems.length,
         epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
@@ -285,9 +304,10 @@ export default function RoadmapPage() {
         type: data.type,
         priority: data.priority,
         status: data.status,
-        startDate: data.startDate || null,
-        endDate: data.endDate || null,
+        startDate: data.startDate ? format(data.startDate, "yyyy-MM-dd") : null,
+        endDate: data.endDate ? format(data.endDate, "yyyy-MM-dd") : null,
         description: data.description || null,
+        releaseTag: data.releaseTag || null,
         epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
     },
@@ -391,9 +411,10 @@ export default function RoadmapPage() {
       type: "deliverable",
       priority: "normal",
       status: "planned",
-      startDate: "",
-      endDate: "",
+      startDate: null,
+      endDate: null,
       description: "",
+      releaseTag: "",
       linkedType: "free",
       linkedId: null,
       linkedTitle: "",
@@ -424,9 +445,10 @@ export default function RoadmapPage() {
       type: item.type,
       priority: item.priority,
       status: item.status,
-      startDate: item.startDate || "",
-      endDate: item.endDate || "",
+      startDate: item.startDate ? new Date(item.startDate) : null,
+      endDate: item.endDate ? new Date(item.endDate) : null,
       description: item.description || "",
+      releaseTag: item.releaseTag || "",
       linkedType,
       linkedId,
       linkedTitle,
@@ -465,8 +487,8 @@ export default function RoadmapPage() {
     setEditingItem(null);
     setItemForm(prev => ({
       ...prev,
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
+      startDate,
+      endDate,
     }));
     setIsItemDialogOpen(true);
   };
@@ -855,16 +877,16 @@ export default function RoadmapPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Modifier l'élément" : "Ajouter un élément"}</DialogTitle>
-            <DialogDescription>
+      <Sheet open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+        <SheetContent className="w-[450px] sm:max-w-[450px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingItem ? "Modifier l'élément" : "Ajouter un élément"}</SheetTitle>
+            <SheetDescription>
               {editingItem 
                 ? "Modifiez les informations de cet élément de la roadmap."
                 : "Créez un nouvel élément pour votre roadmap."}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="item-title">Titre</Label>
@@ -926,6 +948,42 @@ export default function RoadmapPage() {
 
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Version
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={itemForm.releaseTag}
+                  onChange={(e) => setItemForm(prev => ({ ...prev, releaseTag: e.target.value }))}
+                  placeholder="Ex: v1.0, Q1-2026..."
+                  list="available-versions"
+                  data-testid="input-version"
+                />
+                <datalist id="available-versions">
+                  {availableVersions.map(version => (
+                    <option key={version} value={version} />
+                  ))}
+                </datalist>
+                {itemForm.releaseTag && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setItemForm(prev => ({ ...prev, releaseTag: "" }))}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {itemForm.releaseTag && (
+                <Badge variant="outline" className="text-xs w-fit">
+                  <Tag className="h-3 w-3 mr-1" />
+                  {itemForm.releaseTag}
+                </Badge>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
                 <Link2 className="h-4 w-4" />
                 Lier à un élément du backlog
               </Label>
@@ -945,6 +1003,8 @@ export default function RoadmapPage() {
                   <SelectContent>
                     <SelectItem value="free">Libre (non lié)</SelectItem>
                     <SelectItem value="epic">Epic</SelectItem>
+                    <SelectItem value="ticket">User Story / Ticket</SelectItem>
+                    <SelectItem value="cdc">Tâche (CDC)</SelectItem>
                   </SelectContent>
                 </Select>
                 {itemForm.linkedType === "epic" && (
@@ -963,18 +1023,80 @@ export default function RoadmapPage() {
                       <SelectValue placeholder="Choisir un epic..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {epics.map(epic => (
-                        <SelectItem key={epic.id} value={epic.id}>
-                          {epic.title}
-                        </SelectItem>
-                      ))}
+                      {epics.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">Aucun epic disponible</div>
+                      ) : (
+                        epics.map(epic => (
+                          <SelectItem key={epic.id} value={epic.id}>
+                            {epic.title}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                {itemForm.linkedType === "ticket" && (
+                  <Select 
+                    value={itemForm.linkedId || ""} 
+                    onValueChange={(v) => {
+                      const story = userStories.find(s => s.id === v);
+                      setItemForm(prev => ({ 
+                        ...prev, 
+                        linkedId: v,
+                        linkedTitle: story?.title || ""
+                      }));
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-linked-ticket">
+                      <SelectValue placeholder="Choisir une user story..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userStories.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">Aucune user story disponible</div>
+                      ) : (
+                        userStories.map(story => (
+                          <SelectItem key={story.id} value={story.id}>
+                            {story.title}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                {itemForm.linkedType === "cdc" && (
+                  <Select 
+                    value={itemForm.linkedId || ""} 
+                    onValueChange={(v) => {
+                      const task = backlogTasks.find(t => t.id === v);
+                      setItemForm(prev => ({ 
+                        ...prev, 
+                        linkedId: v,
+                        linkedTitle: task?.title || ""
+                      }));
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-linked-cdc">
+                      <SelectValue placeholder="Choisir une tâche..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {backlogTasks.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">Aucune tâche disponible</div>
+                      ) : (
+                        backlogTasks.map(task => (
+                          <SelectItem key={task.id} value={task.id}>
+                            {task.title}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 )}
               </div>
-              {itemForm.linkedId && itemForm.linkedType === "epic" && (
+              {itemForm.linkedId && (
                 <Badge variant="outline" className="text-xs w-fit">
-                  <Package className="h-3 w-3 mr-1" />
+                  {itemForm.linkedType === "epic" && <Package className="h-3 w-3 mr-1" />}
+                  {itemForm.linkedType === "ticket" && <Ticket className="h-3 w-3 mr-1" />}
+                  {itemForm.linkedType === "cdc" && <ListTodo className="h-3 w-3 mr-1" />}
                   Lié à: {itemForm.linkedTitle || itemForm.linkedId}
                 </Badge>
               )}
@@ -982,25 +1104,53 @@ export default function RoadmapPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="item-start-date">Date de début</Label>
-                <Input
-                  id="item-start-date"
-                  type="date"
-                  value={itemForm.startDate}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, startDate: e.target.value }))}
-                  data-testid="input-item-start-date"
-                />
+                <Label>Date de début</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="input-item-start-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {itemForm.startDate ? format(itemForm.startDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={itemForm.startDate || undefined}
+                      onSelect={(date) => setItemForm(prev => ({ ...prev, startDate: date || null }))}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="item-end-date">Date de fin</Label>
-                <Input
-                  id="item-end-date"
-                  type="date"
-                  value={itemForm.endDate}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value }))}
-                  data-testid="input-item-end-date"
-                />
+                <Label>Date de fin</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      data-testid="input-item-end-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {itemForm.endDate ? format(itemForm.endDate, "dd/MM/yyyy", { locale: fr }) : "Sélectionner..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={itemForm.endDate || undefined}
+                      onSelect={(date) => setItemForm(prev => ({ ...prev, endDate: date || null }))}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
@@ -1103,7 +1253,7 @@ export default function RoadmapPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <SheetFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>
               Annuler
             </Button>
@@ -1116,9 +1266,9 @@ export default function RoadmapPage() {
                 ? "Enregistrement..." 
                 : editingItem ? "Mettre à jour" : "Créer"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
         <DialogContent>

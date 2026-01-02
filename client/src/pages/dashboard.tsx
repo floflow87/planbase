@@ -418,7 +418,7 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
-  const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
+  const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
   const [activityFilter, setActivityFilter] = useState<"all" | "crm" | "projets" | "product" | "taches" | "whiteboards" | "notes" | "documents">("all");
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
   const [showTaskReminder, setShowTaskReminder] = useState(false);
@@ -1002,6 +1002,17 @@ export default function Dashboard() {
           monthIndex: i,
           year: currentYear,
           key: `${currentYear}-${i}`
+        });
+      }
+    } else if (revenuePeriod === "last_year") {
+      // All 12 months of last year
+      const lastYear = currentYear - 1;
+      for (let i = 0; i < 12; i++) {
+        months.push({
+          month: monthNames[i],
+          monthIndex: i,
+          year: lastYear,
+          key: `${lastYear}-${i}`
         });
       }
     } else if (revenuePeriod === "quarter") {
@@ -1742,12 +1753,13 @@ export default function Dashboard() {
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
-              <Select value={revenuePeriod} onValueChange={(value: "full_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
+              <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
                 <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="full_year">Année 2025</SelectItem>
+                  <SelectItem value="full_year">Année 2026</SelectItem>
+                  <SelectItem value="last_year">Année dernière (2025)</SelectItem>
                   <SelectItem value="until_this_month">Jusqu'à ce mois</SelectItem>
                   <SelectItem value="projection">Projection</SelectItem>
                   <SelectItem value="6months">6 derniers mois</SelectItem>

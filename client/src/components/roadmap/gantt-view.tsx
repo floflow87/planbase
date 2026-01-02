@@ -734,7 +734,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                                 : cn(typeColors.bg, typeColors.border, "top-2 bottom-2"),
                               item.type === "milestone" && "rounded-full",
                               dragState?.itemId === item.id && "opacity-50",
-                              onUpdateItemDates && "cursor-grab hover:shadow-md"
+                              onUpdateItemDates && "cursor-grab hover:shadow-md hover:bg-white dark:hover:bg-gray-800"
                             )}
                             style={{
                               left: dragState?.itemId === item.id && dragPreview ? dragPreview.left : position.left,
