@@ -524,6 +524,26 @@ export default function RoadmapPage() {
     }
   };
 
+  const handleCreateDependency = async (fromItemId: string, toItemId: string) => {
+    try {
+      await apiRequest(`/api/roadmap-items/${fromItemId}/dependencies`, 'POST', {
+        dependsOnRoadmapItemId: toItemId,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
+      toast({
+        title: "Dépendance créée",
+        description: "La liaison entre les éléments a été créée.",
+        className: "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
+      });
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la dépendance.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
@@ -751,6 +771,7 @@ export default function RoadmapPage() {
                       onAddItem={handleOpenAddItem}
                       onCreateAtDate={handleCreateAtDate}
                       onUpdateItemDates={handleUpdateItemDates}
+                      onCreateDependency={handleCreateDependency}
                     />
                   ) : (
                     <OutputView 
