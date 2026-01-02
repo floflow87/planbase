@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -104,8 +104,10 @@ export function CdcWizard({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [newItemForm, setNewItemForm] = useState<ScopeItemForm>({ ...emptyForm });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
+  const sessionIdRef = useRef<string | null>(null);
 
   const { data: session, refetch: refetchSession } = useQuery<CdcSession & { scopeItems: ProjectScopeItem[] }>({
     queryKey: ['/api/cdc-sessions', sessionId],
@@ -116,27 +118,43 @@ export function CdcWizard({
   const scopeItems = session?.scopeItems || [];
 
   useEffect(() => {
-    if (isOpen && !sessionId) {
+    if (isOpen && !sessionId && !isCreatingSession) {
       createSession();
     }
   }, [isOpen]);
 
-  const createSession = async () => {
+  const createSession = async (): Promise<string | null> => {
+    if (isCreatingSession) return null;
+    setIsCreatingSession(true);
     try {
       const newSession = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
       setSessionId(newSession.id);
+      sessionIdRef.current = newSession.id;
+      return newSession.id;
     } catch (error: any) {
       toast({
         title: "Erreur",
         description: "Impossible de créer la session CDC",
         variant: "destructive",
       });
+      return null;
+    } finally {
+      setIsCreatingSession(false);
     }
   };
 
   const addScopeItemMutation = useMutation({
     mutationFn: async (item: ScopeItemForm) => {
-      return apiRequest(`/api/cdc-sessions/${sessionId}/scope-items`, 'POST', {
+      let currentSessionId = sessionId || sessionIdRef.current;
+      
+      if (!currentSessionId) {
+        currentSessionId = await createSession();
+        if (!currentSessionId) {
+          throw new Error("Impossible de créer la session CDC");
+        }
+      }
+      
+      return apiRequest(`/api/cdc-sessions/${currentSessionId}/scope-items`, 'POST', {
         label: item.label,
         description: item.description || null,
         scopeType: item.scopeType,
