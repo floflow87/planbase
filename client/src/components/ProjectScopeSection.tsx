@@ -24,8 +24,18 @@ import {
   Lightbulb,
   FileDown,
   Copy,
-  Check
+  Check,
+  Puzzle,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +85,23 @@ const stageBadges: Record<string, { emoji: string; label: string }> = {
   archive: { emoji: '⚫', label: 'Archivé' },
 };
 
+const SCOPE_TYPES = [
+  { value: 'functional', label: 'Fonctionnel', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' },
+  { value: 'technical', label: 'Technique', color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300' },
+  { value: 'design', label: 'Design', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  { value: 'gestion', label: 'Gestion', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  { value: 'strategy', label: 'Stratégie', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  { value: 'autre', label: 'Autre', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
+];
+
+const PHASES = [
+  { value: 'T1', label: 'T1' },
+  { value: 'T2', label: 'T2' },
+  { value: 'T3', label: 'T3' },
+  { value: 'T4', label: 'T4' },
+  { value: 'LT', label: 'LT' },
+];
+
 interface ScopeItemRowProps {
   item: ProjectScopeItem;
   onUpdate: (id: string, data: Partial<ProjectScopeItem>) => void;
@@ -83,6 +110,7 @@ interface ScopeItemRowProps {
 
 function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
   const [label, setLabel] = useState(item.label);
   const [estimatedDays, setEstimatedDays] = useState(item.estimatedDays?.toString() || "0");
   const [description, setDescription] = useState(item.description || "");
@@ -114,96 +142,179 @@ function SortableScopeItem({ item, onUpdate, onDelete }: ScopeItemRowProps) {
     setIsEditing(false);
   };
 
+  const scopeTypeInfo = SCOPE_TYPES.find(t => t.value === item.scopeType);
+  const hasEnrichment = item.scopeType || item.phase || item.isBillable !== null;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2 py-1.5 bg-background border rounded-md ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
+      className={`bg-background border rounded-md ${isDragging ? 'shadow-lg' : 'hover-elevate'}`}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-muted-foreground hover:text-foreground"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </div>
+      <div className="flex items-center gap-2 px-2 py-1.5">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-muted-foreground hover:text-foreground"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
 
-      {isEditing ? (
-        <div className="flex-1 space-y-1.5">
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Intitulé de la rubrique"
-            className="h-8 text-sm"
-            data-testid={`input-scope-label-${item.id}`}
-          />
-          <div className="flex gap-2 items-center">
-            <div className="w-20">
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                value={estimatedDays}
-                onChange={(e) => setEstimatedDays(e.target.value)}
-                placeholder="Jours"
-                className="h-8 text-sm"
-                data-testid={`input-scope-days-${item.id}`}
+        {isEditing ? (
+          <div className="flex-1 space-y-1.5">
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Intitulé de la rubrique"
+              className="h-8 text-sm"
+              data-testid={`input-scope-label-${item.id}`}
+            />
+            <div className="flex gap-2 items-center">
+              <div className="w-20">
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={estimatedDays}
+                  onChange={(e) => setEstimatedDays(e.target.value)}
+                  placeholder="Jours"
+                  className="h-8 text-sm"
+                  data-testid={`input-scope-days-${item.id}`}
+                />
+              </div>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optionnel)"
+                className="flex-1 resize-none text-sm min-h-[32px]"
+                rows={1}
+                data-testid={`input-scope-description-${item.id}`}
               />
             </div>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optionnel)"
-              className="flex-1 resize-none text-sm min-h-[32px]"
-              rows={1}
-              data-testid={`input-scope-description-${item.id}`}
-            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleSave} data-testid={`button-save-scope-${item.id}`}>
+                Enregistrer
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                Annuler
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} data-testid={`button-save-scope-${item.id}`}>
-              Enregistrer
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
-              Annuler
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setIsEditing(true)}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm truncate">{item.label}</span>
-              {item.isOptional === 1 && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
+        ) : (
+          <>
+            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setIsEditing(true)}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm truncate">{item.label}</span>
+                {item.isOptional === 1 && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Opt.</Badge>
+                )}
+                {scopeTypeInfo && (
+                  <Badge className={`text-[10px] px-1.5 py-0 shrink-0 ${scopeTypeInfo.color}`}>
+                    {scopeTypeInfo.label}
+                  </Badge>
+                )}
+                {item.phase && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 border-primary/50">
+                    {item.phase}
+                  </Badge>
+                )}
+                {item.isBillable === true && (
+                  <Badge className="text-[10px] px-1.5 py-0 shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                    <DollarSign className="h-2.5 w-2.5" />
+                  </Badge>
+                )}
+              </div>
+              {item.description && (
+                <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
               )}
             </div>
-            {item.description && (
-              <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs px-1.5 py-0">
-              <Clock className="h-3 w-3 mr-0.5" />
-              {parseFloat(item.estimatedDays?.toString() || "0")} j
-            </Badge>
-            <Switch
-              id={`optional-${item.id}`}
-              checked={item.isOptional === 1}
-              onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
-              className="scale-75"
-              data-testid={`switch-optional-${item.id}`}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete(item.id)}
-              data-testid={`button-delete-scope-${item.id}`}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 text-xs px-1.5 py-0">
+                <Clock className="h-3 w-3 mr-0.5" />
+                {parseFloat(item.estimatedDays?.toString() || "0")} j
+              </Badge>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={`h-7 w-7 ${hasEnrichment ? 'text-primary' : 'text-muted-foreground'} hover:text-primary`}
+                onClick={() => setIsEnriching(!isEnriching)}
+                data-testid={`button-enrich-scope-${item.id}`}
+                title="Enrichir avec type, phase, facturable"
+              >
+                {isEnriching ? <ChevronUp className="h-3.5 w-3.5" /> : <Puzzle className="h-3.5 w-3.5" />}
+              </Button>
+              <Switch
+                id={`optional-${item.id}`}
+                checked={item.isOptional === 1}
+                onCheckedChange={(checked) => onUpdate(item.id, { isOptional: checked ? 1 : 0 })}
+                className="scale-75"
+                data-testid={`switch-optional-${item.id}`}
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => onDelete(item.id)}
+                data-testid={`button-delete-scope-${item.id}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {isEnriching && !isEditing && (
+        <div className="px-2 pb-2 pt-1 border-t bg-muted/30 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Type:</Label>
+            <Select
+              value={item.scopeType || ''}
+              onValueChange={(value) => onUpdate(item.id, { scopeType: value || null })}
             >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+              <SelectTrigger className="h-7 w-28 text-xs" data-testid={`select-scope-type-${item.id}`}>
+                <SelectValue placeholder="Choisir..." />
+              </SelectTrigger>
+              <SelectContent>
+                {SCOPE_TYPES.map(type => (
+                  <SelectItem key={type.value} value={type.value} className="text-xs">
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Phase:</Label>
+            <Select
+              value={item.phase || ''}
+              onValueChange={(value) => onUpdate(item.id, { phase: value || null })}
+            >
+              <SelectTrigger className="h-7 w-20 text-xs" data-testid={`select-phase-${item.id}`}>
+                <SelectValue placeholder="--" />
+              </SelectTrigger>
+              <SelectContent>
+                {PHASES.map(phase => (
+                  <SelectItem key={phase.value} value={phase.value} className="text-xs">
+                    {phase.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label htmlFor={`billable-${item.id}`} className="text-xs text-muted-foreground">Facturable:</Label>
+            <Switch
+              id={`billable-${item.id}`}
+              checked={item.isBillable === true}
+              onCheckedChange={(checked) => onUpdate(item.id, { isBillable: checked })}
+              className="scale-75"
+              data-testid={`switch-billable-${item.id}`}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

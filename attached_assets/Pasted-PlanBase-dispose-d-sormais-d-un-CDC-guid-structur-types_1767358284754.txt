@@ -1,0 +1,172 @@
+PlanBase dispose désormais :
+
+d’un CDC guidé structuré (types, facturable, phases T1–LT, estimations)
+
+de CDC existants plus libres, créés avant cette évolution
+
+Objectif :
+👉 aligner tous les CDC vers un modèle conceptuel commun,
+👉 sans imposer la session guidée aux CDC existants,
+👉 sans migration automatique,
+👉 sans casser l’existant.
+
+1️⃣ Principe fondamental
+
+Le CDC guidé est le modèle de référence
+
+Les CDC existants peuvent :
+
+rester tels quels
+
+ou être enrichis progressivement
+
+Aucune information n’est obligatoire pour rester fonctionnelle
+
+👉 On parle d’alignement, pas de conversion.
+
+2️⃣ Champs communs à unifier (issus du CDC guidé)
+
+Les champs suivants doivent devenir disponibles partout, même sur les CDC existants :
+
+Champs optionnels par ligne
+
+Type(s) :
+
+Fonctionnel
+
+Technique
+
+Design
+
+Gestion / Coordination
+
+Autre
+
+Facturable :
+
+Oui / Non
+
+Phase :
+
+T1
+
+T2
+
+T3
+
+T4
+
+LT
+
+⚠️ Ces champs sont :
+
+optionnels
+
+non bloquants
+
+invisibles tant qu’ils ne sont pas utilisés
+
+3️⃣ UX — Enrichissement progressif des CDC existants
+Sur chaque ligne de CDC existant
+
+Ajouter :
+
+un bouton discret “Enrichir” ou icône 🧩
+
+Au clic :
+
+affichage inline des champs :
+
+badges de type
+
+toggle facturable
+
+sélecteur de phase
+
+Sans modale lourde.
+
+4️⃣ Coexistence des deux approches
+CDC créés via la session guidée
+
+Tous les champs sont déjà renseignés
+
+Exploitation complète immédiate
+
+CDC existants
+
+Aucune obligation de compléter
+
+Les champs renseignés partiellement sont pris en compte
+
+Les lignes non enrichies continuent de fonctionner normalement
+
+5️⃣ Exploitation homogène des données
+
+Une fois enrichies (partiellement ou totalement), toutes les lignes CDC, qu’elles soient :
+
+anciennes
+
+ou issues du CDC guidé
+
+peuvent alimenter :
+
+Backlog
+
+Roadmap
+
+Temps restant
+
+Rentabilité
+
+Recommandations
+
+Comparaison estimé / réel
+
+👉 Le moteur ne fait aucune différence d’origine.
+
+6️⃣ Modèle de données cible (rappel)
+cdcLine {
+  id
+  title
+  description
+  estimatedTime
+  actualTime
+  types?: string[]
+  billable?: boolean
+  phase?: 'T1' | 'T2' | 'T3' | 'T4' | 'LT'
+}
+
+
+Tous les champs ? sont optionnels.
+
+7️⃣ Message utilisateur (1 fois)
+
+Tu peux enrichir tes anciens cahiers des charges avec les mêmes informations que le CDC guidé (type, phase, facturable) pour bénéficier des nouvelles analyses. C’est facultatif.
+
+Bouton :
+
+Compris
+
+8️⃣ Contraintes strictes
+
+❌ Pas de migration automatique
+
+❌ Pas de forçage utilisateur
+
+❌ Pas de réécriture des CDC existants
+
+✅ CDC guidé = référence
+
+✅ CDC existants = enrichissables
+
+✅ Zéro régression
+
+🎯 Critères de succès
+
+Un seul modèle mental côté produit
+
+Aucun CDC cassé
+
+Données exploitables de façon homogène
+
+Transition douce vers les features avancées
