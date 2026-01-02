@@ -127,8 +127,7 @@ export function CdcWizard({
     if (isCreatingSession) return null;
     setIsCreatingSession(true);
     try {
-      const response = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
-      const newSession = await response.json();
+      const newSession = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
       setSessionId(newSession.id);
       sessionIdRef.current = newSession.id;
       return newSession.id;
@@ -161,7 +160,7 @@ export function CdcWizard({
         scopeType: item.scopeType,
         isBillable: item.isBillable ? 1 : 0,
         phase: item.phase,
-        estimatedDays: item.estimatedDays ? parseFloat(item.estimatedDays).toString() : null,
+        estimatedDays: item.estimatedDays ? parseFloat(item.estimatedDays) : null,
         isOptional: item.isOptional ? 1 : 0,
       });
     },
@@ -438,9 +437,10 @@ export function CdcWizard({
                         placeholder="jours"
                         defaultValue={item.estimatedDays?.toString() || ''}
                         onBlur={(e) => {
+                          const value = e.target.value;
                           updateScopeItemMutation.mutate({
                             id: item.id,
-                            data: { estimatedDays: e.target.value || null },
+                            data: { estimatedDays: value ? parseFloat(value) : null },
                           });
                         }}
                         data-testid={`input-days-${item.id}`}
