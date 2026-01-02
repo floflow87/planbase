@@ -25,9 +25,19 @@ interface GanttViewProps {
   onAddItem?: () => void;
   onCreateAtDate?: (startDate: Date, endDate: Date) => void;
   onUpdateItemDates?: (itemId: string, startDate: Date, endDate: Date) => void;
+  onCreateDependency?: (fromItemId: string, toItemId: string) => void;
 }
 
 type DragType = "move" | "resize-start" | "resize-end" | null;
+
+interface DependencyDragState {
+  fromItemId: string;
+  fromSide: "start" | "end";
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
 
 interface DragState {
   itemId: string;
@@ -74,14 +84,16 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragPreview, setDragPreview] = useState<{ left: number; width: number } | null>(null);
+  const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleCollapse = useCallback((itemId: string) => {
     setCollapsedIds(prev => {
@@ -496,6 +508,68 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     }
   }, [dragState, handleDragMove, handleDragEnd]);
 
+  // Dependency drag handlers
+  const handleDepDragStart = useCallback((e: React.MouseEvent, itemId: string, side: "start" | "end") => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = ganttContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    setDepDragState({
+      fromItemId: itemId,
+      fromSide: side,
+      startX: e.clientX - rect.left,
+      startY: e.clientY - rect.top,
+      currentX: e.clientX - rect.left,
+      currentY: e.clientY - rect.top,
+    });
+  }, []);
+
+  const handleDepDragMove = useCallback((e: MouseEvent) => {
+    if (!depDragState || !ganttContainerRef.current) return;
+    const rect = ganttContainerRef.current.getBoundingClientRect();
+    setDepDragState(prev => prev ? {
+      ...prev,
+      currentX: e.clientX - rect.left,
+      currentY: e.clientY - rect.top,
+    } : null);
+  }, [depDragState]);
+
+  const handleDepDragEnd = useCallback((e: MouseEvent) => {
+    if (!depDragState || !onCreateDependency) {
+      setDepDragState(null);
+      return;
+    }
+    
+    // Find if we dropped on a dependency ball
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const depBall = target?.closest('[data-dep-item-id]');
+    if (depBall) {
+      const toItemId = depBall.getAttribute('data-dep-item-id');
+      if (toItemId && toItemId !== depDragState.fromItemId) {
+        onCreateDependency(depDragState.fromItemId, toItemId);
+      }
+    }
+    
+    setDepDragState(null);
+  }, [depDragState, onCreateDependency]);
+
+  useEffect(() => {
+    if (depDragState) {
+      window.addEventListener("mousemove", handleDepDragMove);
+      window.addEventListener("mouseup", handleDepDragEnd);
+      document.body.style.cursor = "crosshair";
+      document.body.style.userSelect = "none";
+      
+      return () => {
+        window.removeEventListener("mousemove", handleDepDragMove);
+        window.removeEventListener("mouseup", handleDepDragEnd);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+    }
+  }, [depDragState, handleDepDragMove, handleDepDragEnd]);
+
   return (
     <div className="flex flex-col h-full" data-testid="gantt-view">
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
@@ -677,7 +751,31 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
         </div>
 
         <div className="flex-1 overflow-x-auto overflow-y-auto" ref={scrollContainerRef}>
-          <div style={{ minWidth: totalWidth }} className="relative">
+          <div style={{ minWidth: totalWidth }} className="relative" ref={ganttContainerRef}>
+            {/* SVG overlay for dependency drag line */}
+            {depDragState && (
+              <svg
+                className="absolute inset-0 pointer-events-none z-50"
+                style={{ width: "100%", height: "100%" }}
+              >
+                <line
+                  x1={depDragState.startX}
+                  y1={depDragState.startY}
+                  x2={depDragState.currentX}
+                  y2={depDragState.currentY}
+                  stroke="#7c3aed"
+                  strokeWidth={3}
+                  strokeDasharray="6,4"
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx={depDragState.currentX}
+                  cy={depDragState.currentY}
+                  r={6}
+                  fill="#7c3aed"
+                />
+              </svg>
+            )}
             <div className="sticky top-0 z-10 bg-muted/50 border-b" style={{ height: HEADER_HEIGHT }}>
               <div className="flex">
                 {columns.map((col, idx) => {
@@ -781,25 +879,23 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                                 </div>
                                 {/* Dependency connector - left (incoming) */}
                                 <div
-                                  className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-md cursor-pointer hover:scale-125 hover:bg-blue-600 transition-all z-20 flex items-center justify-center"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // TODO: Handle incoming dependency connection
-                                  }}
+                                  className="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-violet-500 border-2 border-white shadow-md cursor-crosshair hover:scale-150 hover:bg-violet-600 transition-all z-20 flex items-center justify-center"
+                                  onMouseDown={(e) => handleDepDragStart(e, item.id, "start")}
                                   data-testid={`dependency-in-${item.id}`}
-                                  title="Point d'entrée de dépendance"
+                                  data-dep-item-id={item.id}
+                                  data-dep-side="start"
+                                  title="Glisser pour créer une dépendance"
                                 >
                                   <div className="w-1.5 h-1.5 rounded-full bg-white" />
                                 </div>
                                 {/* Dependency connector - right (outgoing) */}
                                 <div
-                                  className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-orange-500 border-2 border-white shadow-md cursor-pointer hover:scale-125 hover:bg-orange-600 transition-all z-20 flex items-center justify-center"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // TODO: Handle outgoing dependency connection
-                                  }}
+                                  className="absolute -right-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-violet-500 border-2 border-white shadow-md cursor-crosshair hover:scale-150 hover:bg-violet-600 transition-all z-20 flex items-center justify-center"
+                                  onMouseDown={(e) => handleDepDragStart(e, item.id, "end")}
                                   data-testid={`dependency-out-${item.id}`}
-                                  title="Point de sortie de dépendance"
+                                  data-dep-item-id={item.id}
+                                  data-dep-side="end"
+                                  title="Glisser pour créer une dépendance"
                                 >
                                   <div className="w-1.5 h-1.5 rounded-full bg-white" />
                                 </div>
