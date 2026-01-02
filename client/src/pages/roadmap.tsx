@@ -513,6 +513,7 @@ export default function RoadmapPage() {
       toast({
         title: "Dates mises à jour",
         description: "Les dates de l'élément ont été modifiées.",
+        className: "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
       });
     } catch {
       toast({

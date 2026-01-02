@@ -758,24 +758,24 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                             {item.type !== "milestone" && onUpdateItemDates && (
                               <>
                                 <div
-                                  className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-l-md transition-colors z-10 flex items-center justify-center"
+                                  className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize bg-slate-600/50 hover:bg-slate-600/80 rounded-l-md transition-colors z-10 flex items-center justify-center border-r border-white/30"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-start");
                                   }}
                                   data-testid={`resize-start-${item.id}`}
                                 >
-                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+                                  <div className="w-0.5 h-4 bg-white rounded-full" />
                                 </div>
                                 <div
-                                  className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize bg-primary/30 group-hover/bar:bg-primary/60 hover:bg-primary/80 rounded-r-md transition-colors z-10 flex items-center justify-center"
+                                  className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize bg-slate-600/50 hover:bg-slate-600/80 rounded-r-md transition-colors z-10 flex items-center justify-center border-l border-white/30"
                                   onMouseDown={(e) => {
                                     e.stopPropagation();
                                     handleDragStart(e, item, "resize-end");
                                   }}
                                   data-testid={`resize-end-${item.id}`}
                                 >
-                                  <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+                                  <div className="w-0.5 h-4 bg-white rounded-full" />
                                 </div>
                               </>
                             )}
