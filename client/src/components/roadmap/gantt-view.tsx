@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { RoadmapItem, RoadmapDependency } from "@shared/schema";
 
+type DependencyType = "start_to_start" | "start_to_finish" | "finish_to_start" | "finish_to_finish";
+
 interface GanttViewProps {
   items: RoadmapItem[];
   dependencies?: RoadmapDependency[];
@@ -25,7 +27,7 @@ interface GanttViewProps {
   onAddItem?: () => void;
   onCreateAtDate?: (startDate: Date, endDate: Date) => void;
   onUpdateItemDates?: (itemId: string, startDate: Date, endDate: Date) => void;
-  onCreateDependency?: (fromItemId: string, toItemId: string) => void;
+  onCreateDependency?: (fromItemId: string, toItemId: string, type: DependencyType) => void;
 }
 
 type DragType = "move" | "resize-start" | "resize-end" | null;
@@ -329,6 +331,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
       fromY: number;
       toX: number;
       toY: number;
+      type: string;
     }> = [];
 
     dependencies.forEach(dep => {
@@ -345,9 +348,26 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
       
       if (!fromPosition || !toPosition) return;
 
-      const fromX = fromPosition.left + fromPosition.width;
+      // Calculate connection points based on dependency type
+      const depType = dep.type || "finish_to_start";
+      let fromX: number;
+      let toX: number;
+
+      // From side: start = left edge, finish = right edge
+      if (depType.startsWith("start")) {
+        fromX = fromPosition.left;
+      } else {
+        fromX = fromPosition.left + fromPosition.width;
+      }
+
+      // To side: start = left edge, finish = right edge
+      if (depType.endsWith("start")) {
+        toX = toPosition.left;
+      } else {
+        toX = toPosition.left + toPosition.width;
+      }
+
       const fromY = (fromItemIndex * ROW_HEIGHT) + (ROW_HEIGHT / 2);
-      const toX = toPosition.left;
       const toY = (toItemIndex * ROW_HEIGHT) + (ROW_HEIGHT / 2);
 
       arrows.push({
@@ -356,6 +376,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
         fromY,
         toX,
         toY,
+        type: depType,
       });
     });
 
@@ -546,8 +567,21 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     const depBall = target?.closest('[data-dep-item-id]');
     if (depBall) {
       const toItemId = depBall.getAttribute('data-dep-item-id');
-      if (toItemId && toItemId !== depDragState.fromItemId) {
-        onCreateDependency(depDragState.fromItemId, toItemId);
+      const toSide = depBall.getAttribute('data-dep-side') as "start" | "end" | null;
+      if (toItemId && toItemId !== depDragState.fromItemId && toSide) {
+        // Calculate dependency type based on from/to sides
+        const fromSide = depDragState.fromSide;
+        let depType: DependencyType;
+        if (fromSide === "start" && toSide === "start") {
+          depType = "start_to_start";
+        } else if (fromSide === "start" && toSide === "end") {
+          depType = "start_to_finish";
+        } else if (fromSide === "end" && toSide === "start") {
+          depType = "finish_to_start";
+        } else {
+          depType = "finish_to_finish";
+        }
+        onCreateDependency(depDragState.fromItemId, toItemId, depType);
       }
     }
     

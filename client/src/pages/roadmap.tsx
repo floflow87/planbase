@@ -524,10 +524,11 @@ export default function RoadmapPage() {
     }
   };
 
-  const handleCreateDependency = async (fromItemId: string, toItemId: string) => {
+  const handleCreateDependency = async (fromItemId: string, toItemId: string, type: string = "finish_to_start") => {
     try {
       await apiRequest(`/api/roadmap-items/${fromItemId}/dependencies`, 'POST', {
         dependsOnRoadmapItemId: toItemId,
+        type,
       });
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/dependencies`] });
       toast({
