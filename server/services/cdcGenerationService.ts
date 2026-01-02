@@ -11,6 +11,10 @@ import {
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
+function formatDateString(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 type PhaseOrder = { [key: string]: number };
 
 const PHASE_ORDER: PhaseOrder = {
@@ -168,19 +172,15 @@ export async function generateRoadmapFromCdc(
       const color = SCOPE_TYPE_COLORS[item.scopeType] || '#6B7280';
       
       const [roadmapItem] = await db.insert(roadmapItems).values({
-        accountId,
         roadmapId: roadmap.id,
         projectId,
-        name: item.label,
+        title: item.label,
         description: item.description || '',
-        startDate: phaseStart,
-        endDate: itemEnd,
+        startDate: formatDateString(phaseStart),
+        endDate: formatDateString(itemEnd),
         color,
         progress: 0,
-        row: currentRow++,
-        entityType: 'scope_item',
-        entityId: item.id,
-        createdBy,
+        orderIndex: currentRow++,
       }).returning();
 
       await db.update(projectScopeItems)
@@ -199,19 +199,15 @@ export async function generateRoadmapFromCdc(
       const color = SCOPE_TYPE_COLORS[item.scopeType] || '#6B7280';
       
       const [roadmapItem] = await db.insert(roadmapItems).values({
-        accountId,
         roadmapId: roadmap.id,
         projectId,
-        name: item.label,
+        title: item.label,
         description: item.description || '',
-        startDate: lastPhaseEnd,
-        endDate: itemEnd,
+        startDate: formatDateString(lastPhaseEnd),
+        endDate: formatDateString(itemEnd),
         color,
         progress: 0,
-        row: currentRow++,
-        entityType: 'scope_item',
-        entityId: item.id,
-        createdBy,
+        orderIndex: currentRow++,
       }).returning();
 
       await db.update(projectScopeItems)
