@@ -142,7 +142,8 @@ export function CdcWizard({
     setIsCreatingSession(true);
     const promise = (async () => {
       try {
-        const newSession = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
+        const response = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
+        const newSession = await response.json();
         setSessionId(newSession.id);
         sessionIdRef.current = newSession.id;
         return newSession.id;
