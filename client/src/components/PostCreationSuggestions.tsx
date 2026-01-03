@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { FileText, Map, Lightbulb, Calculator, X, ChevronRight, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function PostCreationSuggestions({
   onOpenCdcWizard,
   onDismiss,
 }: PostCreationSuggestionsProps) {
+  const [, setLocation] = useLocation();
   const [isVisible, setIsVisible] = useState(true);
 
   const dismissMutation = useMutation({
@@ -84,7 +86,7 @@ export function PostCreationSuggestions({
       title: 'Créer une roadmap',
       description: 'Planifie les grandes étapes du projet',
       action: () => {
-        window.location.href = `/roadmaps?projectId=${project.id}`;
+        setLocation(`/roadmap?projectId=${project.id}`);
       },
       primary: false,
     },
@@ -94,7 +96,7 @@ export function PostCreationSuggestions({
       title: 'Configurer la facturation',
       description: `Mode suggéré : ${BILLING_MODE_LABELS[billingMode] || billingMode}`,
       action: () => {
-        window.location.href = `/projects/${project.id}?tab=financial`;
+        setLocation(`/projects/${project.id}?tab=financial`);
       },
       primary: false,
     },

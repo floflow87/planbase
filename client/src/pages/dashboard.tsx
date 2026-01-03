@@ -692,7 +692,7 @@ export default function Dashboard() {
     mutationFn: async (data: InsertProject) => {
       return await apiRequest("/api/projects", "POST", data);
     },
-    onSuccess: () => {
+    onSuccess: (newProject: Project) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsCreateProjectDialogOpen(false);
       setProjectFormData({
@@ -706,6 +706,8 @@ export default function Dashboard() {
         budget: "",
       });
       toast({ title: "Projet créé avec succès", variant: "success" });
+      // Rediriger vers la page du nouveau projet
+      setLocation(`/projects/${newProject.id}`);
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
