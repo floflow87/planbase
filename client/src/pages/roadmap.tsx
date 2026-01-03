@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
+import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket } from "lucide-react";
@@ -33,8 +34,13 @@ type LinkedType = "free" | "epic" | "ticket" | "cdc";
 export default function RoadmapPage() {
   const { toast } = useToast();
   const { accountId } = useAuth();
+  const searchString = useSearch();
   
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    // First check URL params, then fallback to localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlProjectId = urlParams.get("projectId");
+    if (urlProjectId) return urlProjectId;
     const saved = localStorage.getItem("roadmap-selected-project");
     return saved || null;
   });
@@ -76,6 +82,15 @@ export default function RoadmapPage() {
     linkedId: null as string | null,
     linkedTitle: "",
   });
+
+  // Handle projectId from URL params (for navigation from PostCreationSuggestions)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(searchString);
+    const urlProjectId = urlParams.get("projectId");
+    if (urlProjectId && urlProjectId !== selectedProjectId) {
+      setSelectedProjectId(urlProjectId);
+    }
+  }, [searchString]);
 
   useEffect(() => {
     if (selectedProjectId) {
