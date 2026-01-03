@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams, Link, useLocation } from "wouter";
+import { useParams, Link, useLocation, useSearch } from "wouter";
 import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2490,6 +2490,17 @@ export default function ProjectDetail() {
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("activities");
+  const searchString = useSearch();
+  
+  // Read tab parameter from URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const tabParam = params.get('tab');
+    const validTabs = ['activities', 'billing', 'time', 'tasks', 'notes', 'documents', 'backlogs', 'roadmap'];
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchString]);
   
   // Analysis drawer state
   const [showAnalysisDrawer, setShowAnalysisDrawer] = useState(false);

@@ -134,7 +134,7 @@ export function PostCreationSuggestions({
           </button>
 
           <button
-            onClick={() => setLocation(`/projects/${project.id}?tab=cdc`)}
+            onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
             className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
             data-testid="button-suggestion-time-tracking"
           >
@@ -216,7 +216,7 @@ export function PostCreationSuggestions({
 
         <div className="flex flex-col gap-2">
           <button
-            onClick={() => setLocation(`/projects/${project.id}?tab=financial`)}
+            onClick={() => setLocation(`/projects/${project.id}?tab=billing`)}
             className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
             data-testid="button-suggestion-billing"
           >
@@ -233,7 +233,7 @@ export function PostCreationSuggestions({
           </button>
 
           <button
-            onClick={() => setLocation(`/projects/${project.id}?tab=settings`)}
+            onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
             className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
             data-testid="button-suggestion-hypotheses"
           >
