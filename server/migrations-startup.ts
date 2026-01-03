@@ -1057,6 +1057,19 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project baselines table created");
 
+    // Add intelligent onboarding fields to projects
+    await db.execute(sql`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS project_type_inferred text,
+      ADD COLUMN IF NOT EXISTS billing_mode_suggested text,
+      ADD COLUMN IF NOT EXISTS piloting_strategy text DEFAULT 'equilibre',
+      ADD COLUMN IF NOT EXISTS expected_phases jsonb DEFAULT '["T1", "T2", "T3", "T4", "LT"]',
+      ADD COLUMN IF NOT EXISTS expected_scope_types jsonb DEFAULT '["functional", "technical", "design", "gestion"]',
+      ADD COLUMN IF NOT EXISTS onboarding_suggestions_shown integer DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS onboarding_suggestions_dismissed integer DEFAULT 0;
+    `);
+    console.log("✅ Project intelligent onboarding fields added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

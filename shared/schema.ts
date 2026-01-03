@@ -193,6 +193,14 @@ export const projects = pgTable("projects", {
   // Billing status fields
   billingStatus: text("billing_status"), // 'devis_envoye', 'devis_accepte', 'bon_commande', 'facture', 'paye', 'partiel', 'annule', 'retard'
   billingDueDate: date("billing_due_date"), // Used when billingStatus is 'retard' to show late payment date
+  // Intelligent onboarding fields (auto-enriched at creation)
+  projectTypeInferred: text("project_type_inferred"), // 'dev_saas', 'design', 'conseil', 'formation', 'integration', 'autre'
+  billingModeSuggested: text("billing_mode_suggested"), // 'forfait', 'regie', 'mixte'
+  pilotingStrategy: text("piloting_strategy").default("equilibre"), // 'temps_critique', 'marge_critique', 'equilibre'
+  expectedPhases: jsonb("expected_phases").$type<string[]>(), // Standard phases for this project type
+  expectedScopeTypes: jsonb("expected_scope_types").$type<string[]>(), // Expected CDC line types
+  onboardingSuggestionsShown: integer("onboarding_suggestions_shown").default(0), // 0 = not shown, 1 = shown
+  onboardingSuggestionsDismissed: integer("onboarding_suggestions_dismissed").default(0), // 0 = not dismissed, 1 = dismissed
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1197,6 +1205,13 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true,
   totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
   businessType: z.enum(['client', 'internal']).default('client').optional(),
+  expectedPhases: z.array(z.string()).optional().nullable(),
+  expectedScopeTypes: z.array(z.string()).optional().nullable(),
+});
+// Update schema for PATCH operations - all fields optional
+export const updateProjectSchema = insertProjectSchema.omit({ accountId: true, createdBy: true }).partial().extend({
+  onboardingSuggestionsShown: z.union([z.number(), z.boolean()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
+  onboardingSuggestionsDismissed: z.union([z.number(), z.boolean()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
 });
 export const insertProjectCategorySchema = createInsertSchema(projectCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectPaymentSchema = createInsertSchema(projectPayments).omit({ id: true, createdAt: true, updatedAt: true }).extend({

@@ -14,6 +14,7 @@ import {
   insertClientCustomFieldValueSchema,
   updateClientCustomFieldValueSchema,
   insertProjectSchema,
+  updateProjectSchema,
   insertNoteSchema,
   insertNoteLinkSchema,
   insertDocumentTemplateSchema,
@@ -1079,10 +1080,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[DEBUG] Creating project - req.userId:", req.userId, "req.accountId:", req.accountId);
       console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
       
+      // Intelligent enrichment based on project name and category
+      const { inferProjectConfiguration } = await import("./services/projectEnrichmentService");
+      const enrichment = inferProjectConfiguration(req.body.name || '', req.body.category);
+      console.log("[DEBUG] Project enrichment:", JSON.stringify(enrichment, null, 2));
+      
       const data = insertProjectSchema.parse({
         ...req.body,
         accountId: req.accountId!,
         createdBy: req.userId || req.body.createdBy,
+        // Auto-enriched fields
+        projectTypeInferred: enrichment.projectTypeInferred,
+        billingModeSuggested: enrichment.billingModeSuggested,
+        pilotingStrategy: enrichment.pilotingStrategy,
+        expectedPhases: enrichment.expectedPhases,
+        expectedScopeTypes: enrichment.expectedScopeTypes,
       });
       console.log("[DEBUG] Parsed data:", JSON.stringify(data, null, 2));
       const project = await storage.createProject(data);
@@ -1196,7 +1208,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const project = await storage.updateProject(req.params.id, req.body);
+      // Validate update data (allow any subset of fields)
+      const validatedData = updateProjectSchema.parse(req.body);
+      const project = await storage.updateProject(req.params.id, validatedData);
 
       // Create activity
       await storage.createActivity({

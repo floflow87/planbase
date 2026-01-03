@@ -31,6 +31,8 @@ import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
+import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { cn } from "@/lib/utils";
 import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass, PROJECT_STAGES } from "@shared/config";
 
@@ -2428,6 +2430,7 @@ export default function ProjectDetail() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
+  const [isCdcWizardOpen, setIsCdcWizardOpen] = useState(false);
   const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
@@ -3402,6 +3405,17 @@ export default function ProjectDetail() {
                 )}
               </div>
             </Card>
+          </div>
+        )}
+
+        {/* Post-Creation Suggestions (only show if not dismissed) */}
+        {project.onboardingSuggestionsDismissed !== 1 && !hasCdcItems && (
+          <div className="mb-4">
+            <PostCreationSuggestions
+              project={project}
+              onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
+              onDismiss={() => {}}
+            />
           </div>
         )}
 
@@ -5751,6 +5765,19 @@ export default function ProjectDetail() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* CDC Wizard */}
+      <CdcWizard
+        projectId={id!}
+        isOpen={isCdcWizardOpen}
+        onClose={() => setIsCdcWizardOpen(false)}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'scope-items'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+          setIsCdcWizardOpen(false);
+        }}
+        dailyRate={parseFloat(project.billingRate?.toString() || '0') || 800}
+      />
     </div>
   );
 }
