@@ -118,6 +118,7 @@ export function CdcWizard({
     baseline?: ProjectBaseline;
   } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
 
   const { data: session, refetch: refetchSession } = useQuery<CdcSession & { scopeItems: ProjectScopeItem[] }>({
     queryKey: ['/api/cdc-sessions', sessionId],
@@ -126,31 +127,47 @@ export function CdcWizard({
 
   const scopeItems = session?.scopeItems || [];
 
+  const createSession = async (): Promise<string | null> => {
+    // If session already exists, return it
+    if (sessionIdRef.current) {
+      return sessionIdRef.current;
+    }
+    
+    // If a creation is already in progress, wait for it
+    if (sessionPromiseRef.current) {
+      return sessionPromiseRef.current;
+    }
+    
+    // Create new session
+    setIsCreatingSession(true);
+    const promise = (async () => {
+      try {
+        const newSession = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
+        setSessionId(newSession.id);
+        sessionIdRef.current = newSession.id;
+        return newSession.id;
+      } catch (error: any) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de créer la session CDC",
+          variant: "destructive",
+        });
+        return null;
+      } finally {
+        setIsCreatingSession(false);
+        sessionPromiseRef.current = null;
+      }
+    })();
+    
+    sessionPromiseRef.current = promise;
+    return promise;
+  };
+
   useEffect(() => {
-    if (isOpen && !sessionId && !isCreatingSession) {
+    if (isOpen && !sessionId && !isCreatingSession && !sessionIdRef.current) {
       createSession();
     }
   }, [isOpen]);
-
-  const createSession = async (): Promise<string | null> => {
-    if (isCreatingSession) return null;
-    setIsCreatingSession(true);
-    try {
-      const newSession = await apiRequest(`/api/projects/${projectId}/cdc-sessions`, 'POST', {});
-      setSessionId(newSession.id);
-      sessionIdRef.current = newSession.id;
-      return newSession.id;
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de créer la session CDC",
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setIsCreatingSession(false);
-    }
-  };
 
   const addScopeItemMutation = useMutation({
     mutationFn: async (item: ScopeItemForm) => {
