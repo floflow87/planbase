@@ -181,7 +181,7 @@ export function CdcWizard({
         }
       }
       
-      return apiRequest(`/api/cdc-sessions/${currentSessionId}/scope-items`, 'POST', {
+      const response = await apiRequest(`/api/cdc-sessions/${currentSessionId}/scope-items`, 'POST', {
         label: item.label,
         description: item.description || null,
         scopeType: item.scopeType,
@@ -190,9 +190,13 @@ export function CdcWizard({
         estimatedDays: item.estimatedDays ? parseFloat(item.estimatedDays) : null,
         isOptional: item.isOptional ? 1 : 0,
       });
+      
+      return { response, usedSessionId: currentSessionId };
     },
-    onSuccess: () => {
-      refetchSession();
+    onSuccess: (data) => {
+      // Use the session ID that was actually used for the API call
+      const usedSessionId = data.usedSessionId;
+      queryClient.invalidateQueries({ queryKey: ['/api/cdc-sessions', usedSessionId] });
       setNewItemForm({ ...emptyForm });
     },
     onError: (error: any) => {
