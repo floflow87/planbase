@@ -1,0 +1,108 @@
+Contexte
+Nous souhaitons améliorer l’encart “Projet pré-configuré” affiché juste après la création d’un projet.
+Cet encart doit guider l’utilisateur au bon moment, sans proposer d’actions prématurées, et s’adapter à l’état réel du projet (CDC existant ou non).
+
+L’objectif est de faire de cet encart un assistant contextuel intelligent, et non une checklist générique.
+
+🧠 Principes à respecter
+
+Ne pas proposer la création de roadmap tant que le CDC n’existe pas
+
+Mettre en avant une seule action principale claire
+
+Expliquer ce qui va se passer ensuite, sans déclencher les actions trop tôt
+
+Faire évoluer automatiquement le contenu de l’encart selon l’état du projet
+
+Rester simple, lisible, non intrusif
+
+🟣 État 1 — Projet sans CDC (cas majoritaire à la création)
+En-tête
+
+Afficher :
+
+Titre : Projet pré-configuré
+
+Badges contextuels issus du projet (ex : Développement SaaS · Forfait · Temps critique)
+
+Ajouter une phrase d’orientation, par exemple :
+
+Avant de planifier ce projet, commence par poser une base d’estimation fiable.
+
+Action principale (mise en avant visuelle)
+
+👉 Lancer le CDC guidé
+Sous-texte :
+
+Structure ton cahier des charges, estime l’effort et prépare le pilotage du projet.
+
+Cette action est prioritaire et dominante visuellement.
+
+Actions secondaires (discrètes)
+
+Configurer la facturation
+Sous-texte :
+
+Mode suggéré : Forfait (modifiable plus tard)
+
+(Optionnel – profils avancés)
+Définir les hypothèses projet
+
+TJM cible, part facturable, niveau de risque
+
+Ces actions ne doivent pas détourner l’utilisateur du CDC.
+
+Texte explicatif (non actionnable)
+
+Afficher un bloc informatif expliquant la suite, sans boutons :
+
+Une fois le CDC validé, PlanBase générera automatiquement :
+• un backlog structuré
+• une roadmap par phases (T1 → LT)
+• une baseline de pilotage
+• des alertes de trajectoire (temps, marge, dérive)
+
+🟢 État 2 — Projet avec CDC existant
+
+Lorsque le projet possède un CDC validé :
+
+En-tête
+
+Base de pilotage définie
+CDC validé · Baseline créée
+
+Actions proposées
+
+Consulter la roadmap générée
+
+Ajuster le backlog
+
+Suivre Temps vs CDC
+
+L’encart change de rôle :
+👉 il ne guide plus le cadrage,
+👉 il accompagne le pilotage.
+
+⚙️ Règles techniques / UI
+
+L’encart doit être conditionnel :
+
+CDC absent → état 1
+
+CDC présent → état 2
+
+Possibilité de masquer définitivement l’encart (“Ne plus afficher pour ce projet”)
+
+Aucune navigation forcée
+
+Aucun bouton inutile ou redondant avec d’autres modules
+
+🎯 Objectif final
+
+Faire de l’encart Projet pré-configuré :
+
+un point d’entrée narratif
+
+un déclencheur de bonnes pratiques
+
+un guide progressif, cohérent avec la philosophie PlanBase (estimer → structurer → piloter)

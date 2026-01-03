@@ -3408,11 +3408,12 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Post-Creation Suggestions (only show if not dismissed) */}
-        {project.onboardingSuggestionsDismissed !== 1 && !hasCdcItems && (
+        {/* Post-Creation Suggestions (adapts to CDC state) */}
+        {project.onboardingSuggestionsDismissed !== 1 && (
           <div className="mb-4">
             <PostCreationSuggestions
               project={project}
+              scopeItems={projectScopeItems || []}
               onOpenCdcWizard={() => setIsCdcWizardOpen(true)}
               onDismiss={() => {}}
             />
