@@ -2487,7 +2487,10 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                       key={item.id} 
                       className={cn(
                         "border-b last:border-b-0",
-                        isCompleted && "bg-muted/30"
+                        isCompleted && (hasExceeded 
+                          ? "bg-red-50 dark:bg-red-900/20" 
+                          : "bg-green-50 dark:bg-green-900/20"
+                        )
                       )}
                       data-testid={`row-scope-item-${item.id}`}
                     >
