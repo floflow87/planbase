@@ -2399,23 +2399,31 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                   const isCompleted = !!item.completedAt;
                   const hasExceeded = ecart > 0;
                   
-                  // Get item status
+                  // Get projection for this item (only for non-completed items)
+                  const itemProjection = isCompleted ? null : scopeItemProjections.find(p => p.item.id === item.id)?.projection;
+                  
+                  // Get item status following the piloting logic:
+                  // - Completed items: OK (vert) if actual ≤ estimated, Dépassé (orange) if actual > estimated
+                  // - Open items: OK (vert) if on track, Critique (rouge) if projection shows risk
                   const getItemStatus = () => {
                     if (isCompleted) {
+                      // For completed items: status is frozen based on final actual vs estimated
                       return hasExceeded
-                        ? { color: "text-orange-600 dark:text-orange-500", label: "Terminé (dépassement)", badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" }
-                        : { color: "text-green-600 dark:text-green-500", label: "Terminé", badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" };
+                        ? { label: "Dépassé", badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" }
+                        : { label: "OK", badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
                     }
-                    if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—", badge: "" };
-                    if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK", badge: "" };
-                    if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention", badge: "" };
-                    return { color: "text-red-600 dark:text-red-500", label: "Critique", badge: "" };
+                    // For open items: dynamic status based on trajectory
+                    if (estimatedDays === 0) return { label: "—", badge: "" };
+                    // Check if projection shows critical risk
+                    const projectionIsCritical = itemProjection?.isCritical || itemProjection?.exceeded;
+                    if (projectionIsCritical) {
+                      return { label: "Critique", badge: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" };
+                    }
+                    // Otherwise, OK if within budget
+                    return { label: "OK", badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
                   };
                   const itemStatus = getItemStatus();
                   const isCritical = itemStatus.label === "Critique";
-                  
-                  // Get projection for this item (only for non-completed items)
-                  const itemProjection = isCompleted ? null : scopeItemProjections.find(p => p.item.id === item.id)?.projection;
                   
                   return (
                     <tr 
@@ -2427,14 +2435,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                       data-testid={`row-scope-item-${item.id}`}
                     >
                       <td className="py-2 px-2">
-                        <div className="flex items-center gap-2">
-                          <span className={isCompleted ? "text-muted-foreground" : ""}>{item.label}</span>
-                          {!isCompleted && itemProjection?.isCritical && (
-                            <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
-                              Critique
-                            </Badge>
-                          )}
-                        </div>
+                        <span className={isCompleted ? "text-muted-foreground" : ""}>{item.label}</span>
                       </td>
                       <td className={cn("text-right py-2 px-2", isCompleted && "text-muted-foreground")}>
                         {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
@@ -2454,7 +2455,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                             {itemStatus.label}
                           </Badge>
                         ) : (
-                          <span className={itemStatus.color}>{itemStatus.label}</span>
+                          <span className="text-muted-foreground">{itemStatus.label}</span>
                         )}
                       </td>
                       {paceProjection?.available && !paceProjection.alreadyExceeded && (
@@ -2556,11 +2557,9 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
           </div>
           
           {/* Explanatory micro-text */}
-          {completedCount > 0 && (
-            <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
-              Les rubriques terminées sont figées et ne génèrent plus de projections. Les alertes portent uniquement sur les étapes encore en cours.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
+            Le statut indique la trajectoire réelle de chaque étape : OK (dans les temps), Critique (risque en cours) ou Dépassé (hors budget temps).
+          </p>
         </CardContent>
       </Card>
       
