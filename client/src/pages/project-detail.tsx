@@ -588,10 +588,14 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
   
   // Calculate per-scope-item projections using ITEM-SPECIFIC pace
   // Each item's projection is based on its own work rhythm, not the global pace
+  // IMPORTANT: Completed items are EXCLUDED from projections - they only retain historical status
   const calculateScopeItemProjections = () => {
     if (!paceProjection?.available || paceProjection.alreadyExceeded) return [];
     
-    return scopeItems.map(item => {
+    // Filter out completed items - they don't participate in projections/alerts
+    const openScopeItems = scopeItems.filter(item => !item.completedAt);
+    
+    return openScopeItems.map(item => {
       const itemTimeSeconds = timeEntries
         .filter(e => e.scopeItemId === item.id)
         .reduce((sum, e) => sum + (e.duration || 0), 0);
@@ -1454,8 +1458,9 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
           });
         }
         
-        // Check for imbalance by scope item
-        const imbalancedItems = scopeItems.filter((item) => {
+        // Check for imbalance by scope item (only open items - completed items are frozen)
+        const openScopeItems = scopeItems.filter(item => !item.completedAt);
+        const imbalancedItems = openScopeItems.filter((item) => {
           const itemTimeSeconds = timeEntries
             .filter(e => e.scopeItemId === item.id)
             .reduce((sum, e) => sum + (e.duration || 0), 0);
@@ -1467,12 +1472,15 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         });
         
         if (imbalancedItems.length > 0) {
+          const isLocalImpact = imbalancedItems.length === 1;
           recommendations.push({
             id: "imbalance",
             horizon: "adjustment",
             type: "imbalance",
-            title: "Déséquilibre par étape",
-            description: `${imbalancedItems.length} étape(s) ont dépassé leur temps prévu: ${imbalancedItems.map(i => i.title).slice(0, 2).join(", ")}${imbalancedItems.length > 2 ? "..." : ""}`,
+            title: isLocalImpact ? "Dépassement étape isolée" : "Déséquilibre sur plusieurs étapes",
+            description: isLocalImpact 
+              ? `L'étape "${imbalancedItems[0].label}" a dépassé son enveloppe. Impact limité au périmètre de cette rubrique.`
+              : `${imbalancedItems.length} étapes ont dépassé leur temps prévu : ${imbalancedItems.map(i => `"${i.label}"`).slice(0, 2).join(", ")}${imbalancedItems.length > 2 ? "..." : ""}`,
             severity: "warning",
           });
         }
@@ -1503,12 +1511,15 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData
           );
           if (criticalItems.length > 0) {
+            const isLocalRisk = criticalItems.length === 1;
             recommendations.push({
               id: "pace-critical",
               horizon: "immediate",
               type: "drift",
-              title: "Étape(s) critique(s) à ce rythme",
-              description: `À ce rythme, ${criticalItems.length} étape(s) dépasseront leur enveloppe dans moins de 3 jours: ${criticalItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}`,
+              title: isLocalRisk ? "Alerte critique étape isolée" : "Alertes critiques multiples",
+              description: isLocalRisk 
+                ? `L'étape "${criticalItems[0].item.label}" dépassera son enveloppe dans moins de 3 jours à ce rythme. Risque localisé.`
+                : `${criticalItems.length} étapes en trajectoire critique : ${criticalItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${criticalItems.length > 2 ? "..." : ""}. Risque global sur le projet.`,
               severity: "critical",
             });
           }
@@ -1518,12 +1529,15 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
             p.projection?.isWarning && !p.projection.insufficientData
           );
           if (warningItems.length > 0 && criticalItems.length === 0) {
+            const isLocalWarning = warningItems.length === 1;
             recommendations.push({
               id: "pace-warning",
               horizon: "adjustment",
               type: "drift",
-              title: "Anticipation à ce rythme",
-              description: `À ce rythme, ${warningItems.length} étape(s) dépasseront leur enveloppe dans moins de 7 jours: ${warningItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
+              title: isLocalWarning ? "Anticipation étape isolée" : "Anticipation multi-étapes",
+              description: isLocalWarning 
+                ? `L'étape "${warningItems[0].item.label}" approche de son enveloppe. Impact limité si traité rapidement.`
+                : `${warningItems.length} étapes approchent de leur enveloppe : ${warningItems.map(i => `"${i.item.label}"`).slice(0, 2).join(", ")}${warningItems.length > 2 ? "..." : ""}`,
               severity: "warning",
             });
           }
@@ -1699,6 +1713,49 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   );
                 })}
               </div>
+              
+              {/* Synthesis phrase - global project status assessment */}
+              {(() => {
+                const criticalCount = recommendations.filter(r => r.severity === "critical").length;
+                const warningCount = recommendations.filter(r => r.severity === "warning").length;
+                const totalOpenItems = openScopeItems.length;
+                
+                // Deduplicate issue counting using a Set of item IDs
+                const itemsWithIssuesSet = new Set<string>();
+                imbalancedItems.forEach(item => itemsWithIssuesSet.add(item.id));
+                scopeItemProjections
+                  .filter(p => p.projection?.isCritical || p.projection?.isWarning)
+                  .forEach(p => itemsWithIssuesSet.add(p.item.id));
+                const itemsWithIssues = itemsWithIssuesSet.size;
+                
+                // Determine synthesis message (no emoji per design guidelines)
+                let synthesisMessage = "";
+                let synthesisColor = "";
+                
+                if (criticalCount === 0 && warningCount === 0) {
+                  synthesisMessage = "Projet globalement maîtrisé. Aucune alerte majeure en cours.";
+                  synthesisColor = "text-green-700 dark:text-green-400";
+                } else if (criticalCount === 0 && warningCount > 0 && itemsWithIssues <= 1) {
+                  synthesisMessage = `Projet sous contrôle malgré ${warningCount} alerte(s) locale(s). L'impact reste limité.`;
+                  synthesisColor = "text-amber-700 dark:text-amber-400";
+                } else if (criticalCount > 0 && itemsWithIssues <= 2) {
+                  synthesisMessage = `Attention requise sur ${itemsWithIssues} étape(s). Le reste du projet reste dans l'enveloppe.`;
+                  synthesisColor = "text-orange-700 dark:text-orange-400";
+                } else if (criticalCount > 0 || warningCount > 2) {
+                  synthesisMessage = `Risque global : ${itemsWithIssues} étapes sur ${totalOpenItems} présentent des alertes. Réévaluation recommandée.`;
+                  synthesisColor = "text-red-700 dark:text-red-400";
+                }
+                
+                if (!synthesisMessage) return null;
+                
+                return (
+                  <div className="mt-4 pt-3 border-t border-amber-200 dark:border-amber-800">
+                    <p className={cn("text-xs font-medium", synthesisColor)} data-testid="recommendation-synthesis">
+                      {synthesisMessage}
+                    </p>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         );
