@@ -1135,6 +1135,18 @@ export function SprintSection({
         data-testid={`sprint-section-${sprint.id}`}
       >
         <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
+          {/* Select all checkbox for this sprint */}
+          {checkedTickets && onCheckChange && tickets.length > 0 && (
+            <Checkbox
+              checked={tickets.length > 0 && tickets.every(t => checkedTickets.has(t.id))}
+              onCheckedChange={(checked) => {
+                tickets.forEach(t => onCheckChange(t.id, t.type, !!checked));
+              }}
+              data-testid={`checkbox-select-all-sprint-${sprint.id}`}
+              className="h-4 w-4"
+            />
+          )}
+          
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-toggle-sprint-${sprint.id}`}>
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}

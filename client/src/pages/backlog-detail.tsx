@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
-  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy
+  Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
+  CheckSquare, BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1566,8 +1567,14 @@ export default function BacklogDetail() {
             <TabsTrigger value="done" className="text-sm" data-testid="tab-done">
               Tickets terminés
             </TabsTrigger>
+            <TabsTrigger value="recette" className="text-sm" data-testid="tab-recette">
+              Recette
+            </TabsTrigger>
             <TabsTrigger value="retrospective" className="text-sm" data-testid="tab-retrospective">
               Rétrospective
+            </TabsTrigger>
+            <TabsTrigger value="statistiques" className="text-sm" data-testid="tab-statistiques">
+              Statistiques
             </TabsTrigger>
           </TabsList>
         </div>
@@ -2059,9 +2066,27 @@ export default function BacklogDetail() {
           </div>
         </TabsContent>
 
+        {/* Recette tab */}
+        <TabsContent value="recette" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <CheckSquare className="h-12 w-12 mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">Recette</h3>
+            <p className="text-sm">La gestion de recette sera bientôt disponible.</p>
+          </div>
+        </TabsContent>
+
         {/* Rétrospective tab */}
         <TabsContent value="retrospective" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <RetrospectiveView backlogId={id!} sprints={backlog.sprints} />
+        </TabsContent>
+
+        {/* Statistiques tab */}
+        <TabsContent value="statistiques" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
+          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">Statistiques</h3>
+            <p className="text-sm">Les statistiques du backlog seront bientôt disponibles.</p>
+          </div>
         </TabsContent>
       </Tabs>
 

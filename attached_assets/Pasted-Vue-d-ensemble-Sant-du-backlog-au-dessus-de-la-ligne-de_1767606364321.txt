@@ -1,0 +1,116 @@
+Vue d’ensemble – Santé du backlog (au-dessus de la ligne de flottaison)
+
+Un bloc synthèse, lisible en 5 secondes.
+
+KPIs clés
+
+Tickets en cours
+
+total
+
+par statut (À faire / En cours / En revue)
+
+Points estimés
+
+points totaux du backlog
+
+points engagés (sprints actifs)
+
+Tickets terminés (période sélectionnée)
+
+semaine / sprint / 30 jours
+
+💡 Tooltip pédagogique :
+
+“Ces indicateurs te donnent une vision instantanée de la charge réelle et de l’avancement.”
+
+2️⃣ Rythme & capacité – Comment le backlog avance vraiment
+🟣 Célérité (Velocity)
+
+Moyenne des points terminés par sprint
+
+Comparaison :
+
+dernier sprint
+
+moyenne glissante (3 derniers sprints)
+
+Indicateur visuel :
+
+↗️ accélération
+
+➡️ stable
+
+↘️ ralentissement
+
+“À ce rythme, il faudra environ X sprints pour absorber le backlog actuel.”
+
+🔥 Burn rate
+
+Deux lectures possibles (switch simple) :
+
+Burn des points
+
+Burn des tickets
+
+Graphique simple :
+
+points restants vs temps
+
+projection linéaire (optionnelle)
+
+💡 Ici tu peux déjà préparer le terrain pour des messages du type :
+
+“Le backlog augmente plus vite qu’il ne se consomme.”
+
+3️⃣ Qualité du backlog – Est-il pilotable ?
+📊 Structure & hygiène
+
+% de tickets estimés vs non estimés
+
+% de tickets rattachés à une Epic
+
+% de tickets rattachés au CDC
+
+Nombre de tickets “orphelins”
+
+“Un backlog pilotable est un backlog estimé, structuré et relié au périmètre.”
+
+👉 CTA intelligents :
+
+“Estimer les tickets non estimés”
+
+“Rattacher les tickets orphelins”
+
+“Créer une Epic à partir de ces tickets”
+
+4️⃣ Lecture par sprint (si Scrum activé)
+Par sprint
+
+Points engagés
+
+Points livrés
+
+Taux de complétion
+
+Dérive (engagé vs livré)
+
+💡 Badge automatique :
+
+🟢 Sprint maîtrisé
+
+🟠 Sprint sous tension
+
+🔴 Sprint en surcharge
+
+5️⃣ Comparaison & apprentissage (optionnel, mais très PlanBase)
+
+Si plusieurs projets/backlogs existent :
+
+Célérité moyenne sur ce type de projet
+
+Écart avec tes projets similaires
+
+Sprint “référence” interne
+
+“Sur les projets similaires, la célérité moyenne est de X points / sprint.”
