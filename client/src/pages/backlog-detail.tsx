@@ -1960,17 +1960,6 @@ export default function BacklogDetail() {
                             </div>
                             <h3 className="font-semibold text-sm">{epic.title}</h3>
                           </div>
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "text-xs capitalize",
-                              epic.state === "termine" && "text-green-600 border-green-200 bg-green-50",
-                              epic.state === "en_cours" && "text-blue-600 border-blue-200 bg-blue-50",
-                              epic.state === "todo" && "text-gray-600 border-gray-200 bg-gray-50"
-                            )}
-                          >
-                            {epic.state === "termine" ? "Terminé" : epic.state === "en_cours" ? "En cours" : "À faire"}
-                          </Badge>
                         </div>
                         
                         {epic.description && (
@@ -2564,7 +2553,7 @@ function EpicDialog({
   const [priority, setPriority] = useState("medium");
   const [color, setColor] = useState("#C4B5FD");
 
-  const colors = ["#C4B5FD", "#93C5FD", "#86EFAC", "#FDE047", "#FDBA74", "#FCA5A5"];
+  const colors = ["#C4B5FD", "#93C5FD", "#86EFAC", "#FDE047", "#FDBA74", "#FCA5A5", "#5EEAD4", "#FDA4AF", "#A16207"];
 
   useState(() => {
     if (epic) {
@@ -2773,8 +2762,9 @@ function UserStoryDialog({
               <Input 
                 type="number" 
                 value={estimatePoints ?? ""} 
-                onChange={(e) => setEstimatePoints(e.target.value ? parseInt(e.target.value) : null)} 
+                onChange={(e) => setEstimatePoints(e.target.value ? parseFloat(e.target.value) : null)} 
                 min={0}
+                step={0.25}
                 className="bg-white text-gray-900 border-gray-300"
                 data-testid="input-userstory-points"
               />
@@ -3317,8 +3307,10 @@ function CompletedTicketsView({
 function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints: Sprint[] }) {
   const { toast } = useToast();
   const [selectedRetroId, setSelectedRetroId] = useState<string | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [selectedSprintId, setSelectedSprintId] = useState<string>("");
+  const [sprintSearchOpen, setSprintSearchOpen] = useState(false);
+  const [sprintSearchValue, setSprintSearchValue] = useState("");
 
   // Fetch all retros for this backlog
   const { data: retrosList = [], isLoading: retrosLoading } = useQuery<(Retro & { sprint?: Sprint; cardCount?: number })[]>({
@@ -3336,8 +3328,9 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
     },
     onSuccess: (data: Retro) => {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", backlogId, "retros"] });
-      setCreateDialogOpen(false);
+      setCreatePanelOpen(false);
       setSelectedSprintId("");
+      setSprintSearchValue("");
       toastSuccess({ title: "Rétrospective créée" });
       // Auto-redirect to the new retro
       setSelectedRetroId(data.id);
@@ -3364,51 +3357,107 @@ function RetrospectiveView({ backlogId, sprints }: { backlogId: string; sprints:
     );
   }
 
+  // Filter sprints based on search
+  const filteredSprints = sprints.filter(sprint => 
+    sprint.name.toLowerCase().includes(sprintSearchValue.toLowerCase())
+  );
+  
+  const selectedSprint = sprints.find(s => s.id === selectedSprintId);
+
   return (
     <div className="space-y-4" data-testid="retro-list">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Rétrospectives</h3>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" data-testid="button-create-retro">
-              <Plus className="h-4 w-4 mr-1" />
-              Nouvelle rétrospective
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nouvelle rétrospective</DialogTitle>
-            </DialogHeader>
+        <Button size="sm" onClick={() => setCreatePanelOpen(true)} data-testid="button-create-retro">
+          <Plus className="h-4 w-4 mr-1" />
+          Nouvelle rétrospective
+        </Button>
+        
+        {/* Create Retro Side Panel */}
+        <Sheet open={createPanelOpen} onOpenChange={setCreatePanelOpen}>
+          <SheetContent className="sm:max-w-md w-full overflow-y-auto bg-white dark:bg-white">
+            <SheetHeader>
+              <SheetTitle className="text-gray-900">Nouvelle rétrospective</SheetTitle>
+            </SheetHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Sprint associé (optionnel)</Label>
-                <Select value={selectedSprintId} onValueChange={setSelectedSprintId}>
-                  <SelectTrigger data-testid="select-sprint-for-retro">
-                    <SelectValue placeholder="Sélectionner un sprint" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun sprint</SelectItem>
-                    {sprints.map(sprint => (
-                      <SelectItem key={sprint.id} value={sprint.id}>
-                        {sprint.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-gray-700">Sprint associé (optionnel)</Label>
+                <Popover open={sprintSearchOpen} onOpenChange={setSprintSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={sprintSearchOpen}
+                      className="w-full justify-between bg-white text-gray-900 border-gray-300"
+                      data-testid="select-sprint-for-retro"
+                    >
+                      {selectedSprint ? selectedSprint.name : "Sélectionner un sprint..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-white" align="start">
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Rechercher un sprint..."
+                        value={sprintSearchValue}
+                        onChange={(e) => setSprintSearchValue(e.target.value)}
+                        className="bg-white text-gray-900 border-gray-300"
+                        data-testid="input-sprint-search"
+                      />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      <div
+                        className={cn(
+                          "flex items-center px-3 py-2 cursor-pointer text-gray-900 hover:bg-gray-100",
+                          !selectedSprintId && "bg-violet-50"
+                        )}
+                        onClick={() => {
+                          setSelectedSprintId("");
+                          setSprintSearchOpen(false);
+                        }}
+                        data-testid="option-sprint-none"
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", !selectedSprintId ? "opacity-100" : "opacity-0")} />
+                        Aucun sprint
+                      </div>
+                      {filteredSprints.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">Aucun sprint trouvé</div>
+                      ) : (
+                        filteredSprints.map(sprint => (
+                          <div
+                            key={sprint.id}
+                            className={cn(
+                              "flex items-center px-3 py-2 cursor-pointer text-gray-900 hover:bg-gray-100",
+                              selectedSprintId === sprint.id && "bg-violet-50"
+                            )}
+                            onClick={() => {
+                              setSelectedSprintId(sprint.id);
+                              setSprintSearchOpen(false);
+                            }}
+                            data-testid={`option-sprint-${sprint.id}`}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedSprintId === sprint.id ? "opacity-100" : "opacity-0")} />
+                            {sprint.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Annuler</Button>
+            <SheetFooter className="flex gap-2 pt-4">
+              <Button variant="outline" onClick={() => setCreatePanelOpen(false)} className="text-gray-700">Annuler</Button>
               <Button 
-                onClick={() => createRetroMutation.mutate(selectedSprintId === "none" ? null : selectedSprintId || null)}
+                onClick={() => createRetroMutation.mutate(selectedSprintId || null)}
                 disabled={createRetroMutation.isPending}
                 data-testid="button-confirm-create-retro"
               >
-                Créer
+                {createRetroMutation.isPending ? "..." : "Créer"}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {retrosList.length === 0 ? (

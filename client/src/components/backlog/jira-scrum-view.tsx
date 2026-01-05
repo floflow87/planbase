@@ -732,7 +732,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 Points d'estimation
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="bg-white dark:bg-white">
-                {[0, 1, 2, 3, 5, 8, 13, 21].map(points => (
+                {[0, 0.25, 0.5, 1, 2, 3, 5, 8, 13, 21].map(points => (
                   <DropdownMenuItem 
                     key={points}
                     onClick={(e) => {

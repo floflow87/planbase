@@ -1,0 +1,192 @@
+Contexte
+
+Nous souhaitons ajouter un onglet “Stats” au niveau d’un backlog projet, afin d’offrir une lecture claire du rythme, de la capacité et de la qualité du backlog, sans surcharger la vue principale.
+
+Cet onglet doit être purement analytique, orienté pilotage et décision, et complémentaire :
+
+du CDC,
+
+de la roadmap,
+
+du module “À ce rythme…”.
+
+1️⃣ Emplacement & structure
+
+Ajouter un nouvel onglet “Stats” au même niveau que :
+
+Backlog
+
+Epics
+
+Tickets terminés
+
+Rétrospective
+
+L’onglet Stats n’impacte pas la navigation existante.
+
+Aucune action destructive depuis cet onglet (lecture + CTAs guidées uniquement).
+
+2️⃣ Bloc 1 — Vue d’ensemble du backlog (au-dessus de la ligne de flottaison)
+
+Afficher un résumé synthétique du backlog actuel :
+
+Indicateurs
+
+Nombre total de tickets
+
+Tickets en cours (par statut)
+
+Tickets terminés (période sélectionnée : sprint / 7j / 30j)
+
+Points estimés :
+
+points totaux du backlog
+
+points engagés dans les sprints actifs
+
+💬 Texte d’aide :
+
+“Ces indicateurs te donnent une vision instantanée de la charge réelle et de l’état du backlog.”
+
+3️⃣ Bloc 2 — Rythme & capacité
+Célérité (Velocity)
+
+Points livrés par sprint
+
+Moyenne glissante sur les 3 derniers sprints
+
+Comparaison :
+
+dernier sprint vs moyenne
+
+Afficher un indicateur :
+
+↗️ Accélération
+
+➡️ Stable
+
+↘️ Ralentissement
+
+💬 Lecture automatique :
+
+“À ce rythme, il faudra environ X sprints pour absorber le backlog actuel.”
+
+Burn rate
+
+Deux modes (toggle simple) :
+
+Burn des points
+
+Burn des tickets
+
+Graphique simple :
+
+points/tickets restants
+
+projection linéaire optionnelle
+
+4️⃣ Bloc 3 — Qualité & structure du backlog
+
+Analyser la pilotabilité du backlog :
+
+Indicateurs
+
+% de tickets estimés vs non estimés
+
+% de tickets rattachés à une Epic
+
+% de tickets rattachés à une ligne CDC
+
+Nombre de tickets orphelins
+
+💬 Texte pédagogique :
+
+“Un backlog pilotable est un backlog estimé, structuré et relié au périmètre.”
+
+CTAs contextuelles (non bloquantes)
+
+“Estimer les tickets non estimés”
+
+“Rattacher les tickets orphelins”
+
+“Créer une Epic à partir de ces tickets”
+
+5️⃣ Bloc 4 — Lecture par sprint (si Scrum activé)
+
+Pour chaque sprint :
+
+Points engagés
+
+Points livrés
+
+Taux de complétion
+
+Écart engagé vs livré
+
+Badge automatique :
+
+🟢 Sprint maîtrisé
+
+🟠 Sprint sous tension
+
+🔴 Sprint en surcharge
+
+6️⃣ Bloc 5 — Comparaison & apprentissage (optionnel)
+
+Si plusieurs projets comparables existent :
+
+Célérité moyenne sur les projets similaires
+
+Écart avec ce backlog
+
+Sprint de référence interne
+
+💬 Texte de synthèse :
+
+“Sur les projets similaires, la célérité moyenne est de X points par sprint.”
+
+7️⃣ Lecture automatique (footer de l’onglet)
+
+Afficher une lecture synthétique générée automatiquement (sans IA dans un premier temps) :
+
+Exemples :
+
+“42% des tickets ne sont pas encore estimés : la visibilité au-delà de 2 sprints reste limitée.”
+
+“Le backlog augmente plus vite qu’il ne se consomme.”
+
+“La structure actuelle permet un pilotage fiable à court terme.”
+
+8️⃣ Principes UX
+
+Onglet 100% lecture
+
+Pas de surcharge graphique
+
+Même grammaire visuelle que “À ce rythme…”
+
+CTAs toujours reliées à une action existante
+
+Aucun paramétrage requis pour l’utilisateur
+
+9️⃣ Vision produit (non implémentée immédiatement)
+
+Cet onglet servira de base pour :
+
+recommandations avancées,
+
+alertes proactives,
+
+intelligence prédictive (IA) sur le backlog.
+
+Résultat attendu
+
+Un onglet Stats qui :
+
+donne confiance,
+
+rend le backlog lisible,
+
+relie backlog ↔ CDC ↔ roadmap ↔ pilotage,
+
+renforce la promesse “gestion de projet à 360”.

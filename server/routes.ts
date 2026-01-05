@@ -5925,12 +5925,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete epic
+  // Delete epic - orphan tickets instead of deleting them
   app.delete("/api/epics/:epicId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const epicId = req.params.epicId;
       
+      // First, orphan all user stories by setting their epicId to null
+      await db.update(userStories)
+        .set({ epicId: null })
+        .where(and(eq(userStories.epicId, epicId), eq(userStories.accountId, accountId)));
+      
+      // Then delete the epic
       const [deleted] = await db.delete(epics)
         .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)))
         .returning();
