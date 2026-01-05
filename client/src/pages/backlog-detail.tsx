@@ -2080,6 +2080,7 @@ export default function BacklogDetail() {
             userStories={backlog.userStories}
             epics={backlog.epics}
             sprints={backlog.sprints}
+            onNavigateToBacklog={() => setActiveTab("backlog")}
           />
         </TabsContent>
       </Tabs>
@@ -3264,6 +3265,7 @@ function CompletedTicketsView({
             <tr className="text-left text-xs font-medium text-muted-foreground">
               <th className="px-4 py-2">Type</th>
               <th className="px-4 py-2">Titre</th>
+              <th className="px-4 py-2 hidden sm:table-cell">Priorité</th>
               <th className="px-4 py-2 hidden md:table-cell">Sprint</th>
               <th className="px-4 py-2 hidden md:table-cell">Assigné à</th>
               <th className="px-4 py-2 hidden lg:table-cell">Points</th>
@@ -3273,30 +3275,57 @@ function CompletedTicketsView({
             {tickets.map(ticket => (
               <tr
                 key={ticket.id}
-                className={`hover:bg-muted/30 cursor-pointer ${selectedTicketId === ticket.id ? 'bg-primary/10' : ''}`}
+                className={cn(
+                  "cursor-pointer bg-white dark:bg-white hover:bg-gray-50 dark:hover:bg-gray-50",
+                  selectedTicketId === ticket.id && "bg-violet-50 dark:bg-violet-50"
+                )}
                 onClick={() => onSelectTicket(ticket)}
                 data-testid={`row-completed-ticket-${ticket.id}`}
               >
                 <td className="px-4 py-2">
-                  <Badge variant="outline" className="text-xs">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-xs",
+                      ticket.type === 'epic' && "border-violet-300 bg-violet-50 text-violet-700",
+                      ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700",
+                      ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700"
+                    )}
+                  >
                     {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'Story' : 'Task'}
                   </Badge>
                 </td>
                 <td className="px-4 py-2">
-                  <span className="text-sm font-medium">{ticket.title}</span>
+                  <span className="text-sm font-medium text-gray-900">{ticket.title}</span>
+                </td>
+                <td className="px-4 py-2 hidden sm:table-cell">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-xs",
+                      ticket.priority === 'critical' && "border-red-300 bg-red-50 text-red-700",
+                      ticket.priority === 'high' && "border-orange-300 bg-orange-50 text-orange-700",
+                      ticket.priority === 'medium' && "border-amber-300 bg-amber-50 text-amber-700",
+                      ticket.priority === 'low' && "border-gray-300 bg-gray-50 text-gray-600"
+                    )}
+                  >
+                    {ticket.priority === 'critical' ? 'Critique' : 
+                     ticket.priority === 'high' ? 'Haute' : 
+                     ticket.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                  </Badge>
                 </td>
                 <td className="px-4 py-2 hidden md:table-cell">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-gray-600">
                     {getSprintName(ticket.sprintId) || '-'}
                   </span>
                 </td>
                 <td className="px-4 py-2 hidden md:table-cell">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-gray-600">
                     {getAssigneeName(ticket.assigneeId) || '-'}
                   </span>
                 </td>
                 <td className="px-4 py-2 hidden lg:table-cell">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-gray-600">
                     {ticket.estimatePoints || '-'}
                   </span>
                 </td>
@@ -3313,11 +3342,13 @@ function CompletedTicketsView({
 function BacklogStats({ 
   userStories, 
   epics, 
-  sprints 
+  sprints,
+  onNavigateToBacklog
 }: { 
   userStories: (UserStory & { tasks: BacklogTask[] })[];
   epics: Epic[];
   sprints: Sprint[];
+  onNavigateToBacklog?: () => void;
 }) {
   const [burnMode, setBurnMode] = useState<'points' | 'tickets'>('points');
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
@@ -3655,6 +3686,46 @@ function BacklogStats({
               </div>
             </div>
           </div>
+          
+          {/* Lecture automatique intégrée */}
+          <div className="mt-4 pt-4 border-t bg-violet-50 dark:bg-violet-950/20 -mx-4 px-4 pb-0 -mb-4 rounded-b-lg">
+            <div className="flex items-start gap-3 pb-4">
+              <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center flex-shrink-0">
+                <Trophy className="h-4 w-4 text-violet-600" />
+              </div>
+              <div className="space-y-2 flex-1">
+                <p className="text-sm font-medium text-violet-900 dark:text-violet-100">Lecture automatique</p>
+                
+                {/* Constat */}
+                <p className="text-sm text-violet-800 dark:text-violet-200" data-testid="text-reading-constat">
+                  {readings.constat}
+                </p>
+                
+                {/* Risque (si présent) */}
+                {readings.risque && (
+                  <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1" data-testid="text-reading-risque">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{readings.risque}</span>
+                  </p>
+                )}
+                
+                {/* Alerte trop de sprints actifs */}
+                {activeSprints.length > 3 && (
+                  <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1" data-testid="text-warning-many-sprints">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>Attention, beaucoup de sprints sont lancés en même temps. Assurez-vous d'avoir les ressources pour être sur tous ces sujets.</span>
+                  </p>
+                )}
+                
+                {/* Action suggérée (si présente) */}
+                {readings.action && (
+                  <p className="text-xs text-violet-600 dark:text-violet-400 bg-white/50 dark:bg-white/10 px-2 py-1.5 rounded" data-testid="text-reading-action">
+                    {readings.action}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
       
@@ -3853,6 +3924,7 @@ function BacklogStats({
                 <button 
                   className="text-xs text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 whitespace-nowrap ml-3"
                   data-testid="link-estimate-tickets"
+                  onClick={onNavigateToBacklog}
                 >
                   Estimer les tickets
                   <ChevronRight className="h-3 w-3" />
@@ -3874,6 +3946,7 @@ function BacklogStats({
                 <button 
                   className="text-xs text-violet-600 hover:underline flex items-center gap-1 whitespace-nowrap ml-3"
                   data-testid="link-view-orphans"
+                  onClick={onNavigateToBacklog}
                 >
                   Voir dans le backlog
                   <ChevronRight className="h-3 w-3" />
@@ -3975,39 +4048,6 @@ function BacklogStats({
         </Card>
       )}
       
-      {/* Footer - Lecture automatique structurée */}
-      <Card className="bg-violet-50 dark:bg-violet-950/20 border-violet-200">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center flex-shrink-0">
-              <Trophy className="h-4 w-4 text-violet-600" />
-            </div>
-            <div className="space-y-2 flex-1">
-              <p className="text-sm font-medium text-violet-900 dark:text-violet-100">Lecture automatique</p>
-              
-              {/* Constat */}
-              <p className="text-sm text-violet-800 dark:text-violet-200" data-testid="text-reading-constat">
-                {readings.constat}
-              </p>
-              
-              {/* Risque (si présent) */}
-              {readings.risque && (
-                <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1" data-testid="text-reading-risque">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{readings.risque}</span>
-                </p>
-              )}
-              
-              {/* Action suggérée (si présente) */}
-              {readings.action && (
-                <p className="text-xs text-violet-600 dark:text-violet-400 bg-white/50 dark:bg-white/10 px-2 py-1.5 rounded" data-testid="text-reading-action">
-                  {readings.action}
-                </p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

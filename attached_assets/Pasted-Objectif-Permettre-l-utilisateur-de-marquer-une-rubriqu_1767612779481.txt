@@ -1,0 +1,133 @@
+Objectif
+
+Permettre à l’utilisateur de marquer une rubrique CDC comme “terminée”, afin de :
+
+figer son état réel,
+
+stopper les projections inutiles,
+
+affiner la lecture des KPIs temps / dérive / trajectoire projet.
+
+Une rubrique terminée ne doit plus générer d’alertes prédictives.
+
+1️⃣ Nouveau concept : Rubrique CDC clôturée
+Ajout fonctionnel
+
+Chaque rubrique CDC peut avoir un statut de clôture :
+
+ouverte (par défaut)
+
+terminée
+
+Ce statut est indépendant du temps prévu / passé.
+
+2️⃣ Action utilisateur — Marquer comme terminée
+UI attendue
+
+Dans le tableau Temps par étape CDC :
+
+Ajouter une action contextuelle (icône ✓ ou menu …) :
+
+“Marquer comme terminée”
+
+“Rouvrir la rubrique” (si déjà terminée)
+
+Interaction
+
+Action immédiate (optimistic update)
+
+Confirmation douce uniquement si :
+
+la rubrique est encore en statut Critique
+
+3️⃣ Effets fonctionnels d’une rubrique terminée
+
+Lorsqu’une rubrique CDC est marquée terminée :
+
+3.1 Projections
+
+❌ La colonne Projection est :
+
+vidée ou remplacée par —
+
+❌ La rubrique ne participe plus aux calculs de :
+
+risque futur
+
+dérive projet
+
+alertes prédictives
+
+3.2 Statut final
+
+Le statut devient figé, calculé ainsi :
+
+Temps passé ≤ temps prévu
+→ Terminé dans les temps ✅
+
+Temps passé > temps prévu
+→ Terminé avec dépassement ⚠️
+
+Ce statut ne change plus tant que la rubrique reste clôturée.
+
+4️⃣ Affichage UI — Lisibilité claire
+Dans la colonne Statut
+
+Ajouter un badge spécifique :
+
+🟢 Terminé
+
+🟠 Terminé (dépassement)
+
+Dans la colonne Écart
+
+L’écart reste visible (historique réel)
+
+Mais n’est plus interprété comme un risque futur
+
+5️⃣ Impact sur les statistiques globales
+KPIs projet
+
+Les rubriques terminées :
+
+sont incluses dans le réalisé
+
+sont exclues du reste à faire projeté
+
+Alertes
+
+Aucune alerte de type :
+
+“projection critique”
+
+“dérive à venir”
+ne doit être générée sur une rubrique clôturée
+
+6️⃣ Lecture automatique (texte explicatif)
+
+Ajouter un micro-texte explicatif sous le tableau :
+
+Les rubriques terminées sont figées et ne génèrent plus de projections.
+Les alertes portent uniquement sur les étapes encore en cours.
+
+7️⃣ Cas limites à gérer
+Cas 1 — Rubrique critique mais terminée
+
+👉 Le système fait confiance à la clôture manuelle
+→ la réalité prime sur la projection.
+
+Cas 2 — Rubrique rouverte
+
+Les projections et alertes sont recalculées automatiquement
+
+Le statut redevient dynamique
+
+8️⃣ Contraintes techniques
+
+❌ Pas de recalcul rétroactif du CDC
+
+❌ Pas de suppression de données
+
+✅ Simple champ completedAt ou isCompleted
+
+✅ Compatible avec les baselines existantes

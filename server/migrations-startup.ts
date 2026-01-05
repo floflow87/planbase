@@ -1070,6 +1070,35 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project intelligent onboarding fields added");
 
+    // Fix estimate_points column type from integer to real (for decimal values like 0.25, 0.5)
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'user_stories' 
+          AND column_name = 'estimate_points' 
+          AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE user_stories ALTER COLUMN estimate_points TYPE real;
+        END IF;
+      END $$;
+    `);
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'backlog_tasks' 
+          AND column_name = 'estimate_points' 
+          AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE backlog_tasks ALTER COLUMN estimate_points TYPE real;
+        END IF;
+      END $$;
+    `);
+    console.log("✅ Estimate points columns migrated to real type");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
