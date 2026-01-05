@@ -1,0 +1,172 @@
+Objectif
+Améliorer la lisibilité, l’interprétation et l’actionnabilité de l’onglet Statistiques du backlog sans modifier la structure existante, en ajoutant uniquement :
+
+des micro-textes interprétatifs,
+
+des états conditionnels,
+
+des CTA contextuels discrets,
+
+une meilleure connexion avec les autres modules.
+
+Aucune refonte UI majeure. Aucun nouveau graphique lourd.
+
+1️⃣ Vue d’ensemble du backlog — Micro-lecture intelligente
+À ajouter
+
+Sous le titre Vue d’ensemble du backlog, afficher une phrase de lecture automatique.
+
+Cas de figure à gérer
+
+Backlog équilibré
+
+Le backlog est bien réparti entre tickets à faire, en cours et terminés.
+
+Trop de tickets en cours
+
+Beaucoup de tickets sont en cours. Attention à la dispersion et au WIP.
+
+Beaucoup de tickets “à faire”
+
+Le backlog contient encore beaucoup de tickets non engagés.
+
+Peu de tickets terminés
+
+Peu de tickets ont été livrés récemment. Le flux semble ralenti.
+
+2️⃣ Vélocité — Interprétation simple + projection
+À ajouter
+
+Sous le graphique de vélocité :
+
+une phrase d’analyse
+
+une projection simple, sans promesse
+
+Cas de figure
+
+Vélocité stable
+
+La vélocité est stable sur les derniers sprints.
+
+Vélocité en baisse
+
+La vélocité diminue. Le périmètre ou la charge réelle mérite d’être revu.
+
+Vélocité irrégulière
+
+La vélocité est instable, ce qui rend les projections moins fiables.
+
+Projection (si données suffisantes)
+
+À ce rythme, il faudrait environ X sprints pour livrer le backlog engagé.
+
+3️⃣ Burn Rate — Lecture de consommation
+À ajouter
+
+Sous le graphique Burn Rate, une phrase unique.
+
+Cas de figure
+
+Consommation régulière
+
+La consommation du backlog est régulière.
+
+Consommation rapide
+
+Le backlog se consomme rapidement. Vérifie la soutenabilité du rythme.
+
+Stagnation
+
+Peu de points sont consommés. Le backlog semble bloqué.
+
+4️⃣ Qualité & structure du backlog — CTA contextuels
+À enrichir
+
+Transformer certains indicateurs en états actionnables.
+
+Tickets orphelins
+
+0 ticket
+
+Aucun ticket orphelin — structure saine.
+
+≥ 1 ticket
+
+Texte :
+
+Certains tickets ne sont rattachés à aucune Epic.
+
+CTA discret :
+→ Rattacher les tickets
+
+Tickets non estimés
+
+≥ 30 % non estimés
+
+Une part importante du backlog n’est pas estimée. La projection est fragile.
+
+CTA :
+→ Estimer les tickets
+
+5️⃣ Performance par sprint — Lecture humaine
+À ajouter
+
+Un badge de lecture automatique par sprint.
+
+Règles
+
+Écart = 0
+→ Sprint maîtrisé
+
+Écart positif faible
+→ Sprint sous tension
+
+Écart fort
+→ Sprint à risque
+
+Texte optionnel (au survol)
+
+Engagé : X pts — Livré : Y pts
+
+6️⃣ Bandeau “Lecture automatique” — Structuration fixe
+Format obligatoire
+
+Toujours respecter cette structure :
+
+Constat
+
+Risque (si présent)
+
+Action suggérée (optionnelle)
+
+Exemple
+
+Le backlog est bien structuré à court terme.
+Attention toutefois à la baisse de vélocité sur les derniers sprints.
+Une priorisation plus fine des tickets en cours pourrait stabiliser le rythme.
+
+7️⃣ Liens discrets avec les autres modules
+
+Ajouter uniquement des liens textuels légers (pas de boutons lourds) :
+
+Depuis Tickets orphelins
+→ Voir dans le backlog
+
+Depuis Sprint à risque
+→ Ouvrir le sprint
+
+Depuis Vélocité
+→ Voir les tickets concernés
+
+Contraintes importantes
+
+❌ Pas de nouveaux graphiques complexes
+
+❌ Pas de score global unique
+
+❌ Pas d’IA lourde
+
+✅ Textes courts, non culpabilisants
+
+✅ Toujours orienté lecture → compréhension → action

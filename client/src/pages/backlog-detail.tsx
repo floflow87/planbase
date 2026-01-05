@@ -3427,8 +3427,14 @@ function BacklogStats({
       const deviation = engaged - delivered;
       
       let badge: 'green' | 'orange' | 'red' = 'green';
-      if (completionRate < 70) badge = 'red';
-      else if (completionRate < 90) badge = 'orange';
+      let badgeLabel = 'Sprint maîtrisé';
+      if (completionRate < 70) {
+        badge = 'red';
+        badgeLabel = 'Sprint à risque';
+      } else if (completionRate < 90) {
+        badge = 'orange';
+        badgeLabel = 'Sprint sous tension';
+      }
       
       return {
         sprint,
@@ -3436,28 +3442,104 @@ function BacklogStats({
         delivered,
         completionRate,
         deviation,
-        badge
+        badge,
+        badgeLabel
       };
     });
   
-  // Automatic reading messages
-  const readings: string[] = [];
-  if (estimationPercent < 50) {
-    readings.push(`${100 - estimationPercent}% des tickets ne sont pas encore estimés : la visibilité au-delà de 2 sprints reste limitée.`);
+  // 1️⃣ Vue d'ensemble - Micro-lecture intelligente
+  const getOverviewReading = () => {
+    const inProgressRatio = totalTickets > 0 ? ticketsInProgress / totalTickets : 0;
+    const doneRatio = totalTickets > 0 ? ticketsDone / totalTickets : 0;
+    const todoRatio = totalTickets > 0 ? ticketsTodo / totalTickets : 0;
+    
+    if (doneRatio > 0.3 && inProgressRatio < 0.3 && todoRatio < 0.5) {
+      return "Le backlog est bien réparti entre tickets à faire, en cours et terminés.";
+    }
+    if (inProgressRatio > 0.4) {
+      return "Beaucoup de tickets sont en cours. Attention à la dispersion et au WIP.";
+    }
+    if (todoRatio > 0.7) {
+      return "Le backlog contient encore beaucoup de tickets non engagés.";
+    }
+    if (doneRatio < 0.1 && totalTickets > 5) {
+      return "Peu de tickets ont été livrés récemment. Le flux semble ralenti.";
+    }
+    return "Le backlog est bien équilibré.";
+  };
+  
+  // 2️⃣ Vélocité - Interprétation
+  const getVelocityReading = () => {
+    if (velocityData.length < 2) return null;
+    
+    // Check velocity irregularity (coefficient of variation)
+    const velocities = velocityData.map(v => v.points);
+    const mean = velocities.reduce((a, b) => a + b, 0) / velocities.length;
+    const variance = velocities.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / velocities.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = mean > 0 ? stdDev / mean : 0;
+    
+    if (cv > 0.5) {
+      return "La vélocité est instable, ce qui rend les projections moins fiables.";
+    }
+    if (velocityTrend === 'down') {
+      return "La vélocité diminue. Le périmètre ou la charge réelle mérite d'être revu.";
+    }
+    if (velocityTrend === 'stable') {
+      return "La vélocité est stable sur les derniers sprints.";
+    }
+    return "La vélocité est en hausse.";
+  };
+  
+  // 3️⃣ Burn Rate - Lecture de consommation
+  const getBurnRateReading = () => {
+    if (burnData.length < 2) return null;
+    
+    const firstRemaining = burnData[0]?.remaining || 0;
+    const lastRemaining = burnData[burnData.length - 1]?.remaining || 0;
+    const totalConsumed = firstRemaining - lastRemaining;
+    const avgPerSprint = burnData.length > 1 ? totalConsumed / (burnData.length - 1) : 0;
+    
+    if (avgPerSprint <= 0) {
+      return "Peu de points sont consommés. Le backlog semble bloqué.";
+    }
+    const sprintsRemaining = avgPerSprint > 0 ? Math.ceil(lastRemaining / avgPerSprint) : null;
+    
+    if (sprintsRemaining && sprintsRemaining <= 3) {
+      return "Le backlog se consomme rapidement. Vérifie la soutenabilité du rythme.";
+    }
+    return "La consommation du backlog est régulière.";
+  };
+  
+  // 6️⃣ Lecture automatique structurée (Constat / Risque / Action)
+  const readings: { constat: string; risque?: string; action?: string } = {
+    constat: "La structure actuelle permet un pilotage fiable à court terme."
+  };
+  
+  // Determine main constat
+  if (estimationPercent >= 70 && orphanTickets <= 3 && velocityTrend !== 'down') {
+    readings.constat = "Le backlog est bien structuré à court terme.";
+  } else if (estimationPercent < 50) {
+    readings.constat = `${100 - estimationPercent}% des tickets ne sont pas encore estimés.`;
+    readings.risque = "La visibilité au-delà de 2 sprints reste limitée.";
+    readings.action = "Une estimation des tickets prioritaires améliorerait les projections.";
+  } else if (orphanTickets > 5) {
+    readings.constat = `${orphanTickets} tickets orphelins sans Epic ni Sprint.`;
+    readings.risque = "La structuration du backlog est incomplète.";
+    readings.action = "Rattacher ces tickets à une Epic ou un Sprint pour un meilleur pilotage.";
   }
-  if (orphanTickets > 5) {
-    readings.push(`${orphanTickets} tickets orphelins sans Epic ni Sprint : pensez à les structurer pour un meilleur pilotage.`);
+  
+  // Add velocity risk if applicable
+  if (velocityTrend === 'down' && !readings.risque) {
+    readings.risque = "Attention toutefois à la baisse de vélocité sur les derniers sprints.";
+    if (!readings.action) {
+      readings.action = "Une priorisation plus fine des tickets en cours pourrait stabiliser le rythme.";
+    }
   }
-  if (velocityTrend === 'down') {
-    readings.push("Le rythme de livraison ralentit sur les derniers sprints.");
-  } else if (velocityTrend === 'up') {
-    readings.push("L'équipe accélère ! La vélocité est en hausse.");
-  }
-  if (sprintsNeeded && sprintsNeeded > 10) {
-    readings.push(`Au rythme actuel, il faudra encore ${sprintsNeeded} sprints pour terminer le backlog.`);
-  }
-  if (readings.length === 0) {
-    readings.push("La structure actuelle permet un pilotage fiable à court terme.");
+  
+  // Add sprints needed info
+  if (sprintsNeeded && sprintsNeeded > 10 && !readings.risque) {
+    readings.risque = `Au rythme actuel, il faudra encore ${sprintsNeeded} sprints pour terminer le backlog.`;
   }
 
   const selectedSprint = sprints.find(s => s.id === selectedSprintId);
@@ -3516,6 +3598,10 @@ function BacklogStats({
               ? "Indicateurs spécifiques au sprint sélectionné."
               : "Ces indicateurs donnent une vision instantanée de la charge réelle et de l'état du backlog."
             }
+          </p>
+          {/* Micro-lecture intelligente */}
+          <p className="text-xs mt-2 text-foreground/80 bg-muted/40 px-2 py-1.5 rounded" data-testid="text-overview-reading">
+            {getOverviewReading()}
           </p>
         </CardHeader>
         <CardContent>
@@ -3619,8 +3705,15 @@ function BacklogStats({
                     {velocityTrend === 'stable' && <><Minus className="h-3 w-3" /> Stable</>}
                   </Badge>
                 </div>
+                {/* Interprétation vélocité */}
+                {getVelocityReading() && (
+                  <p className="mt-2 text-xs text-foreground/80 bg-muted/30 p-2 rounded" data-testid="text-velocity-reading">
+                    {getVelocityReading()}
+                  </p>
+                )}
+                {/* Projection */}
                 {sprintsNeeded && (
-                  <p className="mt-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded" data-testid="text-sprints-needed">
+                  <p className="mt-2 text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-2 rounded border border-blue-100 dark:border-blue-900" data-testid="text-sprints-needed">
                     À ce rythme, il faudra environ <strong>{sprintsNeeded} sprints</strong> pour absorber le backlog actuel.
                   </p>
                 )}
@@ -3666,26 +3759,34 @@ function BacklogStats({
           </CardHeader>
           <CardContent>
             {burnData.length > 0 ? (
-              <div className="h-[180px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={burnData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <RechartsTooltip 
-                      contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
-                      formatter={(value) => [`${value}`, burnMode === 'points' ? 'Points restants' : 'Tickets restants']}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="remaining" 
-                      stroke="#8B5CF6" 
-                      fill="#C4B5FD" 
-                      fillOpacity={0.3}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={burnData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip 
+                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
+                        formatter={(value) => [`${value}`, burnMode === 'points' ? 'Points restants' : 'Tickets restants']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="remaining" 
+                        stroke="#8B5CF6" 
+                        fill="#C4B5FD" 
+                        fillOpacity={0.3}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Lecture burn rate */}
+                {getBurnRateReading() && (
+                  <p className="mt-3 text-xs text-foreground/80 bg-muted/30 p-2 rounded" data-testid="text-burnrate-reading">
+                    {getBurnRateReading()}
+                  </p>
+                )}
+              </>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">Aucune donnée</p>
@@ -3733,25 +3834,63 @@ function BacklogStats({
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-center" data-testid="stat-orphan-tickets">
               <p className="text-xl font-bold text-amber-600">{orphanTickets}</p>
               <p className="text-xs text-muted-foreground">Tickets orphelins</p>
+              {orphanTickets === 0 && (
+                <p className="text-xs text-green-600 mt-1">Structure saine</p>
+              )}
             </div>
           </div>
           
-          {(estimationPercent < 70 || orphanTickets > 3) && (
-            <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
-              {estimationPercent < 70 && (
-                <Button variant="outline" size="sm" className="text-xs" data-testid="button-estimate-tickets">
-                  <Flag className="h-3 w-3 mr-1" />
+          {/* CTA contextuels avec messages actionnables */}
+          <div className="mt-4 pt-4 border-t space-y-3">
+            {/* Tickets non estimés */}
+            {estimationPercent < 70 && (
+              <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg">
+                <div>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Une part importante du backlog n'est pas estimée. La projection est fragile.
+                  </p>
+                </div>
+                <button 
+                  className="text-xs text-amber-700 dark:text-amber-300 hover:underline flex items-center gap-1 whitespace-nowrap ml-3"
+                  data-testid="link-estimate-tickets"
+                >
                   Estimer les tickets
-                </Button>
-              )}
-              {orphanTickets > 3 && (
-                <Button variant="outline" size="sm" className="text-xs" data-testid="button-link-orphans">
-                  <Layers className="h-3 w-3 mr-1" />
-                  Rattacher les orphelins
-                </Button>
-              )}
-            </div>
-          )}
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+            
+            {/* Tickets orphelins */}
+            {orphanTickets > 0 && (
+              <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg">
+                <div>
+                  <p className="text-sm text-foreground/80">
+                    {orphanTickets === 1 
+                      ? "1 ticket n'est rattaché à aucune Epic."
+                      : `${orphanTickets} tickets ne sont rattachés à aucune Epic.`
+                    }
+                  </p>
+                </div>
+                <button 
+                  className="text-xs text-violet-600 hover:underline flex items-center gap-1 whitespace-nowrap ml-3"
+                  data-testid="link-view-orphans"
+                >
+                  Voir dans le backlog
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+            
+            {/* Message positif si tout va bien */}
+            {estimationPercent >= 70 && orphanTickets === 0 && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  Backlog bien structuré : tous les tickets sont estimés et rattachés.
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
       
@@ -3766,11 +3905,12 @@ function BacklogStats({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {sprintPerformance.slice(0, 5).map(({ sprint, engaged, delivered, completionRate, deviation, badge }) => (
+              {sprintPerformance.slice(0, 5).map(({ sprint, engaged, delivered, completionRate, deviation, badge, badgeLabel }) => (
                 <div 
                   key={sprint.id} 
-                  className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg"
+                  className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg group cursor-pointer hover-elevate"
                   data-testid={`sprint-perf-${sprint.id}`}
+                  title={`Engagé : ${engaged} pts — Livré : ${delivered} pts`}
                 >
                   <div 
                     className={cn(
@@ -3787,8 +3927,16 @@ function BacklogStats({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">{sprint.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {sprint.status === 'termine' ? 'Terminé' : sprint.status === 'en_cours' ? 'En cours' : 'Préparation'}
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-xs",
+                          badge === 'green' && "border-green-200 text-green-700 bg-green-50",
+                          badge === 'orange' && "border-amber-200 text-amber-700 bg-amber-50",
+                          badge === 'red' && "border-red-200 text-red-700 bg-red-50"
+                        )}
+                      >
+                        {badgeLabel}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
@@ -3799,16 +3947,26 @@ function BacklogStats({
                       </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={cn(
-                      "text-lg font-bold",
-                      completionRate >= 90 && "text-green-600",
-                      completionRate >= 70 && completionRate < 90 && "text-amber-600",
-                      completionRate < 70 && "text-red-600"
-                    )}>
-                      {completionRate}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">complétion</p>
+                  <div className="text-right flex items-center gap-3">
+                    <div>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        completionRate >= 90 && "text-green-600",
+                        completionRate >= 70 && completionRate < 90 && "text-amber-600",
+                        completionRate < 70 && "text-red-600"
+                      )}>
+                        {completionRate}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">complétion</p>
+                    </div>
+                    {/* Lien discret vers le sprint */}
+                    <button 
+                      className="text-xs text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity hover:underline flex items-center gap-1"
+                      data-testid={`link-open-sprint-${sprint.id}`}
+                    >
+                      Ouvrir
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -3817,20 +3975,35 @@ function BacklogStats({
         </Card>
       )}
       
-      {/* Footer - Lecture automatique */}
+      {/* Footer - Lecture automatique structurée */}
       <Card className="bg-violet-50 dark:bg-violet-950/20 border-violet-200">
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center flex-shrink-0">
               <Trophy className="h-4 w-4 text-violet-600" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2 flex-1">
               <p className="text-sm font-medium text-violet-900 dark:text-violet-100">Lecture automatique</p>
-              {readings.map((reading, idx) => (
-                <p key={idx} className="text-xs text-violet-700 dark:text-violet-300">
-                  • {reading}
+              
+              {/* Constat */}
+              <p className="text-sm text-violet-800 dark:text-violet-200" data-testid="text-reading-constat">
+                {readings.constat}
+              </p>
+              
+              {/* Risque (si présent) */}
+              {readings.risque && (
+                <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1" data-testid="text-reading-risque">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>{readings.risque}</span>
                 </p>
-              ))}
+              )}
+              
+              {/* Action suggérée (si présente) */}
+              {readings.action && (
+                <p className="text-xs text-violet-600 dark:text-violet-400 bg-white/50 dark:bg-white/10 px-2 py-1.5 rounded" data-testid="text-reading-action">
+                  {readings.action}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
