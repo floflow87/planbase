@@ -2557,9 +2557,10 @@ function EpicDialog({
   const [priority, setPriority] = useState("medium");
   const [color, setColor] = useState("#C4B5FD");
 
-  const colors = ["#C4B5FD", "#93C5FD", "#86EFAC", "#FDE047", "#FDBA74", "#FCA5A5", "#5EEAD4", "#FDA4AF", "#A16207"];
+  // Colors: violet, bleu, vert, jaune, orange, rouge/bordeaux, turquoise, rose clair, marron, bleu marine
+  const colors = ["#C4B5FD", "#93C5FD", "#86EFAC", "#FDE047", "#FDBA74", "#991B1B", "#5EEAD4", "#FBCFE8", "#A16207", "#1E3A5F"];
 
-  useState(() => {
+  useEffect(() => {
     if (epic) {
       setTitle(epic.title);
       setDescription(epic.description || "");
@@ -2571,7 +2572,7 @@ function EpicDialog({
       setPriority("medium");
       setColor("#C4B5FD");
     }
-  });
+  }, [epic]);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -3322,7 +3323,7 @@ function BacklogStats({
   // Calculate all tickets (user stories + tasks)
   const allTickets = useMemo(() => {
     const stories = userStories.map(us => ({ ...us, type: 'user_story' as const }));
-    const tasks = userStories.flatMap(us => us.tasks.map(t => ({ ...t, type: 'task' as const })));
+    const tasks = userStories.flatMap(us => (us.tasks || []).map(t => ({ ...t, type: 'task' as const })));
     return [...stories, ...tasks];
   }, [userStories]);
   
