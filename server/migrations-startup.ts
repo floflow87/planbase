@@ -1099,6 +1099,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Estimate points columns migrated to real type");
 
+    // Add completed_at column to project_scope_items for marking CDC rubriques as completed
+    await db.execute(sql`
+      ALTER TABLE project_scope_items 
+      ADD COLUMN IF NOT EXISTS completed_at timestamp with time zone;
+    `);
+    console.log("✅ Scope items completed_at column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

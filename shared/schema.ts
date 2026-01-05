@@ -294,6 +294,8 @@ export const projectScopeItems = pgTable("project_scope_items", {
   generatedEpicId: uuid("generated_epic_id"), // If generated as an Epic
   generatedUserStoryId: uuid("generated_user_story_id"), // If generated as a User Story
   generatedRoadmapItemId: uuid("generated_roadmap_item_id"), // If generated as a Roadmap item
+  // Completion tracking - when set, the scope item is "closed" and projections stop
+  completedAt: timestamp("completed_at", { withTimezone: true }), // null = open, timestamp = completed
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

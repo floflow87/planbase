@@ -1610,6 +1610,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Complete a scope item (mark as terminated)
+  app.post("/api/scope-items/:itemId/complete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const scopeItem = await storage.getScopeItem(req.params.itemId);
+      if (!scopeItem) {
+        return res.status(404).json({ error: "Scope item not found" });
+      }
+      if (scopeItem.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updatedItem = await storage.updateScopeItem(req.params.itemId, {
+        completedAt: new Date(),
+      });
+      res.json(updatedItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reopen a scope item (remove completion)
+  app.post("/api/scope-items/:itemId/reopen", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const scopeItem = await storage.getScopeItem(req.params.itemId);
+      if (!scopeItem) {
+        return res.status(404).json({ error: "Scope item not found" });
+      }
+      if (scopeItem.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updatedItem = await storage.updateScopeItem(req.params.itemId, {
+        completedAt: null,
+      });
+      res.json(updatedItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // CDC SESSIONS - Cahier des Charges (Project Scoping)
   // ============================================

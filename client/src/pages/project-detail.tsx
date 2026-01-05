@@ -1706,134 +1706,12 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
 
       {/* Time by Scope Item (CDC) Table */}
       {scopeItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <List className="h-4 w-4" />
-              Temps par étape CDC
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2 font-medium">Étape</th>
-                    <th className="text-right py-2 px-2 font-medium">Prévu</th>
-                    <th className="text-right py-2 px-2 font-medium">Passé</th>
-                    <th className="text-right py-2 px-2 font-medium">Écart</th>
-                    <th className="text-right py-2 px-2 font-medium">Statut</th>
-                    {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                      <th className="text-right py-2 px-2 font-medium">Projection</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scopeItems.map((item) => {
-                    const itemTimeSeconds = timeEntries
-                      .filter(e => e.scopeItemId === item.id)
-                      .reduce((sum, e) => sum + (e.duration || 0), 0);
-                    const itemTimeDays = itemTimeSeconds / 3600 / 8;
-                    const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
-                    const ecart = itemTimeDays - estimatedDays;
-                    const consumptionPct = estimatedDays > 0 ? (itemTimeDays / estimatedDays) * 100 : 0;
-                    
-                    const getItemStatus = () => {
-                      if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—" };
-                      if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK" };
-                      if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention" };
-                      return { color: "text-red-600 dark:text-red-500", label: "Critique" };
-                    };
-                    const itemStatus = getItemStatus();
-                    
-                    // Get projection for this item
-                    const itemProjection = scopeItemProjections.find(p => p.item.id === item.id)?.projection;
-                    
-                    return (
-                      <tr key={item.id} className="border-b last:border-b-0" data-testid={`row-scope-item-${item.id}`}>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-2">
-                            {item.label}
-                            {itemProjection?.isCritical && (
-                              <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
-                                Critique
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="text-right py-2 px-2">
-                          {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
-                        </td>
-                        <td className="text-right py-2 px-2">
-                          {itemTimeDays.toFixed(1)}j
-                        </td>
-                        <td className={`text-right py-2 px-2 ${ecart > 0 ? "text-red-600 dark:text-red-500" : ecart < 0 ? "text-green-600 dark:text-green-500" : ""}`}>
-                          {estimatedDays > 0 ? `${ecart >= 0 ? "+" : ""}${ecart.toFixed(1)}j` : "—"}
-                        </td>
-                        <td className={`text-right py-2 px-2 ${itemStatus.color}`}>
-                          {itemStatus.label}
-                        </td>
-                        {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                          <td className="text-right py-2 px-2">
-                            {itemProjection ? (
-                              itemProjection.exceeded ? (
-                                <span className="text-red-600 dark:text-red-500" data-testid={`projection-exceeded-${item.id}`}>
-                                  Dépassé
-                                </span>
-                              ) : itemProjection.insufficientData ? (
-                                <span className="text-muted-foreground" data-testid={`projection-insufficient-${item.id}`}>
-                                  —
-                                </span>
-                              ) : (
-                                <span 
-                                  className={
-                                    itemProjection.isCritical 
-                                      ? "text-red-600 dark:text-red-500" 
-                                      : itemProjection.isWarning 
-                                        ? "text-orange-600 dark:text-orange-500" 
-                                        : "text-muted-foreground"
-                                  }
-                                  data-testid={`projection-days-${item.id}`}
-                                >
-                                  {itemProjection.daysToExceed}j
-                                </span>
-                              )
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                  {/* Uncategorized time row */}
-                  {(() => {
-                    const uncategorizedTimeSeconds = timeEntries
-                      .filter(e => !e.scopeItemId)
-                      .reduce((sum, e) => sum + (e.duration || 0), 0);
-                    const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
-                    
-                    if (uncategorizedTimeDays > 0) {
-                      return (
-                        <tr className="border-t bg-muted/30" data-testid="row-uncategorized-time">
-                          <td className="py-2 px-2 italic text-muted-foreground">Non catégorisé</td>
-                          <td className="text-right py-2 px-2">—</td>
-                          <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
-                          <td className="text-right py-2 px-2">—</td>
-                          <td className="text-right py-2 px-2 text-muted-foreground">—</td>
-                          {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                            <td className="text-right py-2 px-2 text-muted-foreground">—</td>
-                          )}
-                        </tr>
-                      );
-                    }
-                    return null;
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <ScopeItemTimeTable 
+          scopeItems={scopeItems}
+          timeEntries={timeEntries}
+          paceProjection={paceProjection}
+          scopeItemProjections={scopeItemProjections}
+        />
       )}
 
       {/* Time Entries List */}
@@ -2418,6 +2296,292 @@ function BacklogRowWithTickets({
           </td>
         </tr>
       )}
+    </>
+  );
+}
+
+// CDC Scope Item Time Table with completion functionality
+interface ScopeItemTimeTableProps {
+  scopeItems: ProjectScopeItem[];
+  timeEntries: TimeEntry[];
+  paceProjection: { available: boolean; alreadyExceeded: boolean } | null;
+  scopeItemProjections: { item: ProjectScopeItem; projection: any }[];
+}
+
+function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItemProjections }: ScopeItemTimeTableProps) {
+  const { toast } = useToast();
+  const [confirmCompleteItem, setConfirmCompleteItem] = useState<ProjectScopeItem | null>(null);
+  
+  // Mutation to complete a scope item
+  const completeMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const res = await apiRequest(`/api/scope-items/${itemId}/complete`, "POST");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Rubrique terminée", description: "La rubrique a été marquée comme terminée." });
+      setConfirmCompleteItem(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  // Mutation to reopen a scope item
+  const reopenMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      const res = await apiRequest(`/api/scope-items/${itemId}/reopen`, "POST");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Rubrique rouverte", description: "La rubrique est de nouveau active." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+  
+  const handleComplete = (item: ProjectScopeItem, isCritical: boolean) => {
+    if (isCritical) {
+      setConfirmCompleteItem(item);
+    } else {
+      completeMutation.mutate(item.id);
+    }
+  };
+  
+  const handleReopen = (item: ProjectScopeItem) => {
+    reopenMutation.mutate(item.id);
+  };
+  
+  // Count completed items for the explanatory text
+  const completedCount = scopeItems.filter(item => item.completedAt).length;
+  
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Temps par étape CDC
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-2 font-medium">Étape</th>
+                  <th className="text-right py-2 px-2 font-medium">Prévu</th>
+                  <th className="text-right py-2 px-2 font-medium">Passé</th>
+                  <th className="text-right py-2 px-2 font-medium">Écart</th>
+                  <th className="text-right py-2 px-2 font-medium">Statut</th>
+                  {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                    <th className="text-right py-2 px-2 font-medium">Projection</th>
+                  )}
+                  <th className="text-right py-2 px-2 font-medium w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopeItems.map((item) => {
+                  const itemTimeSeconds = timeEntries
+                    .filter(e => e.scopeItemId === item.id)
+                    .reduce((sum, e) => sum + (e.duration || 0), 0);
+                  const itemTimeDays = itemTimeSeconds / 3600 / 8;
+                  const estimatedDays = parseFloat(item.estimatedDays?.toString() || "0");
+                  const ecart = itemTimeDays - estimatedDays;
+                  const consumptionPct = estimatedDays > 0 ? (itemTimeDays / estimatedDays) * 100 : 0;
+                  const isCompleted = !!item.completedAt;
+                  const hasExceeded = ecart > 0;
+                  
+                  // Get item status
+                  const getItemStatus = () => {
+                    if (isCompleted) {
+                      return hasExceeded
+                        ? { color: "text-orange-600 dark:text-orange-500", label: "Terminé (dépassement)", badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" }
+                        : { color: "text-green-600 dark:text-green-500", label: "Terminé", badge: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" };
+                    }
+                    if (estimatedDays === 0) return { color: "text-muted-foreground", label: "—", badge: "" };
+                    if (consumptionPct < 70) return { color: "text-green-600 dark:text-green-500", label: "OK", badge: "" };
+                    if (consumptionPct < 90) return { color: "text-orange-600 dark:text-orange-500", label: "Attention", badge: "" };
+                    return { color: "text-red-600 dark:text-red-500", label: "Critique", badge: "" };
+                  };
+                  const itemStatus = getItemStatus();
+                  const isCritical = itemStatus.label === "Critique";
+                  
+                  // Get projection for this item (only for non-completed items)
+                  const itemProjection = isCompleted ? null : scopeItemProjections.find(p => p.item.id === item.id)?.projection;
+                  
+                  return (
+                    <tr 
+                      key={item.id} 
+                      className={cn(
+                        "border-b last:border-b-0",
+                        isCompleted && "bg-muted/30"
+                      )}
+                      data-testid={`row-scope-item-${item.id}`}
+                    >
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-2">
+                          <span className={isCompleted ? "text-muted-foreground" : ""}>{item.label}</span>
+                          {!isCompleted && itemProjection?.isCritical && (
+                            <Badge variant="destructive" className="text-[10px] px-1 py-0" data-testid={`badge-critical-${item.id}`}>
+                              Critique
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className={cn("text-right py-2 px-2", isCompleted && "text-muted-foreground")}>
+                        {estimatedDays > 0 ? `${estimatedDays.toFixed(1)}j` : "—"}
+                      </td>
+                      <td className={cn("text-right py-2 px-2", isCompleted && "text-muted-foreground")}>
+                        {itemTimeDays.toFixed(1)}j
+                      </td>
+                      <td className={cn(
+                        "text-right py-2 px-2",
+                        isCompleted ? "text-muted-foreground" : (ecart > 0 ? "text-red-600 dark:text-red-500" : ecart < 0 ? "text-green-600 dark:text-green-500" : "")
+                      )}>
+                        {estimatedDays > 0 ? `${ecart >= 0 ? "+" : ""}${ecart.toFixed(1)}j` : "—"}
+                      </td>
+                      <td className="text-right py-2 px-2">
+                        {itemStatus.badge ? (
+                          <Badge className={cn("text-[10px] px-1.5 py-0.5", itemStatus.badge)} data-testid={`badge-status-${item.id}`}>
+                            {itemStatus.label}
+                          </Badge>
+                        ) : (
+                          <span className={itemStatus.color}>{itemStatus.label}</span>
+                        )}
+                      </td>
+                      {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                        <td className="text-right py-2 px-2">
+                          {isCompleted ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : itemProjection ? (
+                            itemProjection.exceeded ? (
+                              <span className="text-red-600 dark:text-red-500" data-testid={`projection-exceeded-${item.id}`}>
+                                Dépassé
+                              </span>
+                            ) : itemProjection.insufficientData ? (
+                              <span className="text-muted-foreground" data-testid={`projection-insufficient-${item.id}`}>
+                                —
+                              </span>
+                            ) : (
+                              <span 
+                                className={
+                                  itemProjection.isCritical 
+                                    ? "text-red-600 dark:text-red-500" 
+                                    : itemProjection.isWarning 
+                                      ? "text-orange-600 dark:text-orange-500" 
+                                      : "text-muted-foreground"
+                                }
+                                data-testid={`projection-days-${item.id}`}
+                              >
+                                {itemProjection.daysToExceed}j
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      )}
+                      <td className="text-right py-2 px-2">
+                        {isCompleted ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleReopen(item)}
+                                disabled={reopenMutation.isPending}
+                                data-testid={`button-reopen-${item.id}`}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Rouvrir la rubrique</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleComplete(item, isCritical)}
+                                disabled={completeMutation.isPending}
+                                data-testid={`button-complete-${item.id}`}
+                              >
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Marquer comme terminée</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Uncategorized time row */}
+                {(() => {
+                  const uncategorizedTimeSeconds = timeEntries
+                    .filter(e => !e.scopeItemId)
+                    .reduce((sum, e) => sum + (e.duration || 0), 0);
+                  const uncategorizedTimeDays = uncategorizedTimeSeconds / 3600 / 8;
+                  
+                  if (uncategorizedTimeDays > 0) {
+                    return (
+                      <tr className="border-t bg-muted/30" data-testid="row-uncategorized-time">
+                        <td className="py-2 px-2 italic text-muted-foreground">Non catégorisé</td>
+                        <td className="text-right py-2 px-2">—</td>
+                        <td className="text-right py-2 px-2">{uncategorizedTimeDays.toFixed(1)}j</td>
+                        <td className="text-right py-2 px-2">—</td>
+                        <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                        {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                          <td className="text-right py-2 px-2 text-muted-foreground">—</td>
+                        )}
+                        <td></td>
+                      </tr>
+                    );
+                  }
+                  return null;
+                })()}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Explanatory micro-text */}
+          {completedCount > 0 && (
+            <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
+              Les rubriques terminées sont figées et ne génèrent plus de projections. Les alertes portent uniquement sur les étapes encore en cours.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Confirmation dialog for completing critical items */}
+      <AlertDialog open={!!confirmCompleteItem} onOpenChange={(open) => !open && setConfirmCompleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la clôture</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette rubrique est actuellement en statut <strong>Critique</strong>. Êtes-vous sûr de vouloir la marquer comme terminée ?
+              <br /><br />
+              Une fois terminée, elle ne générera plus d'alertes prédictives et son statut sera figé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmCompleteItem && completeMutation.mutate(confirmCompleteItem.id)}
+              disabled={completeMutation.isPending}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
