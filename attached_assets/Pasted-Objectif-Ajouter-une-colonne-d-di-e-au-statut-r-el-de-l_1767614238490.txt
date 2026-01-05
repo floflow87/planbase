@@ -1,0 +1,110 @@
+Objectif
+
+Ajouter une colonne dédiée au statut réel de la rubrique CDC afin de dissocier clairement :
+
+l’état fonctionnel (terminée / ouverte)
+
+l’état de trajectoire (OK / Critique / Dépassé)
+
+👉 Aujourd’hui, ces notions sont implicites ou mélangées.
+Cette colonne apporte une lecture instantanée et cohérente.
+
+1️⃣ Nouvelle colonne : Statut
+Emplacement
+
+Dans le tableau Temps par étape CDC, ajouter une colonne :
+
+Étape | Prévu | Passé | Écart | Statut | Projection
+
+2️⃣ Règles de calcul du statut
+
+Le Statut reflète toujours la réalité de pilotage, indépendamment du fait que la rubrique soit terminée ou non.
+
+Cas 1 — Rubrique ouverte
+
+🟢 OK
+
+Temps passé < temps prévu
+
+Aucune alerte active
+
+🔴 Critique
+
+Projection future > temps prévu
+
+Ou dérive détectée par le moteur de trajectoire
+
+Cas 2 — Rubrique terminée
+
+Le statut devient figé, calculé à la clôture :
+
+🟢 OK
+
+Temps passé ≤ temps prévu
+
+🟠 Dépassé
+
+Temps passé > temps prévu
+
+👉 Une rubrique terminée ne peut plus être “Critique”.
+
+3️⃣ Affichage UI
+Badge visuel (colonne Statut)
+
+🟢 OK (vert)
+
+🔴 Critique (rouge)
+
+🟠 Dépassé (orange)
+
+Règles visuelles
+
+Les rubriques terminées restent grisées (comme actuellement)
+
+Le badge Statut reste bien visible (contraste conservé)
+
+4️⃣ Interaction avec les autres colonnes
+
+La colonne Projection reste masquée pour les rubriques terminées
+
+Le statut Critique ne peut apparaître que si :
+
+completedAt IS NULL
+
+5️⃣ Cas particuliers à gérer
+Rubrique critique → marquée comme terminée
+
+Le statut passe automatiquement à :
+
+OK ou Dépassé
+
+Toutes les alertes associées sont supprimées
+
+Rubrique rouverte
+
+Le statut redevient dynamique
+
+Les projections et alertes sont recalculées
+
+6️⃣ Micro-copy (si utile)
+
+Optionnel, sous le tableau ou en tooltip sur “Statut” :
+
+Le statut indique la trajectoire réelle de chaque étape :
+OK (dans les temps), Critique (risque en cours) ou Dépassé (hors budget temps).
+
+7️⃣ Contraintes techniques
+
+Aucun changement de modèle complexe
+
+Le statut est dérivé, pas stocké
+
+Basé sur :
+
+completedAt
+
+estimatedDays
+
+actualTime
+
+moteur de projection existant

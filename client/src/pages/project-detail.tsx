@@ -2320,7 +2320,11 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Rubrique terminée", description: "La rubrique a été marquée comme terminée." });
+      toast({ 
+        title: "Rubrique terminée", 
+        description: "La rubrique a été marquée comme terminée.",
+        className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"
+      });
       setConfirmCompleteItem(null);
     },
     onError: (error: any) => {
@@ -2492,7 +2496,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7"
+                                className="h-7 w-7 hover:bg-white dark:hover:bg-gray-800"
                                 onClick={() => handleReopen(item)}
                                 disabled={reopenMutation.isPending}
                                 data-testid={`button-reopen-${item.id}`}
@@ -2508,7 +2512,7 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7"
+                                className="h-7 w-7 hover:bg-white dark:hover:bg-gray-800"
                                 onClick={() => handleComplete(item, isCritical)}
                                 disabled={completeMutation.isPending}
                                 data-testid={`button-complete-${item.id}`}
