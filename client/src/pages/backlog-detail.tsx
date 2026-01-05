@@ -1918,7 +1918,7 @@ export default function BacklogDetail() {
                   Organisez vos grandes fonctionnalités en Epics pour regrouper les User Stories
                 </p>
               </div>
-              <Button onClick={() => { setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
+              <Button onClick={() => { createEpicMutation.reset(); setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
                 <Plus className="h-4 w-4 mr-2" />
                 Nouvelle Epic
               </Button>
@@ -1944,6 +1944,7 @@ export default function BacklogDetail() {
                       key={epic.id}
                       className="border rounded-lg overflow-hidden bg-card hover-elevate cursor-pointer"
                       onClick={() => {
+                        updateEpicMutation.reset();
                         setEditingEpic(epic);
                         setShowEpicDialog(true);
                       }}
@@ -3319,13 +3320,20 @@ function BacklogStats({
   sprints: Sprint[];
 }) {
   const [burnMode, setBurnMode] = useState<'points' | 'tickets'>('points');
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  
+  // Filter data based on selected sprint
+  const filteredUserStories = useMemo(() => {
+    if (!selectedSprintId) return userStories;
+    return userStories.filter(us => us.sprintId === selectedSprintId);
+  }, [userStories, selectedSprintId]);
   
   // Calculate all tickets (user stories + tasks)
   const allTickets = useMemo(() => {
-    const stories = userStories.map(us => ({ ...us, type: 'user_story' as const }));
-    const tasks = userStories.flatMap(us => (us.tasks || []).map(t => ({ ...t, type: 'task' as const })));
+    const stories = filteredUserStories.map(us => ({ ...us, type: 'user_story' as const }));
+    const tasks = filteredUserStories.flatMap(us => (us.tasks || []).map(t => ({ ...t, type: 'task' as const })));
     return [...stories, ...tasks];
-  }, [userStories]);
+  }, [filteredUserStories]);
   
   // Total counts
   const totalTickets = allTickets.length;
@@ -3336,8 +3344,8 @@ function BacklogStats({
   const ticketsToFix = allTickets.filter(t => t.state === 'to_fix').length;
   
   // Points calculations  
-  const totalPoints = userStories.reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
-  const pointsDone = userStories.filter(us => us.state === 'termine').reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  const totalPoints = filteredUserStories.reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  const pointsDone = filteredUserStories.filter(us => us.state === 'termine').reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
   
   // Active sprints points
   const activeSprints = sprints.filter(s => s.status === 'en_cours');
@@ -3345,14 +3353,14 @@ function BacklogStats({
     .filter(us => activeSprints.some(s => s.id === us.sprintId))
     .reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
   
-  // Quality metrics
-  const estimatedTickets = userStories.filter(us => us.estimatePoints && us.estimatePoints > 0).length;
-  const estimationPercent = userStories.length > 0 ? Math.round((estimatedTickets / userStories.length) * 100) : 0;
+  // Quality metrics (always use full userStories for global metrics, filteredUserStories for sprint-specific)
+  const estimatedTickets = filteredUserStories.filter(us => us.estimatePoints && us.estimatePoints > 0).length;
+  const estimationPercent = filteredUserStories.length > 0 ? Math.round((estimatedTickets / filteredUserStories.length) * 100) : 0;
   
-  const linkedToEpic = userStories.filter(us => us.epicId).length;
-  const epicLinkPercent = userStories.length > 0 ? Math.round((linkedToEpic / userStories.length) * 100) : 0;
+  const linkedToEpic = filteredUserStories.filter(us => us.epicId).length;
+  const epicLinkPercent = filteredUserStories.length > 0 ? Math.round((linkedToEpic / filteredUserStories.length) * 100) : 0;
   
-  const orphanTickets = userStories.filter(us => !us.epicId && !us.sprintId).length;
+  const orphanTickets = filteredUserStories.filter(us => !us.epicId && !us.sprintId).length;
   
   // Velocity calculation per completed sprint
   const completedSprints = sprints
@@ -3452,17 +3460,62 @@ function BacklogStats({
     readings.push("La structure actuelle permet un pilotage fiable à court terme.");
   }
 
+  const selectedSprint = sprints.find(s => s.id === selectedSprintId);
+
   return (
     <div className="space-y-6" data-testid="backlog-stats">
+      {/* Sprint Selector */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Statistiques</h2>
+        <div className="flex items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Filtrer par sprint :</Label>
+          <Select 
+            value={selectedSprintId || "all"} 
+            onValueChange={(val) => setSelectedSprintId(val === "all" ? null : val)}
+          >
+            <SelectTrigger className="w-[200px]" data-testid="select-stats-sprint">
+              <SelectValue placeholder="Tous les sprints" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les sprints</SelectItem>
+              {sprints.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {selectedSprintId && (
+        <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-lg p-3 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-violet-600" />
+          <span className="text-sm">
+            Statistiques filtrées pour le sprint : <strong>{selectedSprint?.name}</strong>
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="ml-auto h-7 text-xs"
+            onClick={() => setSelectedSprintId(null)}
+            data-testid="button-clear-sprint-filter"
+          >
+            Voir tous les sprints
+          </Button>
+        </div>
+      )}
+
       {/* Bloc 1 - Vue d'ensemble */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Layers className="h-4 w-4 text-violet-600" />
-            Vue d'ensemble du backlog
+            Vue d'ensemble {selectedSprintId ? "du sprint" : "du backlog"}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Ces indicateurs donnent une vision instantanée de la charge réelle et de l'état du backlog.
+            {selectedSprintId 
+              ? "Indicateurs spécifiques au sprint sélectionné."
+              : "Ces indicateurs donnent une vision instantanée de la charge réelle et de l'état du backlog."
+            }
           </p>
         </CardHeader>
         <CardContent>
@@ -3548,7 +3601,7 @@ function BacklogStats({
                 </div>
                 <div className="mt-3 flex items-center justify-between text-sm">
                   <div>
-                    <span className="text-muted-foreground">Moyenne (3 derniers) :</span>
+                    <span className="text-muted-foreground">Moyenne (3 derniers sprints) :</span>
                     <span className="font-semibold ml-1">{avg3Velocity} pts</span>
                   </div>
                   <Badge 
