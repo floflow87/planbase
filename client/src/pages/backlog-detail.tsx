@@ -7,7 +7,7 @@ import {
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
-  CheckSquare, BarChart3
+  CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,10 @@ import { toastSuccess } from "@/design-system/feedback";
 import { queryClient, apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { 
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip as RechartsTooltip, ResponsiveContainer 
+} from "recharts";
 import { 
   DndContext, 
   closestCenter, 
@@ -2071,11 +2075,11 @@ export default function BacklogDetail() {
 
         {/* Statistiques tab */}
         <TabsContent value="statistiques" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-            <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">Statistiques</h3>
-            <p className="text-sm">Les statistiques du backlog seront bientôt disponibles.</p>
-          </div>
+          <BacklogStats 
+            userStories={backlog.userStories}
+            epics={backlog.epics}
+            sprints={backlog.sprints}
+          />
         </TabsContent>
       </Tabs>
 
@@ -3299,6 +3303,484 @@ function CompletedTicketsView({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// Backlog Statistics Component
+function BacklogStats({ 
+  userStories, 
+  epics, 
+  sprints 
+}: { 
+  userStories: (UserStory & { tasks: BacklogTask[] })[];
+  epics: Epic[];
+  sprints: Sprint[];
+}) {
+  const [burnMode, setBurnMode] = useState<'points' | 'tickets'>('points');
+  
+  // Calculate all tickets (user stories + tasks)
+  const allTickets = useMemo(() => {
+    const stories = userStories.map(us => ({ ...us, type: 'user_story' as const }));
+    const tasks = userStories.flatMap(us => us.tasks.map(t => ({ ...t, type: 'task' as const })));
+    return [...stories, ...tasks];
+  }, [userStories]);
+  
+  // Total counts
+  const totalTickets = allTickets.length;
+  const ticketsInProgress = allTickets.filter(t => t.state === 'en_cours').length;
+  const ticketsDone = allTickets.filter(t => t.state === 'termine').length;
+  const ticketsTodo = allTickets.filter(t => t.state === 'a_faire' || t.state === 'backlog').length;
+  const ticketsTesting = allTickets.filter(t => t.state === 'testing').length;
+  const ticketsToFix = allTickets.filter(t => t.state === 'to_fix').length;
+  
+  // Points calculations  
+  const totalPoints = userStories.reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  const pointsDone = userStories.filter(us => us.state === 'termine').reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  
+  // Active sprints points
+  const activeSprints = sprints.filter(s => s.status === 'en_cours');
+  const pointsInActiveSprints = userStories
+    .filter(us => activeSprints.some(s => s.id === us.sprintId))
+    .reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  
+  // Quality metrics
+  const estimatedTickets = userStories.filter(us => us.estimatePoints && us.estimatePoints > 0).length;
+  const estimationPercent = userStories.length > 0 ? Math.round((estimatedTickets / userStories.length) * 100) : 0;
+  
+  const linkedToEpic = userStories.filter(us => us.epicId).length;
+  const epicLinkPercent = userStories.length > 0 ? Math.round((linkedToEpic / userStories.length) * 100) : 0;
+  
+  const orphanTickets = userStories.filter(us => !us.epicId && !us.sprintId).length;
+  
+  // Velocity calculation per completed sprint
+  const completedSprints = sprints
+    .filter(s => s.status === 'termine')
+    .sort((a, b) => new Date(b.completedAt || b.endDate || 0).getTime() - new Date(a.completedAt || a.endDate || 0).getTime());
+  
+  const velocityData = completedSprints.slice(0, 6).reverse().map(sprint => {
+    const sprintPoints = userStories
+      .filter(us => us.sprintId === sprint.id && us.state === 'termine')
+      .reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+    return {
+      name: sprint.name.length > 10 ? sprint.name.substring(0, 10) + '...' : sprint.name,
+      points: sprintPoints
+    };
+  });
+  
+  // Average velocity
+  const avgVelocity = velocityData.length > 0 
+    ? Math.round(velocityData.reduce((sum, v) => sum + v.points, 0) / velocityData.length * 10) / 10
+    : 0;
+  
+  // Last 3 sprints average
+  const last3Velocity = velocityData.slice(-3);
+  const avg3Velocity = last3Velocity.length > 0 
+    ? Math.round(last3Velocity.reduce((sum, v) => sum + v.points, 0) / last3Velocity.length * 10) / 10
+    : 0;
+  
+  // Velocity trend
+  const lastSprintVelocity = velocityData.length > 0 ? velocityData[velocityData.length - 1]?.points || 0 : 0;
+  const velocityTrend = avg3Velocity > 0 
+    ? lastSprintVelocity > avg3Velocity * 1.1 ? 'up' 
+    : lastSprintVelocity < avg3Velocity * 0.9 ? 'down' 
+    : 'stable'
+    : 'stable';
+  
+  // Sprints needed to complete backlog
+  const remainingPoints = totalPoints - pointsDone;
+  const sprintsNeeded = avg3Velocity > 0 ? Math.ceil(remainingPoints / avg3Velocity) : null;
+  
+  // Burn rate data (cumulative remaining)
+  const burnData = useMemo(() => {
+    const sortedSprints = [...completedSprints].reverse();
+    let runningTotal = burnMode === 'points' ? totalPoints : totalTickets;
+    
+    return sortedSprints.map(sprint => {
+      const delivered = burnMode === 'points'
+        ? userStories.filter(us => us.sprintId === sprint.id && us.state === 'termine').reduce((sum, us) => sum + (us.estimatePoints || 0), 0)
+        : allTickets.filter(t => t.sprintId === sprint.id && t.state === 'termine').length;
+      runningTotal -= delivered;
+      return {
+        name: sprint.name.length > 8 ? sprint.name.substring(0, 8) + '...' : sprint.name,
+        remaining: Math.max(0, runningTotal)
+      };
+    });
+  }, [completedSprints, burnMode, totalPoints, totalTickets, userStories, allTickets]);
+  
+  // Sprint performance data
+  const sprintPerformance = sprints
+    .filter(s => s.status !== 'preparation')
+    .map(sprint => {
+      const engaged = userStories.filter(us => us.sprintId === sprint.id).reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+      const delivered = userStories.filter(us => us.sprintId === sprint.id && us.state === 'termine').reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+      const completionRate = engaged > 0 ? Math.round((delivered / engaged) * 100) : 0;
+      const deviation = engaged - delivered;
+      
+      let badge: 'green' | 'orange' | 'red' = 'green';
+      if (completionRate < 70) badge = 'red';
+      else if (completionRate < 90) badge = 'orange';
+      
+      return {
+        sprint,
+        engaged,
+        delivered,
+        completionRate,
+        deviation,
+        badge
+      };
+    });
+  
+  // Automatic reading messages
+  const readings: string[] = [];
+  if (estimationPercent < 50) {
+    readings.push(`${100 - estimationPercent}% des tickets ne sont pas encore estimés : la visibilité au-delà de 2 sprints reste limitée.`);
+  }
+  if (orphanTickets > 5) {
+    readings.push(`${orphanTickets} tickets orphelins sans Epic ni Sprint : pensez à les structurer pour un meilleur pilotage.`);
+  }
+  if (velocityTrend === 'down') {
+    readings.push("Le rythme de livraison ralentit sur les derniers sprints.");
+  } else if (velocityTrend === 'up') {
+    readings.push("L'équipe accélère ! La vélocité est en hausse.");
+  }
+  if (sprintsNeeded && sprintsNeeded > 10) {
+    readings.push(`Au rythme actuel, il faudra encore ${sprintsNeeded} sprints pour terminer le backlog.`);
+  }
+  if (readings.length === 0) {
+    readings.push("La structure actuelle permet un pilotage fiable à court terme.");
+  }
+
+  return (
+    <div className="space-y-6" data-testid="backlog-stats">
+      {/* Bloc 1 - Vue d'ensemble */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Layers className="h-4 w-4 text-violet-600" />
+            Vue d'ensemble du backlog
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Ces indicateurs donnent une vision instantanée de la charge réelle et de l'état du backlog.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3 bg-muted/30 rounded-lg" data-testid="stat-total-tickets">
+              <p className="text-2xl font-bold text-violet-600">{totalTickets}</p>
+              <p className="text-xs text-muted-foreground">Tickets totaux</p>
+            </div>
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg" data-testid="stat-in-progress">
+              <p className="text-2xl font-bold text-blue-600">{ticketsInProgress}</p>
+              <p className="text-xs text-muted-foreground">En cours</p>
+              {ticketsTesting > 0 && <p className="text-xs text-blue-500">+ {ticketsTesting} en test</p>}
+            </div>
+            <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg" data-testid="stat-done">
+              <p className="text-2xl font-bold text-green-600">{ticketsDone}</p>
+              <p className="text-xs text-muted-foreground">Terminés</p>
+            </div>
+            <div className="p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg" data-testid="stat-todo">
+              <p className="text-2xl font-bold text-gray-600">{ticketsTodo}</p>
+              <p className="text-xs text-muted-foreground">À faire</p>
+              {ticketsToFix > 0 && <p className="text-xs text-red-500">+ {ticketsToFix} à corriger</p>}
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3" data-testid="stat-total-points">
+              <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                <Flag className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{totalPoints}</p>
+                <p className="text-xs text-muted-foreground">Points totaux</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3" data-testid="stat-engaged-points">
+              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Play className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{pointsInActiveSprints}</p>
+                <p className="text-xs text-muted-foreground">Points engagés</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3" data-testid="stat-delivered-points">
+              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{pointsDone}</p>
+                <p className="text-xs text-muted-foreground">Points livrés</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Bloc 2 - Rythme & capacité */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Vélocité */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-violet-600" />
+              Vélocité
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {velocityData.length > 0 ? (
+              <>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={velocityData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip 
+                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
+                        formatter={(value) => [`${value} pts`, 'Points']}
+                      />
+                      <Bar dataKey="points" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Moyenne (3 derniers) :</span>
+                    <span className="font-semibold ml-1">{avg3Velocity} pts</span>
+                  </div>
+                  <Badge 
+                    variant="outline"
+                    className={cn(
+                      "flex items-center gap-1",
+                      velocityTrend === 'up' && "text-green-600 border-green-200 bg-green-50",
+                      velocityTrend === 'down' && "text-red-600 border-red-200 bg-red-50",
+                      velocityTrend === 'stable' && "text-blue-600 border-blue-200 bg-blue-50"
+                    )}
+                    data-testid="badge-velocity-trend"
+                  >
+                    {velocityTrend === 'up' && <><TrendingUp className="h-3 w-3" /> Accélération</>}
+                    {velocityTrend === 'down' && <><TrendingDown className="h-3 w-3" /> Ralentissement</>}
+                    {velocityTrend === 'stable' && <><Minus className="h-3 w-3" /> Stable</>}
+                  </Badge>
+                </div>
+                {sprintsNeeded && (
+                  <p className="mt-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded" data-testid="text-sprints-needed">
+                    À ce rythme, il faudra environ <strong>{sprintsNeeded} sprints</strong> pour absorber le backlog actuel.
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Aucun sprint terminé</p>
+                <p className="text-xs mt-1">Les données de vélocité apparaîtront après la clôture du premier sprint.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Burn Rate */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ListTodo className="h-4 w-4 text-violet-600" />
+                Burn Rate
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button 
+                  variant={burnMode === 'points' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={() => setBurnMode('points')}
+                  data-testid="button-burn-mode-points"
+                >
+                  Points
+                </Button>
+                <Button 
+                  variant={burnMode === 'tickets' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={() => setBurnMode('tickets')}
+                  data-testid="button-burn-mode-tickets"
+                >
+                  Tickets
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {burnData.length > 0 ? (
+              <div className="h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={burnData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <RechartsTooltip 
+                      contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
+                      formatter={(value) => [`${value}`, burnMode === 'points' ? 'Points restants' : 'Tickets restants']}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="remaining" 
+                      stroke="#8B5CF6" 
+                      fill="#C4B5FD" 
+                      fillOpacity={0.3}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Aucune donnée</p>
+                <p className="text-xs mt-1">Le graphique apparaîtra après la clôture de sprints.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Bloc 3 - Qualité & structure */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Folder className="h-4 w-4 text-violet-600" />
+            Qualité & structure du backlog
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Un backlog pilotable est un backlog estimé, structuré et relié au périmètre.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2" data-testid="stat-estimation-percent">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Estimés</span>
+                <span className="text-sm font-semibold">{estimationPercent}%</span>
+              </div>
+              <Progress value={estimationPercent} className="h-2" />
+              {estimationPercent < 70 && (
+                <p className="text-xs text-amber-600">{userStories.length - estimatedTickets} non estimés</p>
+              )}
+            </div>
+            <div className="space-y-2" data-testid="stat-epic-link-percent">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Rattachés Epic</span>
+                <span className="text-sm font-semibold">{epicLinkPercent}%</span>
+              </div>
+              <Progress value={epicLinkPercent} className="h-2" />
+            </div>
+            <div className="p-3 bg-muted/30 rounded-lg text-center" data-testid="stat-epics-count">
+              <p className="text-xl font-bold text-violet-600">{epics.length}</p>
+              <p className="text-xs text-muted-foreground">Epics</p>
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-center" data-testid="stat-orphan-tickets">
+              <p className="text-xl font-bold text-amber-600">{orphanTickets}</p>
+              <p className="text-xs text-muted-foreground">Tickets orphelins</p>
+            </div>
+          </div>
+          
+          {(estimationPercent < 70 || orphanTickets > 3) && (
+            <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
+              {estimationPercent < 70 && (
+                <Button variant="outline" size="sm" className="text-xs" data-testid="button-estimate-tickets">
+                  <Flag className="h-3 w-3 mr-1" />
+                  Estimer les tickets
+                </Button>
+              )}
+              {orphanTickets > 3 && (
+                <Button variant="outline" size="sm" className="text-xs" data-testid="button-link-orphans">
+                  <Layers className="h-3 w-3 mr-1" />
+                  Rattacher les orphelins
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Bloc 4 - Lecture par sprint */}
+      {sprintPerformance.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-violet-600" />
+              Performance par sprint
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {sprintPerformance.slice(0, 5).map(({ sprint, engaged, delivered, completionRate, deviation, badge }) => (
+                <div 
+                  key={sprint.id} 
+                  className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg"
+                  data-testid={`sprint-perf-${sprint.id}`}
+                >
+                  <div 
+                    className={cn(
+                      "h-8 w-8 rounded-full flex items-center justify-center",
+                      badge === 'green' && "bg-green-100",
+                      badge === 'orange' && "bg-amber-100",
+                      badge === 'red' && "bg-red-100"
+                    )}
+                  >
+                    {badge === 'green' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                    {badge === 'orange' && <AlertCircle className="h-4 w-4 text-amber-600" />}
+                    {badge === 'red' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{sprint.name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {sprint.status === 'termine' ? 'Terminé' : sprint.status === 'en_cours' ? 'En cours' : 'Préparation'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                      <span>Engagé: {engaged} pts</span>
+                      <span>Livré: {delivered} pts</span>
+                      <span className={deviation > 0 ? "text-red-500" : "text-green-500"}>
+                        Écart: {deviation > 0 ? '+' : ''}{deviation} pts
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn(
+                      "text-lg font-bold",
+                      completionRate >= 90 && "text-green-600",
+                      completionRate >= 70 && completionRate < 90 && "text-amber-600",
+                      completionRate < 70 && "text-red-600"
+                    )}>
+                      {completionRate}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">complétion</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Footer - Lecture automatique */}
+      <Card className="bg-violet-50 dark:bg-violet-950/20 border-violet-200">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center flex-shrink-0">
+              <Trophy className="h-4 w-4 text-violet-600" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-violet-900 dark:text-violet-100">Lecture automatique</p>
+              {readings.map((reading, idx) => (
+                <p key={idx} className="text-xs text-violet-700 dark:text-violet-300">
+                  • {reading}
+                </p>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
