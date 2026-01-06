@@ -8,7 +8,7 @@ import {
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
-  ArrowUp, ArrowDown, ArrowUpDown
+  ArrowUp, ArrowDown, ArrowUpDown, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1598,11 +1598,11 @@ export default function BacklogDetail() {
                 placeholder="Rechercher..."
                 value={ticketSearch}
                 onChange={(e) => setTicketSearch(e.target.value)}
-                className="pl-8 h-8 w-[150px] text-sm"
+                className="pl-8 h-8 w-[150px] text-sm bg-white dark:bg-card"
                 data-testid="input-ticket-search"
               />
             </div>
-            <Button size="sm" variant="outline" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
+            <Button size="sm" className="bg-white dark:bg-card border border-input hover:bg-gray-50 dark:hover:bg-muted text-foreground" onClick={() => setShowUserStoryDialog(true)} data-testid="button-add-user-story">
               <Plus className="h-4 w-4 mr-1" />
               User Story
             </Button>
@@ -2118,6 +2118,7 @@ export default function BacklogDetail() {
             epics={backlog.epics}
             sprints={backlog.sprints}
             onNavigateToBacklog={() => setActiveTab("backlog")}
+            onCloseSprint={handleAttemptCloseSprint}
           />
         </TabsContent>
       </Tabs>
@@ -3439,12 +3440,14 @@ function BacklogStats({
   userStories, 
   epics, 
   sprints,
-  onNavigateToBacklog
+  onNavigateToBacklog,
+  onCloseSprint
 }: { 
   userStories: (UserStory & { tasks: BacklogTask[] })[];
   epics: Epic[];
   sprints: Sprint[];
   onNavigateToBacklog?: () => void;
+  onCloseSprint?: (sprintId: string) => void;
 }) {
   const [burnMode, setBurnMode] = useState<'points' | 'tickets'>('points');
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
@@ -3836,15 +3839,29 @@ function BacklogStats({
                 
                 {/* Suggestion de clôture de sprint */}
                 {sprintsReadyToClose.length > 0 && (
-                  <p className="text-sm text-green-700 dark:text-green-300 flex items-start gap-1" data-testid="text-sprint-closure-suggestion">
-                    <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                    <span>
-                      {sprintsReadyToClose.length === 1 
-                        ? `Le sprint "${sprintsReadyToClose[0].name}" est prêt à être clôturé (tous les tickets sont terminés).`
-                        : `${sprintsReadyToClose.length} sprints sont prêts à être clôturés : ${sprintsReadyToClose.map(s => s.name).join(', ')}.`
-                      }
-                    </span>
-                  </p>
+                  <div className="text-sm text-green-700 dark:text-green-300 flex flex-col gap-2" data-testid="text-sprint-closure-suggestion">
+                    <div className="flex items-start gap-1">
+                      <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <span>
+                        Penser à clôturer {sprintsReadyToClose.length === 1 ? "le sprint suivant" : "les sprints suivants"} :
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 ml-5">
+                      {sprintsReadyToClose.map(sprint => (
+                        <Button
+                          key={sprint.id}
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs bg-green-50 dark:bg-green-950/50 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50"
+                          onClick={() => onCloseSprint?.(sprint.id)}
+                          data-testid={`button-close-sprint-${sprint.id}`}
+                        >
+                          <Lock className="h-3 w-3 mr-1" />
+                          {sprint.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 
                 {/* Action suggérée (si présente) */}
