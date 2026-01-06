@@ -418,8 +418,18 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [myDayFilter, setMyDayFilter] = useState<"today" | "overdue" | "next3days">("today");
-  const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter">("full_year");
+  const [revenuePeriod, setRevenuePeriod] = useState<"full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter">(() => {
+    const saved = localStorage.getItem("dashboard_revenue_period");
+    if (saved === "full_year" || saved === "last_year" || saved === "until_this_month" || saved === "projection" || saved === "6months" || saved === "quarter") {
+      return saved;
+    }
+    return "full_year";
+  });
   const [activityFilter, setActivityFilter] = useState<"all" | "crm" | "projets" | "product" | "taches" | "whiteboards" | "notes" | "documents">("all");
+  
+  useEffect(() => {
+    localStorage.setItem("dashboard_revenue_period", revenuePeriod);
+  }, [revenuePeriod]);
   const [openStatusPopover, setOpenStatusPopover] = useState<string | null>(null);
   const [showTaskReminder, setShowTaskReminder] = useState(false);
   const [isPriorityActionDismissed, setIsPriorityActionDismissed] = useState(() => {

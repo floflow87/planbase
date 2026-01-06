@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { 
   Collapsible, 
   CollapsibleContent, 
@@ -1174,9 +1175,17 @@ export function SprintSection({
           
           <div className="flex-1" />
           
-          <span className="text-xs text-muted-foreground">
-            {tickets.length} tickets | {donePoints}/{totalPoints} pts
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {tickets.length} tickets | {donePoints}/{totalPoints} pts
+            </span>
+            <div className="w-24">
+              <Progress 
+                value={totalPoints > 0 ? (donePoints / totalPoints) * 100 : 0} 
+                className="h-2"
+              />
+            </div>
+          </div>
           
           {sprint.status === "preparation" && onStartSprint && (
             <Button 
