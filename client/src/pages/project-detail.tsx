@@ -1332,13 +1332,13 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                   <p className="text-xs text-muted-foreground">Trajectoire</p>
                   <div className="flex flex-col gap-1">
                     <Badge 
-                      className={trajectoryStatus.bg}
+                      className={cn("w-fit", trajectoryStatus.bg)}
                       variant={trajectoryStatus.status === "exceeded" || trajectoryStatus.status === "critical" ? "destructive" : "default"}
                       data-testid="badge-trajectory"
                     >
                       {trajectoryStatus.label}
                     </Badge>
-                    {/* Show "Sur X étape(s)" with hover list for critical/warning items */}
+                    {/* Show "Sur X étape(s) localisée(s)" with hover list for critical/warning items */}
                     {(() => {
                       const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
                       const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
@@ -1350,7 +1350,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <p className="text-xs text-red-600 dark:text-red-400 cursor-help underline decoration-dotted">
-                              Sur {itemsAtRisk.length} étape{itemsAtRisk.length > 1 ? 's' : ''}
+                              Sur {itemsAtRisk.length} étape{itemsAtRisk.length > 1 ? 's' : ''} localisée{itemsAtRisk.length > 1 ? 's' : ''}
                             </p>
                           </TooltipTrigger>
                           <TooltipContent side="bottom" className="max-w-xs">

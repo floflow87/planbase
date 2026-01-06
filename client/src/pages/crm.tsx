@@ -753,18 +753,19 @@ export default function CRM() {
   const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
   const wonClients = clients.filter(c => c.status === "signed").length;
   const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
-  // Calculate opportunities only from pipeline stages: Prospect, Qualifié, Négociation, Devis envoyé
+  // Calculate opportunities from project budgets for clients in pipeline stages: Prospect, Qualifié, Négociation, Devis envoyé
   const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent"];
   const totalOpportunities = clients
     .filter(c => opportunityStatuses.includes(c.pipelineStatus || ""))
-    .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+    .reduce((sum, c) => {
+      const clientProjects = projects.filter((p: Project) => p.clientId === c.id);
+      return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);
+    }, 0);
 
   const kpis = [
     {
       title: "Total Clients",
       value: totalContacts.toString(),
-      change: "+12",
-      changeLabel: "ce mois",
       icon: UsersIcon,
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
@@ -772,8 +773,6 @@ export default function CRM() {
     {
       title: "Prospects Actifs",
       value: activeProspects.toString(),
-      change: "+8",
-      changeLabel: "ce mois",
       icon: Target,
       iconBg: "bg-yellow-100",
       iconColor: "text-yellow-600",
@@ -781,8 +780,6 @@ export default function CRM() {
     {
       title: "Taux de Conversion",
       value: `${conversionRate}%`,
-      change: "+5%",
-      changeLabel: "ce mois",
       icon: TrendingUp,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
@@ -790,8 +787,6 @@ export default function CRM() {
     {
       title: "Opportunités",
       value: `€${totalOpportunities.toLocaleString()}`,
-      change: "+15K",
-      changeLabel: "ce mois",
       icon: Euro,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
@@ -870,9 +865,6 @@ export default function CRM() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
                       <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
-                      <p className="text-[10px] text-green-600 mt-2">
-                        {kpi.change} {kpi.changeLabel}
-                      </p>
                     </div>
                     <div className={`${kpi.iconBg} p-3 rounded-md shrink-0`}>
                       <Icon className={`w-6 h-6 ${kpi.iconColor}`} />
