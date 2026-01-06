@@ -756,7 +756,7 @@ export default function CRM() {
   // Calculate opportunities from project budgets for clients in pipeline stages: Prospect, Qualifié, Négociation, Devis envoyé
   const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent"];
   const totalOpportunities = clients
-    .filter(c => opportunityStatuses.includes(c.pipelineStatus || ""))
+    .filter(c => opportunityStatuses.includes(c.status || ""))
     .reduce((sum, c) => {
       const clientProjects = projects.filter((p: Project) => p.clientId === c.id);
       return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);

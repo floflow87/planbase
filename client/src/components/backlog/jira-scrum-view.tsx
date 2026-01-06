@@ -362,48 +362,6 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         getPriorityIcon(ticket.priority)
       )}
       
-      {/* Inline Status Dropdown */}
-      {onUpdateState ? (
-        <Select
-          value={ticket.state || "a_faire"}
-          onValueChange={(value) => {
-            onUpdateState(ticket.id, ticket.type, value);
-          }}
-        >
-          <SelectTrigger 
-            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
-            onClick={(e) => e.stopPropagation()}
-            data-testid={`select-inline-state-${ticket.id}`}
-          >
-            <SelectValue>
-              <span className="flex items-center gap-1.5">
-                <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
-                {getStateLabel(ticket.state)}
-              </span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-white">
-            {backlogItemStateOptions.map(opt => (
-              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
-                <span className="flex items-center gap-1.5">
-                  <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
-                  {opt.label}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Badge 
-          variant="secondary" 
-          className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
-          data-testid={`ticket-state-${ticket.id}`}
-        >
-          <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
-          {getStateLabel(ticket.state)}
-        </Badge>
-      )}
-      
       {/* Inline Assignee Editor with Tooltip */}
       {onUpdateField && !isCompleted ? (
         <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
@@ -582,6 +540,48 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           </Badge>
         )
       ) : null}
+      
+      {/* Inline Status Dropdown - moved to end */}
+      {onUpdateState ? (
+        <Select
+          value={ticket.state || "a_faire"}
+          onValueChange={(value) => {
+            onUpdateState(ticket.id, ticket.type, value);
+          }}
+        >
+          <SelectTrigger 
+            className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`select-inline-state-${ticket.id}`}
+          >
+            <SelectValue>
+              <span className="flex items-center gap-1.5">
+                <span className={cn("w-2 h-2 rounded-full", getStateDot(ticket.state))} />
+                {getStateLabel(ticket.state)}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-white dark:bg-white">
+            {backlogItemStateOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value} className="text-gray-900 text-xs cursor-pointer">
+                <span className="flex items-center gap-1.5">
+                  <span className={cn("w-2 h-2 rounded-full", getStateDot(opt.value))} />
+                  {opt.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Badge 
+          variant="secondary" 
+          className={cn("text-xs px-1.5 py-0 cursor-pointer", getStateStyle(ticket.state))}
+          data-testid={`ticket-state-${ticket.id}`}
+        >
+          <span className={cn("w-2 h-2 rounded-full mr-1.5 inline-block", getStateDot(ticket.state))} />
+          {getStateLabel(ticket.state)}
+        </Badge>
+      )}
       </div>
       {/* End of right columns container */}
       
