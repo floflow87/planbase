@@ -2118,7 +2118,7 @@ export default function BacklogDetail() {
             epics={backlog.epics}
             sprints={backlog.sprints}
             onNavigateToBacklog={() => setActiveTab("backlog")}
-            onCloseSprint={handleAttemptCloseSprint}
+            onCloseSprint={handleSprintCloseAttempt}
           />
         </TabsContent>
       </Tabs>
