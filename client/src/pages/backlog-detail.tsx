@@ -127,6 +127,7 @@ export default function BacklogDetail() {
   });
   const [epicFilter, setEpicFilter] = useState<string[]>([]);
   const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
+  const [epicSearchQuery, setEpicSearchQuery] = useState("");
   
   // Multi-select state for bulk actions
   const [checkedTickets, setCheckedTickets] = useState<Set<string>>(new Set());
@@ -1911,13 +1912,48 @@ export default function BacklogDetail() {
         {/* Epics tab */}
         <TabsContent value="epics" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
           <div className="space-y-4">
-            {/* Header with Create button */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Gestion des Epics</h2>
-                <p className="text-sm text-muted-foreground">
-                  Organisez vos grandes fonctionnalités en Epics pour regrouper les User Stories
-                </p>
+            {/* Header with Search and Create button */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une Epic..."
+                  value={epicSearchQuery}
+                  onChange={(e) => setEpicSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-search-epic"
+                />
+                {epicSearchQuery && backlog.epics.filter(e => 
+                  e.title.toLowerCase().includes(epicSearchQuery.toLowerCase()) ||
+                  (e.description && e.description.toLowerCase().includes(epicSearchQuery.toLowerCase()))
+                ).length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                    {backlog.epics.filter(e => 
+                      e.title.toLowerCase().includes(epicSearchQuery.toLowerCase()) ||
+                      (e.description && e.description.toLowerCase().includes(epicSearchQuery.toLowerCase()))
+                    ).map(epic => (
+                      <div
+                        key={epic.id}
+                        className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                        onClick={() => {
+                          updateEpicMutation.reset();
+                          setEditingEpic(epic);
+                          setShowEpicDialog(true);
+                          setEpicSearchQuery("");
+                        }}
+                        data-testid={`epic-search-result-${epic.id}`}
+                      >
+                        <div 
+                          className="h-4 w-4 rounded flex items-center justify-center"
+                          style={{ backgroundColor: epic.color || "#8B5CF6" }}
+                        >
+                          <Layers className="h-2.5 w-2.5 text-white" />
+                        </div>
+                        <span className="text-sm">{epic.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <Button onClick={() => { createEpicMutation.reset(); setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
                 <Plus className="h-4 w-4 mr-2" />

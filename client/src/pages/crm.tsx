@@ -264,7 +264,7 @@ function DroppableKanbanColumn({
   
   const totalBudget = clients.reduce((sum, client) => {
     const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-    return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);
+    return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.totalBilled || "0"), 0);
   }, 0);
 
   return (
@@ -284,7 +284,7 @@ function DroppableKanbanColumn({
         {clients.map((client) => {
           const clientContact = contacts.find((c: any) => c.clientId === client.id);
           const clientProjects = projects.filter((p: any) => p.clientId === client.id);
-          const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0);
+          const clientBudget = clientProjects.reduce((sum, p: Project) => sum + parseFloat(p.totalBilled || "0"), 0);
           
           return (
             <DraggableKanbanCard
@@ -721,10 +721,10 @@ export default function CRM() {
         case "budget":
           const budgetA = projects
             .filter((p: any) => p.clientId === a.id)
-            .reduce((sum, p: Project) => sum + (parseFloat(p.budget || "0")), 0);
+            .reduce((sum, p: Project) => sum + (parseFloat(p.totalBilled || "0")), 0);
           const budgetB = projects
             .filter((p: any) => p.clientId === b.id)
-            .reduce((sum, p: Project) => sum + (parseFloat(p.budget || "0")), 0);
+            .reduce((sum, p: Project) => sum + (parseFloat(p.totalBilled || "0")), 0);
           compareA = budgetA;
           compareB = budgetB;
           break;
@@ -759,7 +759,7 @@ export default function CRM() {
     .filter(c => opportunityStatuses.includes(c.status || ""))
     .reduce((sum, c) => {
       const clientProjects = projects.filter((p: Project) => p.clientId === c.id);
-      return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.budget || "0"), 0);
+      return sum + clientProjects.reduce((pSum, p: Project) => pSum + parseFloat(p.totalBilled || "0"), 0);
     }, 0);
 
   const kpis = [
@@ -1183,7 +1183,7 @@ export default function CRM() {
                                 );
                               case "budget":
                                 const totalProjectBudget = clientProjects.reduce((sum, p: Project) => {
-                                  return sum + (parseFloat(p.budget || "0"));
+                                  return sum + (parseFloat(p.totalBilled || "0"));
                                 }, 0);
                                 return (
                                   <p className="text-xs font-medium text-foreground">
@@ -1320,7 +1320,7 @@ export default function CRM() {
                       <DraggableKanbanCard
                         client={draggingClient}
                         contact={contacts.find((c: any) => c.clientId === draggingClient.id)}
-                        totalBudget={projects.filter((p: any) => p.clientId === draggingClient.id).reduce((sum, p: Project) => sum + parseFloat(p.budget || "0"), 0)}
+                        totalBudget={projects.filter((p: any) => p.clientId === draggingClient.id).reduce((sum, p: Project) => sum + parseFloat(p.totalBilled || "0"), 0)}
                         onEdit={() => {}}
                         onDelete={() => {}}
                         isDragOverlay={true}

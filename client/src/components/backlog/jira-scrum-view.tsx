@@ -1110,6 +1110,7 @@ export function SprintSection({
   const donePoints = tickets
     .filter(t => t.state === "termine")
     .reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
+  const doneTickets = tickets.filter(t => t.state === "termine").length;
   
   const handleCreate = () => {
     if (newTicketTitle.trim()) {
@@ -1177,11 +1178,11 @@ export function SprintSection({
           
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              {tickets.length} tickets | {donePoints}/{totalPoints} pts
+              {doneTickets}/{tickets.length} tickets | {donePoints}/{totalPoints} pts
             </span>
             <div className="w-24">
               <Progress 
-                value={totalPoints > 0 ? (donePoints / totalPoints) * 100 : 0} 
+                value={tickets.length > 0 ? (doneTickets / tickets.length) * 100 : 0} 
                 className="h-2"
               />
             </div>
