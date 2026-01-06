@@ -1330,7 +1330,7 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Trajectoire</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1">
                     <Badge 
                       className={trajectoryStatus.bg}
                       variant={trajectoryStatus.status === "exceeded" || trajectoryStatus.status === "critical" ? "destructive" : "default"}
@@ -1338,6 +1338,39 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
                     >
                       {trajectoryStatus.label}
                     </Badge>
+                    {/* Show "Sur X étape(s)" with hover list for critical/warning items */}
+                    {(() => {
+                      const criticalItems = scopeItemProjections.filter(p => p.projection?.isCritical && !p.projection.exceeded && !p.projection.insufficientData);
+                      const warningItems = scopeItemProjections.filter(p => p.projection?.isWarning && !p.projection.insufficientData);
+                      const itemsAtRisk = [...criticalItems, ...warningItems.filter(w => !criticalItems.some(c => c.item.id === w.item.id))];
+                      
+                      if (itemsAtRisk.length === 0) return null;
+                      
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-xs text-red-600 dark:text-red-400 cursor-help underline decoration-dotted">
+                              Sur {itemsAtRisk.length} étape{itemsAtRisk.length > 1 ? 's' : ''}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <div className="space-y-1">
+                              <p className="font-medium text-xs">Étapes à risque :</p>
+                              <ul className="text-xs space-y-0.5">
+                                {itemsAtRisk.map(item => (
+                                  <li key={item.item.id} className="flex items-center gap-1">
+                                    <span className={item.projection?.isCritical ? "text-red-500" : "text-orange-500"}>
+                                      {item.projection?.isCritical ? "Critique" : "Attention"}
+                                    </span>
+                                    <span>- {item.item.label}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

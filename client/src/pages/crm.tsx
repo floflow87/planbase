@@ -118,7 +118,7 @@ function DraggableColumnHeader({
 
 // Configuration des colonnes Kanban (couleurs pastel)
 const KANBAN_STATUSES = [
-  { id: "prospecting", label: "Prospect", color: "bg-orange-100/50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/50", headerBg: "bg-orange-50 dark:bg-orange-950/40", textColor: "text-orange-600 dark:text-orange-400" },
+  { id: "prospecting", label: "Prospect", color: "bg-slate-100/50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-900/50", headerBg: "bg-slate-50 dark:bg-slate-950/40", textColor: "text-slate-600 dark:text-slate-400" },
   { id: "qualified", label: "Qualifié", color: "bg-blue-100/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50", headerBg: "bg-blue-50 dark:bg-blue-950/40", textColor: "text-blue-600 dark:text-blue-400" },
   { id: "negotiation", label: "Négociation", color: "bg-amber-100/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50", headerBg: "bg-amber-50 dark:bg-amber-950/40", textColor: "text-amber-600 dark:text-amber-400" },
   { id: "quote_sent", label: "Devis envoyé", color: "bg-purple-100/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50", headerBg: "bg-purple-50 dark:bg-purple-950/40", textColor: "text-purple-600 dark:text-purple-400" },
@@ -753,8 +753,10 @@ export default function CRM() {
   const activeProspects = clients.filter(c => c.status === "prospect" || c.status === "in_progress").length;
   const wonClients = clients.filter(c => c.status === "signed").length;
   const conversionRate = totalContacts > 0 ? Math.round((wonClients / totalContacts) * 100) : 0;
+  // Calculate opportunities only from pipeline stages: Prospect, Qualifié, Négociation, Devis envoyé
+  const opportunityStatuses = ["prospecting", "qualified", "negotiation", "quote_sent"];
   const totalOpportunities = clients
-    .filter(c => c.status !== "signed") // Exclude won clients
+    .filter(c => opportunityStatuses.includes(c.pipelineStatus || ""))
     .reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
 
   const kpis = [

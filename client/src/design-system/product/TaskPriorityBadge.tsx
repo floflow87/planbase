@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { getTaskPriorityLabel, type TaskPriorityKey } from "@shared/config";
 import { getTaskPriorityIntent } from "@shared/design/semantics";
 import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
-import { AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowUp, Minus, ArrowDown } from "lucide-react";
 
 export interface TaskPriorityBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   priorityKey: TaskPriorityKey | string | null;
@@ -29,7 +29,7 @@ const iconSizes = {
 const priorityIcons: Record<string, typeof AlertTriangle> = {
   critical: AlertTriangle,
   high: ArrowUp,
-  medium: ArrowRight,
+  medium: Minus,
   low: ArrowDown,
 };
 
@@ -43,7 +43,7 @@ export const TaskPriorityBadge = forwardRef<HTMLDivElement, TaskPriorityBadgePro
     const intent = getTaskPriorityIntent(priorityKey) as Intent;
     const iconSize = iconSizes[size];
     
-    const IconComponent = priorityIcons[priorityKey as string] || ArrowRight;
+    const IconComponent = priorityIcons[priorityKey as string] || Minus;
 
     if (iconOnly) {
       return (

@@ -7,7 +7,8 @@ import {
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
-  CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2
+  CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -521,7 +522,7 @@ export default function BacklogDetail() {
       if (previousBacklog) {
         queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
           ...previousBacklog,
-          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "active" } : s),
+          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "en_cours" } : s),
         });
       }
       return { previousBacklog };
@@ -570,7 +571,7 @@ export default function BacklogDetail() {
       if (previousBacklog) {
         queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
           ...previousBacklog,
-          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "completed" } : s),
+          sprints: (previousBacklog.sprints || []).map(s => s.id === sprintId ? { ...s, status: "termine" } : s),
         });
       }
       return { previousBacklog };
@@ -3226,6 +3227,9 @@ function CompletedTicketsView({
   onSelectTicket: (ticket: FlatTicket) => void;
   selectedTicketId?: string;
 }) {
+  const [sortColumn, setSortColumn] = useState<string>("title");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
   const getAssigneeName = (assigneeId?: string | null) => {
     if (!assigneeId) return null;
     const user = users.find(u => u.id === assigneeId);
@@ -3239,6 +3243,62 @@ function CompletedTicketsView({
     const sprint = sprints.find(s => s.id === sprintId);
     return sprint?.name || null;
   };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+
+  const sortedTickets = useMemo(() => {
+    return [...tickets].sort((a, b) => {
+      let comparison = 0;
+      switch (sortColumn) {
+        case "type":
+          comparison = (a.type || "").localeCompare(b.type || "");
+          break;
+        case "title":
+          comparison = (a.title || "").localeCompare(b.title || "");
+          break;
+        case "priority":
+          comparison = (priorityOrder[a.priority || "medium"] || 2) - (priorityOrder[b.priority || "medium"] || 2);
+          break;
+        case "sprint":
+          comparison = (getSprintName(a.sprintId) || "").localeCompare(getSprintName(b.sprintId) || "");
+          break;
+        case "assignee":
+          comparison = (getAssigneeName(a.assigneeId) || "").localeCompare(getAssigneeName(b.assigneeId) || "");
+          break;
+        case "points":
+          comparison = (a.estimatePoints || 0) - (b.estimatePoints || 0);
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [tickets, sortColumn, sortDirection]);
+
+  const SortableHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
+    <th 
+      className={cn("px-4 py-2 cursor-pointer select-none hover:bg-muted/80 transition-colors", className)}
+      onClick={() => handleSort(column)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortColumn === column ? (
+          sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </div>
+    </th>
+  );
 
   if (tickets.length === 0) {
     return (
@@ -3263,16 +3323,16 @@ function CompletedTicketsView({
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr className="text-left text-xs font-medium text-muted-foreground">
-              <th className="px-4 py-2">Type</th>
-              <th className="px-4 py-2">Titre</th>
-              <th className="px-4 py-2 hidden sm:table-cell">Priorité</th>
-              <th className="px-4 py-2 hidden md:table-cell">Sprint</th>
-              <th className="px-4 py-2 hidden md:table-cell">Assigné à</th>
-              <th className="px-4 py-2 hidden lg:table-cell">Points</th>
+              <SortableHeader column="type">Type</SortableHeader>
+              <SortableHeader column="title">Titre</SortableHeader>
+              <SortableHeader column="priority" className="hidden sm:table-cell">Priorité</SortableHeader>
+              <SortableHeader column="sprint" className="hidden md:table-cell">Sprint</SortableHeader>
+              <SortableHeader column="assignee" className="hidden md:table-cell">Assigné à</SortableHeader>
+              <SortableHeader column="points" className="hidden lg:table-cell">Points</SortableHeader>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {tickets.map(ticket => (
+            {sortedTickets.map(ticket => (
               <tr
                 key={ticket.id}
                 className={cn(
@@ -3373,6 +3433,7 @@ function BacklogStats({
   const ticketsTodo = allTickets.filter(t => t.state === 'a_faire' || t.state === 'backlog').length;
   const ticketsTesting = allTickets.filter(t => t.state === 'testing').length;
   const ticketsToFix = allTickets.filter(t => t.state === 'to_fix').length;
+  const ticketsReview = allTickets.filter(t => t.state === 'review').length;
   
   // Points calculations  
   const totalPoints = filteredUserStories.reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
@@ -3383,6 +3444,25 @@ function BacklogStats({
   const pointsInActiveSprints = userStories
     .filter(us => activeSprints.some(s => s.id === us.sprintId))
     .reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
+  
+  // Sprints ready to be closed (all tickets done)
+  const sprintsReadyToClose = useMemo(() => {
+    return activeSprints.filter(sprint => {
+      const sprintUserStories = userStories.filter(us => us.sprintId === sprint.id);
+      if (sprintUserStories.length === 0) return false; // Empty sprints not ready
+      
+      // Check all user stories are done
+      const allStoriesDone = sprintUserStories.every(us => us.state === 'termine');
+      
+      // Check all tasks are done
+      const allTasksDone = sprintUserStories.every(us => {
+        const tasks = us.tasks || [];
+        return tasks.length === 0 || tasks.every(t => t.state === 'termine');
+      });
+      
+      return allStoriesDone && allTasksDone;
+    });
+  }, [activeSprints, userStories]);
   
   // Quality metrics (always use full userStories for global metrics, filteredUserStories for sprint-specific)
   const estimatedTickets = filteredUserStories.filter(us => us.estimatePoints && us.estimatePoints > 0).length;
@@ -3653,7 +3733,8 @@ function BacklogStats({
             <div className="p-3 bg-gray-50 dark:bg-gray-800/30 rounded-lg" data-testid="stat-todo">
               <p className="text-2xl font-bold text-gray-600">{ticketsTodo}</p>
               <p className="text-xs text-muted-foreground">À faire</p>
-              {ticketsToFix > 0 && <p className="text-xs text-red-500">+ {ticketsToFix} à corriger</p>}
+              {ticketsToFix > 0 && <p className="text-xs text-red-500">+ {ticketsToFix} à fix</p>}
+              {ticketsReview > 0 && <p className="text-xs text-purple-500">+ {ticketsReview} en review</p>}
             </div>
           </div>
           
@@ -3714,6 +3795,19 @@ function BacklogStats({
                   <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-1" data-testid="text-warning-many-sprints">
                     <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                     <span>Attention, beaucoup de sprints sont lancés en même temps. Assurez-vous d'avoir les ressources pour être sur tous ces sujets.</span>
+                  </p>
+                )}
+                
+                {/* Suggestion de clôture de sprint */}
+                {sprintsReadyToClose.length > 0 && (
+                  <p className="text-sm text-green-700 dark:text-green-300 flex items-start gap-1" data-testid="text-sprint-closure-suggestion">
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {sprintsReadyToClose.length === 1 
+                        ? `Le sprint "${sprintsReadyToClose[0].name}" est prêt à être clôturé (tous les tickets sont terminés).`
+                        : `${sprintsReadyToClose.length} sprints sont prêts à être clôturés : ${sprintsReadyToClose.map(s => s.name).join(', ')}.`
+                      }
+                    </span>
                   </p>
                 )}
                 
