@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/popover";
 import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions } from "@shared/schema";
 import type { FlatTicket, TicketType } from "./jira-scrum-view";
+import { PriorityIcon } from "./jira-scrum-view";
 
 function ticketTypeIcon(type: TicketType) {
   switch (type) {
@@ -611,11 +612,21 @@ export function TicketDetailPanel({
               disabled={readOnly}
             >
               <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-priority">
-                <SelectValue />
+                <SelectValue>
+                  <div className="flex items-center gap-2">
+                    <PriorityIcon priority={ticket.priority || "medium"} />
+                    <span>{backlogPriorityOptions.find(o => o.value === (ticket.priority || "medium"))?.label}</span>
+                  </div>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-white">
                 {backlogPriorityOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <PriorityIcon priority={opt.value} />
+                      <span>{opt.label}</span>
+                    </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

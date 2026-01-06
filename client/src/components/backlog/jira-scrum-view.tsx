@@ -137,7 +137,7 @@ function getStateDot(state: string | null | undefined) {
   }
 }
 
-// Priority icons: low = 2 violet chevrons DOWN, medium = 1 violet chevron DOWN, high = 1 orange chevron UP, critical = 2 red chevrons UP
+// Priority icons: low = 2 violet chevrons DOWN, medium = yellow horizontal line, high = 1 orange chevron UP, critical = 2 red chevrons UP
 function PriorityIcon({ priority, className }: { priority: string | null | undefined; className?: string }) {
   switch (priority) {
     case "critical":
@@ -152,8 +152,12 @@ function PriorityIcon({ priority, className }: { priority: string | null | undef
       // One orange chevron UP
       return <ChevronUp className={cn("h-[18px] w-[18px] text-orange-500", className)} />;
     case "medium":
-      // One violet chevron DOWN
-      return <ChevronDown className={cn("h-[18px] w-[18px] text-violet-500", className)} />;
+      // Yellow horizontal line
+      return (
+        <div className={cn("flex items-center justify-center w-[18px] h-[18px]", className)}>
+          <div className="w-3 h-0.5 bg-yellow-500 rounded-full" />
+        </div>
+      );
     case "low":
     default:
       // Two violet chevrons DOWN stacked (lowest priority)
