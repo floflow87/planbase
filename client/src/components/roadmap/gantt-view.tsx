@@ -229,29 +229,42 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     const end = item.endDate ? safeParseDate(item.endDate) || addDays(start, 1) : addDays(start, 1);
     
     const startOffset = differenceInDays(start, viewStartDate);
+    const endOffset = differenceInDays(end, viewStartDate);
     const duration = Math.max(1, differenceInDays(end, start) + 1);
     
     let left: number, width: number;
+    let pixelsPerDay: number;
     
     switch (zoom) {
       case "day":
-        left = startOffset * columnWidth;
-        width = duration * columnWidth;
+        pixelsPerDay = columnWidth;
         break;
       case "week":
-        left = (startOffset / 7) * columnWidth;
-        width = (duration / 7) * columnWidth;
+        pixelsPerDay = columnWidth / 7;
         break;
       case "month":
-        left = (startOffset / 30) * columnWidth;
-        width = (duration / 30) * columnWidth;
+        pixelsPerDay = columnWidth / 30;
         break;
       default:
-        left = 0;
-        width = columnWidth;
+        pixelsPerDay = columnWidth / 7;
     }
     
-    return { left: Math.max(0, left), width: Math.max(columnWidth / 2, width) };
+    left = startOffset * pixelsPerDay;
+    width = duration * pixelsPerDay;
+    
+    // Check if item is completely out of view
+    const viewDays = zoom === "day" ? 30 : zoom === "week" ? 60 : 180;
+    if (endOffset < 0 || startOffset > viewDays) {
+      return null; // Item is completely outside visible range
+    }
+    
+    // If item starts before view, clip it
+    if (left < 0) {
+      width = width + left; // Reduce width by the amount clipped
+      left = 0;
+    }
+    
+    return { left, width: Math.max(columnWidth / 2, width) };
   }, [viewStartDate, columnWidth, zoom]);
 
   const navigatePrev = () => {
@@ -299,6 +312,35 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     }
   };
 
+  // Group columns by month for day view header
+  const monthGroups = useMemo(() => {
+    if (zoom !== "day") return [];
+    const groups: { month: string; startIdx: number; count: number }[] = [];
+    let currentMonth = "";
+    let currentStartIdx = 0;
+    let currentCount = 0;
+
+    columns.forEach((col, idx) => {
+      const monthStr = format(col, "MMMM yyyy", { locale: fr });
+      if (monthStr !== currentMonth) {
+        if (currentMonth) {
+          groups.push({ month: currentMonth, startIdx: currentStartIdx, count: currentCount });
+        }
+        currentMonth = monthStr;
+        currentStartIdx = idx;
+        currentCount = 1;
+      } else {
+        currentCount++;
+      }
+    });
+    
+    if (currentMonth) {
+      groups.push({ month: currentMonth, startIdx: currentStartIdx, count: currentCount });
+    }
+    
+    return groups;
+  }, [columns, zoom]);
+
   const formatMonthHeader = (date: Date) => {
     return format(date, "MMMM yyyy", { locale: fr });
   };
@@ -307,16 +349,22 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     const today = new Date();
     const offset = differenceInDays(today, viewStartDate);
     
+    let pixelsPerDay: number;
     switch (zoom) {
       case "day":
-        return offset * columnWidth;
+        pixelsPerDay = columnWidth;
+        break;
       case "week":
-        return (offset / 7) * columnWidth;
+        pixelsPerDay = columnWidth / 7;
+        break;
       case "month":
-        return (offset / 30) * columnWidth;
+        pixelsPerDay = columnWidth / 30;
+        break;
       default:
-        return 0;
+        pixelsPerDay = columnWidth / 7;
     }
+    
+    return offset * pixelsPerDay;
   }, [viewStartDate, columnWidth, zoom]);
 
   const todayPosition = getTodayPosition();
@@ -811,7 +859,21 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
               </svg>
             )}
             <div className="sticky top-0 z-10 bg-muted/50 border-b" style={{ height: HEADER_HEIGHT }}>
-              <div className="flex">
+              {/* Month header row for day view */}
+              {zoom === "day" && monthGroups.length > 0 && (
+                <div className="flex" style={{ height: HEADER_HEIGHT / 2 }}>
+                  {monthGroups.map((group, idx) => (
+                    <div
+                      key={idx}
+                      className="flex-shrink-0 border-r border-b flex items-center justify-center text-xs font-semibold bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
+                      style={{ width: group.count * columnWidth, height: HEADER_HEIGHT / 2 }}
+                    >
+                      {group.month}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex" style={{ height: zoom === "day" ? HEADER_HEIGHT / 2 : HEADER_HEIGHT }}>
                 {columns.map((col, idx) => {
                   const isCurrentMonth = isSameMonth(col, new Date());
                   const isCurrentDay = zoom === "day" && isToday(col);
@@ -821,10 +883,10 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                       key={idx}
                       className={cn(
                         "flex-shrink-0 border-r flex items-center justify-center text-xs font-medium",
-                        isCurrentMonth && "bg-violet-50 dark:bg-violet-900/20",
+                        zoom !== "day" && isCurrentMonth && "bg-violet-50 dark:bg-violet-900/20",
                         isCurrentDay && "bg-violet-100 dark:bg-violet-900/40"
                       )}
-                      style={{ width: columnWidth, height: HEADER_HEIGHT }}
+                      style={{ width: columnWidth, height: zoom === "day" ? HEADER_HEIGHT / 2 : HEADER_HEIGHT }}
                     >
                       <span className={cn(
                         "text-muted-foreground",
