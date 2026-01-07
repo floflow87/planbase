@@ -701,6 +701,43 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket comments table created");
     
+    // Create ticket_recipes table (Cahier de recette / QA Testing)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ticket_recipes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        sprint_id uuid NOT NULL REFERENCES sprints(id) ON DELETE CASCADE,
+        ticket_id uuid NOT NULL,
+        ticket_type text NOT NULL CHECK (ticket_type IN ('user_story', 'task')),
+        status text NOT NULL DEFAULT 'a_tester' CHECK (status IN ('a_tester', 'en_test', 'teste')),
+        observed_results text,
+        conclusion text CHECK (conclusion IS NULL OR conclusion IN ('a_ameliorer', 'a_fix', 'a_ajouter')),
+        suggestions text,
+        is_fixed_done boolean NOT NULL DEFAULT false,
+        updated_by uuid REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_recipes_account_idx ON ticket_recipes(account_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_recipes_backlog_idx ON ticket_recipes(backlog_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_recipes_sprint_idx ON ticket_recipes(sprint_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_recipes_ticket_idx ON ticket_recipes(ticket_id, ticket_type);
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS ticket_recipes_unique_ticket_sprint ON ticket_recipes(ticket_id, sprint_id);
+    `);
+    console.log("✅ Ticket recipes table created");
+    
     // Add backlog_id column to retros table and make sprint_id nullable
     await db.execute(sql`
       ALTER TABLE retros ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE;

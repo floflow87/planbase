@@ -1170,6 +1170,47 @@ export const ticketComments = pgTable("ticket_comments", {
   ticketIdx: index().on(table.ticketId, table.ticketType),
 }));
 
+// Ticket Recipes table (Cahier de recette / QA Testing)
+export const ticketRecipes = pgTable("ticket_recipes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  sprintId: uuid("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  ticketId: uuid("ticket_id").notNull(), // Generic reference to user_story or backlog_task
+  ticketType: text("ticket_type").notNull(), // 'user_story', 'task'
+  status: text("status").notNull().default("a_tester"), // 'a_tester', 'en_test', 'teste'
+  observedResults: text("observed_results"), // Multi-line text for observed results
+  conclusion: text("conclusion"), // 'a_ameliorer', 'a_fix', 'a_ajouter'
+  suggestions: text("suggestions"), // Multi-line text for suggestions
+  isFixedDone: boolean("is_fixed_done").notNull().default(false),
+  updatedBy: uuid("updated_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+  sprintIdx: index().on(table.sprintId),
+  ticketIdx: index().on(table.ticketId, table.ticketType),
+  uniqueTicketSprint: index().on(table.ticketId, table.sprintId),
+}));
+
+// Recipe status options
+export const recipeStatusOptions = [
+  { value: "a_tester", label: "À tester", color: "#9CA3AF" },
+  { value: "en_test", label: "En test", color: "#60A5FA" },
+  { value: "teste", label: "Testé", color: "#34D399" },
+] as const;
+
+// Recipe conclusion options
+export const recipeConclusionOptions = [
+  { value: "a_ameliorer", label: "À améliorer", color: "#FBBF24" },
+  { value: "a_fix", label: "À fix", color: "#F87171" },
+  { value: "a_ajouter", label: "À ajouter", color: "#A78BFA" },
+] as const;
+
+export type RecipeStatus = typeof recipeStatusOptions[number]["value"];
+export type RecipeConclusion = typeof recipeConclusionOptions[number]["value"];
+
 // ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
@@ -1352,6 +1393,20 @@ export const updateRetroCardSchema = insertRetroCardSchema.omit({ accountId: tru
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketCommentSchema = insertTicketCommentSchema.omit({ accountId: true, ticketId: true, ticketType: true, authorId: true }).partial();
 
+export const insertTicketRecipeSchema = createInsertSchema(ticketRecipes).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTicketRecipeSchema = insertTicketRecipeSchema.omit({ accountId: true, backlogId: true, sprintId: true, ticketId: true, ticketType: true }).partial();
+export const upsertTicketRecipeSchema = z.object({
+  sprintId: z.string().uuid(),
+  ticketId: z.string().uuid(),
+  ticketType: z.enum(["user_story", "task"]),
+  status: z.enum(["a_tester", "en_test", "teste"]).optional(),
+  observedResults: z.string().optional().nullable(),
+  conclusion: z.enum(["a_ameliorer", "a_fix", "a_ajouter"]).optional().nullable(),
+  suggestions: z.string().optional().nullable(),
+  isFixedDone: z.boolean().optional(),
+  pushToTicket: z.boolean().optional(), // Flag to push comment to ticket
+});
+
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
@@ -1476,6 +1531,9 @@ export type BacklogColumn = typeof backlogColumns.$inferSelect;
 export type Retro = typeof retros.$inferSelect;
 export type RetroCard = typeof retroCards.$inferSelect;
 export type TicketComment = typeof ticketComments.$inferSelect;
+export type TicketRecipe = typeof ticketRecipes.$inferSelect;
+export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
+export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;
 
 // ============================================
 // CONFIG REGISTRY (DB-first settings)
