@@ -9,7 +9,7 @@ import {
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
-  Wrench, Bug, Sparkles
+  Wrench, Bug, Sparkles, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -4258,6 +4258,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     ticketType: "user_story" | "task";
     ticketTitle?: string;
     ticketDescription?: string | null;
+    ticketState?: string;
     sprintName?: string;
     sprintStatus?: string;
   } | null>(null);
@@ -4372,6 +4373,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       ticketType: ticket.type,
       ticketTitle: ticket.title,
       ticketDescription: ticket.description,
+      ticketState: ticket.state,
       sprintName: sprint.name,
       sprintStatus: sprint.status || undefined,
     });
@@ -4594,7 +4596,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/20">
                     <tr>
-                      <th className="text-left p-3 font-medium">Ticket</th>
+                      <th className="text-left p-3 font-medium w-56">Ticket</th>
                       <th className="text-left p-3 font-medium w-28">Statut</th>
                       <th className="text-left p-3 font-medium w-40">Résultats</th>
                       <th className="text-left p-3 font-medium w-32">Conclusion</th>
@@ -4900,33 +4902,51 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               </Label>
             </div>
           </div>
-          <SheetFooter className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setEditingRecipe(null)}
-              data-testid="button-cancel-recipe"
-            >
-              Annuler
-            </Button>
+          <SheetFooter className="flex flex-col gap-3 sm:flex-col">
+            <div className="flex gap-2 w-full">
+              <Button 
+                variant="outline" 
+                onClick={() => setEditingRecipe(null)}
+                className="flex-1"
+                data-testid="button-cancel-recipe"
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  if (!editingRecipe) return;
+                  upsertRecipeMutation.mutate({
+                    sprintId: editingRecipe.sprintId,
+                    ticketId: editingRecipe.ticketId,
+                    ticketType: editingRecipe.ticketType,
+                    status: recipeFormData.status,
+                    observedResults: recipeFormData.observedResults || null,
+                    conclusion: recipeFormData.conclusion,
+                    suggestions: recipeFormData.suggestions || null,
+                    isFixedDone: recipeFormData.isFixedDone,
+                    pushToTicket: recipeFormData.pushToTicket,
+                  });
+                }}
+                disabled={upsertRecipeMutation.isPending}
+                data-testid="button-save-recipe"
+              >
+                {upsertRecipeMutation.isPending ? "..." : "Enregistrer"}
+              </Button>
+            </div>
             <Button
+              variant="ghost"
+              className="w-full text-gray-600"
               onClick={() => {
                 if (!editingRecipe) return;
-                upsertRecipeMutation.mutate({
-                  sprintId: editingRecipe.sprintId,
-                  ticketId: editingRecipe.ticketId,
-                  ticketType: editingRecipe.ticketType,
-                  status: recipeFormData.status,
-                  observedResults: recipeFormData.observedResults || null,
-                  conclusion: recipeFormData.conclusion,
-                  suggestions: recipeFormData.suggestions || null,
-                  isFixedDone: recipeFormData.isFixedDone,
-                  pushToTicket: recipeFormData.pushToTicket,
-                });
+                const isTermine = editingRecipe.ticketState === "termine" || editingRecipe.ticketState === "done";
+                const tab = isTermine ? "termine" : "backlog";
+                window.location.href = `/product/backlog/${backlogId}?tab=${tab}&ticket=${editingRecipe.ticketId}&type=${editingRecipe.ticketType}`;
               }}
-              disabled={upsertRecipeMutation.isPending}
-              data-testid="button-save-recipe"
+              data-testid="button-view-ticket"
             >
-              {upsertRecipeMutation.isPending ? "..." : "Enregistrer"}
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Voir le ticket
             </Button>
           </SheetFooter>
         </SheetContent>
