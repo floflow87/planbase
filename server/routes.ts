@@ -60,6 +60,9 @@ import {
   updateBacklogColumnSchema,
   insertTicketCommentSchema,
   updateTicketCommentSchema,
+  upsertTicketRecipeSchema,
+  recipeStatusOptions,
+  recipeConclusionOptions,
   backlogs,
   epics,
   userStories,
@@ -69,6 +72,7 @@ import {
   backlogColumns,
   tasks,
   ticketComments,
+  ticketRecipes,
   projects,
   appUsers,
   retros,
@@ -6846,6 +6850,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Comment not found" });
       }
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TICKET RECIPES (Cahier de recette / QA Testing)
+  // ============================================
+
+  // Get recipes for selected sprints with tickets data
+  app.get("/api/backlogs/:backlogId/recipes", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      const sprintIds = req.query.sprintIds ? (req.query.sprintIds as string).split(",") : [];
+      
+      if (sprintIds.length === 0) {
+        return res.json({ sprints: [], recipes: [] });
+      }
+      
+      // Get sprints data
+      const sprintsData = await db.select().from(sprints)
+        .where(and(
+          eq(sprints.backlogId, backlogId),
+          eq(sprints.accountId, accountId),
+          inArray(sprints.id, sprintIds)
+        ))
+        .orderBy(asc(sprints.position), asc(sprints.createdAt));
+      
+      // Get user stories in these sprints
+      const stories = await db.select().from(userStories)
+        .where(and(
+          eq(userStories.backlogId, backlogId),
+          eq(userStories.accountId, accountId),
+          inArray(userStories.sprintId, sprintIds)
+        ))
+        .orderBy(asc(userStories.order));
+      
+      // Get tasks in these sprints
+      const tasksList = await db.select().from(backlogTasks)
+        .where(and(
+          eq(backlogTasks.backlogId, backlogId),
+          eq(backlogTasks.accountId, accountId),
+          inArray(backlogTasks.sprintId, sprintIds)
+        ))
+        .orderBy(asc(backlogTasks.order));
+      
+      // Get existing recipes for these sprints
+      const recipesList = await db.select().from(ticketRecipes)
+        .where(and(
+          eq(ticketRecipes.backlogId, backlogId),
+          eq(ticketRecipes.accountId, accountId),
+          inArray(ticketRecipes.sprintId, sprintIds)
+        ));
+      
+      // Create a map of recipes by ticketId+sprintId
+      const recipesMap = new Map<string, typeof recipesList[0]>();
+      recipesList.forEach(r => {
+        recipesMap.set(`${r.ticketId}-${r.sprintId}`, r);
+      });
+      
+      // Build tickets with recipes for each sprint
+      const sprintsWithTickets = sprintsData.map(sprint => {
+        const sprintStories = stories.filter(s => s.sprintId === sprint.id);
+        const sprintTasks = tasksList.filter(t => t.sprintId === sprint.id);
+        
+        const tickets = [
+          ...sprintStories.map(s => ({
+            id: s.id,
+            type: "user_story" as const,
+            title: s.title,
+            description: s.description,
+            state: s.state,
+            priority: s.priority,
+            recipe: recipesMap.get(`${s.id}-${sprint.id}`) || null,
+          })),
+          ...sprintTasks.map(t => ({
+            id: t.id,
+            type: "task" as const,
+            title: t.title,
+            description: t.description,
+            state: t.state,
+            priority: t.priority,
+            recipe: recipesMap.get(`${t.id}-${sprint.id}`) || null,
+          })),
+        ];
+        
+        // Count stats
+        const stats = {
+          total: tickets.length,
+          tested: tickets.filter(t => t.recipe?.status === "teste").length,
+          fixed: tickets.filter(t => t.recipe?.isFixedDone).length,
+        };
+        
+        return {
+          ...sprint,
+          tickets,
+          stats,
+        };
+      });
+      
+      res.json({ sprints: sprintsWithTickets });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Upsert recipe for a ticket
+  app.post("/api/backlogs/:backlogId/recipes/upsert", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      const data = upsertTicketRecipeSchema.parse(req.body);
+      const { pushToTicket, ...recipeData } = data;
+      
+      // Check if recipe exists
+      const existing = await db.select().from(ticketRecipes)
+        .where(and(
+          eq(ticketRecipes.ticketId, recipeData.ticketId),
+          eq(ticketRecipes.sprintId, recipeData.sprintId),
+          eq(ticketRecipes.accountId, accountId)
+        ))
+        .limit(1);
+      
+      let recipe;
+      
+      if (existing.length > 0) {
+        // Update existing
+        const updateData: any = { updatedBy: userId, updatedAt: new Date() };
+        if (recipeData.status !== undefined) updateData.status = recipeData.status;
+        if (recipeData.observedResults !== undefined) updateData.observedResults = recipeData.observedResults;
+        if (recipeData.conclusion !== undefined) updateData.conclusion = recipeData.conclusion;
+        if (recipeData.suggestions !== undefined) updateData.suggestions = recipeData.suggestions;
+        if (recipeData.isFixedDone !== undefined) updateData.isFixedDone = recipeData.isFixedDone;
+        
+        [recipe] = await db.update(ticketRecipes)
+          .set(updateData)
+          .where(eq(ticketRecipes.id, existing[0].id))
+          .returning();
+      } else {
+        // Create new recipe
+        [recipe] = await db.insert(ticketRecipes).values({
+          accountId,
+          backlogId,
+          sprintId: recipeData.sprintId,
+          ticketId: recipeData.ticketId,
+          ticketType: recipeData.ticketType,
+          status: recipeData.status || "a_tester",
+          observedResults: recipeData.observedResults || null,
+          conclusion: recipeData.conclusion || null,
+          suggestions: recipeData.suggestions || null,
+          isFixedDone: recipeData.isFixedDone || false,
+          updatedBy: userId,
+        }).returning();
+      }
+      
+      // If pushToTicket is true, create a comment on the ticket
+      if (pushToTicket && (recipeData.observedResults || recipeData.suggestions)) {
+        // Get sprint name
+        const [sprint] = await db.select().from(sprints)
+          .where(eq(sprints.id, recipeData.sprintId))
+          .limit(1);
+        
+        const sprintName = sprint?.name || "Sprint";
+        const statusLabel = recipeStatusOptions.find(s => s.value === (recipeData.status || recipe.status))?.label || "À tester";
+        const conclusionLabel = recipeData.conclusion 
+          ? recipeConclusionOptions.find(c => c.value === recipeData.conclusion)?.label 
+          : null;
+        
+        // Build formatted comment
+        let commentParts = [`[🧪 Recette] Sprint: ${sprintName}`, `Statut: ${statusLabel}`];
+        
+        if (conclusionLabel) {
+          commentParts.push(`Conclusion: ${conclusionLabel}`);
+        }
+        
+        if (recipeData.observedResults) {
+          commentParts.push("", "Résultats observés:", recipeData.observedResults);
+        }
+        
+        if (recipeData.suggestions) {
+          commentParts.push("", "Suggestions:", recipeData.suggestions);
+        }
+        
+        const commentContent = commentParts.join("\n");
+        
+        // Create the comment
+        await db.insert(ticketComments).values({
+          accountId,
+          ticketId: recipeData.ticketId,
+          ticketType: recipeData.ticketType,
+          content: commentContent,
+          authorId: userId,
+        });
+      }
+      
+      res.json(recipe);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
