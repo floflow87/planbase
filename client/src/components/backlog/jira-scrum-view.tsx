@@ -1446,6 +1446,18 @@ export function BacklogPool({
         data-testid="backlog-pool-section"
       >
         <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b">
+          {/* Select all checkbox for backlog pool */}
+          {checkedTickets && onCheckChange && tickets.length > 0 && (
+            <Checkbox
+              checked={tickets.length > 0 && tickets.every(t => checkedTickets.has(t.id))}
+              onCheckedChange={(checked) => {
+                tickets.forEach(t => onCheckChange(t.id, t.type, !!checked));
+              }}
+              data-testid="checkbox-select-all-backlog"
+              className="h-4 w-4"
+            />
+          )}
+          
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="button-toggle-backlog-pool">
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}

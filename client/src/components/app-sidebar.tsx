@@ -44,7 +44,7 @@ export function AppSidebar() {
   };
 
   // Sections restreintes pour le plan "starter"
-  const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/marketing", "/finance", "/legal"];
+  const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/finance", "/legal"];
   const isStarterPlan = false; // TODO: Implement plan checking logic
   
   const isRestricted = (url: string) => {
@@ -58,10 +58,9 @@ export function AppSidebar() {
     { title: "Product", url: "/product", icon: Package },
     { title: "Roadmap", url: "/roadmap", icon: Rocket },
     { title: "Tâches", url: "/tasks", icon: CheckSquare },
-    { title: "Whiteboards", url: "/mindmaps", icon: Network },
+    { title: "Whiteboards", url: "/mindmaps", icon: Network, badge: "Beta" },
     { title: "Notes", url: "/notes", icon: FileText },
     { title: "Documents", url: "/documents", icon: FolderOpen },
-    { title: "Marketing", url: "/marketing", icon: TrendingUp },
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];
 
@@ -130,9 +129,14 @@ export function AppSidebar() {
                             <span>{item.title}</span>
                           </div>
                         ) : (
-                          <Link href={item.url} onClick={handleNavigation}>
+                          <Link href={item.url} onClick={handleNavigation} className="flex items-center gap-2 flex-1">
                             <item.icon className="w-4 h-4" />
                             <span>{item.title}</span>
+                            {(item as any).badge && (
+                              <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300">
+                                {(item as any).badge}
+                              </Badge>
+                            )}
                           </Link>
                         )}
                       </SidebarMenuButton>
