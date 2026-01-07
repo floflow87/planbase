@@ -4367,31 +4367,42 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     });
   };
   
-  // Filter tickets based on recipeFilter
+  // Filter and sort tickets based on recipeFilter
   const filterTickets = (tickets: RecipeTicket[]): RecipeTicket[] => {
-    if (recipeFilter === "all") return tickets;
+    let filtered = tickets;
     if (recipeFilter === "done") {
-      return tickets.filter(t => t.recipe?.conclusion === "termine");
+      filtered = tickets.filter(t => t.recipe?.conclusion === "termine");
+    } else if (recipeFilter === "todo") {
+      filtered = tickets.filter(t => t.recipe?.conclusion !== "termine");
     }
-    // "todo" - show tickets that are NOT "termine"
-    return tickets.filter(t => t.recipe?.conclusion !== "termine");
+    // Sort: non-terminated tickets first, then terminated at bottom
+    return [...filtered].sort((a, b) => {
+      const aTermine = a.recipe?.conclusion === "termine" ? 1 : 0;
+      const bTermine = b.recipe?.conclusion === "termine" ? 1 : 0;
+      return aTermine - bTermine;
+    });
   };
 
-  // Get status badge
+  // Get status badge (filled style like ticket type badges)
   const getStatusBadge = (status: RecipeStatus | undefined) => {
     const option = recipeStatusOptions.find(o => o.value === status) || recipeStatusOptions[0];
+    // Define filled backgrounds based on status
+    const statusStyles: Record<string, string> = {
+      a_tester: "bg-gray-100 border-gray-300 text-gray-700",
+      en_test: "bg-orange-100 border-orange-300 text-orange-700",
+      teste: "bg-green-100 border-green-300 text-green-700",
+    };
     return (
       <Badge 
         variant="outline" 
-        className="text-xs"
-        style={{ borderColor: option.color, color: option.color }}
+        className={cn("text-xs", statusStyles[status || "a_tester"])}
       >
         {option.label}
       </Badge>
     );
   };
 
-  // Get conclusion badge
+  // Get conclusion badge (filled style like ticket type badges)
   const getConclusionBadge = (conclusion: RecipeConclusion | null | undefined) => {
     if (!conclusion) return null;
     const option = recipeConclusionOptions.find(o => o.value === conclusion);
@@ -4399,11 +4410,18 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     
     const Icon = conclusion === "termine" ? Check : conclusion === "a_fix" ? Bug : conclusion === "a_ameliorer" ? Wrench : Sparkles;
     
+    // Define filled backgrounds based on conclusion
+    const conclusionStyles: Record<string, string> = {
+      termine: "bg-green-100 border-green-300 text-green-700",
+      a_ameliorer: "bg-yellow-100 border-yellow-300 text-yellow-700",
+      a_fix: "bg-red-100 border-red-300 text-red-700",
+      a_ajouter: "bg-blue-100 border-blue-300 text-blue-700",
+    };
+    
     return (
       <Badge 
         variant="outline" 
-        className="text-xs flex items-center gap-1"
-        style={{ borderColor: option.color, color: option.color }}
+        className={cn("text-xs flex items-center gap-1", conclusionStyles[conclusion])}
       >
         <Icon className="h-3 w-3" />
         {option.label}
