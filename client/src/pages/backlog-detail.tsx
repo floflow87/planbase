@@ -4240,6 +4240,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
   });
   
   const [selectedSprintIds, setSelectedSprintIds] = useState<string[]>([]);
+  const [expandedRecipeSprints, setExpandedRecipeSprints] = useState<Set<string>>(new Set());
   const [editingRecipe, setEditingRecipe] = useState<{ 
     ticketId: string; 
     sprintId: string; 
@@ -4326,6 +4327,26 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     setSelectedSprintIds([]);
   };
 
+  // Toggle recipe sprint expansion
+  const toggleRecipeSprintExpand = (sprintId: string) => {
+    setExpandedRecipeSprints(prev => {
+      const next = new Set(prev);
+      if (next.has(sprintId)) {
+        next.delete(sprintId);
+      } else {
+        next.add(sprintId);
+      }
+      return next;
+    });
+  };
+
+  // Expand all recipe sprints when data loads
+  useEffect(() => {
+    if (recipesData?.sprints) {
+      setExpandedRecipeSprints(new Set(recipesData.sprints.map(s => s.id)));
+    }
+  }, [recipesData]);
+
   // Open recipe editor
   const openRecipeEditor = (ticket: RecipeTicket, sprint: SprintWithRecipes) => {
     setEditingRecipe({ 
@@ -4411,7 +4432,48 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               <FlaskConical className="h-5 w-5" />
               Sélection des sprints à tester
             </CardTitle>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              {/* Recipe Filter integrated in header */}
+              {selectedSprintIds.length > 0 && (
+                <div className="flex bg-white dark:bg-white rounded-md border border-gray-200 p-1 gap-1">
+                  <Button
+                    variant={recipeFilter === "todo" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setRecipeFilter("todo")}
+                    className={cn(
+                      "h-7 px-3 text-xs",
+                      recipeFilter !== "todo" && "text-gray-600 hover:text-gray-900"
+                    )}
+                    data-testid="filter-recipe-todo"
+                  >
+                    À faire
+                  </Button>
+                  <Button
+                    variant={recipeFilter === "done" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setRecipeFilter("done")}
+                    className={cn(
+                      "h-7 px-3 text-xs",
+                      recipeFilter !== "done" && "text-gray-600 hover:text-gray-900"
+                    )}
+                    data-testid="filter-recipe-done"
+                  >
+                    Terminé
+                  </Button>
+                  <Button
+                    variant={recipeFilter === "all" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setRecipeFilter("all")}
+                    className={cn(
+                      "h-7 px-3 text-xs",
+                      recipeFilter !== "all" && "text-gray-600 hover:text-gray-900"
+                    )}
+                    data-testid="filter-recipe-all"
+                  >
+                    Toutes
+                  </Button>
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={selectAllSprints} data-testid="button-select-all-sprints">
                 Tout sélectionner
               </Button>
@@ -4421,8 +4483,8 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 min-h-[72px]">
+        <CardContent className="min-h-[88px]">
+          <div className="flex flex-wrap gap-2 items-start content-start">
             {finishedSprints.map(sprint => (
               <Button
                 key={sprint.id}
@@ -4439,50 +4501,6 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
           </div>
         </CardContent>
       </Card>
-
-      {/* Recipe Filter Selector */}
-      {selectedSprintIds.length > 0 && (
-        <div className="flex items-center gap-3">
-          <div className="flex bg-white dark:bg-white rounded-md border border-gray-200 p-1 gap-1">
-            <Button
-              variant={recipeFilter === "todo" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setRecipeFilter("todo")}
-              className={cn(
-                "h-7 px-3 text-xs",
-                recipeFilter !== "todo" && "text-gray-600 hover:text-gray-900"
-              )}
-              data-testid="filter-recipe-todo"
-            >
-              À faire
-            </Button>
-            <Button
-              variant={recipeFilter === "done" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setRecipeFilter("done")}
-              className={cn(
-                "h-7 px-3 text-xs",
-                recipeFilter !== "done" && "text-gray-600 hover:text-gray-900"
-              )}
-              data-testid="filter-recipe-done"
-            >
-              Terminé
-            </Button>
-            <Button
-              variant={recipeFilter === "all" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setRecipeFilter("all")}
-              className={cn(
-                "h-7 px-3 text-xs",
-                recipeFilter !== "all" && "text-gray-600 hover:text-gray-900"
-              )}
-              data-testid="filter-recipe-all"
-            >
-              Toutes
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* No sprints selected */}
       {selectedSprintIds.length === 0 && (
@@ -4502,12 +4520,17 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       {/* Sprint Tables */}
       {recipesData?.sprints.map(sprint => {
         const filteredTickets = filterTickets(sprint.tickets);
+        const isExpanded = expandedRecipeSprints.has(sprint.id);
         return (
         <Card key={sprint.id} className="overflow-hidden">
-          <CardHeader className="bg-muted/30 py-3">
+          <CardHeader 
+            className="bg-muted/30 py-3 cursor-pointer hover-elevate"
+            onClick={() => toggleRecipeSprintExpand(sprint.id)}
+            data-testid={`header-recipe-sprint-${sprint.id}`}
+          >
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <Play className="h-4 w-4" />
+                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 {sprint.name}
               </CardTitle>
               <div className="flex items-center gap-3 text-sm">
@@ -4524,6 +4547,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               </div>
             </div>
           </CardHeader>
+          {isExpanded && (
           <CardContent className="p-0">
             {filteredTickets.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground text-sm">
@@ -4685,6 +4709,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               </div>
             )}
           </CardContent>
+          )}
         </Card>
         );
       })}
