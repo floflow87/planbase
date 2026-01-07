@@ -3370,9 +3370,6 @@ function CompletedTicketsView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
-          {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
-        </Badge>
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -3383,6 +3380,9 @@ function CompletedTicketsView({
             data-testid="input-completed-search"
           />
         </div>
+        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
+          {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
+        </Badge>
       </div>
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full">
@@ -4573,13 +4573,13 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
       {/* Search bar */}
       {selectedSprintIds.length > 0 && (
-        <div className="relative">
+        <div className="relative w-[150px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher un ticket..."
+            placeholder="Rechercher..."
             value={recipeSearchQuery}
             onChange={(e) => setRecipeSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 h-8 text-sm"
             data-testid="input-recipe-search"
           />
         </div>
