@@ -4239,7 +4239,18 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     return (saved as RecipeFilter) || "todo";
   });
   
-  const [selectedSprintIds, setSelectedSprintIds] = useState<string[]>([]);
+  // Selected sprints with localStorage persistence
+  const [selectedSprintIds, setSelectedSprintIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`recette_sprints_${backlogId}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
   const [expandedRecipeSprints, setExpandedRecipeSprints] = useState<Set<string>>(new Set());
   const [editingRecipe, setEditingRecipe] = useState<{ 
     ticketId: string; 
@@ -4270,6 +4281,11 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
   useEffect(() => {
     localStorage.setItem(`recette_filter_${backlogId}`, recipeFilter);
   }, [recipeFilter, backlogId]);
+
+  // Persist selected sprints
+  useEffect(() => {
+    localStorage.setItem(`recette_sprints_${backlogId}`, JSON.stringify(selectedSprintIds));
+  }, [selectedSprintIds, backlogId]);
 
   // Get finished sprints for selection
   const finishedSprints = sprints.filter(s => s.status === "termine");
