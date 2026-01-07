@@ -1,0 +1,125 @@
+Objectif
+Construire un “Cahier de recette” dans l’onglet Recette du module Product, inspiré de l’esprit des Rétros : je sélectionne un ou plusieurs sprints (y compris terminés), et PlanBase affiche ensuite une vue table de tous les tickets de ces sprints, découpée par sprint, pour piloter la QA/recette et pousser des retours directement dans les tickets (via commentaires).
+
+UX attendue (comportement)
+1) Sélection des sprints
+- En haut de l’onglet Recette : un sélecteur multi-sprints (multi-select) similaire à celui des rétros.
+- Le sélecteur doit permettre :
+  - choisir 1 sprint ou plusieurs
+  - inclure des sprints “terminés”
+- Une fois la sélection validée, afficher la page “Cahier de recette”.
+
+2) Affichage découpé par sprint
+- La table est affichée en sections : 1 bloc par sprint sélectionné.
+- Chaque bloc sprint contient :
+  - header du sprint : nom, statut (en cours/terminé), dates si dispo, métriques rapides (nb tickets, nb “Testé”, nb “Fixé/Terminé”)
+  - puis la table des tickets de ce sprint.
+- Si plusieurs sprints sélectionnés : afficher les blocs dans l’ordre chronologique (ou par position), avec un sommaire en haut (“Sprints sélectionnés (3)”).
+
+3) Contenu de la table (colonnes)
+Dans chaque sprint, afficher un tableau avec colonnes :
+
+Colonnes “ticket” (lecture)
+- Titre du ticket (cliquable vers la fiche ticket)
+- Description du ticket (preview 2-3 lignes + “voir plus”)
+Optionnel: tags / priorité / estimation (si déjà existant) mais ne pas surcharger.
+
+Colonnes “recette” (modifiables)
+A) Statut (select)
+- Valeurs : “À tester”, “En test”, “Testé”
+- Valeur par défaut : “À tester”
+- Affichage en badge léger (couleur douce) + select editable inline.
+
+B) Résultats observés (texte)
+- Champ texte (multi-line) éditable inline (textarea autosize)
+- Bouton “Envoyer au ticket” (ou auto-envoi au blur + debounce)
+- À chaque envoi : créer un commentaire dans le ticket avec un format standardisé (voir format plus bas).
+- Le texte reste également stocké côté “recette” pour historiser (et ré-éditer).
+
+C) Conclusion (select)
+- Valeurs : “À améliorer”, “À fix”, “À ajouter”
+- Affichage badge + select editable inline.
+
+D) Suggestions (texte)
+- Champ texte multi-line éditable inline (textarea autosize)
+- À l’envoi : push un commentaire dans le ticket avec le format standardisé.
+- Stocker aussi dans l’objet recette.
+
+E) Fixé / Terminé (checkbox)
+- Checkbox binaire.
+- Si cochée, indique que le point de recette est clôturé.
+- Ne doit PAS automatiquement fermer le ticket (sauf si une règle existe déjà). Par défaut, c’est juste un statut de recette.
+- Visuel : ligne “mute” quand coché + badge “Clôturé”.
+
+4) Interconnexion ticket (commentaires)
+- Quand l’utilisateur remplit “Résultats observés” ou “Suggestions”, PlanBase doit pousser un commentaire dans le ticket (table commentaires existante).
+- Le commentaire doit préciser :
+  - que ça vient du cahier de recette
+  - le sprint concerné
+  - le statut de recette / conclusion au moment de l’envoi
+
+Format de commentaire standard (à respecter)
+[🧪 Recette] Sprint: <Nom Sprint>
+Statut: <À tester | En test | Testé>
+Conclusion: <À améliorer | À fix | À ajouter>
+
+Résultats observés:
+<texte>
+
+Suggestions:
+<texte>
+
+- Si seul “Résultats observés” est envoyé, ne pas inclure “Suggestions” vide (et inversement).
+- Ajouter un lien interne (si existant) vers la vue recette/sprint.
+
+5) Règles de persistance (données)
+- Chaque ticket doit pouvoir avoir un “état de recette” par sprint (ou au moins par sprint sélectionné) :
+  - statutRecette
+  - resultatsObserves
+  - conclusion
+  - suggestions
+  - isFixedDone
+  - updatedAt / updatedBy
+- Important : un même ticket peut exister dans un seul sprint (normalement), mais prévoir la robustesse si un ticket est déplacé de sprint : on conserve son historique de recette associé au sprint d’origine.
+
+6) Ergonomie & qualité (petites choses qui changent tout)
+- Sauvegarde en optimistic update pour toutes les colonnes modifiables.
+- Indicateur discret “Enregistrement…” / “Enregistré” dans la ligne quand on édite.
+- Tri/filtre rapide :
+  - Filtrer par Statut (À tester / En test / Testé)
+  - Filtrer par Conclusion
+  - Afficher seulement “non clôturés”
+- Raccourcis :
+  - Enter = nouvelle ligne dans textarea (pas valider)
+  - Cmd/Ctrl+Enter = envoyer au ticket
+- Gestion des grandes descriptions :
+  - description preview + popover ou drawer “Voir détails ticket”.
+
+7) Cas particuliers
+- Sprints terminés : inclus dans le sélecteur + affichage identique, mais mention “Sprint terminé” dans le header.
+- Ticket sans description : afficher “—”.
+- Permissions : seuls les utilisateurs ayant accès au backlog peuvent éditer la recette.
+- Si erreur API lors d’un push commentaire : rollback de l’UI + toast d’erreur explicite.
+
+8) Implémentation technique attendue (sans surcharger)
+- Créer une table dédiée recette, ex: `ticket_test_cases` ou `ticket_recipes`:
+  - id, backlogId, sprintId, ticketId
+  - status (enum)
+  - observedResults (text)
+  - conclusion (enum)
+  - suggestions (text)
+  - isFixedDone (boolean)
+  - createdAt, updatedAt, updatedBy
+- Endpoints API sécurisés :
+  - GET /api/recipes?sprintIds=... -> retourne les lignes recette + tickets
+  - POST /api/recipes/upsert -> upsert recette par ticketId+sprintId
+  - POST /api/tickets/:id/comments (déjà existant sinon à créer) -> ajout commentaire
+- Front : nouvelle page/section dans l’onglet Recette + composants table réutilisables.
+
+Definition of Done
+- Je peux sélectionner 1 ou plusieurs sprints (y compris terminés) et voir une table par sprint.
+- Je peux éditer statut / résultats / conclusion / suggestions / checkbox.
+- Les champs texte poussent un commentaire dans le ticket avec le format standard.
+- Les données de recette persistent et se rechargent correctement.
+- Les filtres permettent d’isoler rapidement ce qu’il reste à tester.
+- UX fluide (optimistic updates + feedback enregistrement).
