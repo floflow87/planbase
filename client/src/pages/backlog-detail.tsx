@@ -4422,7 +4422,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 min-h-[72px]">
             {finishedSprints.map(sprint => (
               <Button
                 key={sprint.id}
@@ -4443,7 +4443,6 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       {/* Recipe Filter Selector */}
       {selectedSprintIds.length > 0 && (
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Afficher :</span>
           <div className="flex bg-white dark:bg-white rounded-md border border-gray-200 p-1 gap-1">
             <Button
               variant={recipeFilter === "todo" ? "default" : "ghost"}
@@ -4555,11 +4554,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                           <div className="flex items-center gap-2">
                             <Badge 
                               variant="outline" 
-                              className="text-xs"
-                              style={{ 
-                                borderColor: ticket.type === "user_story" ? "#22C55E" : "#3B82F6",
-                                color: ticket.type === "user_story" ? "#22C55E" : "#3B82F6"
-                              }}
+                              className={cn(
+                                "text-xs",
+                                ticket.type === "user_story" 
+                                  ? "bg-green-100 border-green-300 text-green-700" 
+                                  : "bg-blue-100 border-blue-300 text-blue-700"
+                              )}
                             >
                               {ticket.type === "user_story" ? "Story" : "Task"}
                             </Badge>
@@ -4696,11 +4696,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             <div className="flex items-center gap-2">
               <Badge 
                 variant="outline" 
-                className="text-xs shrink-0"
-                style={{ 
-                  borderColor: editingRecipe?.ticketType === "user_story" ? "#22C55E" : "#3B82F6",
-                  color: editingRecipe?.ticketType === "user_story" ? "#22C55E" : "#3B82F6"
-                }}
+                className={cn(
+                  "text-xs shrink-0",
+                  editingRecipe?.ticketType === "user_story" 
+                    ? "bg-green-100 border-green-300 text-green-700" 
+                    : "bg-blue-100 border-blue-300 text-blue-700"
+                )}
               >
                 {editingRecipe?.ticketType === "user_story" ? "Story" : "Task"}
               </Badge>

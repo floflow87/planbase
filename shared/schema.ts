@@ -1402,7 +1402,7 @@ export const upsertTicketRecipeSchema = z.object({
   ticketType: z.enum(["user_story", "task"]),
   status: z.enum(["a_tester", "en_test", "teste"]).optional(),
   observedResults: z.string().optional().nullable(),
-  conclusion: z.enum(["a_ameliorer", "a_fix", "a_ajouter"]).optional().nullable(),
+  conclusion: z.enum(["termine", "a_ameliorer", "a_fix", "a_ajouter"]).optional().nullable(),
   suggestions: z.string().optional().nullable(),
   isFixedDone: z.boolean().optional(),
   pushToTicket: z.boolean().optional(), // Flag to push comment to ticket
