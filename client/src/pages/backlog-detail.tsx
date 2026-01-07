@@ -4274,6 +4274,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
   });
   const [expandedRecipeSprints, setExpandedRecipeSprints] = useState<Set<string>>(new Set());
   const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
+  const [selectedRecipeTickets, setSelectedRecipeTickets] = useState<Set<string>>(new Set());
   const [editingRecipe, setEditingRecipe] = useState<{ 
     ticketId: string; 
     sprintId: string; 
@@ -4324,7 +4325,10 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     enabled: selectedSprintIds.length > 0,
   });
 
-  // Upsert recipe mutation
+  // Get current query key for recipes (function to ensure freshness)
+  const getRecipesQueryKey = () => ["/api/backlogs", backlogId, "recipes", selectedSprintIds.join(",")];
+
+  // Upsert recipe mutation with optimistic updates
   const upsertRecipeMutation = useMutation({
     mutationFn: async (data: {
       sprintId: string;
@@ -4340,12 +4344,144 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       const res = await apiRequest(`/api/backlogs/${backlogId}/recipes/upsert`, "POST", data);
       return res.json();
     },
+    onMutate: async (newData) => {
+      const queryKey = getRecipesQueryKey();
+      
+      // Cancel outgoing refetches for all recipe queries for this backlog
+      await queryClient.cancelQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/backlogs" && key[1] === backlogId && key[2] === "recipes";
+        }
+      });
+      
+      // Snapshot previous value
+      const previousData = queryClient.getQueryData<{ sprints: SprintWithRecipes[] }>(queryKey);
+      
+      // Optimistically update
+      if (previousData) {
+        queryClient.setQueryData<{ sprints: SprintWithRecipes[] }>(queryKey, {
+          sprints: previousData.sprints.map(sprint => ({
+            ...sprint,
+            tickets: sprint.tickets.map(ticket => {
+              if (ticket.id === newData.ticketId && sprint.id === newData.sprintId) {
+                return {
+                  ...ticket,
+                  recipe: {
+                    ...ticket.recipe,
+                    status: newData.status ?? ticket.recipe?.status ?? "a_tester",
+                    observedResults: newData.observedResults ?? ticket.recipe?.observedResults ?? null,
+                    conclusion: newData.conclusion ?? ticket.recipe?.conclusion ?? null,
+                    suggestions: newData.suggestions ?? ticket.recipe?.suggestions ?? null,
+                    isFixedDone: newData.isFixedDone ?? ticket.recipe?.isFixedDone ?? false,
+                  },
+                };
+              }
+              return ticket;
+            }),
+          })),
+        });
+      }
+      
+      return { previousData, queryKey };
+    },
+    onError: (error: any, _newData, context) => {
+      // Rollback on error
+      if (context?.previousData && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousData);
+      }
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
     onSuccess: () => {
-      refetchRecipes();
       setEditingRecipe(null);
       toastSuccess({ title: "Recette mise à jour" });
     },
-    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+    onSettled: () => {
+      // Refetch all recipe queries for this backlog to ensure sync with server
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/backlogs" && key[1] === backlogId && key[2] === "recipes";
+        }
+      });
+    },
+  });
+  
+  // Bulk upsert mutation for multiple tickets
+  const bulkUpsertRecipeMutation = useMutation({
+    mutationFn: async (updates: Array<{
+      sprintId: string;
+      ticketId: string;
+      ticketType: "user_story" | "task";
+      status?: RecipeStatus;
+      conclusion?: RecipeConclusion | null;
+      isFixedDone?: boolean;
+    }>) => {
+      // Execute all updates in parallel
+      const results = await Promise.all(
+        updates.map(data => 
+          apiRequest(`/api/backlogs/${backlogId}/recipes/upsert`, "POST", data).then(r => r.json())
+        )
+      );
+      return results;
+    },
+    onMutate: async (updates) => {
+      const queryKey = getRecipesQueryKey();
+      
+      // Cancel all recipe queries for this backlog
+      await queryClient.cancelQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/backlogs" && key[1] === backlogId && key[2] === "recipes";
+        }
+      });
+      
+      const previousData = queryClient.getQueryData<{ sprints: SprintWithRecipes[] }>(queryKey);
+      
+      if (previousData) {
+        queryClient.setQueryData<{ sprints: SprintWithRecipes[] }>(queryKey, {
+          sprints: previousData.sprints.map(sprint => ({
+            ...sprint,
+            tickets: sprint.tickets.map(ticket => {
+              const update = updates.find(u => u.ticketId === ticket.id && u.sprintId === sprint.id);
+              if (update) {
+                return {
+                  ...ticket,
+                  recipe: {
+                    ...ticket.recipe,
+                    status: update.status ?? ticket.recipe?.status ?? "a_tester",
+                    conclusion: update.conclusion ?? ticket.recipe?.conclusion ?? null,
+                    isFixedDone: update.isFixedDone ?? ticket.recipe?.isFixedDone ?? false,
+                  },
+                };
+              }
+              return ticket;
+            }),
+          })),
+        });
+      }
+      
+      return { previousData, queryKey };
+    },
+    onError: (error: any, _updates, context) => {
+      if (context?.previousData && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousData);
+      }
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSuccess: () => {
+      setSelectedRecipeTickets(new Set());
+      toastSuccess({ title: "Recettes mises à jour" });
+    },
+    onSettled: () => {
+      // Refetch all recipe queries for this backlog
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "/api/backlogs" && key[1] === backlogId && key[2] === "recipes";
+        }
+      });
+    },
   });
 
   // Toggle sprint selection
@@ -4432,6 +4568,101 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       const bTermine = b.recipe?.conclusion === "termine" ? 1 : 0;
       return aTermine - bTermine;
     });
+  };
+  
+  // Get all visible tickets across all sprints (for bulk actions)
+  const getAllVisibleTickets = (): Array<{ ticket: RecipeTicket; sprintId: string }> => {
+    if (!recipesData?.sprints) return [];
+    return recipesData.sprints.flatMap(sprint => 
+      filterTickets(sprint.tickets).map(ticket => ({ ticket, sprintId: sprint.id }))
+    );
+  };
+  
+  // Get visible tickets for a specific sprint
+  const getSprintVisibleTickets = (sprintId: string): RecipeTicket[] => {
+    const sprint = recipesData?.sprints.find(s => s.id === sprintId);
+    if (!sprint) return [];
+    return filterTickets(sprint.tickets);
+  };
+  
+  // Toggle ticket selection
+  const toggleTicketSelection = (ticketId: string) => {
+    setSelectedRecipeTickets(prev => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) {
+        next.delete(ticketId);
+      } else {
+        next.add(ticketId);
+      }
+      return next;
+    });
+  };
+  
+  // Select all visible tickets in a specific sprint
+  const selectSprintTickets = (sprintId: string) => {
+    const sprintTickets = getSprintVisibleTickets(sprintId);
+    setSelectedRecipeTickets(prev => {
+      const next = new Set(prev);
+      sprintTickets.forEach(t => next.add(t.id));
+      return next;
+    });
+  };
+  
+  // Deselect all tickets in a specific sprint
+  const deselectSprintTickets = (sprintId: string) => {
+    const sprintTickets = getSprintVisibleTickets(sprintId);
+    const sprintTicketIds = new Set(sprintTickets.map(t => t.id));
+    setSelectedRecipeTickets(prev => {
+      const next = new Set(prev);
+      sprintTicketIds.forEach(id => next.delete(id));
+      return next;
+    });
+  };
+  
+  // Clear all ticket selection
+  const clearTicketSelection = () => {
+    setSelectedRecipeTickets(new Set());
+  };
+  
+  // Check if all visible tickets in a sprint are selected
+  const allSprintTicketsSelected = (sprintId: string): boolean => {
+    const sprintTickets = getSprintVisibleTickets(sprintId);
+    return sprintTickets.length > 0 && sprintTickets.every(t => selectedRecipeTickets.has(t.id));
+  };
+  
+  // Check if some tickets in a sprint are selected (for indeterminate state)
+  const someSprintTicketsSelected = (sprintId: string): boolean => {
+    const sprintTickets = getSprintVisibleTickets(sprintId);
+    const selectedCount = sprintTickets.filter(t => selectedRecipeTickets.has(t.id)).length;
+    return selectedCount > 0 && selectedCount < sprintTickets.length;
+  };
+  
+  // Apply bulk action
+  const applyBulkAction = (action: "status" | "conclusion" | "fixed", value?: RecipeStatus | RecipeConclusion) => {
+    const allTickets = getAllVisibleTickets();
+    const selectedTickets = allTickets.filter(t => selectedRecipeTickets.has(t.ticket.id));
+    
+    if (selectedTickets.length === 0) return;
+    
+    const updates = selectedTickets.map(({ ticket, sprintId }) => {
+      const base = {
+        sprintId,
+        ticketId: ticket.id,
+        ticketType: ticket.type,
+      };
+      
+      if (action === "fixed") {
+        // When marking as fixed, also set status to "teste" and conclusion to "termine"
+        return { ...base, isFixedDone: true, status: "teste" as RecipeStatus, conclusion: "termine" as RecipeConclusion };
+      } else if (action === "status") {
+        return { ...base, status: value as RecipeStatus };
+      } else if (action === "conclusion") {
+        return { ...base, conclusion: value as RecipeConclusion };
+      }
+      return base;
+    });
+    
+    bulkUpsertRecipeMutation.mutate(updates);
   };
 
   // Get status badge (filled style like ticket type badges)
@@ -4571,17 +4802,75 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
         </CardContent>
       </Card>
 
-      {/* Search bar */}
+      {/* Search bar and bulk actions */}
       {selectedSprintIds.length > 0 && (
-        <div className="relative w-[150px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={recipeSearchQuery}
-            onChange={(e) => setRecipeSearchQuery(e.target.value)}
-            className="pl-9 h-8 text-sm"
-            data-testid="input-recipe-search"
-          />
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative w-[150px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher..."
+              value={recipeSearchQuery}
+              onChange={(e) => setRecipeSearchQuery(e.target.value)}
+              className="pl-9 h-8 text-sm"
+              data-testid="input-recipe-search"
+            />
+          </div>
+          
+          {/* Bulk actions bar */}
+          {selectedRecipeTickets.size > 0 && (
+            <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-900/20 px-3 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800">
+              <Badge variant="secondary" className="bg-violet-100 text-violet-700">
+                {selectedRecipeTickets.size} sélectionné{selectedRecipeTickets.size > 1 ? "s" : ""}
+              </Badge>
+              
+              {/* Bulk status */}
+              <Select onValueChange={(val) => applyBulkAction("status", val as RecipeStatus)}>
+                <SelectTrigger className="w-[120px] h-7 text-xs" data-testid="select-bulk-status">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipeStatusOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Bulk conclusion */}
+              <Select onValueChange={(val) => applyBulkAction("conclusion", val as RecipeConclusion)}>
+                <SelectTrigger className="w-[130px] h-7 text-xs" data-testid="select-bulk-conclusion">
+                  <SelectValue placeholder="Conclusion" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipeConclusionOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Mark all as fixed */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-xs gap-1"
+                onClick={() => applyBulkAction("fixed")}
+                disabled={bulkUpsertRecipeMutation.isPending}
+                data-testid="button-bulk-fixed"
+              >
+                <CheckCircle className="h-3 w-3" />
+                Tout fixé/terminé
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 text-xs"
+                onClick={clearTicketSelection}
+                data-testid="button-clear-selection"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -4641,6 +4930,19 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/20">
                     <tr>
+                      <th className="text-center p-3 w-10" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                          checked={someSprintTicketsSelected(sprint.id) ? "indeterminate" : allSprintTicketsSelected(sprint.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              selectSprintTickets(sprint.id);
+                            } else {
+                              deselectSprintTickets(sprint.id);
+                            }
+                          }}
+                          data-testid={`checkbox-select-all-sprint-${sprint.id}`}
+                        />
+                      </th>
                       <th className="text-left p-3 font-medium w-56">Ticket</th>
                       <th className="text-left p-3 font-medium">Statut</th>
                       <th className="text-left p-3 font-medium">Résultats</th>
@@ -4653,10 +4955,20 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                     {filteredTickets.map(ticket => (
                       <tr 
                         key={ticket.id} 
-                        className="border-b last:border-b-0 hover-elevate cursor-pointer"
+                        className={cn(
+                          "border-b last:border-b-0 hover-elevate cursor-pointer",
+                          selectedRecipeTickets.has(ticket.id) && "bg-violet-50 dark:bg-violet-900/10"
+                        )}
                         onClick={() => openRecipeEditor(ticket, sprint)}
                         data-testid={`row-recipe-${ticket.id}`}
                       >
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox 
+                            checked={selectedRecipeTickets.has(ticket.id)}
+                            onCheckedChange={() => toggleTicketSelection(ticket.id)}
+                            data-testid={`checkbox-select-${ticket.id}`}
+                          />
+                        </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <Badge 
@@ -4774,14 +5086,15 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                           <Checkbox
                             checked={ticket.recipe?.isFixedDone || false}
                             onCheckedChange={(checked) => {
+                              // When checking, also set status to "teste" and conclusion to "termine"
                               upsertRecipeMutation.mutate({
                                 sprintId: sprint.id,
                                 ticketId: ticket.id,
                                 ticketType: ticket.type,
                                 isFixedDone: !!checked,
+                                ...(checked ? { status: "teste" as RecipeStatus, conclusion: "termine" as RecipeConclusion } : {}),
                               });
                             }}
-                            disabled={upsertRecipeMutation.isPending}
                             data-testid={`checkbox-fixed-${ticket.id}`}
                           />
                         </td>
