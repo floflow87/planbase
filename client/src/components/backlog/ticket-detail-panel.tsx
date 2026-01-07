@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -37,7 +37,7 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
-import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions } from "@shared/schema";
+import { backlogItemStateOptions, backlogPriorityOptions, complexityOptions, recipeConclusionOptions, type RecipeConclusion } from "@shared/schema";
 import type { FlatTicket, TicketType } from "./jira-scrum-view";
 import { PriorityIcon } from "./jira-scrum-view";
 
@@ -93,6 +93,13 @@ function getStateStyle(state: string | null | undefined) {
   }
 }
 
+// Recipe data type for ticket detail
+export type TicketRecipeInfo = {
+  conclusion: RecipeConclusion | null;
+  sprintId: string;
+  sprintName: string;
+} | null;
+
 interface TicketDetailPanelProps {
   ticket: FlatTicket | null;
   epics?: Epic[];
@@ -106,6 +113,8 @@ interface TicketDetailPanelProps {
   onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
   onCreateTask?: (ticket: FlatTicket, projectId: string, taskTitle: string) => void;
   readOnly?: boolean;
+  recipeInfo?: TicketRecipeInfo;
+  onOpenRecipe?: (ticketId: string, sprintId: string) => void;
 }
 
 export function TicketDetailPanel({ 
@@ -120,7 +129,9 @@ export function TicketDetailPanel({
   onDelete,
   onConvertType,
   onCreateTask,
-  readOnly = false
+  readOnly = false,
+  recipeInfo,
+  onOpenRecipe,
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
@@ -841,6 +852,54 @@ export function TicketDetailPanel({
               <p className="text-sm text-muted-foreground">Aucune note liée</p>
             )}
           </div>
+          
+          {/* Recipe Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task") && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                  <FlaskConical className="h-4 w-4" />
+                  Recette
+                </Label>
+                {recipeInfo ? (
+                  <div className="flex items-center justify-between p-2 rounded bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      {recipeInfo.conclusion ? (
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs"
+                          style={{ 
+                            borderColor: recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.color || "#9CA3AF",
+                            color: recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.color || "#9CA3AF"
+                          }}
+                        >
+                          {recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.label || "En cours"}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Pas de conclusion</span>
+                      )}
+                      <span className="text-xs text-muted-foreground">• {recipeInfo.sprintName}</span>
+                    </div>
+                    {onOpenRecipe && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => onOpenRecipe(ticket.id, recipeInfo.sprintId)}
+                        data-testid="button-open-recipe"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Voir la recette
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucune recette disponible</p>
+                )}
+              </div>
+            </>
+          )}
           
           {/* Read-only notice */}
           {readOnly && (

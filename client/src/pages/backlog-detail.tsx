@@ -77,7 +77,7 @@ import {
   type TicketAction,
   type BulkAction
 } from "@/components/backlog/jira-scrum-view";
-import { TicketDetailPanel } from "@/components/backlog/ticket-detail-panel";
+import { TicketDetailPanel, type TicketRecipeInfo } from "@/components/backlog/ticket-detail-panel";
 
 type BacklogData = Backlog & {
   epics: Epic[];
@@ -1901,6 +1901,10 @@ export default function BacklogDetail() {
                       onDelete={handleDeleteTicket}
                       onConvertType={handleConvertType}
                       onCreateTask={handleCreateTaskFromTicket}
+                      onOpenRecipe={(ticketId, sprintId) => {
+                        setActiveTab("recette");
+                        setSelectedTicket(null);
+                      }}
                     />
                   </div>
                 </>
@@ -2093,6 +2097,10 @@ export default function BacklogDetail() {
                     onDelete={handleDeleteTicket}
                     onConvertType={handleConvertType}
                     readOnly={true}
+                    onOpenRecipe={(ticketId, sprintId) => {
+                      setActiveTab("recette");
+                      setSelectedTicket(null);
+                    }}
                   />
                 </div>
               </>
@@ -4218,11 +4226,28 @@ type SprintWithRecipes = Sprint & {
   };
 };
 
+// Recipe filter type
+type RecipeFilter = "all" | "todo" | "done";
+
 // RecetteView Component - Cahier de recette (QA Testing)
 function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprint[] }) {
   const { toast } = useToast();
+  
+  // Filter state with localStorage persistence (default: "todo")
+  const [recipeFilter, setRecipeFilter] = useState<RecipeFilter>(() => {
+    const saved = localStorage.getItem(`recette_filter_${backlogId}`);
+    return (saved as RecipeFilter) || "todo";
+  });
+  
   const [selectedSprintIds, setSelectedSprintIds] = useState<string[]>([]);
-  const [editingRecipe, setEditingRecipe] = useState<{ ticketId: string; sprintId: string; ticketType: "user_story" | "task" } | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<{ 
+    ticketId: string; 
+    sprintId: string; 
+    ticketType: "user_story" | "task";
+    ticketTitle?: string;
+    sprintName?: string;
+    sprintStatus?: string;
+  } | null>(null);
   const [recipeFormData, setRecipeFormData] = useState<{
     status: RecipeStatus;
     observedResults: string;
@@ -4238,6 +4263,11 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     isFixedDone: false,
     pushToTicket: false,
   });
+  
+  // Persist filter changes
+  useEffect(() => {
+    localStorage.setItem(`recette_filter_${backlogId}`, recipeFilter);
+  }, [recipeFilter, backlogId]);
 
   // Get finished sprints for selection
   const finishedSprints = sprints.filter(s => s.status === "termine");
@@ -4297,8 +4327,15 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
   };
 
   // Open recipe editor
-  const openRecipeEditor = (ticket: RecipeTicket, sprintId: string) => {
-    setEditingRecipe({ ticketId: ticket.id, sprintId, ticketType: ticket.type });
+  const openRecipeEditor = (ticket: RecipeTicket, sprint: SprintWithRecipes) => {
+    setEditingRecipe({ 
+      ticketId: ticket.id, 
+      sprintId: sprint.id, 
+      ticketType: ticket.type,
+      ticketTitle: ticket.title,
+      sprintName: sprint.name,
+      sprintStatus: sprint.status || undefined,
+    });
     setRecipeFormData({
       status: (ticket.recipe?.status as RecipeStatus) || "a_tester",
       observedResults: ticket.recipe?.observedResults || "",
@@ -4307,6 +4344,16 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       isFixedDone: ticket.recipe?.isFixedDone || false,
       pushToTicket: false,
     });
+  };
+  
+  // Filter tickets based on recipeFilter
+  const filterTickets = (tickets: RecipeTicket[]): RecipeTicket[] => {
+    if (recipeFilter === "all") return tickets;
+    if (recipeFilter === "done") {
+      return tickets.filter(t => t.recipe?.conclusion === "termine");
+    }
+    // "todo" - show tickets that are NOT "termine"
+    return tickets.filter(t => t.recipe?.conclusion !== "termine");
   };
 
   // Get status badge
@@ -4329,7 +4376,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     const option = recipeConclusionOptions.find(o => o.value === conclusion);
     if (!option) return null;
     
-    const Icon = conclusion === "a_fix" ? Bug : conclusion === "a_ameliorer" ? Wrench : Sparkles;
+    const Icon = conclusion === "termine" ? Check : conclusion === "a_fix" ? Bug : conclusion === "a_ameliorer" ? Wrench : Sparkles;
     
     return (
       <Badge 
@@ -4393,6 +4440,51 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
         </CardContent>
       </Card>
 
+      {/* Recipe Filter Selector */}
+      {selectedSprintIds.length > 0 && (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">Afficher :</span>
+          <div className="flex bg-white dark:bg-white rounded-md border border-gray-200 p-1 gap-1">
+            <Button
+              variant={recipeFilter === "todo" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setRecipeFilter("todo")}
+              className={cn(
+                "h-7 px-3 text-xs",
+                recipeFilter !== "todo" && "text-gray-600 hover:text-gray-900"
+              )}
+              data-testid="filter-recipe-todo"
+            >
+              À faire
+            </Button>
+            <Button
+              variant={recipeFilter === "done" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setRecipeFilter("done")}
+              className={cn(
+                "h-7 px-3 text-xs",
+                recipeFilter !== "done" && "text-gray-600 hover:text-gray-900"
+              )}
+              data-testid="filter-recipe-done"
+            >
+              Terminé
+            </Button>
+            <Button
+              variant={recipeFilter === "all" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setRecipeFilter("all")}
+              className={cn(
+                "h-7 px-3 text-xs",
+                recipeFilter !== "all" && "text-gray-600 hover:text-gray-900"
+              )}
+              data-testid="filter-recipe-all"
+            >
+              Toutes
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* No sprints selected */}
       {selectedSprintIds.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
@@ -4409,7 +4501,9 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       )}
 
       {/* Sprint Tables */}
-      {recipesData?.sprints.map(sprint => (
+      {recipesData?.sprints.map(sprint => {
+        const filteredTickets = filterTickets(sprint.tickets);
+        return (
         <Card key={sprint.id} className="overflow-hidden">
           <CardHeader className="bg-muted/30 py-3">
             <div className="flex items-center justify-between">
@@ -4432,9 +4526,9 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {sprint.tickets.length === 0 ? (
+            {filteredTickets.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground text-sm">
-                Aucun ticket dans ce sprint
+                {recipeFilter === "done" ? "Aucun ticket terminé" : recipeFilter === "todo" ? "Tous les tickets sont terminés" : "Aucun ticket dans ce sprint"}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -4450,11 +4544,11 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                     </tr>
                   </thead>
                   <tbody>
-                    {sprint.tickets.map(ticket => (
+                    {filteredTickets.map(ticket => (
                       <tr 
                         key={ticket.id} 
                         className="border-b last:border-b-0 hover-elevate cursor-pointer"
-                        onClick={() => openRecipeEditor(ticket, sprint.id)}
+                        onClick={() => openRecipeEditor(ticket, sprint)}
                         data-testid={`row-recipe-${ticket.id}`}
                       >
                         <td className="p-3">
@@ -4463,11 +4557,11 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                               variant="outline" 
                               className="text-xs"
                               style={{ 
-                                borderColor: ticket.type === "user_story" ? "#10B981" : "#3B82F6",
-                                color: ticket.type === "user_story" ? "#10B981" : "#3B82F6"
+                                borderColor: ticket.type === "user_story" ? "#22C55E" : "#3B82F6",
+                                color: ticket.type === "user_story" ? "#22C55E" : "#3B82F6"
                               }}
                             >
-                              {ticket.type === "user_story" ? "US" : "T"}
+                              {ticket.type === "user_story" ? "Story" : "Task"}
                             </Badge>
                             <span className="font-medium truncate max-w-[250px]" title={ticket.title}>
                               {ticket.title}
@@ -4592,16 +4686,37 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             )}
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
 
       {/* Recipe Editor Sheet */}
       <Sheet open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
         <SheetContent className="sm:max-w-md overflow-y-auto bg-white dark:bg-white">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2 text-gray-900">
-              <FlaskConical className="h-5 w-5" />
-              Éditer la recette
-            </SheetTitle>
+          <SheetHeader className="pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="outline" 
+                className="text-xs shrink-0"
+                style={{ 
+                  borderColor: editingRecipe?.ticketType === "user_story" ? "#22C55E" : "#3B82F6",
+                  color: editingRecipe?.ticketType === "user_story" ? "#22C55E" : "#3B82F6"
+                }}
+              >
+                {editingRecipe?.ticketType === "user_story" ? "Story" : "Task"}
+              </Badge>
+              <SheetTitle className="text-gray-900 text-base font-medium truncate">
+                {editingRecipe?.ticketTitle || "Éditer la recette"}
+              </SheetTitle>
+            </div>
+            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+              <Play className="h-3 w-3" />
+              {editingRecipe?.sprintName}
+              {editingRecipe?.sprintStatus && (
+                <Badge variant="outline" className="text-xs ml-1 py-0" style={{ borderColor: "#22C55E", color: "#22C55E" }}>
+                  Terminé
+                </Badge>
+              )}
+            </p>
           </SheetHeader>
           <div className="space-y-4 py-4">
             {/* Status */}
@@ -4700,7 +4815,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             </div>
 
             {/* Push to Ticket */}
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+            <div className="flex items-center gap-2 pt-2 pb-4 mb-4 border-t border-gray-200">
               <Checkbox
                 id="pushToTicket"
                 checked={recipeFormData.pushToTicket}

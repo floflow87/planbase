@@ -1203,6 +1203,7 @@ export const recipeStatusOptions = [
 
 // Recipe conclusion options
 export const recipeConclusionOptions = [
+  { value: "termine", label: "Terminé", color: "#22C55E" },
   { value: "a_ameliorer", label: "À améliorer", color: "#FBBF24" },
   { value: "a_fix", label: "À fix", color: "#F87171" },
   { value: "a_ajouter", label: "À ajouter", color: "#A78BFA" },
