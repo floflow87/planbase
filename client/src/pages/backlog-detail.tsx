@@ -8,7 +8,8 @@ import {
   Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
-  ArrowUp, ArrowDown, ArrowUpDown, Lock
+  ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
+  Wrench, Bug, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +64,9 @@ import type {
 } from "@shared/schema";
 import { 
   backlogItemStateOptions, backlogPriorityOptions, complexityOptions, 
-  sprintStatusOptions, backlogModeOptions, type BacklogMode
+  sprintStatusOptions, backlogModeOptions, type BacklogMode,
+  recipeStatusOptions, recipeConclusionOptions, type RecipeStatus, type RecipeConclusion,
+  type TicketRecipe
 } from "@shared/schema";
 import { 
   SprintSection, 
@@ -2099,11 +2102,7 @@ export default function BacklogDetail() {
 
         {/* Recette tab */}
         <TabsContent value="recette" className="overflow-auto p-4 md:p-6 mt-0 data-[state=inactive]:hidden">
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-            <CheckSquare className="h-12 w-12 mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">Recette</h3>
-            <p className="text-sm">La gestion de recette sera bientôt disponible.</p>
-          </div>
+          <RecetteView backlogId={id!} sprints={backlog.sprints} />
         </TabsContent>
 
         {/* Rétrospective tab */}
@@ -4195,6 +4194,478 @@ function BacklogStats({
         </Card>
       )}
       
+    </div>
+  );
+}
+
+// Recipe ticket type for API response
+type RecipeTicket = {
+  id: string;
+  type: "user_story" | "task";
+  title: string;
+  description: string | null;
+  state: string;
+  priority: string | null;
+  recipe: TicketRecipe | null;
+};
+
+type SprintWithRecipes = Sprint & {
+  tickets: RecipeTicket[];
+  stats: {
+    total: number;
+    tested: number;
+    fixed: number;
+  };
+};
+
+// RecetteView Component - Cahier de recette (QA Testing)
+function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprint[] }) {
+  const { toast } = useToast();
+  const [selectedSprintIds, setSelectedSprintIds] = useState<string[]>([]);
+  const [editingRecipe, setEditingRecipe] = useState<{ ticketId: string; sprintId: string; ticketType: "user_story" | "task" } | null>(null);
+  const [recipeFormData, setRecipeFormData] = useState<{
+    status: RecipeStatus;
+    observedResults: string;
+    conclusion: RecipeConclusion | null;
+    suggestions: string;
+    isFixedDone: boolean;
+    pushToTicket: boolean;
+  }>({
+    status: "a_tester",
+    observedResults: "",
+    conclusion: null,
+    suggestions: "",
+    isFixedDone: false,
+    pushToTicket: false,
+  });
+
+  // Get finished sprints for selection
+  const finishedSprints = sprints.filter(s => s.status === "termine");
+
+  // Fetch recipes for selected sprints
+  const { data: recipesData, isLoading: recipesLoading, refetch: refetchRecipes } = useQuery<{ sprints: SprintWithRecipes[] }>({
+    queryKey: ["/api/backlogs", backlogId, "recipes", selectedSprintIds.join(",")],
+    queryFn: async () => {
+      if (selectedSprintIds.length === 0) return { sprints: [] };
+      const res = await apiRequest(`/api/backlogs/${backlogId}/recipes?sprintIds=${selectedSprintIds.join(",")}`, "GET");
+      return res.json();
+    },
+    enabled: selectedSprintIds.length > 0,
+  });
+
+  // Upsert recipe mutation
+  const upsertRecipeMutation = useMutation({
+    mutationFn: async (data: {
+      sprintId: string;
+      ticketId: string;
+      ticketType: "user_story" | "task";
+      status?: RecipeStatus;
+      observedResults?: string | null;
+      conclusion?: RecipeConclusion | null;
+      suggestions?: string | null;
+      isFixedDone?: boolean;
+      pushToTicket?: boolean;
+    }) => {
+      const res = await apiRequest(`/api/backlogs/${backlogId}/recipes/upsert`, "POST", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchRecipes();
+      setEditingRecipe(null);
+      toastSuccess({ title: "Recette mise à jour" });
+    },
+    onError: (error: any) => toast({ title: "Erreur", description: error.message, variant: "destructive" }),
+  });
+
+  // Toggle sprint selection
+  const toggleSprintSelection = (sprintId: string) => {
+    setSelectedSprintIds(prev => 
+      prev.includes(sprintId) 
+        ? prev.filter(id => id !== sprintId)
+        : [...prev, sprintId]
+    );
+  };
+
+  // Select all finished sprints
+  const selectAllSprints = () => {
+    setSelectedSprintIds(finishedSprints.map(s => s.id));
+  };
+
+  // Clear all selections
+  const clearAllSprints = () => {
+    setSelectedSprintIds([]);
+  };
+
+  // Open recipe editor
+  const openRecipeEditor = (ticket: RecipeTicket, sprintId: string) => {
+    setEditingRecipe({ ticketId: ticket.id, sprintId, ticketType: ticket.type });
+    setRecipeFormData({
+      status: (ticket.recipe?.status as RecipeStatus) || "a_tester",
+      observedResults: ticket.recipe?.observedResults || "",
+      conclusion: (ticket.recipe?.conclusion as RecipeConclusion) || null,
+      suggestions: ticket.recipe?.suggestions || "",
+      isFixedDone: ticket.recipe?.isFixedDone || false,
+      pushToTicket: false,
+    });
+  };
+
+  // Get status badge
+  const getStatusBadge = (status: RecipeStatus | undefined) => {
+    const option = recipeStatusOptions.find(o => o.value === status) || recipeStatusOptions[0];
+    return (
+      <Badge 
+        variant="outline" 
+        className="text-xs"
+        style={{ borderColor: option.color, color: option.color }}
+      >
+        {option.label}
+      </Badge>
+    );
+  };
+
+  // Get conclusion badge
+  const getConclusionBadge = (conclusion: RecipeConclusion | null | undefined) => {
+    if (!conclusion) return null;
+    const option = recipeConclusionOptions.find(o => o.value === conclusion);
+    if (!option) return null;
+    
+    const Icon = conclusion === "a_fix" ? Bug : conclusion === "a_ameliorer" ? Wrench : Sparkles;
+    
+    return (
+      <Badge 
+        variant="outline" 
+        className="text-xs flex items-center gap-1"
+        style={{ borderColor: option.color, color: option.color }}
+      >
+        <Icon className="h-3 w-3" />
+        {option.label}
+      </Badge>
+    );
+  };
+
+  // No finished sprints
+  if (finishedSprints.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+        <FlaskConical className="h-12 w-12 mb-4 opacity-50" />
+        <h3 className="text-lg font-semibold mb-2">Cahier de recette</h3>
+        <p className="text-sm">Terminez des sprints pour commencer les tests.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="recette-view">
+      {/* Sprint Selection */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Sélection des sprints à tester
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={selectAllSprints} data-testid="button-select-all-sprints">
+                Tout sélectionner
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearAllSprints} data-testid="button-clear-all-sprints">
+                Effacer
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {finishedSprints.map(sprint => (
+              <Button
+                key={sprint.id}
+                variant={selectedSprintIds.includes(sprint.id) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleSprintSelection(sprint.id)}
+                className="toggle-elevate"
+                data-testid={`button-toggle-sprint-${sprint.id}`}
+              >
+                {selectedSprintIds.includes(sprint.id) && <Check className="h-3 w-3 mr-1" />}
+                {sprint.name}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* No sprints selected */}
+      {selectedSprintIds.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+          <ListTodo className="h-10 w-10 mb-4 opacity-50" />
+          <p className="text-sm">Sélectionnez des sprints pour afficher les tickets à tester.</p>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {recipesLoading && selectedSprintIds.length > 0 && (
+        <div className="flex items-center justify-center py-12">
+          <Loader size="md" />
+        </div>
+      )}
+
+      {/* Sprint Tables */}
+      {recipesData?.sprints.map(sprint => (
+        <Card key={sprint.id} className="overflow-hidden">
+          <CardHeader className="bg-muted/30 py-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Play className="h-4 w-4" />
+                {sprint.name}
+              </CardTitle>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {sprint.stats.tested}/{sprint.stats.total} testés
+                </span>
+                <span className="text-muted-foreground">
+                  {sprint.stats.fixed} fixés
+                </span>
+                <Progress 
+                  value={(sprint.stats.tested / Math.max(sprint.stats.total, 1)) * 100} 
+                  className="w-24 h-2"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {sprint.tickets.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                Aucun ticket dans ce sprint
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/20">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Ticket</th>
+                      <th className="text-left p-3 font-medium w-24">Statut</th>
+                      <th className="text-left p-3 font-medium w-40">Résultats</th>
+                      <th className="text-left p-3 font-medium w-28">Conclusion</th>
+                      <th className="text-left p-3 font-medium w-40">Suggestions</th>
+                      <th className="text-center p-3 font-medium w-20">Fixé</th>
+                      <th className="text-center p-3 font-medium w-16">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sprint.tickets.map(ticket => (
+                      <tr 
+                        key={ticket.id} 
+                        className="border-b last:border-b-0 hover-elevate"
+                        data-testid={`row-recipe-${ticket.id}`}
+                      >
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {ticket.type === "user_story" ? "US" : "T"}
+                            </Badge>
+                            <span className="font-medium truncate max-w-[250px]" title={ticket.title}>
+                              {ticket.title}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          {getStatusBadge(ticket.recipe?.status as RecipeStatus | undefined)}
+                        </td>
+                        <td className="p-3">
+                          <span className="text-muted-foreground text-xs line-clamp-2">
+                            {ticket.recipe?.observedResults || "-"}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {getConclusionBadge(ticket.recipe?.conclusion as RecipeConclusion | null | undefined)}
+                        </td>
+                        <td className="p-3">
+                          <span className="text-muted-foreground text-xs line-clamp-2">
+                            {ticket.recipe?.suggestions || "-"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <Checkbox
+                            checked={ticket.recipe?.isFixedDone || false}
+                            onCheckedChange={(checked) => {
+                              upsertRecipeMutation.mutate({
+                                sprintId: sprint.id,
+                                ticketId: ticket.id,
+                                ticketType: ticket.type,
+                                isFixedDone: !!checked,
+                              });
+                            }}
+                            disabled={upsertRecipeMutation.isPending}
+                            data-testid={`checkbox-fixed-${ticket.id}`}
+                          />
+                        </td>
+                        <td className="p-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openRecipeEditor(ticket, sprint.id)}
+                            data-testid={`button-edit-recipe-${ticket.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Recipe Editor Sheet */}
+      <Sheet open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Éditer la recette
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            {/* Status */}
+            <div className="space-y-2">
+              <Label>Statut du test</Label>
+              <Select
+                value={recipeFormData.status}
+                onValueChange={(v) => setRecipeFormData(prev => ({ ...prev, status: v as RecipeStatus }))}
+              >
+                <SelectTrigger data-testid="select-recipe-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipeStatusOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: option.color }}
+                        />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Observed Results */}
+            <div className="space-y-2">
+              <Label>Résultats observés</Label>
+              <Textarea
+                value={recipeFormData.observedResults}
+                onChange={(e) => setRecipeFormData(prev => ({ ...prev, observedResults: e.target.value }))}
+                placeholder="Décrivez les résultats observés lors du test..."
+                rows={4}
+                data-testid="textarea-observed-results"
+              />
+            </div>
+
+            {/* Conclusion */}
+            <div className="space-y-2">
+              <Label>Conclusion</Label>
+              <Select
+                value={recipeFormData.conclusion || "none"}
+                onValueChange={(v) => setRecipeFormData(prev => ({ 
+                  ...prev, 
+                  conclusion: v === "none" ? null : v as RecipeConclusion 
+                }))}
+              >
+                <SelectTrigger data-testid="select-recipe-conclusion">
+                  <SelectValue placeholder="Sélectionner..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune conclusion</SelectItem>
+                  {recipeConclusionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: option.color }}
+                        />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Suggestions */}
+            <div className="space-y-2">
+              <Label>Suggestions</Label>
+              <Textarea
+                value={recipeFormData.suggestions}
+                onChange={(e) => setRecipeFormData(prev => ({ ...prev, suggestions: e.target.value }))}
+                placeholder="Suggérez des améliorations ou corrections..."
+                rows={4}
+                data-testid="textarea-suggestions"
+              />
+            </div>
+
+            {/* Is Fixed Done */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="isFixedDone"
+                checked={recipeFormData.isFixedDone}
+                onCheckedChange={(checked) => setRecipeFormData(prev => ({ ...prev, isFixedDone: !!checked }))}
+                data-testid="checkbox-is-fixed-done"
+              />
+              <Label htmlFor="isFixedDone" className="cursor-pointer">
+                Correction terminée
+              </Label>
+            </div>
+
+            {/* Push to Ticket */}
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <Checkbox
+                id="pushToTicket"
+                checked={recipeFormData.pushToTicket}
+                onCheckedChange={(checked) => setRecipeFormData(prev => ({ ...prev, pushToTicket: !!checked }))}
+                data-testid="checkbox-push-to-ticket"
+              />
+              <Label htmlFor="pushToTicket" className="cursor-pointer flex items-center gap-1">
+                <MessageSquare className="h-4 w-4" />
+                Ajouter un commentaire au ticket
+              </Label>
+            </div>
+          </div>
+          <SheetFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setEditingRecipe(null)}
+              data-testid="button-cancel-recipe"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (!editingRecipe) return;
+                upsertRecipeMutation.mutate({
+                  sprintId: editingRecipe.sprintId,
+                  ticketId: editingRecipe.ticketId,
+                  ticketType: editingRecipe.ticketType,
+                  status: recipeFormData.status,
+                  observedResults: recipeFormData.observedResults || null,
+                  conclusion: recipeFormData.conclusion,
+                  suggestions: recipeFormData.suggestions || null,
+                  isFixedDone: recipeFormData.isFixedDone,
+                  pushToTicket: recipeFormData.pushToTicket,
+                });
+              }}
+              disabled={upsertRecipeMutation.isPending}
+              data-testid="button-save-recipe"
+            >
+              {upsertRecipeMutation.isPending ? "..." : "Enregistrer"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
