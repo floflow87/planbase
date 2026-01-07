@@ -3273,6 +3273,7 @@ function CompletedTicketsView({
 }) {
   const [sortColumn, setSortColumn] = useState<string>("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getAssigneeName = (assigneeId?: string | null) => {
     if (!assigneeId) return null;
@@ -3299,8 +3300,18 @@ function CompletedTicketsView({
 
   const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
-  const sortedTickets = useMemo(() => {
-    return [...tickets].sort((a, b) => {
+  const filteredAndSortedTickets = useMemo(() => {
+    // First filter by search query
+    let result = tickets;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = tickets.filter(t => 
+        t.title.toLowerCase().includes(query) ||
+        (t.description && t.description.toLowerCase().includes(query))
+      );
+    }
+    // Then sort
+    return [...result].sort((a, b) => {
       let comparison = 0;
       switch (sortColumn) {
         case "type":
@@ -3326,7 +3337,7 @@ function CompletedTicketsView({
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [tickets, sortColumn, sortDirection]);
+  }, [tickets, sortColumn, sortDirection, searchQuery]);
 
   const SortableHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
     <th 
@@ -3357,11 +3368,21 @@ function CompletedTicketsView({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
         <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
           {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
         </Badge>
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un ticket..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-completed-search"
+          />
+        </div>
       </div>
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full">
@@ -3376,7 +3397,7 @@ function CompletedTicketsView({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {sortedTickets.map(ticket => (
+            {filteredAndSortedTickets.map(ticket => (
               <tr
                 key={ticket.id}
                 className={cn(
@@ -4252,6 +4273,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     return [];
   });
   const [expandedRecipeSprints, setExpandedRecipeSprints] = useState<Set<string>>(new Set());
+  const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
   const [editingRecipe, setEditingRecipe] = useState<{ 
     ticketId: string; 
     sprintId: string; 
@@ -4387,13 +4409,22 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     });
   };
   
-  // Filter and sort tickets based on recipeFilter
+  // Filter and sort tickets based on recipeFilter and search query
   const filterTickets = (tickets: RecipeTicket[]): RecipeTicket[] => {
     let filtered = tickets;
+    // Apply status filter
     if (recipeFilter === "done") {
       filtered = tickets.filter(t => t.recipe?.conclusion === "termine");
     } else if (recipeFilter === "todo") {
       filtered = tickets.filter(t => t.recipe?.conclusion !== "termine");
+    }
+    // Apply search filter
+    if (recipeSearchQuery.trim()) {
+      const query = recipeSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(t => 
+        t.title.toLowerCase().includes(query) ||
+        (t.description && t.description.toLowerCase().includes(query))
+      );
     }
     // Sort: non-terminated tickets first, then terminated at bottom
     return [...filtered].sort((a, b) => {
@@ -4540,6 +4571,20 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
         </CardContent>
       </Card>
 
+      {/* Search bar */}
+      {selectedSprintIds.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un ticket..."
+            value={recipeSearchQuery}
+            onChange={(e) => setRecipeSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-recipe-search"
+          />
+        </div>
+      )}
+
       {/* No sprints selected */}
       {selectedSprintIds.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
@@ -4597,11 +4642,11 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                   <thead className="border-b bg-muted/20">
                     <tr>
                       <th className="text-left p-3 font-medium w-56">Ticket</th>
-                      <th className="text-left p-3 font-medium w-28">Statut</th>
-                      <th className="text-left p-3 font-medium w-40">Résultats</th>
-                      <th className="text-left p-3 font-medium w-32">Conclusion</th>
-                      <th className="text-left p-3 font-medium w-40">Suggestions</th>
-                      <th className="text-center p-3 font-medium w-28">Fixé / Terminé</th>
+                      <th className="text-left p-3 font-medium">Statut</th>
+                      <th className="text-left p-3 font-medium">Résultats</th>
+                      <th className="text-left p-3 font-medium">Conclusion</th>
+                      <th className="text-left p-3 font-medium">Suggestions</th>
+                      <th className="text-center p-3 font-medium whitespace-nowrap">Fixé / Terminé</th>
                     </tr>
                   </thead>
                   <tbody>

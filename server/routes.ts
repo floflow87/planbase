@@ -6957,6 +6957,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get recipe for a specific ticket
+  app.get("/api/tickets/:ticketId/recipe", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ticketId = req.params.ticketId;
+      
+      // Find the recipe for this ticket (most recent by sprint)
+      const recipes = await db.select({
+        recipe: ticketRecipes,
+        sprint: sprints,
+      })
+        .from(ticketRecipes)
+        .leftJoin(sprints, eq(ticketRecipes.sprintId, sprints.id))
+        .where(and(
+          eq(ticketRecipes.ticketId, ticketId),
+          eq(ticketRecipes.accountId, accountId)
+        ))
+        .orderBy(desc(sprints.createdAt))
+        .limit(1);
+      
+      if (recipes.length === 0) {
+        return res.json({ recipe: null });
+      }
+      
+      const { recipe, sprint } = recipes[0];
+      res.json({
+        recipe: {
+          ...recipe,
+          sprintId: sprint?.id || recipe.sprintId,
+          sprintName: sprint?.name || "Sprint",
+        }
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Upsert recipe for a ticket
   app.post("/api/backlogs/:backlogId/recipes/upsert", requireAuth, async (req, res) => {
     try {

@@ -164,6 +164,25 @@ export function TicketDetailPanel({
     staleTime: 0,
   });
   
+  // Fetch recipe for the ticket (if not provided via prop)
+  const { data: fetchedRecipeData } = useQuery<{ recipe: TicketRecipeInfo & { conclusion: RecipeConclusion | null } | null }>({
+    queryKey: ["/api/tickets", ticketId, "recipe"],
+    queryFn: async () => {
+      if (!ticketId) return { recipe: null };
+      const res = await apiRequest(`/api/tickets/${ticketId}/recipe`, "GET");
+      return res.json();
+    },
+    enabled: !!ticketId && (ticketType === "user_story" || ticketType === "task") && !recipeInfo,
+    staleTime: 30000,
+  });
+  
+  // Use prop recipeInfo if provided, otherwise use fetched data
+  const effectiveRecipeInfo: TicketRecipeInfo = recipeInfo || (fetchedRecipeData?.recipe ? {
+    conclusion: fetchedRecipeData.recipe.conclusion,
+    sprintId: fetchedRecipeData.recipe.sprintId,
+    sprintName: fetchedRecipeData.recipe.sprintName,
+  } : null);
+  
   // Get all notes for linking
   const { data: allNotes = [] } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
@@ -862,31 +881,31 @@ export function TicketDetailPanel({
                   <FlaskConical className="h-4 w-4" />
                   Recette
                 </Label>
-                {recipeInfo ? (
+                {effectiveRecipeInfo ? (
                   <div className="flex items-center justify-between p-2 rounded bg-muted/50">
                     <div className="flex items-center gap-2">
-                      {recipeInfo.conclusion ? (
+                      {effectiveRecipeInfo.conclusion ? (
                         <Badge 
                           variant="outline" 
                           className="text-xs"
                           style={{ 
-                            borderColor: recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.color || "#9CA3AF",
-                            color: recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.color || "#9CA3AF"
+                            borderColor: recipeConclusionOptions.find(o => o.value === effectiveRecipeInfo.conclusion)?.color || "#9CA3AF",
+                            color: recipeConclusionOptions.find(o => o.value === effectiveRecipeInfo.conclusion)?.color || "#9CA3AF"
                           }}
                         >
-                          {recipeConclusionOptions.find(o => o.value === recipeInfo.conclusion)?.label || "En cours"}
+                          {recipeConclusionOptions.find(o => o.value === effectiveRecipeInfo.conclusion)?.label || "En cours"}
                         </Badge>
                       ) : (
                         <span className="text-sm text-muted-foreground">Pas de conclusion</span>
                       )}
-                      <span className="text-xs text-muted-foreground">• {recipeInfo.sprintName}</span>
+                      <span className="text-xs text-muted-foreground">• {effectiveRecipeInfo.sprintName}</span>
                     </div>
                     {onOpenRecipe && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs gap-1"
-                        onClick={() => onOpenRecipe(ticket.id, recipeInfo.sprintId)}
+                        onClick={() => onOpenRecipe(ticket.id, effectiveRecipeInfo.sprintId)}
                         data-testid="button-open-recipe"
                       >
                         <ExternalLink className="h-3 w-3" />
