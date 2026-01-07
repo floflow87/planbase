@@ -4442,24 +4442,31 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                   <thead className="border-b bg-muted/20">
                     <tr>
                       <th className="text-left p-3 font-medium">Ticket</th>
-                      <th className="text-left p-3 font-medium w-24">Statut</th>
+                      <th className="text-left p-3 font-medium w-28">Statut</th>
                       <th className="text-left p-3 font-medium w-40">Résultats</th>
-                      <th className="text-left p-3 font-medium w-28">Conclusion</th>
+                      <th className="text-left p-3 font-medium w-32">Conclusion</th>
                       <th className="text-left p-3 font-medium w-40">Suggestions</th>
-                      <th className="text-center p-3 font-medium w-20">Fixé</th>
-                      <th className="text-center p-3 font-medium w-16">Actions</th>
+                      <th className="text-center p-3 font-medium w-28">Fixé / Terminé</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sprint.tickets.map(ticket => (
                       <tr 
                         key={ticket.id} 
-                        className="border-b last:border-b-0 hover-elevate"
+                        className="border-b last:border-b-0 hover-elevate cursor-pointer"
+                        onClick={() => openRecipeEditor(ticket, sprint.id)}
                         data-testid={`row-recipe-${ticket.id}`}
                       >
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs"
+                              style={{ 
+                                borderColor: ticket.type === "user_story" ? "#10B981" : "#3B82F6",
+                                color: ticket.type === "user_story" ? "#10B981" : "#3B82F6"
+                              }}
+                            >
                               {ticket.type === "user_story" ? "US" : "T"}
                             </Badge>
                             <span className="font-medium truncate max-w-[250px]" title={ticket.title}>
@@ -4467,23 +4474,102 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             </span>
                           </div>
                         </td>
-                        <td className="p-3">
-                          {getStatusBadge(ticket.recipe?.status as RecipeStatus | undefined)}
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="focus:outline-none" data-testid={`dropdown-status-${ticket.id}`}>
+                                {getStatusBadge(ticket.recipe?.status as RecipeStatus | undefined)}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {recipeStatusOptions.map(option => (
+                                <DropdownMenuItem
+                                  key={option.value}
+                                  onClick={() => {
+                                    upsertRecipeMutation.mutate({
+                                      sprintId: sprint.id,
+                                      ticketId: ticket.id,
+                                      ticketType: ticket.type,
+                                      status: option.value as RecipeStatus,
+                                    });
+                                  }}
+                                  data-testid={`option-status-${option.value}-${ticket.id}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-2 h-2 rounded-full" 
+                                      style={{ backgroundColor: option.color }}
+                                    />
+                                    {option.label}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                         <td className="p-3">
                           <span className="text-muted-foreground text-xs line-clamp-2">
                             {ticket.recipe?.observedResults || "-"}
                           </span>
                         </td>
-                        <td className="p-3">
-                          {getConclusionBadge(ticket.recipe?.conclusion as RecipeConclusion | null | undefined)}
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="focus:outline-none" data-testid={`dropdown-conclusion-${ticket.id}`}>
+                                {getConclusionBadge(ticket.recipe?.conclusion as RecipeConclusion | null | undefined) || (
+                                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                                    -
+                                  </Badge>
+                                )}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  upsertRecipeMutation.mutate({
+                                    sprintId: sprint.id,
+                                    ticketId: ticket.id,
+                                    ticketType: ticket.type,
+                                    conclusion: null,
+                                  });
+                                }}
+                                data-testid={`option-conclusion-none-${ticket.id}`}
+                              >
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  Aucune
+                                </div>
+                              </DropdownMenuItem>
+                              {recipeConclusionOptions.map(option => (
+                                <DropdownMenuItem
+                                  key={option.value}
+                                  onClick={() => {
+                                    upsertRecipeMutation.mutate({
+                                      sprintId: sprint.id,
+                                      ticketId: ticket.id,
+                                      ticketType: ticket.type,
+                                      conclusion: option.value as RecipeConclusion,
+                                    });
+                                  }}
+                                  data-testid={`option-conclusion-${option.value}-${ticket.id}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-2 h-2 rounded-full" 
+                                      style={{ backgroundColor: option.color }}
+                                    />
+                                    {option.label}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                         <td className="p-3">
                           <span className="text-muted-foreground text-xs line-clamp-2">
                             {ticket.recipe?.suggestions || "-"}
                           </span>
                         </td>
-                        <td className="p-3 text-center">
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={ticket.recipe?.isFixedDone || false}
                             onCheckedChange={(checked) => {
@@ -4498,16 +4584,6 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             data-testid={`checkbox-fixed-${ticket.id}`}
                           />
                         </td>
-                        <td className="p-3 text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openRecipeEditor(ticket, sprint.id)}
-                            data-testid={`button-edit-recipe-${ticket.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -4520,9 +4596,9 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
       {/* Recipe Editor Sheet */}
       <Sheet open={!!editingRecipe} onOpenChange={(open) => !open && setEditingRecipe(null)}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-md overflow-y-auto bg-white dark:bg-white">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+            <SheetTitle className="flex items-center gap-2 text-gray-900">
               <FlaskConical className="h-5 w-5" />
               Éditer la recette
             </SheetTitle>
@@ -4530,12 +4606,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
           <div className="space-y-4 py-4">
             {/* Status */}
             <div className="space-y-2">
-              <Label>Statut du test</Label>
+              <Label className="text-gray-700">Statut du test</Label>
               <Select
                 value={recipeFormData.status}
                 onValueChange={(v) => setRecipeFormData(prev => ({ ...prev, status: v as RecipeStatus }))}
               >
-                <SelectTrigger data-testid="select-recipe-status">
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-recipe-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4556,19 +4632,20 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
             {/* Observed Results */}
             <div className="space-y-2">
-              <Label>Résultats observés</Label>
+              <Label className="text-gray-700">Résultats observés</Label>
               <Textarea
                 value={recipeFormData.observedResults}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, observedResults: e.target.value }))}
                 placeholder="Décrivez les résultats observés lors du test..."
                 rows={4}
+                className="bg-white text-gray-900 border-gray-300"
                 data-testid="textarea-observed-results"
               />
             </div>
 
             {/* Conclusion */}
             <div className="space-y-2">
-              <Label>Conclusion</Label>
+              <Label className="text-gray-700">Conclusion</Label>
               <Select
                 value={recipeFormData.conclusion || "none"}
                 onValueChange={(v) => setRecipeFormData(prev => ({ 
@@ -4576,7 +4653,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                   conclusion: v === "none" ? null : v as RecipeConclusion 
                 }))}
               >
-                <SelectTrigger data-testid="select-recipe-conclusion">
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-recipe-conclusion">
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -4598,12 +4675,13 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
 
             {/* Suggestions */}
             <div className="space-y-2">
-              <Label>Suggestions</Label>
+              <Label className="text-gray-700">Suggestions</Label>
               <Textarea
                 value={recipeFormData.suggestions}
                 onChange={(e) => setRecipeFormData(prev => ({ ...prev, suggestions: e.target.value }))}
                 placeholder="Suggérez des améliorations ou corrections..."
                 rows={4}
+                className="bg-white text-gray-900 border-gray-300"
                 data-testid="textarea-suggestions"
               />
             </div>
@@ -4616,20 +4694,20 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                 onCheckedChange={(checked) => setRecipeFormData(prev => ({ ...prev, isFixedDone: !!checked }))}
                 data-testid="checkbox-is-fixed-done"
               />
-              <Label htmlFor="isFixedDone" className="cursor-pointer">
+              <Label htmlFor="isFixedDone" className="cursor-pointer text-gray-700">
                 Correction terminée
               </Label>
             </div>
 
             {/* Push to Ticket */}
-            <div className="flex items-center gap-2 pt-2 border-t">
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
               <Checkbox
                 id="pushToTicket"
                 checked={recipeFormData.pushToTicket}
                 onCheckedChange={(checked) => setRecipeFormData(prev => ({ ...prev, pushToTicket: !!checked }))}
                 data-testid="checkbox-push-to-ticket"
               />
-              <Label htmlFor="pushToTicket" className="cursor-pointer flex items-center gap-1">
+              <Label htmlFor="pushToTicket" className="cursor-pointer flex items-center gap-1 text-gray-700">
                 <MessageSquare className="h-4 w-4" />
                 Ajouter un commentaire au ticket
               </Label>
