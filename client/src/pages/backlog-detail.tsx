@@ -4246,6 +4246,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     sprintId: string; 
     ticketType: "user_story" | "task";
     ticketTitle?: string;
+    ticketDescription?: string | null;
     sprintName?: string;
     sprintStatus?: string;
   } | null>(null);
@@ -4354,6 +4355,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       sprintId: sprint.id, 
       ticketType: ticket.type,
       ticketTitle: ticket.title,
+      ticketDescription: ticket.description,
       sprintName: sprint.name,
       sprintStatus: sprint.status || undefined,
     });
@@ -4763,6 +4765,16 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
             </p>
           </SheetHeader>
           <div className="space-y-4 py-4">
+            {/* Description */}
+            {editingRecipe?.ticketDescription && (
+              <div className="space-y-2">
+                <Label className="text-gray-700">Description</Label>
+                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border border-gray-200">
+                  {editingRecipe.ticketDescription}
+                </div>
+              </div>
+            )}
+            
             {/* Status */}
             <div className="space-y-2">
               <Label className="text-gray-700">Statut du test</Label>
