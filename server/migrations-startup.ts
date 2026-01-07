@@ -738,6 +738,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket recipes table created");
     
+    // Update ticket_recipes conclusion check constraint to include 'termine'
+    await db.execute(sql`
+      ALTER TABLE ticket_recipes DROP CONSTRAINT IF EXISTS ticket_recipes_conclusion_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE ticket_recipes ADD CONSTRAINT ticket_recipes_conclusion_check 
+        CHECK (conclusion IS NULL OR conclusion IN ('termine', 'a_ameliorer', 'a_fix', 'a_ajouter'));
+    `);
+    console.log("✅ Ticket recipes conclusion constraint updated");
+    
     // Add backlog_id column to retros table and make sprint_id nullable
     await db.execute(sql`
       ALTER TABLE retros ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE;
