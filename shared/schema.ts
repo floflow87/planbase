@@ -1399,7 +1399,7 @@ export const updateTicketRecipeSchema = insertTicketRecipeSchema.omit({ accountI
 export const upsertTicketRecipeSchema = z.object({
   sprintId: z.string().uuid(),
   ticketId: z.string().uuid(),
-  ticketType: z.enum(["user_story", "task"]),
+  ticketType: z.enum(["user_story", "task", "bug"]),
   status: z.enum(["a_tester", "en_test", "teste"]).optional(),
   observedResults: z.string().optional().nullable(),
   conclusion: z.enum(["termine", "a_ameliorer", "a_fix", "a_ajouter"]).optional().nullable(),

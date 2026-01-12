@@ -4,7 +4,7 @@ import {
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
-  CheckSquare, Square, MoreHorizontal, Link2
+  CheckSquare, Square, MoreHorizontal, Link2, Bug
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Epic, UserStory, BacklogTask, Sprint, AppUser } from "@shared/schema";
 import { backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 
-export type TicketType = "epic" | "user_story" | "task";
+export type TicketType = "epic" | "user_story" | "task" | "bug";
 
 export interface FlatTicket {
   id: string;
@@ -71,6 +71,8 @@ function ticketTypeIcon(type: TicketType) {
       return <BookOpen className="h-4 w-4" />;
     case "task":
       return <ListTodo className="h-4 w-4" />;
+    case "bug":
+      return <Bug className="h-4 w-4" />;
   }
 }
 
@@ -82,6 +84,8 @@ function ticketTypeColor(type: TicketType, epicColor?: string | null): string {
       return "#22C55E";
     case "task":
       return "#3B82F6";
+    case "bug":
+      return "#EF4444";
   }
 }
 

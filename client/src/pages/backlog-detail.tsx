@@ -2390,7 +2390,7 @@ export default function BacklogDetail() {
                   {getUnfinishedTicketsForSprint(closingSprintId).map(ticket => (
                     <li key={ticket.id} className="text-sm flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
-                        {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : "Task"}
+                        {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
                       </Badge>
                       <span className="truncate">{ticket.title}</span>
                     </li>
@@ -3414,10 +3414,11 @@ function CompletedTicketsView({
                       "text-xs",
                       ticket.type === 'epic' && "border-violet-300 bg-violet-50 text-violet-700",
                       ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700",
-                      ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700"
+                      ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700",
+                      ticket.type === 'bug' && "border-red-300 bg-red-50 text-red-700"
                     )}
                   >
-                    {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'Story' : 'Task'}
+                    {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'Story' : ticket.type === 'bug' ? 'Bug' : 'Task'}
                   </Badge>
                 </td>
                 <td className="px-4 py-2">
@@ -4975,12 +4976,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                               variant="outline" 
                               className={cn(
                                 "text-xs",
-                                ticket.type === "user_story" 
-                                  ? "bg-green-100 border-green-300 text-green-700" 
-                                  : "bg-blue-100 border-blue-300 text-blue-700"
+                                ticket.type === "user_story" && "bg-green-100 border-green-300 text-green-700",
+                                ticket.type === "task" && "bg-blue-100 border-blue-300 text-blue-700",
+                                ticket.type === "bug" && "bg-red-100 border-red-300 text-red-700"
                               )}
                             >
-                              {ticket.type === "user_story" ? "Story" : "Task"}
+                              {ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
                             </Badge>
                             <span className="font-medium truncate max-w-[250px]" title={ticket.title}>
                               {ticket.title}
@@ -5119,12 +5120,12 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                 variant="outline" 
                 className={cn(
                   "text-xs shrink-0",
-                  editingRecipe?.ticketType === "user_story" 
-                    ? "bg-green-100 border-green-300 text-green-700" 
-                    : "bg-blue-100 border-blue-300 text-blue-700"
+                  editingRecipe?.ticketType === "user_story" && "bg-green-100 border-green-300 text-green-700",
+                  editingRecipe?.ticketType === "task" && "bg-blue-100 border-blue-300 text-blue-700",
+                  editingRecipe?.ticketType === "bug" && "bg-red-100 border-red-300 text-red-700"
                 )}
               >
-                {editingRecipe?.ticketType === "user_story" ? "Story" : "Task"}
+                {editingRecipe?.ticketType === "user_story" ? "Story" : editingRecipe?.ticketType === "bug" ? "Bug" : "Task"}
               </Badge>
               <SheetTitle className="text-gray-900 text-base font-medium truncate">
                 {editingRecipe?.ticketTitle || "Éditer la recette"}
