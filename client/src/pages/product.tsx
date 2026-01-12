@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,6 +59,8 @@ export default function Product() {
   useEffect(() => {
     localStorage.setItem("backlog-view-mode", viewMode);
   }, [viewMode]);
+  
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [formData, setFormData] = useState({
     name: "",
@@ -175,6 +177,18 @@ export default function Product() {
     );
   }
 
+  // Filter backlogs by search query (searches in name, description, and active sprint name)
+  const filteredBacklogs = useMemo(() => {
+    if (!searchQuery.trim()) return backlogs;
+    const query = searchQuery.toLowerCase().trim();
+    return backlogs.filter(b => 
+      b.name.toLowerCase().includes(query) ||
+      b.description?.toLowerCase().includes(query) ||
+      b.activeSprint?.name.toLowerCase().includes(query) ||
+      b.project?.name.toLowerCase().includes(query)
+    );
+  }, [backlogs, searchQuery]);
+
   // Calculate KPIs
   const kpis = [
     {
@@ -223,8 +237,8 @@ export default function Product() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
-                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-xs text-muted-foreground font-light">{kpi.title}</p>
+                      <h3 className="text-[22px] font-heading font-light mt-2 text-foreground">{kpi.value}</h3>
                       <p className="text-[10px] text-muted-foreground mt-2">
                         {kpi.subtitle}
                       </p>
@@ -239,9 +253,19 @@ export default function Product() {
           })}
         </div>
 
-        {/* Actions bar */}
-        <div className="flex items-center justify-end gap-2">
-          <div className="flex items-center border rounded-md" data-testid="container-view-toggle">
+        {/* Search and Actions bar */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un backlog ou sprint..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+              data-testid="input-search-backlogs"
+            />
+          </div>
+          <div className="flex items-center ml-auto border rounded-md" data-testid="container-view-toggle">
             <Button 
               variant={viewMode === "grid" ? "secondary" : "ghost"} 
               size="icon" 
@@ -268,23 +292,33 @@ export default function Product() {
         </div>
 
         {/* Content */}
-        {backlogs.length === 0 ? (
+        {filteredBacklogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="rounded-full bg-muted p-6 mb-4">
-              <LayoutGrid className="h-12 w-12 text-muted-foreground" />
+              {searchQuery.trim() ? (
+                <Search className="h-12 w-12 text-muted-foreground" />
+              ) : (
+                <LayoutGrid className="h-12 w-12 text-muted-foreground" />
+              )}
             </div>
-            <h2 className="text-xl font-semibold mb-2">Aucun backlog</h2>
+            <h2 className="text-xl font-light mb-2">
+              {searchQuery.trim() ? "Aucun résultat" : "Aucun backlog"}
+            </h2>
             <p className="text-muted-foreground mb-4 max-w-md">
-              Créez votre premier backlog pour commencer à organiser vos epics, user stories et tâches.
+              {searchQuery.trim() 
+                ? `Aucun backlog ou sprint ne correspond à "${searchQuery}".`
+                : "Créez votre premier backlog pour commencer à organiser vos epics, user stories et tâches."}
             </p>
-            <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-first-backlog">
-              <Plus className="h-4 w-4 mr-2" />
-              Créer un backlog
-            </Button>
+            {!searchQuery.trim() && (
+              <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-first-backlog">
+                <Plus className="h-4 w-4 mr-2" />
+                Créer un backlog
+              </Button>
+            )}
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {backlogs.map((backlog) => (
+            {filteredBacklogs.map((backlog) => (
               <Card 
                 key={backlog.id} 
                 className="hover-elevate cursor-pointer group"
@@ -384,7 +418,7 @@ export default function Product() {
                 </tr>
               </thead>
               <tbody className="divide-y bg-white dark:bg-gray-900">
-                {backlogs.map((backlog) => (
+                {filteredBacklogs.map((backlog) => (
                   <tr 
                     key={backlog.id}
                     className="hover:bg-muted/30 cursor-pointer group"

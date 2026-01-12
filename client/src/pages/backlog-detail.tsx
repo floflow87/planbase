@@ -27,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
@@ -147,6 +148,7 @@ export default function BacklogDetail() {
     return saved === 'true';
   });
   const [epicFilter, setEpicFilter] = useState<string[]>([]);
+  const [versionFilter, setVersionFilter] = useState<string>("all");
   const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
   const [epicSearchQuery, setEpicSearchQuery] = useState("");
   
@@ -878,6 +880,15 @@ export default function BacklogDetail() {
     );
   }, [backlog?.epics, backlog?.userStories, backlog?.backlogTasks]);
 
+  // Collect unique versions from all tickets for filtering
+  const uniqueVersions = useMemo(() => {
+    const versions = new Set<string>();
+    flatTickets.forEach(t => {
+      if (t.version) versions.add(t.version);
+    });
+    return Array.from(versions).sort();
+  }, [flatTickets]);
+
   // Priority order for sorting
   const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
   const stateOrder: Record<string, number> = { a_faire: 1, en_cours: 2, review: 3, termine: 4 };
@@ -908,6 +919,15 @@ export default function BacklogDetail() {
     // Apply epic filter (multi-select)
     if (epicFilter.length > 0) {
       result = result.filter(t => t.epicId && epicFilter.includes(t.epicId));
+    }
+    
+    // Apply version filter
+    if (versionFilter !== "all") {
+      if (versionFilter === "none") {
+        result = result.filter(t => !t.version);
+      } else {
+        result = result.filter(t => t.version === versionFilter);
+      }
     }
     
     // Apply sorting
@@ -1818,6 +1838,25 @@ export default function BacklogDetail() {
               </Popover>
             </div>
             
+            {/* Version filter */}
+            {uniqueVersions.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Version</Label>
+                <Select value={versionFilter} onValueChange={setVersionFilter}>
+                  <SelectTrigger className="w-[120px] h-8 text-sm" data-testid="select-version-filter">
+                    <SelectValue placeholder="Toutes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes</SelectItem>
+                    <SelectItem value="none">Sans version</SelectItem>
+                    {uniqueVersions.map(version => (
+                      <SelectItem key={version} value={version}>{version}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             {/* Sort by */}
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-muted-foreground">Trier par</Label>
@@ -2516,8 +2555,8 @@ export default function BacklogDetail() {
 
       {/* Sprint Delete Modal */}
       <Dialog open={showSprintDeleteModal} onOpenChange={setShowSprintDeleteModal}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-red-600 flex items-center gap-2">
               <Trash2 className="h-5 w-5" />
               Supprimer le sprint
@@ -2537,10 +2576,10 @@ export default function BacklogDetail() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 flex-1 overflow-y-auto min-h-0">
             {deletingSprintId && getAllTicketsForSprint(deletingSprintId).length > 0 && (
               <>
-                <div className="space-y-2">
+                <div className="space-y-2 flex-shrink-0">
                   <Label>Déplacer les tickets vers :</Label>
                   <Select value={deleteRedirectTarget} onValueChange={setDeleteRedirectTarget}>
                     <SelectTrigger data-testid="select-delete-redirect-target">
@@ -2557,17 +2596,17 @@ export default function BacklogDetail() {
                   </Select>
                 </div>
                 
-                <div className="bg-muted/50 rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm text-muted-foreground mb-2">Tickets à déplacer :</p>
-                  <ul className="space-y-1">
+                  <ul className="space-y-1 max-h-[180px] overflow-y-auto">
                     {getAllTicketsForSprint(deletingSprintId).map(ticket => (
                       <li key={ticket.id} className="text-sm flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs flex-shrink-0">
                           {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
                         </Badge>
-                        <span className="truncate">{ticket.title}</span>
+                        <span className="truncate flex-1">{ticket.title}</span>
                         {ticket.state === "termine" && (
-                          <Badge variant="outline" className="text-xs border-green-300 bg-green-50 text-green-700">
+                          <Badge variant="outline" className="text-xs border-green-300 bg-green-50 text-green-700 flex-shrink-0">
                             Terminé
                           </Badge>
                         )}
@@ -3632,83 +3671,82 @@ function CompletedTicketsView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un ticket..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-              data-testid="input-completed-search"
-            />
-          </div>
-          <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
-            {filteredAndSortedTickets.length} / {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
-          </Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un ticket..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-8"
+            data-testid="input-completed-search"
+          />
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          
-          <Select value={filterSprint} onValueChange={setFilterSprint}>
-            <SelectTrigger className="w-[160px] h-8 text-xs" data-testid="select-completed-filter-sprint">
-              <SelectValue placeholder="Sprint" />
+        <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        
+        <Select value={filterSprint} onValueChange={setFilterSprint}>
+          <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-sprint">
+            <SelectValue placeholder="Sprint" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les sprints</SelectItem>
+            <SelectItem value="none">Sans sprint</SelectItem>
+            {sprints.map(sprint => (
+              <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        <Select value={filterEpic} onValueChange={setFilterEpic}>
+          <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-epic">
+            <SelectValue placeholder="Epic" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les epics</SelectItem>
+            <SelectItem value="none">Sans epic</SelectItem>
+            {epics.map(epic => (
+              <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        {uniqueVersions.length > 0 && (
+          <Select value={filterVersion} onValueChange={setFilterVersion}>
+            <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="select-completed-filter-version">
+              <SelectValue placeholder="Version" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les sprints</SelectItem>
-              <SelectItem value="none">Sans sprint</SelectItem>
-              {sprints.map(sprint => (
-                <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="none">Sans version</SelectItem>
+              {uniqueVersions.map(version => (
+                <SelectItem key={version} value={version}>{version}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
-          <Select value={filterEpic} onValueChange={setFilterEpic}>
-            <SelectTrigger className="w-[160px] h-8 text-xs" data-testid="select-completed-filter-epic">
-              <SelectValue placeholder="Epic" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les epics</SelectItem>
-              <SelectItem value="none">Sans epic</SelectItem>
-              {epics.map(epic => (
-                <SelectItem key={epic.id} value={epic.id}>{epic.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {uniqueVersions.length > 0 && (
-            <Select value={filterVersion} onValueChange={setFilterVersion}>
-              <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-version">
-                <SelectValue placeholder="Version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes versions</SelectItem>
-                <SelectItem value="none">Sans version</SelectItem>
-                {uniqueVersions.map(version => (
-                  <SelectItem key={version} value={version}>{version}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setFilterSprint("all");
-                setFilterEpic("all");
-                setFilterVersion("all");
-              }}
-              data-testid="button-clear-completed-filters"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Effacer filtres
-            </Button>
-          )}
+        )}
+        
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setFilterSprint("all");
+              setFilterEpic("all");
+              setFilterVersion("all");
+            }}
+            data-testid="button-clear-completed-filters"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Effacer
+          </Button>
+        )}
+        
+        <div className="ml-auto">
+          <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
+            {filteredAndSortedTickets.length} / {tickets.length} terminé{tickets.length > 1 ? 's' : ''}
+          </Badge>
         </div>
       </div>
       
@@ -4302,13 +4340,25 @@ function BacklogStats({
           </CardContent>
         </Card>
         
-        {/* Burn Rate */}
+        {/* Burn Down */}
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-violet-600" />
-                Burn Rate
+                Burn Down
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="ml-1 text-muted-foreground hover:text-foreground">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs text-left">
+                    <p className="text-xs">
+                      Le burn down mesure à quelle vitesse le travail restant diminue pendant un sprint ou une période donnée, en comparant le travail livré (points ou tickets) au temps écoulé. Il permet de vérifier si l'équipe avance au rythme attendu pour atteindre les objectifs du sprint.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </CardTitle>
               <div className="flex gap-1">
                 <Button 
@@ -4339,8 +4389,28 @@ function BacklogStats({
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={burnData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 10 }}
+                        label={{ 
+                          value: 'Éléments du backlog / progression', 
+                          position: 'insideBottom', 
+                          offset: -5,
+                          fontSize: 9,
+                          fill: '#6b7280'
+                        }}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10 }}
+                        label={{ 
+                          value: 'Points restants', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          fontSize: 9,
+                          fill: '#6b7280',
+                          style: { textAnchor: 'middle' }
+                        }}
+                      />
                       <RechartsTooltip 
                         contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
                         formatter={(value) => [`${value}`, burnMode === 'points' ? 'Points restants' : 'Tickets restants']}
@@ -4355,9 +4425,9 @@ function BacklogStats({
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-                {/* Lecture burn rate */}
+                {/* Lecture burn down */}
                 {getBurnRateReading() && (
-                  <p className="mt-3 text-xs text-foreground/80 bg-muted/30 p-2 rounded" data-testid="text-burnrate-reading">
+                  <p className="mt-3 text-xs text-foreground/80 bg-muted/30 p-2 rounded" data-testid="text-burndown-reading">
                     {getBurnRateReading()}
                   </p>
                 )}

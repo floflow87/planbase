@@ -804,18 +804,29 @@ export function TicketDetailPanel({
               <Tag className="h-4 w-4" />
               Version
             </Label>
-            <div className="flex items-center gap-1 w-[140px]">
-              <Input
-                value={ticket.version || ""}
-                onChange={(e) => onUpdate(ticket.id, ticket.type, { 
-                  version: e.target.value || null 
-                })}
-                placeholder="ex: 1.0.0"
-                className={cn("h-8 text-sm", readOnly && "opacity-60")}
-                disabled={readOnly}
-                data-testid="input-version"
-              />
-            </div>
+            <Select
+              value={ticket.version || "none"}
+              onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
+                version: value === "none" ? null : value 
+              })}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-version">
+                <SelectValue placeholder="Version">
+                  {ticket.version || "Aucune"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-white">
+                <SelectItem value="none" className="text-gray-900">Aucune</SelectItem>
+                <SelectItem value="1.0.0" className="text-gray-900">1.0.0</SelectItem>
+                <SelectItem value="1.1.0" className="text-gray-900">1.1.0</SelectItem>
+                <SelectItem value="1.2.0" className="text-gray-900">1.2.0</SelectItem>
+                <SelectItem value="2.0.0" className="text-gray-900">2.0.0</SelectItem>
+                <SelectItem value="MVP" className="text-gray-900">MVP</SelectItem>
+                <SelectItem value="Beta" className="text-gray-900">Beta</SelectItem>
+                <SelectItem value="Alpha" className="text-gray-900">Alpha</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Linked Notes Section */}
