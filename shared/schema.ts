@@ -1022,6 +1022,7 @@ export const userStories = pgTable("user_stories", {
   state: text("state").default("a_faire"),
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
+  version: text("version"), // Version de produit (nullable)
   ownerId: uuid("owner_id").references(() => appUsers.id, { onDelete: "set null" }),
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
@@ -1050,6 +1051,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   estimatePoints: real("estimate_points"),
   order: integer("order").notNull().default(0),
   dueDate: date("due_date"),
+  version: text("version"), // Version de produit (nullable)
   assigneeId: uuid("assignee_id").references(() => appUsers.id, { onDelete: "set null" }),
   reporterId: uuid("reporter_id").references(() => appUsers.id, { onDelete: "set null" }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),

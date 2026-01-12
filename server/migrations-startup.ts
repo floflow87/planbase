@@ -1153,6 +1153,20 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Scope items completed_at column added");
 
+    // Add version column to user_stories for product versioning
+    await db.execute(sql`
+      ALTER TABLE user_stories 
+      ADD COLUMN IF NOT EXISTS version text;
+    `);
+    console.log("✅ User stories version column added");
+
+    // Add version column to backlog_tasks for product versioning
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks 
+      ADD COLUMN IF NOT EXISTS version text;
+    `);
+    console.log("✅ Backlog tasks version column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
