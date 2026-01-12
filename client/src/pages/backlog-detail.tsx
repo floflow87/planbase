@@ -9,7 +9,7 @@ import {
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
-  Wrench, Bug, Sparkles, ExternalLink
+  Wrench, Bug, Sparkles, ExternalLink, Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,13 +113,31 @@ export default function BacklogDetail() {
   const [showKanbanTaskDialog, setShowKanbanTaskDialog] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   
-  const [expandedSprints, setExpandedSprints] = useState<Set<string> | "all">("all");
-  const [backlogPoolExpanded, setBacklogPoolExpanded] = useState(true);
+  const [expandedSprints, setExpandedSprints] = useState<Set<string> | "all">(() => {
+    if (!id || id === "new") return "all";
+    const saved = localStorage.getItem(`backlog-expanded-sprints-${id}`);
+    if (!saved) return "all";
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed === "all") return "all";
+      return new Set(parsed);
+    } catch {
+      return "all";
+    }
+  });
+  const [backlogPoolExpanded, setBacklogPoolExpanded] = useState(() => {
+    if (!id || id === "new") return true;
+    const saved = localStorage.getItem(`backlog-pool-expanded-${id}`);
+    return saved !== "false";
+  });
   const [selectedTicket, setSelectedTicket] = useState<FlatTicket | null>(null);
   const [hideFinishedSprints, setHideFinishedSprints] = useState(true);
   const [showSprintCloseModal, setShowSprintCloseModal] = useState(false);
   const [closingSprintId, setClosingSprintId] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string>("backlog");
+  const [showSprintDeleteModal, setShowSprintDeleteModal] = useState(false);
+  const [deletingSprintId, setDeletingSprintId] = useState<string | null>(null);
+  const [deleteRedirectTarget, setDeleteRedirectTarget] = useState<string>("backlog");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("state");
@@ -588,6 +606,32 @@ export default function BacklogDetail() {
     onSuccess: () => toastSuccess({ title: "Sprint clôturé" }),
   });
 
+  const deleteSprintMutation = useMutation({
+    mutationFn: async ({ sprintId, redirectTo }: { sprintId: string; redirectTo?: string }) => 
+      apiRequest(`/api/sprints/${sprintId}`, "DELETE", { redirectTo }),
+    onMutate: async ({ sprintId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/backlogs", id] });
+      const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+      if (previousBacklog) {
+        queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+          ...previousBacklog,
+          sprints: (previousBacklog.sprints || []).filter(s => s.id !== sprintId),
+        });
+      }
+      return { previousBacklog };
+    },
+    onError: (error: any, _variables, context) => {
+      if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSuccess: (_, { sprintId }) => {
+      toastSuccess({ title: "Sprint supprimé" });
+      setShowSprintDeleteModal(false);
+      setDeletingSprintId(null);
+    },
+  });
+
   const updateBacklogMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; projectId?: string | null }) => {
       return apiRequest(`/api/backlogs/${id}`, "PATCH", data);
@@ -929,18 +973,66 @@ export default function BacklogDetail() {
     }
   };
 
+  // Get all tickets (finished and unfinished) for a sprint
+  const getAllTicketsForSprint = (sprintId: string) => {
+    return flatTickets.filter(t => t.sprintId === sprintId);
+  };
+
+  // Handle sprint delete attempt - check for tickets
+  const handleSprintDeleteAttempt = (sprintId: string) => {
+    const ticketsInSprint = getAllTicketsForSprint(sprintId);
+    if (ticketsInSprint.length === 0) {
+      // No tickets, delete directly
+      deleteSprintMutation.mutate({ sprintId });
+    } else {
+      // Show modal to redirect tickets
+      setDeletingSprintId(sprintId);
+      setDeleteRedirectTarget("backlog");
+      setShowSprintDeleteModal(true);
+    }
+  };
+
+  // Handle sprint delete with ticket redirection
+  const handleConfirmSprintDelete = async () => {
+    if (!deletingSprintId) return;
+    
+    try {
+      await deleteSprintMutation.mutateAsync({ 
+        sprintId: deletingSprintId, 
+        redirectTo: deleteRedirectTarget 
+      });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
   const toggleSprint = (sprintId: string) => {
     setExpandedSprints(prev => {
+      let next: Set<string>;
       if (prev === "all") {
         const allSprintIds = new Set(backlog?.sprints.map(s => s.id) || []);
         allSprintIds.delete(sprintId);
-        return allSprintIds;
+        next = allSprintIds;
+      } else {
+        next = new Set(prev);
+        if (next.has(sprintId)) next.delete(sprintId);
+        else next.add(sprintId);
       }
-      const next = new Set(prev);
-      if (next.has(sprintId)) next.delete(sprintId);
-      else next.add(sprintId);
+      // Save to localStorage
+      if (id && id !== "new") {
+        localStorage.setItem(`backlog-expanded-sprints-${id}`, JSON.stringify(Array.from(next)));
+      }
       return next;
     });
+  };
+
+  // Save backlog pool expanded state to localStorage
+  const toggleBacklogPool = () => {
+    const newValue = !backlogPoolExpanded;
+    setBacklogPoolExpanded(newValue);
+    if (id && id !== "new") {
+      localStorage.setItem(`backlog-pool-expanded-${id}`, String(newValue));
+    }
   };
 
   const isSprintExpanded = (sprintId: string) => {
@@ -1198,6 +1290,10 @@ export default function BacklogDetail() {
             await handleUpdateTicket(ticketId, ticketType, { sprintId: null });
             break;
             
+          case "bulk_set_version":
+            await handleUpdateTicket(ticketId, ticketType, { version: action.version || null });
+            break;
+            
           case "bulk_delete":
             await handleDeleteTicket(ticketId, ticketType);
             break;
@@ -1213,6 +1309,7 @@ export default function BacklogDetail() {
         bulk_link_epic: "Epic lié",
         bulk_move_sprint: "Déplacé vers le sprint",
         bulk_move_backlog: "Déplacé vers le backlog",
+        bulk_set_version: "Version modifiée",
         bulk_delete: "Tickets supprimés"
       };
       
@@ -1831,6 +1928,7 @@ export default function BacklogDetail() {
                       onStartSprint={(sprintId) => startSprintMutation.mutate(sprintId)}
                       onCompleteSprint={handleSprintCloseAttempt}
                       onEditSprint={(sprint) => { setEditingSprint(sprint); setShowSprintDialog(true); }}
+                      onDeleteSprint={handleSprintDeleteAttempt}
                       onUpdateState={handleInlineStateUpdate}
                       onUpdateField={handleInlineFieldUpdate}
                       onTicketAction={handleTicketAction}
@@ -1866,7 +1964,7 @@ export default function BacklogDetail() {
                   epics={backlog.epics}
                   showEpicColumn={showEpicColumn}
                   isExpanded={backlogPoolExpanded}
-                  onToggle={() => setBacklogPoolExpanded(!backlogPoolExpanded)}
+                  onToggle={toggleBacklogPool}
                   onSelectTicket={handleSelectTicket}
                   onCreateTicket={handleCreateBacklogTicket}
                   onUpdateState={handleInlineStateUpdate}
@@ -2073,6 +2171,7 @@ export default function BacklogDetail() {
               tickets={flatTickets.filter(t => t.state === "termine")}
               users={users}
               sprints={backlog.sprints}
+              epics={backlog.epics}
               onSelectTicket={handleSelectTicket}
               selectedTicketId={selectedTicket?.id}
             />
@@ -2410,6 +2509,86 @@ export default function BacklogDetail() {
               data-testid="button-confirm-close-sprint"
             >
               Terminer le sprint
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sprint Delete Modal */}
+      <Dialog open={showSprintDeleteModal} onOpenChange={setShowSprintDeleteModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Supprimer le sprint
+            </DialogTitle>
+            <DialogDescription>
+              {deletingSprintId && getAllTicketsForSprint(deletingSprintId).length > 0 && (
+                <>
+                  Ce sprint contient {getAllTicketsForSprint(deletingSprintId).length} ticket(s). 
+                  Choisissez où les déplacer avant de supprimer le sprint.
+                </>
+              )}
+              {deletingSprintId && getAllTicketsForSprint(deletingSprintId).length === 0 && (
+                <>
+                  Êtes-vous sûr de vouloir supprimer ce sprint ? Cette action est irréversible.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {deletingSprintId && getAllTicketsForSprint(deletingSprintId).length > 0 && (
+              <>
+                <div className="space-y-2">
+                  <Label>Déplacer les tickets vers :</Label>
+                  <Select value={deleteRedirectTarget} onValueChange={setDeleteRedirectTarget}>
+                    <SelectTrigger data-testid="select-delete-redirect-target">
+                      <SelectValue placeholder="Choisir la destination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="backlog">Backlog</SelectItem>
+                      {backlog.sprints
+                        .filter(s => s.id !== deletingSprintId && s.status !== "termine")
+                        .map(s => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="bg-muted/50 rounded-lg p-3 max-h-[200px] overflow-y-auto">
+                  <p className="text-sm text-muted-foreground mb-2">Tickets à déplacer :</p>
+                  <ul className="space-y-1">
+                    {getAllTicketsForSprint(deletingSprintId).map(ticket => (
+                      <li key={ticket.id} className="text-sm flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
+                        </Badge>
+                        <span className="truncate">{ticket.title}</span>
+                        {ticket.state === "termine" && (
+                          <Badge variant="outline" className="text-xs border-green-300 bg-green-50 text-green-700">
+                            Terminé
+                          </Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSprintDeleteModal(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleConfirmSprintDelete}
+              variant="destructive"
+              data-testid="button-confirm-delete-sprint"
+            >
+              Supprimer le sprint
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2936,33 +3115,71 @@ function SprintSheet({
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>{sprint ? "Modifier le Sprint" : "Nouveau Sprint"}</SheetTitle>
+      <SheetContent className="sm:max-w-md bg-white dark:bg-white">
+        <SheetHeader className="border-b border-gray-200 pb-4">
+          <SheetTitle className="text-gray-900">{sprint ? "Modifier le Sprint" : "Nouveau Sprint"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-6">
           <div className="space-y-2">
-            <Label>Nom *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sprint 1" data-testid="input-sprint-name" />
+            <Label className="text-gray-700">Nom *</Label>
+            <Input 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="Sprint 1" 
+              className="bg-white border-gray-300 text-gray-900"
+              data-testid="input-sprint-name" 
+            />
           </div>
           <div className="space-y-2">
-            <Label>Objectif</Label>
-            <Textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={3} placeholder="Objectif du sprint..." data-testid="input-sprint-goal" />
+            <Label className="text-gray-700">Objectif</Label>
+            <Textarea 
+              value={goal} 
+              onChange={(e) => setGoal(e.target.value)} 
+              rows={3} 
+              placeholder="Objectif du sprint..." 
+              className="bg-white border-gray-300 text-gray-900"
+              data-testid="input-sprint-goal" 
+            />
           </div>
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Date de début</Label>
-              <Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} data-testid="input-sprint-start" />
+              <Label className="text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-violet-500" />
+                Date de début
+              </Label>
+              <Input 
+                type="datetime-local" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)} 
+                className="bg-white border-gray-300 text-gray-900"
+                data-testid="input-sprint-start" 
+              />
             </div>
             <div className="space-y-2">
-              <Label>Date de fin</Label>
-              <Input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} data-testid="input-sprint-end" />
+              <Label className="text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-violet-500" />
+                Date de fin
+              </Label>
+              <Input 
+                type="datetime-local" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)} 
+                className="bg-white border-gray-300 text-gray-900"
+                data-testid="input-sprint-end" 
+              />
             </div>
           </div>
         </div>
-        <SheetFooter className="flex gap-2">
-          <Button variant="outline" onClick={onClose} data-testid="button-cancel-sprint">Annuler</Button>
-          <Button onClick={handleSubmit} disabled={isPending || !name.trim()} data-testid="button-submit-sprint">
+        <SheetFooter className="flex gap-2 border-t border-gray-200 pt-4">
+          <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700" data-testid="button-cancel-sprint">
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isPending || !name.trim()} 
+            className="bg-violet-600 hover:bg-violet-700 text-white"
+            data-testid="button-submit-sprint"
+          >
             {isPending ? "..." : sprint ? "Enregistrer" : "Créer"}
           </Button>
         </SheetFooter>
@@ -3262,18 +3479,32 @@ function CompletedTicketsView({
   tickets,
   users,
   sprints,
+  epics,
   onSelectTicket,
   selectedTicketId
 }: {
   tickets: FlatTicket[];
   users: AppUser[];
   sprints: Sprint[];
+  epics: Epic[];
   onSelectTicket: (ticket: FlatTicket) => void;
   selectedTicketId?: string;
 }) {
   const [sortColumn, setSortColumn] = useState<string>("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterSprint, setFilterSprint] = useState<string>("all");
+  const [filterEpic, setFilterEpic] = useState<string>("all");
+  const [filterVersion, setFilterVersion] = useState<string>("all");
+
+  // Collect all unique versions from tickets
+  const uniqueVersions = useMemo(() => {
+    const versions = new Set<string>();
+    tickets.forEach(t => {
+      if (t.version) versions.add(t.version);
+    });
+    return Array.from(versions).sort();
+  }, [tickets]);
 
   const getAssigneeName = (assigneeId?: string | null) => {
     if (!assigneeId) return null;
@@ -3301,15 +3532,45 @@ function CompletedTicketsView({
   const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 
   const filteredAndSortedTickets = useMemo(() => {
-    // First filter by search query
+    // First filter by search query and filters
     let result = tickets;
+    
+    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = tickets.filter(t => 
+      result = result.filter(t => 
         t.title.toLowerCase().includes(query) ||
         (t.description && t.description.toLowerCase().includes(query))
       );
     }
+    
+    // Sprint filter
+    if (filterSprint !== "all") {
+      if (filterSprint === "none") {
+        result = result.filter(t => !t.sprintId);
+      } else {
+        result = result.filter(t => t.sprintId === filterSprint);
+      }
+    }
+    
+    // Epic filter
+    if (filterEpic !== "all") {
+      if (filterEpic === "none") {
+        result = result.filter(t => !t.epicId);
+      } else {
+        result = result.filter(t => t.epicId === filterEpic);
+      }
+    }
+    
+    // Version filter
+    if (filterVersion !== "all") {
+      if (filterVersion === "none") {
+        result = result.filter(t => !t.version);
+      } else {
+        result = result.filter(t => t.version === filterVersion);
+      }
+    }
+    
     // Then sort
     return [...result].sort((a, b) => {
       let comparison = 0;
@@ -3337,7 +3598,7 @@ function CompletedTicketsView({
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [tickets, sortColumn, sortDirection, searchQuery]);
+  }, [tickets, sortColumn, sortDirection, searchQuery, filterSprint, filterEpic, filterVersion]);
 
   const SortableHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
     <th 
@@ -3367,23 +3628,90 @@ function CompletedTicketsView({
     );
   }
 
+  const hasActiveFilters = filterSprint !== "all" || filterEpic !== "all" || filterVersion !== "all";
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un ticket..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-            data-testid="input-completed-search"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un ticket..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-completed-search"
+            />
+          </div>
+          <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
+            {filteredAndSortedTickets.length} / {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
+          </Badge>
         </div>
-        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
-          {tickets.length} ticket{tickets.length > 1 ? 's' : ''} terminé{tickets.length > 1 ? 's' : ''}
-        </Badge>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          
+          <Select value={filterSprint} onValueChange={setFilterSprint}>
+            <SelectTrigger className="w-[160px] h-8 text-xs" data-testid="select-completed-filter-sprint">
+              <SelectValue placeholder="Sprint" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les sprints</SelectItem>
+              <SelectItem value="none">Sans sprint</SelectItem>
+              {sprints.map(sprint => (
+                <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={filterEpic} onValueChange={setFilterEpic}>
+            <SelectTrigger className="w-[160px] h-8 text-xs" data-testid="select-completed-filter-epic">
+              <SelectValue placeholder="Epic" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les epics</SelectItem>
+              <SelectItem value="none">Sans epic</SelectItem>
+              {epics.map(epic => (
+                <SelectItem key={epic.id} value={epic.id}>{epic.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {uniqueVersions.length > 0 && (
+            <Select value={filterVersion} onValueChange={setFilterVersion}>
+              <SelectTrigger className="w-[140px] h-8 text-xs" data-testid="select-completed-filter-version">
+                <SelectValue placeholder="Version" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes versions</SelectItem>
+                <SelectItem value="none">Sans version</SelectItem>
+                {uniqueVersions.map(version => (
+                  <SelectItem key={version} value={version}>{version}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setFilterSprint("all");
+                setFilterEpic("all");
+                setFilterVersion("all");
+              }}
+              data-testid="button-clear-completed-filters"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Effacer filtres
+            </Button>
+          )}
+        </div>
       </div>
+      
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/50">

@@ -6529,20 +6529,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete sprint
+  // Delete sprint with optional ticket reassignment
   app.delete("/api/sprints/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
+      const { redirectTo } = req.body || {}; // 'backlog' or sprint ID
       
+      // First get the sprint to check it exists and get backlog ID
+      const [sprint] = await db.select().from(sprints)
+        .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)));
+      
+      if (!sprint) {
+        return res.status(404).json({ error: "Sprint not found" });
+      }
+      
+      // Cannot delete a sprint that is "en_cours"
+      if (sprint.status === "en_cours") {
+        return res.status(400).json({ error: "Impossible de supprimer un sprint en cours. Terminez-le d'abord." });
+      }
+      
+      // Get all tickets in this sprint
+      const storiesInSprint = await db.select().from(userStories)
+        .where(and(eq(userStories.sprintId, id), eq(userStories.accountId, accountId)));
+      const tasksInSprint = await db.select().from(backlogTasks)
+        .where(and(eq(backlogTasks.sprintId, id), eq(backlogTasks.accountId, accountId)));
+      
+      const hasTickets = storiesInSprint.length > 0 || tasksInSprint.length > 0;
+      
+      // If there are tickets, we need a redirect target
+      if (hasTickets && !redirectTo) {
+        return res.status(400).json({ 
+          error: "Ce sprint contient des tickets. Veuillez spécifier une destination pour les réassigner.",
+          ticketCount: storiesInSprint.length + tasksInSprint.length
+        });
+      }
+      
+      // Reassign tickets if needed
+      if (hasTickets) {
+        const targetSprintId = redirectTo === 'backlog' ? null : redirectTo;
+        
+        if (storiesInSprint.length > 0) {
+          await db.update(userStories)
+            .set({ sprintId: targetSprintId, updatedAt: new Date() })
+            .where(and(eq(userStories.sprintId, id), eq(userStories.accountId, accountId)));
+        }
+        
+        if (tasksInSprint.length > 0) {
+          await db.update(backlogTasks)
+            .set({ sprintId: targetSprintId, updatedAt: new Date() })
+            .where(and(eq(backlogTasks.sprintId, id), eq(backlogTasks.accountId, accountId)));
+        }
+      }
+      
+      // Now delete the sprint
       const [deleted] = await db.delete(sprints)
         .where(and(eq(sprints.id, id), eq(sprints.accountId, accountId)))
         .returning();
       
-      if (!deleted) {
-        return res.status(404).json({ error: "Sprint not found" });
-      }
-      res.json({ success: true });
+      res.json({ 
+        success: true, 
+        movedTickets: storiesInSprint.length + tasksInSprint.length,
+        redirectedTo: redirectTo === 'backlog' ? 'backlog' : redirectTo || null
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

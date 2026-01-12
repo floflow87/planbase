@@ -4,7 +4,7 @@ import {
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
-  CheckSquare, Square, MoreHorizontal, Link2, Bug
+  CheckSquare, Square, MoreHorizontal, Link2, Bug, Tag, X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -816,7 +816,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
 
 // Bulk action types
 export interface BulkAction {
-  type: "bulk_change_state" | "bulk_change_priority" | "bulk_assign" | "bulk_set_estimate" | "bulk_link_epic" | "bulk_move_sprint" | "bulk_move_backlog" | "bulk_delete";
+  type: "bulk_change_state" | "bulk_change_priority" | "bulk_assign" | "bulk_set_estimate" | "bulk_link_epic" | "bulk_move_sprint" | "bulk_move_backlog" | "bulk_set_version" | "bulk_delete";
   ticketIds: { id: string; type: TicketType }[];
   state?: string;
   priority?: string;
@@ -824,6 +824,7 @@ export interface BulkAction {
   estimatePoints?: number;
   epicId?: string | null;
   sprintId?: string | null;
+  version?: string | null;
 }
 
 // Bulk Actions Dropdown Component
@@ -1024,6 +1025,36 @@ function BulkActionsDropdown({
             Déplacer vers le backlog
           </DropdownMenuItem>
           
+          {/* Set Version */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-gray-900">
+              <Tag className="h-4 w-4 mr-2" />
+              Définir la version
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="bg-white dark:bg-white">
+              <DropdownMenuItem 
+                onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version: null })}
+                className="text-gray-900"
+                data-testid="bulk-action-remove-version"
+              >
+                <X className="h-4 w-4 mr-2 text-muted-foreground" />
+                Aucune version
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {["1.0.0", "1.1.0", "1.2.0", "2.0.0", "MVP", "Beta", "Alpha"].map(version => (
+                <DropdownMenuItem 
+                  key={version}
+                  onClick={() => onBulkAction({ type: "bulk_set_version", ticketIds: selectedTickets, version })}
+                  className="text-gray-900"
+                  data-testid={`bulk-action-version-${version}`}
+                >
+                  <Badge variant="outline" className="text-xs mr-2">{version}</Badge>
+                  {version}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          
           <DropdownMenuSeparator />
           
           {/* Delete */}
@@ -1065,6 +1096,7 @@ interface SprintSectionProps {
   onStartSprint?: (sprintId: string) => void;
   onCompleteSprint?: (sprintId: string) => void;
   onEditSprint?: (sprint: Sprint) => void;
+  onDeleteSprint?: (sprintId: string) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
   onTicketAction?: (action: TicketAction) => void;
@@ -1093,6 +1125,7 @@ export function SprintSection({
   onStartSprint,
   onCompleteSprint,
   onEditSprint,
+  onDeleteSprint,
   onUpdateState,
   onUpdateField,
   onTicketAction,
@@ -1256,6 +1289,19 @@ export function SprintSection({
                       Déplacer vers le bas
                     </DropdownMenuItem>
                   )}
+                </>
+              )}
+              {onDeleteSprint && sprint.status !== "en_cours" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => onDeleteSprint(sprint.id)} 
+                    className="text-red-600"
+                    data-testid={`button-delete-sprint-${sprint.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer le sprint
+                  </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>

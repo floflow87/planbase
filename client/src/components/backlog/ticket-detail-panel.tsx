@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
@@ -528,10 +528,6 @@ export function TicketDetailPanel({
         {/* Epic selector - directly under title for US and Task */}
         {ticket.type !== "epic" && epics.length > 0 && (
           <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <Link2 className="h-4 w-4" />
-              Epic
-            </Label>
             <Select
               value={ticket.epicId || "none"}
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { 
@@ -539,17 +535,26 @@ export function TicketDetailPanel({
               })}
               disabled={readOnly}
             >
-              <SelectTrigger className={cn("flex-1 h-8 bg-white", readOnly && "opacity-60")} data-testid="select-epic-top">
+              <SelectTrigger 
+                className={cn(
+                  "h-8 bg-white gap-2 w-auto min-w-[180px]", 
+                  readOnly && "opacity-60",
+                  !readOnly && "cursor-pointer hover:bg-gray-50"
+                )} 
+                data-testid="select-epic-top"
+              >
+                <Link2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm text-muted-foreground flex-shrink-0">Epic :</span>
                 <SelectValue>
                   {parentEpic ? (
                     <div className="flex items-center gap-2">
                       <div 
-                        className="h-2 w-2 rounded-full" 
+                        className="h-2 w-2 rounded-full flex-shrink-0" 
                         style={{ backgroundColor: parentEpic.color || "#8B5CF6" }}
                       />
-                      {parentEpic.title}
+                      <span className="truncate">{parentEpic.title}</span>
                     </div>
-                  ) : "Aucun"}
+                  ) : <span className="text-gray-500">Aucun</span>}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-white">
@@ -791,6 +796,26 @@ export function TicketDetailPanel({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Version selector */}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Version
+            </Label>
+            <div className="flex items-center gap-1 w-[140px]">
+              <Input
+                value={ticket.version || ""}
+                onChange={(e) => onUpdate(ticket.id, ticket.type, { 
+                  version: e.target.value || null 
+                })}
+                placeholder="ex: 1.0.0"
+                className={cn("h-8 text-sm", readOnly && "opacity-60")}
+                disabled={readOnly}
+                data-testid="input-version"
+              />
+            </div>
           </div>
           
           {/* Linked Notes Section */}
