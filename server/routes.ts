@@ -6879,6 +6879,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? "backlog_task" 
         : ticketType;
       
+      console.log(`📊 Fetching ticket activities: ticketId=${ticketId}, ticketType=${ticketType}, subjectType=${subjectType}`);
+      
       const result = await db.select().from(activities)
         .where(and(
           eq(activities.subjectId, ticketId),
@@ -6887,14 +6889,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .orderBy(desc(activities.createdAt));
       
+      console.log(`📊 Found ${result.length} activities for ticket ${ticketId}:`, result.map(a => ({ id: a.id, payload: a.payload })));
+      
       // Enrich activities with user info
       const enrichedActivities = await Promise.all(result.map(async (activity) => {
-        const [user] = await db.select({
-          id: appUsers.id,
-          firstName: appUsers.firstName,
-          lastName: appUsers.lastName,
-          email: appUsers.email,
-        }).from(appUsers).where(eq(appUsers.id, activity.createdBy));
+        let user = undefined;
+        if (activity.createdBy) {
+          const [foundUser] = await db.select({
+            id: appUsers.id,
+            firstName: appUsers.firstName,
+            lastName: appUsers.lastName,
+            email: appUsers.email,
+          }).from(appUsers).where(eq(appUsers.id, activity.createdBy));
+          user = foundUser;
+        }
         return {
           ...activity,
           user,

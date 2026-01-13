@@ -864,7 +864,7 @@ function BulkActionsDropdown({
             <ChevronDown className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 bg-white dark:bg-white" align="start">
+        <DropdownMenuContent className="w-56 bg-white dark:bg-white text-[12px]" align="start">
           {/* Change State */}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="text-gray-900">

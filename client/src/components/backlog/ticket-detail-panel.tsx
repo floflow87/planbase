@@ -184,8 +184,11 @@ export function TicketDetailPanel({
     queryKey: activitiesQueryKey,
     queryFn: async () => {
       if (!ticketId || !activitySubjectType) return [];
+      console.log(`📊 Frontend: Fetching activities for ticket ${ticketId}, subjectType ${activitySubjectType}`);
       const res = await apiRequest(`/api/tickets/${ticketId}/${activitySubjectType}/activities`, "GET");
-      return res.json();
+      const activities = await res.json();
+      console.log(`📊 Frontend: Got ${activities.length} activities:`, activities);
+      return activities;
     },
     enabled: !!ticketId && !!activitySubjectType,
     staleTime: 30000,
@@ -195,6 +198,11 @@ export function TicketDetailPanel({
   const stateChangeActivities = ticketActivities.filter(a => 
     (a.payload as any)?.type === "state_change"
   );
+  
+  // Debug: Log state change activities
+  if (stateChangeActivities.length > 0) {
+    console.log(`📊 Frontend: ${stateChangeActivities.length} state change activities found`);
+  }
   
   // Fetch recipe for the ticket (if not provided via prop)
   const { data: fetchedRecipeData } = useQuery<{ recipe: TicketRecipeInfo & { conclusion: RecipeConclusion | null } | null }>({
