@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity, TicketAcceptanceCriteria } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { 
@@ -222,6 +222,59 @@ export function TicketDetailPanel({
     sprintId: fetchedRecipeData.recipe.sprintId,
     sprintName: fetchedRecipeData.recipe.sprintName,
   } : null);
+  
+  // Acceptance Criteria - State and queries
+  const [newCriterionText, setNewCriterionText] = useState("");
+  const [editingCriterionId, setEditingCriterionId] = useState<string | null>(null);
+  const [editingCriterionText, setEditingCriterionText] = useState("");
+  
+  // Fetch acceptance criteria for the ticket
+  const acceptanceCriteriaQueryKey = ["/api/tickets", ticketId, ticketType, "acceptance-criteria"] as const;
+  const { data: acceptanceCriteria = [] } = useQuery<TicketAcceptanceCriteria[]>({
+    queryKey: acceptanceCriteriaQueryKey,
+    queryFn: async () => {
+      if (!ticketId || !ticketType) return [];
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/acceptance-criteria`, "GET");
+      return res.json();
+    },
+    enabled: !!ticketId && !!ticketType && ticketType !== "epic",
+  });
+  
+  // Create acceptance criterion mutation
+  const createCriterionMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/acceptance-criteria`, "POST", { content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: acceptanceCriteriaQueryKey });
+      setNewCriterionText("");
+    },
+  });
+  
+  // Update acceptance criterion mutation
+  const updateCriterionMutation = useMutation({
+    mutationFn: async ({ criterionId, content }: { criterionId: string; content: string }) => {
+      const res = await apiRequest(`/api/acceptance-criteria/${criterionId}`, "PATCH", { content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: acceptanceCriteriaQueryKey });
+      setEditingCriterionId(null);
+      setEditingCriterionText("");
+    },
+  });
+  
+  // Delete acceptance criterion mutation
+  const deleteCriterionMutation = useMutation({
+    mutationFn: async (criterionId: string) => {
+      const res = await apiRequest(`/api/acceptance-criteria/${criterionId}`, "DELETE");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: acceptanceCriteriaQueryKey });
+    },
+  });
   
   // Get all notes for linking
   const { data: allNotes = [] } = useQuery<Note[]>({
@@ -986,6 +1039,115 @@ export function TicketDetailPanel({
               <p className="text-xs text-muted-foreground">Aucune note liée</p>
             )}
           </div>
+          
+          {/* Acceptance Criteria Section */}
+          {ticket && (ticket.type === "user_story" || ticket.type === "task" || ticket.type === "bug") && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="acceptance-criteria-section">
+                <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+                  <ClipboardList className="h-3 w-3" />
+                  Critères d'acceptation
+                </Label>
+                
+                {/* Existing criteria */}
+                {acceptanceCriteria.length > 0 && (
+                  <div className="space-y-1">
+                    {acceptanceCriteria.map((criterion, index) => (
+                      <div 
+                        key={criterion.id} 
+                        className="flex items-center gap-2 group"
+                        data-testid={`acceptance-criterion-${criterion.id}`}
+                      >
+                        <span className="text-xs text-muted-foreground w-4 flex-shrink-0">{index + 1}.</span>
+                        {editingCriterionId === criterion.id ? (
+                          <Input
+                            value={editingCriterionText}
+                            onChange={(e) => setEditingCriterionText(e.target.value)}
+                            onBlur={() => {
+                              if (editingCriterionText.trim() && editingCriterionText !== criterion.content) {
+                                updateCriterionMutation.mutate({ criterionId: criterion.id, content: editingCriterionText.trim() });
+                              } else {
+                                setEditingCriterionId(null);
+                                setEditingCriterionText("");
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.currentTarget.blur();
+                              } else if (e.key === "Escape") {
+                                setEditingCriterionId(null);
+                                setEditingCriterionText("");
+                              }
+                            }}
+                            className="h-7 text-xs flex-1"
+                            autoFocus
+                            data-testid={`input-edit-criterion-${criterion.id}`}
+                          />
+                        ) : (
+                          <span 
+                            className="text-sm flex-1 cursor-pointer hover:text-foreground/80"
+                            onClick={() => {
+                              if (!readOnly) {
+                                setEditingCriterionId(criterion.id);
+                                setEditingCriterionText(criterion.content);
+                              }
+                            }}
+                          >
+                            {criterion.content}
+                          </span>
+                        )}
+                        {!readOnly && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => deleteCriterionMutation.mutate(criterion.id)}
+                            disabled={deleteCriterionMutation.isPending}
+                            data-testid={`button-delete-criterion-${criterion.id}`}
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Add new criterion */}
+                {!readOnly && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newCriterionText}
+                      onChange={(e) => setNewCriterionText(e.target.value)}
+                      placeholder="Nouveau critère..."
+                      className="h-7 text-xs flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newCriterionText.trim()) {
+                          createCriterionMutation.mutate(newCriterionText.trim());
+                        }
+                      }}
+                      data-testid="input-new-criterion"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => {
+                        if (newCriterionText.trim()) {
+                          createCriterionMutation.mutate(newCriterionText.trim());
+                        }
+                      }}
+                      disabled={!newCriterionText.trim() || createCriterionMutation.isPending}
+                      data-testid="button-add-criterion"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
           
           {/* Recipe Section */}
           {ticket && (ticket.type === "user_story" || ticket.type === "task") && (

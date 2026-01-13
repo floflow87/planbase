@@ -3,6 +3,57 @@
 
 ---
 
+## 📊 Burn Down Chart - Recommandations Intelligentes (Janvier 2026)
+
+Le graphique Burn Down affiche désormais des recommandations contextuelles avec code couleur basées sur l'analyse de la courbe de consommation.
+
+### Algorithme d'Analyse
+L'algorithme analyse 3 métriques clés :
+- **Coefficient de Variation (CV)** : Mesure la régularité de la courbe (CV < 50% = régulier)
+- **Ratio de livraison tardive** : Compare la consommation 1ère vs 2ème moitié du sprint
+- **Consommation vs Idéal** : Compare le rythme actuel au rythme linéaire optimal
+
+### 4 Cas de Recommandation
+
+| Cas | Condition | Message | Couleur | Icône |
+|-----|-----------|---------|---------|-------|
+| 1 | Courbe régulière + projection OK | "Rythme maîtrisé, pas d'action requise" | Vert | CheckCircle |
+| 2 | Courbe régulière mais trop haute en fin | "Rythme stable mais insuffisant → risque de débordement" | Orange | AlertCircle |
+| 3 | Chute tardive (courbe plate puis chute) | "Livraison tardive → risque de stress, qualité et dette technique" | Rouge | XCircle |
+| 4 | Chute trop rapide | "Sous-estimation initiale ou tickets trop grossiers" | Amber | AlertTriangle |
+
+### Conditions de Déclenchement
+- **Cas 1** : CV < 50% ET sprints restants <= 2
+- **Cas 2** : CV < 50% ET sprints restants > 2 ET restant > 30% du total initial
+- **Cas 3** : Ratio 2ème/1ère moitié > 2 ET CV > 50%
+- **Cas 4** : Consommation > 150% de l'idéal ET restant < 30% du total initial
+
+---
+
+## ✅ Critères d'Acceptation des Tickets (Janvier 2026)
+
+Les tickets (User Stories, Tasks, Bugs) peuvent désormais avoir des critères d'acceptation gérés directement depuis le panneau de détail.
+
+### Fonctionnalités
+- **Ajout** : Champ de saisie avec bouton "+" ou touche Entrée
+- **Modification** : Clic sur un critère pour édition inline, sauvegarde au blur ou Entrée
+- **Suppression** : Icône corbeille au survol pour supprimer un critère
+- **Numérotation** : Affichage ordonné avec numéros (1., 2., 3., ...)
+
+### Architecture
+- **Table** : `ticket_acceptance_criteria` avec support multi-type (user_story, task, bug)
+- **API** : CRUD complet via `/api/tickets/:ticketId/:ticketType/acceptance-criteria`
+- **UI** : Section positionnée avant "Recette" dans le panneau de détail
+
+### Usage
+1. Ouvrir un ticket (User Story, Task ou Bug)
+2. Scroller jusqu'à "Critères d'acceptation"
+3. Saisir un critère et appuyer sur Entrée ou cliquer sur "+"
+4. Cliquer sur un critère pour le modifier
+5. Survoler et cliquer sur la corbeille pour supprimer
+
+---
+
 ## 🎯 Nouvelles Fonctionnalités Majeures
 
 ### 1. 📊 **Système de Gestion des Tâches Amélioré**

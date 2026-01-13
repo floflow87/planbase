@@ -1173,6 +1173,22 @@ export const ticketComments = pgTable("ticket_comments", {
   ticketIdx: index().on(table.ticketId, table.ticketType),
 }));
 
+// Ticket Acceptance Criteria table (Critères d'acceptation)
+export const ticketAcceptanceCriteria = pgTable("ticket_acceptance_criteria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  ticketId: uuid("ticket_id").notNull(), // Generic reference to user_story or backlog_task
+  ticketType: text("ticket_type").notNull(), // 'user_story', 'task', 'bug'
+  content: text("content").notNull(),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  ticketIdx: index().on(table.ticketId, table.ticketType),
+  positionIdx: index().on(table.ticketId, table.position),
+}));
+
 // Ticket Recipes table (Cahier de recette / QA Testing)
 export const ticketRecipes = pgTable("ticket_recipes", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1401,6 +1417,9 @@ export const updateRetroCardSchema = insertRetroCardSchema.omit({ accountId: tru
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketCommentSchema = insertTicketCommentSchema.omit({ accountId: true, ticketId: true, ticketType: true, authorId: true }).partial();
 
+export const insertTicketAcceptanceCriteriaSchema = createInsertSchema(ticketAcceptanceCriteria).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateTicketAcceptanceCriteriaSchema = insertTicketAcceptanceCriteriaSchema.omit({ accountId: true, ticketId: true, ticketType: true }).partial();
+
 export const insertTicketRecipeSchema = createInsertSchema(ticketRecipes).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketRecipeSchema = insertTicketRecipeSchema.omit({ accountId: true, backlogId: true, sprintId: true, ticketId: true, ticketType: true }).partial();
 export const upsertTicketRecipeSchema = z.object({
@@ -1540,6 +1559,8 @@ export type BacklogColumn = typeof backlogColumns.$inferSelect;
 export type Retro = typeof retros.$inferSelect;
 export type RetroCard = typeof retroCards.$inferSelect;
 export type TicketComment = typeof ticketComments.$inferSelect;
+export type TicketAcceptanceCriteria = typeof ticketAcceptanceCriteria.$inferSelect;
+export type InsertTicketAcceptanceCriteria = z.infer<typeof insertTicketAcceptanceCriteriaSchema>;
 export type TicketRecipe = typeof ticketRecipes.$inferSelect;
 export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
 export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;

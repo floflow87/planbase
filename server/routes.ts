@@ -60,6 +60,9 @@ import {
   updateBacklogColumnSchema,
   insertTicketCommentSchema,
   updateTicketCommentSchema,
+  insertTicketAcceptanceCriteriaSchema,
+  updateTicketAcceptanceCriteriaSchema,
+  ticketAcceptanceCriteria,
   upsertTicketRecipeSchema,
   recipeStatusOptions,
   recipeConclusionOptions,
@@ -7002,6 +7005,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!deleted) {
         return res.status(404).json({ error: "Comment not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TICKET ACCEPTANCE CRITERIA (Critères d'acceptation)
+  // ============================================
+
+  // Get acceptance criteria for a ticket
+  app.get("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ticketId = req.params.ticketId;
+      const ticketType = req.params.ticketType;
+      
+      const result = await db.select().from(ticketAcceptanceCriteria)
+        .where(and(
+          eq(ticketAcceptanceCriteria.ticketId, ticketId), 
+          eq(ticketAcceptanceCriteria.accountId, accountId),
+          eq(ticketAcceptanceCriteria.ticketType, ticketType)
+        ))
+        .orderBy(asc(ticketAcceptanceCriteria.position));
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create acceptance criterion
+  app.post("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ticketId = req.params.ticketId;
+      const ticketType = req.params.ticketType;
+      
+      // Get next position
+      const existingCriteria = await db.select({ position: ticketAcceptanceCriteria.position })
+        .from(ticketAcceptanceCriteria)
+        .where(and(
+          eq(ticketAcceptanceCriteria.ticketId, ticketId),
+          eq(ticketAcceptanceCriteria.accountId, accountId)
+        ))
+        .orderBy(desc(ticketAcceptanceCriteria.position))
+        .limit(1);
+      
+      const nextPosition = existingCriteria.length > 0 ? existingCriteria[0].position + 1 : 0;
+      
+      const data = insertTicketAcceptanceCriteriaSchema.parse({
+        content: req.body.content,
+        accountId,
+        ticketId,
+        ticketType,
+        position: nextPosition,
+      });
+      
+      const [criterion] = await db.insert(ticketAcceptanceCriteria).values(data).returning();
+      res.status(201).json(criterion);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update acceptance criterion
+  app.patch("/api/acceptance-criteria/:criterionId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const criterionId = req.params.criterionId;
+      const data = updateTicketAcceptanceCriteriaSchema.parse(req.body);
+      
+      const [updated] = await db.update(ticketAcceptanceCriteria)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(ticketAcceptanceCriteria.id, criterionId), eq(ticketAcceptanceCriteria.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Acceptance criterion not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete acceptance criterion
+  app.delete("/api/acceptance-criteria/:criterionId", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const criterionId = req.params.criterionId;
+      
+      const [deleted] = await db.delete(ticketAcceptanceCriteria)
+        .where(and(eq(ticketAcceptanceCriteria.id, criterionId), eq(ticketAcceptanceCriteria.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Acceptance criterion not found" });
       }
       res.json({ success: true });
     } catch (error: any) {

@@ -754,6 +754,30 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket recipes remarks column added");
     
+    // Create ticket_acceptance_criteria table (Critères d'acceptation)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ticket_acceptance_criteria (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        ticket_id uuid NOT NULL,
+        ticket_type text NOT NULL CHECK (ticket_type IN ('user_story', 'task', 'bug')),
+        content text NOT NULL,
+        position integer NOT NULL DEFAULT 0,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_acceptance_criteria_account_idx ON ticket_acceptance_criteria(account_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_acceptance_criteria_ticket_idx ON ticket_acceptance_criteria(ticket_id, ticket_type);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS ticket_acceptance_criteria_position_idx ON ticket_acceptance_criteria(ticket_id, position);
+    `);
+    console.log("✅ Ticket acceptance criteria table created");
+    
     // Add backlog_id column to retros table and make sprint_id nullable
     await db.execute(sql`
       ALTER TABLE retros ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE;

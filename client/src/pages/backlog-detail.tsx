@@ -4073,8 +4073,8 @@ function BacklogStats({
     return "La vélocité est en hausse.";
   };
   
-  // 3️⃣ Burn Rate - Lecture de consommation avec analyse de courbe
-  const getBurnRateReading = (): { text: string; color: 'green' | 'orange' | 'red' | 'amber' } | null => {
+  // 3️⃣ Burn Rate - Lecture de consommation avec analyse de courbe (mémoïsé)
+  const burnRateReading = useMemo((): { text: string; color: 'green' | 'orange' | 'red' | 'amber' } | null => {
     if (burnData.length < 2) return null;
     
     const firstRemaining = burnData[0]?.remaining || 0;
@@ -4151,7 +4151,7 @@ function BacklogStats({
       text: "La consommation du backlog est en cours d'analyse.",
       color: 'amber'
     };
-  };
+  }, [burnData]);
   
   // 6️⃣ Lecture automatique structurée (Constat / Risque / Action)
   const readings: { constat: string; risque?: string; action?: string } = {
@@ -4539,22 +4539,22 @@ function BacklogStats({
                   </ResponsiveContainer>
                 </div>
                 {/* Lecture burn down avec code couleur */}
-                {getBurnRateReading() && (
+                {burnRateReading && (
                   <div 
                     className={cn(
                       "mt-3 text-xs p-2 rounded flex items-center gap-2",
-                      getBurnRateReading()?.color === 'green' && "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800",
-                      getBurnRateReading()?.color === 'orange' && "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800",
-                      getBurnRateReading()?.color === 'red' && "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",
-                      getBurnRateReading()?.color === 'amber' && "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                      burnRateReading.color === 'green' && "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800",
+                      burnRateReading.color === 'orange' && "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800",
+                      burnRateReading.color === 'red' && "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",
+                      burnRateReading.color === 'amber' && "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                     )}
                     data-testid="text-burndown-reading"
                   >
-                    {getBurnRateReading()?.color === 'green' && <CheckCircle className="h-4 w-4 flex-shrink-0" />}
-                    {getBurnRateReading()?.color === 'orange' && <AlertCircle className="h-4 w-4 flex-shrink-0" />}
-                    {getBurnRateReading()?.color === 'red' && <XCircle className="h-4 w-4 flex-shrink-0" />}
-                    {getBurnRateReading()?.color === 'amber' && <AlertTriangle className="h-4 w-4 flex-shrink-0" />}
-                    <span>{getBurnRateReading()?.text}</span>
+                    {burnRateReading.color === 'green' && <CheckCircle className="h-4 w-4 flex-shrink-0" />}
+                    {burnRateReading.color === 'orange' && <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                    {burnRateReading.color === 'red' && <XCircle className="h-4 w-4 flex-shrink-0" />}
+                    {burnRateReading.color === 'amber' && <AlertTriangle className="h-4 w-4 flex-shrink-0" />}
+                    <span>{burnRateReading.text}</span>
                   </div>
                 )}
               </>
