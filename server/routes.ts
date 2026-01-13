@@ -7162,6 +7162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (recipeData.observedResults !== undefined) updateData.observedResults = recipeData.observedResults;
         if (recipeData.conclusion !== undefined) updateData.conclusion = recipeData.conclusion;
         if (recipeData.suggestions !== undefined) updateData.suggestions = recipeData.suggestions;
+        if (recipeData.remarks !== undefined) updateData.remarks = recipeData.remarks;
         if (recipeData.isFixedDone !== undefined) updateData.isFixedDone = recipeData.isFixedDone;
         
         [recipe] = await db.update(ticketRecipes)
@@ -7180,6 +7181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           observedResults: recipeData.observedResults || null,
           conclusion: recipeData.conclusion || null,
           suggestions: recipeData.suggestions || null,
+          remarks: recipeData.remarks || null,
           isFixedDone: recipeData.isFixedDone || false,
           updatedBy: userId,
         }).returning();

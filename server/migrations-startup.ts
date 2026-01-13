@@ -748,6 +748,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket recipes conclusion constraint updated");
     
+    // Add remarks column to ticket_recipes table
+    await db.execute(sql`
+      ALTER TABLE ticket_recipes ADD COLUMN IF NOT EXISTS remarks text;
+    `);
+    console.log("✅ Ticket recipes remarks column added");
+    
     // Add backlog_id column to retros table and make sprint_id nullable
     await db.execute(sql`
       ALTER TABLE retros ADD COLUMN IF NOT EXISTS backlog_id uuid REFERENCES backlogs(id) ON DELETE CASCADE;

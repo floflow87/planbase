@@ -617,8 +617,6 @@ export function TicketDetailPanel({
                 )} 
                 data-testid="select-epic-top"
               >
-                <Link2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm text-muted-foreground flex-shrink-0">Epic :</span>
                 <SelectValue>
                   {parentEpic ? (
                     <div className="flex items-center gap-2">
@@ -628,7 +626,7 @@ export function TicketDetailPanel({
                       />
                       <span className="truncate">{parentEpic.title}</span>
                     </div>
-                  ) : <span className="text-gray-500">Aucun</span>}
+                  ) : <span className="text-gray-500">Aucun epic</span>}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-white">

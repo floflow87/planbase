@@ -2231,6 +2231,7 @@ export default function BacklogDetail() {
               users={users}
               sprints={backlog.sprints}
               epics={backlog.epics}
+              backlogName={backlog.name}
               onSelectTicket={handleSelectTicket}
               selectedTicketId={selectedTicket?.id}
             />
@@ -3541,6 +3542,7 @@ function CompletedTicketsView({
   users,
   sprints,
   epics,
+  backlogName,
   onSelectTicket,
   selectedTicketId
 }: {
@@ -3548,9 +3550,20 @@ function CompletedTicketsView({
   users: AppUser[];
   sprints: Sprint[];
   epics: Epic[];
+  backlogName: string;
   onSelectTicket: (ticket: FlatTicket) => void;
   selectedTicketId?: string;
 }) {
+  // Generate ticket ID for search purposes
+  const generateTicketDisplayId = (ticket: FlatTicket, index: number) => {
+    const backlogPrefix = backlogName.substring(0, 3).toUpperCase();
+    const currentSprint = sprints.find(s => s.id === ticket.sprintId);
+    const sprintPrefix = currentSprint 
+      ? currentSprint.name.substring(0, 3).toUpperCase() 
+      : "BCK";
+    const indexStr = String(index + 1).padStart(2, "0");
+    return `${backlogPrefix}-${sprintPrefix}-${indexStr}`;
+  };
   const [sortColumn, setSortColumn] = useState<string>("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -3596,13 +3609,15 @@ function CompletedTicketsView({
     // First filter by search query and filters
     let result = tickets;
     
-    // Search filter
+    // Search filter - includes title, description and ticket ID
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter(t => 
-        t.title.toLowerCase().includes(query) ||
-        (t.description && t.description.toLowerCase().includes(query))
-      );
+      result = result.filter((t, index) => {
+        const ticketId = generateTicketDisplayId(t, index);
+        return t.title.toLowerCase().includes(query) ||
+          (t.description && t.description.toLowerCase().includes(query)) ||
+          ticketId.toLowerCase().includes(query);
+      });
     }
     
     // Sprint filter
@@ -3659,7 +3674,7 @@ function CompletedTicketsView({
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [tickets, sortColumn, sortDirection, searchQuery, filterSprint, filterEpic, filterVersion]);
+  }, [tickets, sortColumn, sortDirection, searchQuery, filterSprint, filterEpic, filterVersion, backlogName, sprints]);
 
   const SortableHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
     <th 
@@ -4727,6 +4742,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     observedResults: string;
     conclusion: RecipeConclusion | null;
     suggestions: string;
+    remarks: string;
     isFixedDone: boolean;
     pushToTicket: boolean;
   }>({
@@ -4734,6 +4750,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
     observedResults: "",
     conclusion: null,
     suggestions: "",
+    remarks: "",
     isFixedDone: false,
     pushToTicket: false,
   });
@@ -4977,6 +4994,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       observedResults: ticket.recipe?.observedResults || "",
       conclusion: (ticket.recipe?.conclusion as RecipeConclusion) || null,
       suggestions: ticket.recipe?.suggestions || "",
+      remarks: ticket.recipe?.remarks || "",
       isFixedDone: ticket.recipe?.isFixedDone || false,
       pushToTicket: false,
     });
@@ -5382,9 +5400,10 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                       </th>
                       <th className="text-left p-3 font-medium w-56">Ticket</th>
                       <th className="text-left p-3 font-medium">Statut</th>
-                      <th className="text-left p-3 font-medium">Résultats</th>
+                      <th className="text-left p-3 font-medium w-40">Résultats</th>
                       <th className="text-left p-3 font-medium">Conclusion</th>
-                      <th className="text-left p-3 font-medium">Suggestions</th>
+                      <th className="text-left p-3 font-medium w-40">Suggestions</th>
+                      <th className="text-left p-3 font-medium w-40">Remarques</th>
                       <th className="text-center p-3 font-medium whitespace-nowrap">Fixé / Terminé</th>
                     </tr>
                   </thead>
@@ -5457,10 +5476,21 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                        <td className="p-3">
-                          <span className="text-muted-foreground text-xs line-clamp-2">
-                            {ticket.recipe?.observedResults || "-"}
-                          </span>
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={ticket.recipe?.observedResults || ""}
+                            onChange={(e) => {
+                              upsertRecipeMutation.mutate({
+                                sprintId: sprint.id,
+                                ticketId: ticket.id,
+                                ticketType: ticket.type,
+                                observedResults: e.target.value || null,
+                              });
+                            }}
+                            placeholder="Résultats..."
+                            className="h-8 text-xs bg-white border-gray-200"
+                            data-testid={`input-results-${ticket.id}`}
+                          />
                         </td>
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
@@ -5514,10 +5544,37 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                        <td className="p-3">
-                          <span className="text-muted-foreground text-xs line-clamp-2">
-                            {ticket.recipe?.suggestions || "-"}
-                          </span>
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={ticket.recipe?.suggestions || ""}
+                            onChange={(e) => {
+                              upsertRecipeMutation.mutate({
+                                sprintId: sprint.id,
+                                ticketId: ticket.id,
+                                ticketType: ticket.type,
+                                suggestions: e.target.value || null,
+                              });
+                            }}
+                            placeholder="Suggestions..."
+                            className="h-8 text-xs bg-white border-gray-200"
+                            data-testid={`input-suggestions-${ticket.id}`}
+                          />
+                        </td>
+                        <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={ticket.recipe?.remarks || ""}
+                            onChange={(e) => {
+                              upsertRecipeMutation.mutate({
+                                sprintId: sprint.id,
+                                ticketId: ticket.id,
+                                ticketType: ticket.type,
+                                remarks: e.target.value || null,
+                              });
+                            }}
+                            placeholder="Remarques..."
+                            className="h-8 text-xs bg-white border-gray-200"
+                            data-testid={`input-remarks-${ticket.id}`}
+                          />
                         </td>
                         <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
@@ -5670,6 +5727,19 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               />
             </div>
 
+            {/* Remarks / Remarques */}
+            <div className="space-y-2">
+              <Label className="text-gray-700">Remarques</Label>
+              <Textarea
+                value={recipeFormData.remarks}
+                onChange={(e) => setRecipeFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Notes libres, remarques additionnelles..."
+                rows={3}
+                className="bg-white text-gray-900 border-gray-300"
+                data-testid="textarea-remarks"
+              />
+            </div>
+
             {/* Is Fixed Done */}
             <div className="flex items-center gap-2">
               <Checkbox
@@ -5719,6 +5789,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                     observedResults: recipeFormData.observedResults || null,
                     conclusion: recipeFormData.conclusion,
                     suggestions: recipeFormData.suggestions || null,
+                    remarks: recipeFormData.remarks || null,
                     isFixedDone: recipeFormData.isFixedDone,
                     pushToTicket: recipeFormData.pushToTicket,
                   });

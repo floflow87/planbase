@@ -1185,6 +1185,7 @@ export const ticketRecipes = pgTable("ticket_recipes", {
   observedResults: text("observed_results"), // Multi-line text for observed results
   conclusion: text("conclusion"), // 'a_ameliorer', 'a_fix', 'a_ajouter'
   suggestions: text("suggestions"), // Multi-line text for suggestions
+  remarks: text("remarks"), // Multi-line text for free-form remarks (Remarques)
   isFixedDone: boolean("is_fixed_done").notNull().default(false),
   updatedBy: uuid("updated_by").references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1410,6 +1411,7 @@ export const upsertTicketRecipeSchema = z.object({
   observedResults: z.string().optional().nullable(),
   conclusion: z.enum(["termine", "a_ameliorer", "a_fix", "a_ajouter"]).optional().nullable(),
   suggestions: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(), // Free-form remarks (Remarques)
   isFixedDone: z.boolean().optional(),
   pushToTicket: z.boolean().optional(), // Flag to push comment to ticket
 });
