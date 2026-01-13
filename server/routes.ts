@@ -7260,6 +7260,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = upsertTicketRecipeSchema.parse(req.body);
       const { pushToTicket, ...recipeData } = data;
       
+      // Auto-apply logic when conclusion is "termine":
+      // - Set isFixedDone to true
+      // - Set status to "teste"
+      // - Update ticket state to "teste"
+      let autoIsFixedDone = recipeData.isFixedDone;
+      let autoStatus = recipeData.status;
+      let shouldUpdateTicketState = false;
+      
+      if (recipeData.conclusion === "termine") {
+        autoIsFixedDone = true;
+        autoStatus = "teste";
+        shouldUpdateTicketState = true;
+      }
+      
       // Check if recipe exists
       const existing = await db.select().from(ticketRecipes)
         .where(and(
@@ -7274,12 +7288,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existing.length > 0) {
         // Update existing
         const updateData: any = { updatedBy: userId, updatedAt: new Date() };
-        if (recipeData.status !== undefined) updateData.status = recipeData.status;
+        if (autoStatus !== undefined) updateData.status = autoStatus;
         if (recipeData.observedResults !== undefined) updateData.observedResults = recipeData.observedResults;
         if (recipeData.conclusion !== undefined) updateData.conclusion = recipeData.conclusion;
         if (recipeData.suggestions !== undefined) updateData.suggestions = recipeData.suggestions;
         if (recipeData.remarks !== undefined) updateData.remarks = recipeData.remarks;
-        if (recipeData.isFixedDone !== undefined) updateData.isFixedDone = recipeData.isFixedDone;
+        if (autoIsFixedDone !== undefined) updateData.isFixedDone = autoIsFixedDone;
         
         [recipe] = await db.update(ticketRecipes)
           .set(updateData)
@@ -7293,25 +7307,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sprintId: recipeData.sprintId,
           ticketId: recipeData.ticketId,
           ticketType: recipeData.ticketType,
-          status: recipeData.status || "a_tester",
+          status: autoStatus || "a_tester",
           observedResults: recipeData.observedResults || null,
           conclusion: recipeData.conclusion || null,
           suggestions: recipeData.suggestions || null,
           remarks: recipeData.remarks || null,
-          isFixedDone: recipeData.isFixedDone || false,
+          isFixedDone: autoIsFixedDone || false,
           updatedBy: userId,
         }).returning();
       }
       
+      // Update ticket state to "teste" when conclusion is "termine"
+      if (shouldUpdateTicketState) {
+        if (recipeData.ticketType === "user_story") {
+          await db.update(userStories)
+            .set({ state: "teste", updatedAt: new Date() })
+            .where(and(
+              eq(userStories.id, recipeData.ticketId),
+              eq(userStories.accountId, accountId)
+            ));
+        } else if (recipeData.ticketType === "task" || recipeData.ticketType === "bug") {
+          // Both tasks and bugs are stored in backlog_tasks table
+          await db.update(backlogTasks)
+            .set({ state: "teste", updatedAt: new Date() })
+            .where(and(
+              eq(backlogTasks.id, recipeData.ticketId),
+              eq(backlogTasks.accountId, accountId)
+            ));
+        }
+      }
+      
       // If pushToTicket is true, create a comment on the ticket
-      if (pushToTicket && (recipeData.observedResults || recipeData.suggestions)) {
+      // Remarks and suggestions create comments, but NOT observedResults
+      if (pushToTicket && (recipeData.suggestions || recipeData.remarks)) {
         // Get sprint name
         const [sprint] = await db.select().from(sprints)
           .where(eq(sprints.id, recipeData.sprintId))
           .limit(1);
         
         const sprintName = sprint?.name || "Sprint";
-        const statusLabel = recipeStatusOptions.find(s => s.value === (recipeData.status || recipe.status))?.label || "À tester";
+        const statusLabel = recipeStatusOptions.find(s => s.value === (autoStatus || recipe.status))?.label || "À tester";
         const conclusionLabel = recipeData.conclusion 
           ? recipeConclusionOptions.find(c => c.value === recipeData.conclusion)?.label 
           : null;
@@ -7323,12 +7358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commentParts.push(`Conclusion: ${conclusionLabel}`);
         }
         
-        if (recipeData.observedResults) {
-          commentParts.push("", "Résultats observés:", recipeData.observedResults);
-        }
-        
         if (recipeData.suggestions) {
           commentParts.push("", "Suggestions:", recipeData.suggestions);
+        }
+        
+        if (recipeData.remarks) {
+          commentParts.push("", "Remarques:", recipeData.remarks);
         }
         
         const commentContent = commentParts.join("\n");

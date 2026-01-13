@@ -1204,6 +1204,24 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Backlog tasks task_type column added");
 
+    // Fix entity_links constraint to allow backlog ticket types (user_story, bug, epic, task)
+    // Use DROP CONSTRAINT IF EXISTS to avoid errors on fresh databases
+    await db.execute(sql`
+      ALTER TABLE entity_links DROP CONSTRAINT IF EXISTS entity_links_source_type_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE entity_links DROP CONSTRAINT IF EXISTS entity_links_target_type_check;
+    `);
+    await db.execute(sql`
+      ALTER TABLE entity_links ADD CONSTRAINT entity_links_source_type_check 
+        CHECK (source_type IN ('note', 'project', 'document', 'task', 'client', 'user_story', 'bug', 'epic'));
+    `);
+    await db.execute(sql`
+      ALTER TABLE entity_links ADD CONSTRAINT entity_links_target_type_check 
+        CHECK (target_type IN ('note', 'project', 'document', 'task', 'client', 'user_story', 'bug', 'epic'));
+    `);
+    console.log("✅ Entity links constraints updated for backlog ticket types");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

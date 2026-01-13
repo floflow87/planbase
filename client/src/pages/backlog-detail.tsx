@@ -5795,10 +5795,15 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
               <Label className="text-gray-700">Conclusion</Label>
               <Select
                 value={recipeFormData.conclusion || "none"}
-                onValueChange={(v) => setRecipeFormData(prev => ({ 
-                  ...prev, 
-                  conclusion: v === "none" ? null : v as RecipeConclusion 
-                }))}
+                onValueChange={(v) => {
+                  const newConclusion = v === "none" ? null : v as RecipeConclusion;
+                  setRecipeFormData(prev => ({ 
+                    ...prev, 
+                    conclusion: newConclusion,
+                    // Auto-check isFixedDone and set status to "teste" when conclusion is "termine"
+                    ...(newConclusion === "termine" ? { isFixedDone: true, status: "teste" as RecipeStatus } : {})
+                  }));
+                }}
               >
                 <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-recipe-conclusion">
                   <SelectValue placeholder="Sélectionner..." />
