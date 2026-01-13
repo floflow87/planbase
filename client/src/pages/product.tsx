@@ -327,7 +327,7 @@ export default function Product() {
               >
                 <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm font-light truncate">{backlog.name}</CardTitle>
+                    <CardTitle className="text-xs font-light truncate">{backlog.name}</CardTitle>
                     {backlog.description && (
                       <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {backlog.description}
@@ -427,7 +427,7 @@ export default function Product() {
                   >
                     <td className="px-4 py-2">
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium">{backlog.name}</span>
+                        <span className="text-xs font-medium">{backlog.name}</span>
                         {backlog.description && (
                           <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
                         )}
