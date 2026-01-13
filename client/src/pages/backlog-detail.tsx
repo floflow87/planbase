@@ -1859,11 +1859,11 @@ export default function BacklogDetail() {
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Version</Label>
                 <Select value={versionFilter} onValueChange={setVersionFilter}>
-                  <SelectTrigger className="w-[120px] h-8 text-sm" data-testid="select-version-filter">
-                    <SelectValue placeholder="Toutes" />
+                  <SelectTrigger className="w-[150px] h-8 text-sm" data-testid="select-version-filter">
+                    <SelectValue placeholder="Toutes les versions" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Toutes</SelectItem>
+                    <SelectItem value="all">Toutes les versions</SelectItem>
                     <SelectItem value="none">Sans version</SelectItem>
                     {uniqueVersions.map(version => (
                       <SelectItem key={version} value={version}>{version}</SelectItem>

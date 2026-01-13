@@ -1086,7 +1086,7 @@ export function TicketDetailPanel({
                           />
                         ) : (
                           <span 
-                            className="text-sm flex-1 cursor-pointer hover:text-foreground/80"
+                            className="text-xs flex-1 cursor-pointer text-primary hover:text-primary/80"
                             onClick={() => {
                               if (!readOnly) {
                                 setEditingCriterionId(criterion.id);
@@ -1120,8 +1120,8 @@ export function TicketDetailPanel({
                     <Input
                       value={newCriterionText}
                       onChange={(e) => setNewCriterionText(e.target.value)}
-                      placeholder="Nouveau critère..."
-                      className="h-7 text-xs flex-1"
+                      placeholder="Ajouter..."
+                      className="h-7 text-[10px] flex-1"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && newCriterionText.trim()) {
                           createCriterionMutation.mutate(newCriterionText.trim());
@@ -1132,7 +1132,7 @@ export function TicketDetailPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-6 w-6 text-primary"
                       onClick={() => {
                         if (newCriterionText.trim()) {
                           createCriterionMutation.mutate(newCriterionText.trim());
