@@ -76,7 +76,7 @@ export function PostCreationSuggestions({
 
   if (hasCdc) {
     return (
-      <Card className="border-green-500/20 bg-green-500/5" data-testid="card-post-creation-suggestions">
+      <Card className="border-green-500/30 bg-white dark:bg-card" data-testid="card-post-creation-suggestions">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -102,53 +102,43 @@ export function PostCreationSuggestions({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <button
-            onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
-            className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
-            data-testid="button-suggestion-roadmap"
-          >
-            <div className="p-2 rounded-md bg-muted">
-              <Map className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Consulter la roadmap générée</div>
-              <div className="text-xs text-muted-foreground">Visualise les phases et jalons du projet</div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors hover-elevate bg-muted/30 hover:bg-muted/50"
+              data-testid="button-suggestion-roadmap"
+            >
+              <div className="p-2 rounded-full bg-violet-100 dark:bg-violet-900/30 shrink-0">
+                <Map className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              </div>
+              <span className="font-medium text-sm">Roadmap</span>
+            </button>
 
-          <button
-            onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
-            className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
-            data-testid="button-suggestion-backlog"
-          >
-            <div className="p-2 rounded-md bg-muted">
-              <ListTodo className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Ajuster le backlog</div>
-              <div className="text-xs text-muted-foreground">Priorise et affine les user stories</div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
+            <button
+              onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors hover-elevate bg-muted/30 hover:bg-muted/50"
+              data-testid="button-suggestion-backlog"
+            >
+              <div className="p-2 rounded-full bg-cyan-100 dark:bg-cyan-900/30 shrink-0">
+                <ListTodo className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <span className="font-medium text-sm">Backlog</span>
+            </button>
 
-          <button
-            onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-            className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
-            data-testid="button-suggestion-time-tracking"
-          >
-            <div className="p-2 rounded-md bg-muted">
-              <Clock className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Suivre Temps vs CDC</div>
-              <div className="text-xs text-muted-foreground">Compare le temps passé à l'estimation</div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
+            <button
+              onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors hover-elevate bg-muted/30 hover:bg-muted/50"
+              data-testid="button-suggestion-time-tracking"
+            >
+              <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 shrink-0">
+                <Clock className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="font-medium text-sm">Temps vs CDC</span>
+            </button>
+          </div>
 
-          <div className="pt-2 text-center">
+          <div className="text-center">
             <button
               onClick={handleDismiss}
               className="text-xs text-muted-foreground hover:text-foreground"

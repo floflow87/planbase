@@ -1351,7 +1351,7 @@ export function SprintSection({
               />
             ))}
             
-            {tickets.length === 0 && !isCreating && (
+            {tickets.length === 0 && !isCreating && !isTemporarySprint && (
               <button
                 className="w-full px-4 py-4 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
                 onClick={() => setIsCreating(true)}
@@ -1360,6 +1360,12 @@ export function SprintSection({
                 <Plus className="h-4 w-4" />
                 Ce sprint est vide. Cliquez pour créer un ticket.
               </button>
+            )}
+            
+            {tickets.length === 0 && isTemporarySprint && (
+              <div className="w-full px-4 py-4 text-sm text-muted-foreground flex items-center justify-center gap-2">
+                Enregistrement du sprint en cours...
+              </div>
             )}
             
             {isCreating && (
@@ -1421,7 +1427,7 @@ export function SprintSection({
             )}
           </div>
           
-          {!isCreating && tickets.length > 0 && (
+          {!isCreating && tickets.length > 0 && !isTemporarySprint && (
             <button
               className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center gap-2 mb-2"
               onClick={() => setIsCreating(true)}
