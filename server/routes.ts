@@ -6873,11 +6873,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ticketId = req.params.ticketId;
       const ticketType = req.params.ticketType;
       
+      // Map frontend ticketType to backend subjectType
+      // task and bug are stored as backlog_task in activities
+      const subjectType = ticketType === "task" || ticketType === "bug" 
+        ? "backlog_task" 
+        : ticketType;
+      
       const result = await db.select().from(activities)
         .where(and(
           eq(activities.subjectId, ticketId),
           eq(activities.accountId, accountId),
-          eq(activities.subjectType, ticketType)
+          eq(activities.subjectType, subjectType)
         ))
         .orderBy(desc(activities.createdAt));
       

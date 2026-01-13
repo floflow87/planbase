@@ -1044,6 +1044,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   userStoryId: uuid("user_story_id").references(() => userStories.id, { onDelete: "cascade" }), // Optional: can be standalone
   sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
+  taskType: text("task_type").default("task"), // 'task' or 'bug'
   title: text("title").notNull(),
   description: text("description"),
   state: text("state").default("a_faire"),
@@ -1373,9 +1374,12 @@ export const updateUserStorySchema = insertUserStorySchema.omit({ accountId: tru
   state: z.string().optional(),
 }).partial();
 
-export const insertBacklogTaskSchema = createInsertSchema(backlogTasks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertBacklogTaskSchema = createInsertSchema(backlogTasks).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  taskType: z.enum(["task", "bug"]).optional().default("task"),
+});
 export const updateBacklogTaskSchema = insertBacklogTaskSchema.omit({ accountId: true, backlogId: true, createdBy: true }).extend({
   state: z.string().optional(),
+  taskType: z.enum(["task", "bug"]).optional(),
 }).partial();
 
 export const insertChecklistItemSchema = createInsertSchema(checklistItems).omit({ id: true, createdAt: true, updatedAt: true });

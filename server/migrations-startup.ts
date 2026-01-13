@@ -1167,6 +1167,13 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Backlog tasks version column added");
 
+    // Add task_type column to backlog_tasks to distinguish between task and bug
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks 
+      ADD COLUMN IF NOT EXISTS task_type text DEFAULT 'task';
+    `);
+    console.log("✅ Backlog tasks task_type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

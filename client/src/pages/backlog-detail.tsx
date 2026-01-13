@@ -1366,7 +1366,7 @@ export default function BacklogDetail() {
       
       // Create new ticket of target type
       let createEndpoint = "";
-      const baseData = {
+      const baseData: Record<string, any> = {
         title: ticket.title,
         description: ticket.description,
         state: (ticket as any).state || "a_faire",
@@ -1378,8 +1378,13 @@ export default function BacklogDetail() {
         createEndpoint = `/api/backlogs/${id}/epics`;
       } else if (toType === "user_story") {
         createEndpoint = `/api/backlogs/${id}/user-stories`;
-      } else {
+      } else if (toType === "bug") {
         createEndpoint = `/api/backlogs/${id}/tasks`;
+        baseData.taskType = "bug";
+      } else {
+        // task
+        createEndpoint = `/api/backlogs/${id}/tasks`;
+        baseData.taskType = "task";
       }
       
       await apiRequest(createEndpoint, "POST", baseData);
@@ -1395,9 +1400,16 @@ export default function BacklogDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       setSelectedTicket(null);
       
+      const typeLabels: Record<string, string> = {
+        epic: "Epic",
+        user_story: "User Story",
+        task: "Task",
+        bug: "Bug"
+      };
+      
       toastSuccess({ 
         title: "Type converti", 
-        description: `Converti en ${toType === "epic" ? "Epic" : toType === "user_story" ? "User Story" : "Task"}`
+        description: `Converti en ${typeLabels[toType] || toType}`
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -2039,6 +2051,8 @@ export default function BacklogDetail() {
                       users={users}
                       projects={projects}
                       backlogProjectId={backlog.projectId}
+                      backlogName={backlog.name}
+                      ticketIndex={flatTickets.findIndex(t => t.id === selectedTicket.id)}
                       onClose={() => setSelectedTicket(null)}
                       onUpdate={handleUpdateTicket}
                       onDelete={handleDeleteTicket}
@@ -2236,6 +2250,8 @@ export default function BacklogDetail() {
                     users={users}
                     projects={projects}
                     backlogProjectId={backlog.projectId}
+                    backlogName={backlog.name}
+                    ticketIndex={flatTickets.findIndex(t => t.id === selectedTicket.id)}
                     onClose={() => setSelectedTicket(null)}
                     onUpdate={handleUpdateTicket}
                     onDelete={handleDeleteTicket}

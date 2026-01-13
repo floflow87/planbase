@@ -1690,6 +1690,7 @@ export function transformToFlatTickets(
       assigneeId: story.assigneeId || null,
       reporterId: story.reporterId || null,
       order: story.order,
+      version: (story as any).version || null,
       createdAt: story.createdAt?.toString() || null,
       updatedAt: story.updatedAt?.toString() || null,
     });
@@ -1698,7 +1699,7 @@ export function transformToFlatTickets(
   backlogTasks.forEach(task => {
     tickets.push({
       id: task.id,
-      type: "task",
+      type: ((task as any).taskType === "bug" ? "bug" : "task") as TicketType,
       title: task.title,
       description: task.description,
       state: task.state,
@@ -1709,6 +1710,7 @@ export function transformToFlatTickets(
       assigneeId: task.assigneeId || null,
       reporterId: task.reporterId || null,
       order: task.order,
+      version: (task as any).version || null,
       createdAt: task.createdAt?.toString() || null,
       updatedAt: task.updatedAt?.toString() || null,
     });

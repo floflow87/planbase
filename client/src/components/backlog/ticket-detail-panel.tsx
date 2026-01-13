@@ -113,6 +113,8 @@ interface TicketDetailPanelProps {
   users?: AppUser[];
   projects?: Project[];
   backlogProjectId?: string | null;
+  backlogName?: string;
+  ticketIndex?: number;
   onClose: () => void;
   onUpdate: (ticketId: string, type: TicketType, data: Record<string, any>) => void;
   onDelete: (ticketId: string, type: TicketType) => void;
@@ -130,6 +132,8 @@ export function TicketDetailPanel({
   users = [],
   projects = [],
   backlogProjectId,
+  backlogName,
+  ticketIndex,
   onClose, 
   onUpdate,
   onDelete,
@@ -419,6 +423,31 @@ export function TicketDetailPanel({
     setCreateTaskTitle("");
   };
   
+  // Generate ticket ID with nomenclature [BacklogFirst3-SprintFirst3-NumIncremental]
+  const generateTicketId = () => {
+    if (!ticket) return null;
+    // Guard against invalid index (ticket not found in list)
+    if (ticketIndex === undefined || ticketIndex < 0) return null;
+    
+    // Get first 3 letters of backlog name (uppercase)
+    const backlogPrefix = backlogName 
+      ? backlogName.substring(0, 3).toUpperCase() 
+      : "BKL";
+    
+    // Get first 3 letters of sprint name (uppercase), or "BCK" for backlog items
+    const currentSprint = sprints.find(s => s.id === ticket.sprintId);
+    const sprintPrefix = currentSprint 
+      ? currentSprint.name.substring(0, 3).toUpperCase() 
+      : "BCK";
+    
+    // Format index with 2 digits (01, 02, etc.)
+    const indexStr = String(ticketIndex + 1).padStart(2, "0");
+    
+    return `${backlogPrefix}-${sprintPrefix}-${indexStr}`;
+  };
+  
+  const ticketIdLabel = generateTicketId();
+  
   return (
     <div className="w-[400px] border-l bg-card fixed top-0 right-0 h-screen flex flex-col z-50 shadow-lg" data-testid="ticket-detail-panel">
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -495,39 +524,46 @@ export function TicketDetailPanel({
           </DropdownMenu>
         )}
         
-        <div className="flex items-center gap-1">
-          {!readOnly && onCreateTask && (
+        <div className="flex items-center gap-2">
+          {ticketIdLabel && (
+            <Badge variant="outline" className="text-xs font-mono" data-testid="text-ticket-id">
+              {ticketIdLabel}
+            </Badge>
+          )}
+          <div className="flex items-center gap-1">
+            {!readOnly && onCreateTask && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-primary hover:text-primary"
+                onClick={handleOpenCreateTaskDialog}
+                data-testid="button-create-task-from-ticket"
+                title="Créer une tâche"
+              >
+                <ClipboardList className="h-4 w-4" />
+              </Button>
+            )}
+            {!readOnly && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => onDelete(ticket.id, ticket.type)}
+                data-testid="button-delete-ticket"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-7 w-7 text-primary hover:text-primary"
-              onClick={handleOpenCreateTaskDialog}
-              data-testid="button-create-task-from-ticket"
-              title="Créer une tâche"
+              className="h-7 w-7"
+              onClick={onClose}
+              data-testid="button-close-panel"
             >
-              <ClipboardList className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
-          )}
-          {!readOnly && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => onDelete(ticket.id, ticket.type)}
-              data-testid="button-delete-ticket"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-7 w-7"
-            onClick={onClose}
-            data-testid="button-close-panel"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
       </div>
       
