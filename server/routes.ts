@@ -78,6 +78,7 @@ import {
   retros,
   retroCards,
   userOnboarding,
+  activities,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
