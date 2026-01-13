@@ -6895,13 +6895,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedActivities = await Promise.all(result.map(async (activity) => {
         let user = undefined;
         if (activity.createdBy) {
-          const [foundUser] = await db.select({
-            id: appUsers.id,
-            firstName: appUsers.firstName,
-            lastName: appUsers.lastName,
-            email: appUsers.email,
-          }).from(appUsers).where(eq(appUsers.id, activity.createdBy));
-          user = foundUser;
+          try {
+            const [foundUser] = await db.select({
+              id: appUsers.id,
+              firstName: appUsers.firstName,
+              lastName: appUsers.lastName,
+              email: appUsers.email,
+            }).from(appUsers).where(eq(appUsers.id, activity.createdBy));
+            user = foundUser;
+          } catch (e) {
+            console.log(`📊 Could not find user for activity ${activity.id}, createdBy=${activity.createdBy}`);
+          }
         }
         return {
           ...activity,
@@ -6911,6 +6915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(enrichedActivities);
     } catch (error: any) {
+      console.error(`📊 Error fetching ticket activities:`, error);
       res.status(400).json({ error: error.message });
     }
   });
