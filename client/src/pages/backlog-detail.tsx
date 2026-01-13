@@ -9,7 +9,7 @@ import {
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
-  Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle
+  Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -4073,24 +4073,84 @@ function BacklogStats({
     return "La vélocité est en hausse.";
   };
   
-  // 3️⃣ Burn Rate - Lecture de consommation
-  const getBurnRateReading = () => {
+  // 3️⃣ Burn Rate - Lecture de consommation avec analyse de courbe
+  const getBurnRateReading = (): { text: string; color: 'green' | 'orange' | 'red' | 'amber' } | null => {
     if (burnData.length < 2) return null;
     
     const firstRemaining = burnData[0]?.remaining || 0;
     const lastRemaining = burnData[burnData.length - 1]?.remaining || 0;
     const totalConsumed = firstRemaining - lastRemaining;
     const avgPerSprint = burnData.length > 1 ? totalConsumed / (burnData.length - 1) : 0;
+    const n = burnData.length;
     
-    if (avgPerSprint <= 0) {
-      return "Peu de points sont consommés. Le backlog semble bloqué.";
+    // Calcul de la ligne idéale (décroissance linéaire vers 0)
+    const idealPerSprint = firstRemaining / n;
+    
+    // Analyser la régularité de la courbe (écart-type des consommations par sprint)
+    const consumptions: number[] = [];
+    for (let i = 1; i < burnData.length; i++) {
+      consumptions.push((burnData[i - 1]?.remaining || 0) - (burnData[i]?.remaining || 0));
     }
+    const meanConsumption = consumptions.length > 0 ? consumptions.reduce((a, b) => a + b, 0) / consumptions.length : 0;
+    const variance = consumptions.length > 0 ? consumptions.reduce((sum, c) => sum + Math.pow(c - meanConsumption, 2), 0) / consumptions.length : 0;
+    const stdDev = Math.sqrt(variance);
+    const cv = meanConsumption > 0 ? stdDev / meanConsumption : 0; // Coefficient de variation
+    
+    // Détecter une chute tardive (première moitié plate, seconde moitié avec forte consommation)
+    const midPoint = Math.floor(consumptions.length / 2);
+    const firstHalfAvg = midPoint > 0 ? consumptions.slice(0, midPoint).reduce((a, b) => a + b, 0) / midPoint : 0;
+    const secondHalfAvg = consumptions.length - midPoint > 0 ? consumptions.slice(midPoint).reduce((a, b) => a + b, 0) / (consumptions.length - midPoint) : 0;
+    const lateDeliveryRatio = firstHalfAvg > 0 ? secondHalfAvg / firstHalfAvg : (secondHalfAvg > 0 ? Infinity : 1);
+    
+    // Cas 3 – Chute tardive (courbe plate puis chute)
+    if (lateDeliveryRatio > 2 && cv > 0.5) {
+      return {
+        text: "Livraison tardive → risque de stress, qualité et dette technique",
+        color: 'red'
+      };
+    }
+    
+    // Cas 4 – Chute trop rapide (consommation bien au-dessus de l'idéal)
+    const consumptionVsIdeal = idealPerSprint > 0 ? avgPerSprint / idealPerSprint : 1;
+    if (consumptionVsIdeal > 1.5 && lastRemaining < firstRemaining * 0.3) {
+      return {
+        text: "Sous-estimation initiale ou tickets trop grossiers",
+        color: 'amber'
+      };
+    }
+    
+    // Projection : à ce rythme, combien reste-t-il à faire ?
     const sprintsRemaining = avgPerSprint > 0 ? Math.ceil(lastRemaining / avgPerSprint) : null;
+    const isRegular = cv < 0.5; // Courbe régulière si CV < 50%
     
-    if (sprintsRemaining && sprintsRemaining <= 3) {
-      return "Le backlog se consomme rapidement. Vérifie la soutenabilité du rythme.";
+    // Cas 2 – Courbe régulière mais trop haute en fin (projection dépasse)
+    if (isRegular && sprintsRemaining && sprintsRemaining > 2 && lastRemaining > firstRemaining * 0.3) {
+      return {
+        text: "Rythme stable mais insuffisant → risque de débordement",
+        color: 'orange'
+      };
     }
-    return "La consommation du backlog est régulière.";
+    
+    // Cas 1 – Courbe régulière + projection OK
+    if (isRegular && (sprintsRemaining === null || sprintsRemaining <= 2)) {
+      return {
+        text: "Rythme maîtrisé, pas d'action requise",
+        color: 'green'
+      };
+    }
+    
+    // Fallback: peu de points consommés
+    if (avgPerSprint <= 0) {
+      return {
+        text: "Peu de points sont consommés. Le backlog semble bloqué.",
+        color: 'red'
+      };
+    }
+    
+    return {
+      text: "La consommation du backlog est en cours d'analyse.",
+      color: 'amber'
+    };
   };
   
   // 6️⃣ Lecture automatique structurée (Constat / Risque / Action)
@@ -4478,11 +4538,24 @@ function BacklogStats({
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-                {/* Lecture burn down */}
+                {/* Lecture burn down avec code couleur */}
                 {getBurnRateReading() && (
-                  <p className="mt-3 text-xs text-foreground/80 bg-muted/30 p-2 rounded" data-testid="text-burndown-reading">
-                    {getBurnRateReading()}
-                  </p>
+                  <div 
+                    className={cn(
+                      "mt-3 text-xs p-2 rounded flex items-center gap-2",
+                      getBurnRateReading()?.color === 'green' && "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800",
+                      getBurnRateReading()?.color === 'orange' && "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800",
+                      getBurnRateReading()?.color === 'red' && "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",
+                      getBurnRateReading()?.color === 'amber' && "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                    )}
+                    data-testid="text-burndown-reading"
+                  >
+                    {getBurnRateReading()?.color === 'green' && <CheckCircle className="h-4 w-4 flex-shrink-0" />}
+                    {getBurnRateReading()?.color === 'orange' && <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                    {getBurnRateReading()?.color === 'red' && <XCircle className="h-4 w-4 flex-shrink-0" />}
+                    {getBurnRateReading()?.color === 'amber' && <AlertTriangle className="h-4 w-4 flex-shrink-0" />}
+                    <span>{getBurnRateReading()?.text}</span>
+                  </div>
                 )}
               </>
             ) : (
