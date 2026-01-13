@@ -589,14 +589,14 @@ export function TicketDetailPanel({
                   setIsEditingTitle(false);
                 }
               }}
-              className="text-lg font-semibold"
+              className="text-base font-semibold"
               autoFocus
               data-testid="input-edit-title"
             />
           ) : (
             <h2 
               className={cn(
-                "text-lg font-semibold",
+                "text-base font-semibold",
                 !readOnly && "cursor-pointer hover:text-primary transition-colors"
               )}
               onClick={() => !readOnly && setIsEditingTitle(true)}
@@ -667,7 +667,7 @@ export function TicketDetailPanel({
               onChange={(e) => setEditedDescription(e.target.value)}
               onBlur={handleSaveDescription}
               placeholder="Ajoutez une description..."
-              className="min-h-[100px] resize-none"
+              className="min-h-[100px] resize-none text-xs"
               data-testid="textarea-description"
             />
           )}
@@ -983,7 +983,7 @@ export function TicketDetailPanel({
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucune note liée</p>
+              <p className="text-xs text-muted-foreground">Aucune note liée</p>
             )}
           </div>
           
@@ -1133,10 +1133,10 @@ export function TicketDetailPanel({
                             {author?.firstName?.charAt(0) || author?.email?.charAt(0) || "?"}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium">
+                        <span className="text-xs font-medium">
                           {author?.firstName && author?.lastName ? `${author.firstName} ${author.lastName}` : author?.email || "Inconnu"}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}
                         </span>
                       </div>
@@ -1190,7 +1190,7 @@ export function TicketDetailPanel({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
+                      <p className="text-xs whitespace-pre-wrap">{comment.content}</p>
                     )}
                   </div>
                 );
