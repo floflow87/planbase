@@ -1150,8 +1150,11 @@ export function SprintSection({
     .reduce((sum, t) => sum + (t.estimatePoints || 0), 0);
   const doneTickets = tickets.filter(t => t.state === "termine").length;
   
+  // Check if sprint has a temporary ID (not yet saved to database)
+  const isTemporarySprint = sprint.id.startsWith("temp-");
+  
   const handleCreate = () => {
-    if (newTicketTitle.trim()) {
+    if (newTicketTitle.trim() && !isTemporarySprint) {
       onCreateTicket(sprint.id, newTicketType, newTicketTitle.trim());
       setNewTicketTitle("");
       setIsCreating(false);
@@ -1226,7 +1229,7 @@ export function SprintSection({
             </div>
           </div>
           
-          {sprint.status === "preparation" && onStartSprint && (
+          {sprint.status === "preparation" && onStartSprint && !isTemporarySprint && (
             <Button 
               size="sm" 
               onClick={() => onStartSprint(sprint.id)}
@@ -1238,7 +1241,7 @@ export function SprintSection({
             </Button>
           )}
           
-          {sprint.status === "en_cours" && onCompleteSprint && (
+          {sprint.status === "en_cours" && onCompleteSprint && !isTemporarySprint && (
             <Button 
               size="sm" 
               onClick={() => onCompleteSprint(sprint.id)}
@@ -1250,9 +1253,15 @@ export function SprintSection({
             </Button>
           )}
           
+          {isTemporarySprint && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              Enregistrement...
+            </Badge>
+          )}
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-menu-sprint-${sprint.id}`}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-menu-sprint-${sprint.id}`} disabled={isTemporarySprint}>
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
