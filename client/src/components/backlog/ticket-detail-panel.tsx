@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
   Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink, Wrench, ArrowRight
@@ -1014,10 +1015,13 @@ export function TicketDetailPanel({
                       className="flex items-center justify-between p-2 rounded bg-muted/50 group"
                       data-testid={`linked-note-${note.id}`}
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Link 
+                        href={`/notes/${note.id}`}
+                        className="flex items-center gap-2 min-w-0 flex-1 hover:text-primary transition-colors"
+                      >
                         <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        <span className="text-sm truncate">{note.title || "Note sans titre"}</span>
-                      </div>
+                        <span className="text-xs truncate">{note.title || "Note sans titre"}</span>
+                      </Link>
                       {!readOnly && linkId && (
                         <Button
                           variant="ghost"

@@ -7317,11 +7317,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }).returning();
       }
       
-      // Update ticket state to "teste" when conclusion is "termine"
+      // Update ticket state to "testing" when conclusion is "termine"
       if (shouldUpdateTicketState) {
         if (recipeData.ticketType === "user_story") {
           await db.update(userStories)
-            .set({ state: "teste", updatedAt: new Date() })
+            .set({ state: "testing", updatedAt: new Date() })
             .where(and(
               eq(userStories.id, recipeData.ticketId),
               eq(userStories.accountId, accountId)
@@ -7329,7 +7329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (recipeData.ticketType === "task" || recipeData.ticketType === "bug") {
           // Both tasks and bugs are stored in backlog_tasks table
           await db.update(backlogTasks)
-            .set({ state: "teste", updatedAt: new Date() })
+            .set({ state: "testing", updatedAt: new Date() })
             .where(and(
               eq(backlogTasks.id, recipeData.ticketId),
               eq(backlogTasks.accountId, accountId)
