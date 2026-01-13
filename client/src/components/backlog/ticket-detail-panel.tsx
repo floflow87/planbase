@@ -282,7 +282,7 @@ export function TicketDetailPanel({
   });
   
   // Get entity links for this ticket
-  const ticketEntityType = ticketType === "epic" ? "epic" : ticketType === "user_story" ? "user_story" : "task";
+  const ticketEntityType = ticketType === "epic" ? "epic" : ticketType === "user_story" ? "user_story" : ticketType === "bug" ? "bug" : "task";
   const entityLinksQueryKey = ["/api/entity-links", ticketEntityType, ticketId] as const;
   
   const { data: entityLinks = [] } = useQuery<EntityLink[]>({
@@ -972,13 +972,12 @@ export function TicketDetailPanel({
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button 
-                      variant="ghost" 
                       size="icon" 
-                      className="h-6 w-6"
+                      className="h-6 w-6 bg-primary hover:bg-primary/90"
                       disabled={availableNotes.length === 0}
                       data-testid="button-add-note-link"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 text-white" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-2" align="end">
@@ -990,12 +989,12 @@ export function TicketDetailPanel({
                           <Button
                             key={note.id}
                             variant="ghost"
-                            className="w-full justify-start text-left h-auto py-2"
+                            className="w-full justify-start text-left h-auto py-2 text-xs"
                             onClick={() => linkNoteMutation.mutate(note.id)}
                             disabled={linkNoteMutation.isPending}
                             data-testid={`button-link-note-${note.id}`}
                           >
-                            <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <FileText className="h-3 w-3 mr-2 flex-shrink-0" />
                             <span className="truncate">{note.title || "Note sans titre"}</span>
                           </Button>
                         ))
@@ -1035,9 +1034,7 @@ export function TicketDetailPanel({
                   );
                 })}
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Aucune note liée</p>
-            )}
+            ) : null}
           </div>
           
           {/* Acceptance Criteria Section */}
@@ -1130,9 +1127,8 @@ export function TicketDetailPanel({
                       data-testid="input-new-criterion"
                     />
                     <Button
-                      variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-primary"
+                      className="h-6 w-6 bg-primary hover:bg-primary/90"
                       onClick={() => {
                         if (newCriterionText.trim()) {
                           createCriterionMutation.mutate(newCriterionText.trim());
@@ -1141,7 +1137,7 @@ export function TicketDetailPanel({
                       disabled={!newCriterionText.trim() || createCriterionMutation.isPending}
                       data-testid="button-add-criterion"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-4 w-4 text-white" />
                     </Button>
                   </div>
                 )}
