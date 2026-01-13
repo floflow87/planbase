@@ -5,12 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { 
   ArrowLeft, Plus, MoreVertical, ChevronDown, ChevronRight, 
-  Folder, Clock, User, Calendar, Flag, Layers, ListTodo,
+  Folder, Clock, User, Calendar as CalendarIcon, Flag, Layers, ListTodo,
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -3142,20 +3143,20 @@ function SprintSheet({
 }) {
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (sprint) {
       setName(sprint.name);
       setGoal(sprint.goal || "");
-      setStartDate(sprint.startDate ? new Date(sprint.startDate).toISOString().slice(0, 16) : "");
-      setEndDate(sprint.endDate ? new Date(sprint.endDate).toISOString().slice(0, 16) : "");
+      setStartDate(sprint.startDate ? new Date(sprint.startDate) : undefined);
+      setEndDate(sprint.endDate ? new Date(sprint.endDate) : undefined);
     } else {
       setName("");
       setGoal("");
-      setStartDate("");
-      setEndDate("");
+      setStartDate(undefined);
+      setEndDate(undefined);
     }
   }, [sprint, open]);
 
@@ -3164,8 +3165,8 @@ function SprintSheet({
     const data = { 
       name, 
       goal: goal || undefined, 
-      startDate: startDate ? new Date(startDate) : null, 
-      endDate: endDate ? new Date(endDate) : null 
+      startDate: startDate || null, 
+      endDate: endDate || null 
     };
     
     if (sprint) {
@@ -3205,30 +3206,58 @@ function SprintSheet({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-gray-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-violet-500" />
-                Date de début
-              </Label>
-              <Input 
-                type="datetime-local" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)} 
-                className="bg-white border-gray-300 text-gray-900"
-                data-testid="input-sprint-start" 
-              />
+              <Label className="text-gray-700">Date de début</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal bg-white border-gray-300 text-gray-900"
+                    data-testid="input-sprint-start"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
+                    {startDate ? (
+                      format(startDate, "d MMM yyyy", { locale: fr })
+                    ) : (
+                      <span className="text-muted-foreground">Choisir</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-violet-500" />
-                Date de fin
-              </Label>
-              <Input 
-                type="datetime-local" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)} 
-                className="bg-white border-gray-300 text-gray-900"
-                data-testid="input-sprint-end" 
-              />
+              <Label className="text-gray-700">Date de fin</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal bg-white border-gray-300 text-gray-900"
+                    data-testid="input-sprint-end"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-violet-500" />
+                    {endDate ? (
+                      format(endDate, "d MMM yyyy", { locale: fr })
+                    ) : (
+                      <span className="text-muted-foreground">Choisir</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -4672,7 +4701,7 @@ function BacklogStats({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-violet-600" />
+              <CalendarIcon className="h-4 w-4 text-violet-600" />
               Performance par sprint
             </CardTitle>
           </CardHeader>

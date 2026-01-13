@@ -51,7 +51,7 @@ function ticketTypeIcon(type: TicketType) {
     case "task":
       return <ListTodo className="h-5 w-5" />;
     case "bug":
-      return <Wrench className="h-5 w-5 text-red-500" />;
+      return <Wrench className="h-5 w-5" />;
   }
 }
 

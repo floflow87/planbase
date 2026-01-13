@@ -1043,6 +1043,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   userStoryId: uuid("user_story_id").references(() => userStories.id, { onDelete: "cascade" }), // Optional: can be standalone
+  epicId: uuid("epic_id").references(() => epics.id, { onDelete: "set null" }), // Optional epic for standalone tasks/bugs
   sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
   taskType: text("task_type").default("task"), // 'task' or 'bug'
   title: text("title").notNull(),
@@ -1062,6 +1063,7 @@ export const backlogTasks = pgTable("backlog_tasks", {
   accountIdx: index().on(table.accountId),
   backlogIdx: index().on(table.backlogId),
   userStoryIdx: index().on(table.userStoryId),
+  epicIdx: index().on(table.epicId),
   sprintIdx: index().on(table.sprintId),
 }));
 

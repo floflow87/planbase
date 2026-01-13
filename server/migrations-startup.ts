@@ -1204,6 +1204,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Backlog tasks task_type column added");
 
+    // Add epicId column to backlog_tasks for direct Epic linking (standalone bugs/tasks)
+    await db.execute(sql`
+      ALTER TABLE backlog_tasks 
+      ADD COLUMN IF NOT EXISTS epic_id uuid REFERENCES epics(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS backlog_tasks_epic_idx ON backlog_tasks(epic_id);
+    `);
+    console.log("✅ Backlog tasks epic_id column added");
+
     // Fix entity_links constraint to allow backlog ticket types (user_story, bug, epic, task)
     // Use DROP CONSTRAINT IF EXISTS to avoid errors on fresh databases
     await db.execute(sql`
