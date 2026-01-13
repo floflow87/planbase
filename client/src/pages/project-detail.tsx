@@ -2747,6 +2747,7 @@ export default function ProjectDetail() {
     occurredAt: "",
   });
   const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
+  const [activitiesDisplayCount, setActivitiesDisplayCount] = useState(15);
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("activities");
@@ -5192,7 +5193,7 @@ export default function ProjectDetail() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {projectActivities.map((activity) => {
+                    {projectActivities.slice(0, activitiesDisplayCount).map((activity) => {
                       const user = users.find(u => u.id === activity.createdBy);
                       const getKindLabel = (kind: string) => {
                         const labels: Record<string, string> = {
@@ -5327,6 +5328,19 @@ export default function ProjectDetail() {
                         </div>
                       );
                     })}
+                    {projectActivities.length > activitiesDisplayCount && (
+                      <div className="flex justify-center pt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActivitiesDisplayCount(prev => prev + 10)}
+                          className="text-muted-foreground"
+                          data-testid="button-load-more-activities"
+                        >
+                          Afficher plus ({projectActivities.length - activitiesDisplayCount} restantes)
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -5439,7 +5453,7 @@ export default function ProjectDetail() {
         </Tabs>
       </div>
       <Sheet open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="dialog-edit-project">
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-white dark:bg-card" data-testid="dialog-edit-project">
           <SheetHeader>
             <SheetTitle>Modifier le projet</SheetTitle>
           </SheetHeader>
@@ -5528,7 +5542,7 @@ export default function ProjectDetail() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-popover">
+                  <PopoverContent className="w-auto p-0 bg-white dark:bg-card">
                     <Calendar
                       mode="single"
                       selected={projectFormData.startDate}
@@ -5555,7 +5569,7 @@ export default function ProjectDetail() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-popover">
+                  <PopoverContent className="w-auto p-0 bg-white dark:bg-card">
                     <Calendar
                       mode="single"
                       selected={projectFormData.endDate}

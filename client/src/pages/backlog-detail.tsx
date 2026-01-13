@@ -1450,7 +1450,7 @@ export default function BacklogDetail() {
         data = { title, sprintId, priority: "medium", state: "a_faire" };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, sprintId, priority: "medium", state: "a_faire" };
+        data = { title, sprintId, priority: "medium", state: "a_faire", order: 0 };
       }
       
       await apiRequest(endpoint, "POST", data);
@@ -1474,7 +1474,7 @@ export default function BacklogDetail() {
         data = { title, priority: "medium", state: "a_faire" };
       } else {
         endpoint = `/api/backlogs/${id}/tasks`;
-        data = { title, priority: "medium", state: "a_faire" };
+        data = { title, priority: "medium", state: "a_faire", order: 0 };
       }
       
       await apiRequest(endpoint, "POST", data);
@@ -3983,7 +3983,8 @@ function BacklogStats({
       .filter(us => us.sprintId === sprint.id && us.state === 'termine')
       .reduce((sum, us) => sum + (us.estimatePoints || 0), 0);
     return {
-      name: sprint.name.length > 10 ? sprint.name.substring(0, 10) + '...' : sprint.name,
+      name: sprint.name.length > 12 ? sprint.name.substring(0, 12) + '...' : sprint.name,
+      fullName: sprint.name,
       points: sprintPoints
     };
   });
@@ -4022,7 +4023,8 @@ function BacklogStats({
         : allTickets.filter(t => t.sprintId === sprint.id && t.state === 'termine').length;
       runningTotal -= delivered;
       return {
-        name: sprint.name.length > 8 ? sprint.name.substring(0, 8) + '...' : sprint.name,
+        name: sprint.name.length > 10 ? sprint.name.substring(0, 10) + '...' : sprint.name,
+        fullName: sprint.name,
         remaining: Math.max(0, runningTotal)
       };
     });
@@ -4433,8 +4435,12 @@ function BacklogStats({
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} />
                       <RechartsTooltip 
-                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
-                        formatter={(value) => [`${value} pts`, 'Points']}
+                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb', minWidth: 180 }}
+                        formatter={(value) => [`${value} pts`, 'Points livrés']}
+                        labelFormatter={(label, payload) => {
+                          const data = payload?.[0]?.payload;
+                          return data?.fullName || label;
+                        }}
                       />
                       <Bar dataKey="points" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -4554,8 +4560,12 @@ function BacklogStats({
                         }}
                       />
                       <RechartsTooltip 
-                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb' }}
+                        contentStyle={{ fontSize: 12, background: 'white', border: '1px solid #e5e7eb', minWidth: 200 }}
                         formatter={(value) => [`${value}`, burnMode === 'points' ? 'Points restants' : 'Tickets restants']}
+                        labelFormatter={(label, payload) => {
+                          const data = payload?.[0]?.payload;
+                          return data?.fullName || label;
+                        }}
                       />
                       <Area 
                         type="monotone" 
