@@ -2747,7 +2747,7 @@ export default function ProjectDetail() {
     occurredAt: "",
   });
   const [isActivityDatePickerOpen, setIsActivityDatePickerOpen] = useState(false);
-  const [activitiesDisplayCount, setActivitiesDisplayCount] = useState(15);
+  const [activitiesDisplayCount, setActivitiesDisplayCount] = useState(5);
   
   // Tab state for controlled navigation
   const [activeTab, setActiveTab] = useState("activities");
