@@ -467,7 +467,7 @@ export function TicketDetailPanel({
             >
               <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
             </div>
-            <span className="text-sm font-medium text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {ticketTypeLabel(ticket.type)}
             </span>
           </div>
@@ -481,7 +481,7 @@ export function TicketDetailPanel({
                 >
                   <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground">
                   {ticketTypeLabel(ticket.type)}
                 </span>
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -619,7 +619,7 @@ export function TicketDetailPanel({
             >
               <SelectTrigger 
                 className={cn(
-                  "h-8 bg-white gap-2 w-auto min-w-[180px]", 
+                  "h-7 text-xs bg-white gap-2 w-auto min-w-[180px]", 
                   readOnly && "opacity-60",
                   !readOnly && "cursor-pointer hover:bg-gray-50"
                 )} 
@@ -657,7 +657,6 @@ export function TicketDetailPanel({
         
         {/* Description - moved under title */}
         <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Description</Label>
           {readOnly ? (
             <div className="text-sm text-muted-foreground min-h-[60px] p-3 bg-muted/30 rounded-md whitespace-pre-wrap">
               {ticket.description || "Aucune description"}
@@ -678,15 +677,15 @@ export function TicketDetailPanel({
         
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <Clock className="h-3 w-3" />
               État
             </Label>
             <Select
               value={ticket.state || "a_faire"}
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { state: value })}
             >
-              <SelectTrigger className="w-[140px] h-8 cursor-pointer" data-testid="select-state">
+              <SelectTrigger className="w-[140px] h-7 text-xs cursor-pointer" data-testid="select-state">
                 <SelectValue>
                   {(() => {
                     const style = getStateStyle(ticket.state);
@@ -717,8 +716,8 @@ export function TicketDetailPanel({
           </div>
           
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <Flag className="h-4 w-4" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <Flag className="h-3 w-3" />
               Priorité
             </Label>
             <Select
@@ -726,7 +725,7 @@ export function TicketDetailPanel({
               onValueChange={(value) => onUpdate(ticket.id, ticket.type, { priority: value })}
               disabled={readOnly}
             >
-              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-priority">
+              <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-priority">
                 <SelectValue>
                   <div className="flex items-center gap-2">
                     <PriorityIcon priority={ticket.priority || "medium"} />
@@ -748,8 +747,8 @@ export function TicketDetailPanel({
           </div>
           
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <User className="h-4 w-4" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <User className="h-3 w-3" />
               Assigné
             </Label>
             <Select
@@ -759,7 +758,7 @@ export function TicketDetailPanel({
               })}
               disabled={readOnly}
             >
-              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-assignee">
+              <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-assignee">
                 <SelectValue placeholder="Non assigné">
                   {assignee ? (
                     <div className="flex items-center gap-2">
@@ -786,8 +785,8 @@ export function TicketDetailPanel({
           
           {ticket.type !== "epic" && (
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <User className="h-4 w-4" />
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <User className="h-3 w-3" />
                 Rapporteur
               </Label>
               <Select
@@ -797,7 +796,7 @@ export function TicketDetailPanel({
                 })}
                 disabled={readOnly}
               >
-                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-reporter">
+                <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-reporter">
                   <SelectValue placeholder="Non défini">
                     {reporter ? (
                       <div className="flex items-center gap-2">
@@ -825,8 +824,8 @@ export function TicketDetailPanel({
           
           {ticket.type !== "epic" && (
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <Tag className="h-4 w-4" />
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <Tag className="h-3 w-3" />
                 Points
               </Label>
               <Select
@@ -836,7 +835,7 @@ export function TicketDetailPanel({
                 })}
                 disabled={readOnly}
               >
-                <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-points">
+                <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-points">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-white">
@@ -851,8 +850,8 @@ export function TicketDetailPanel({
           )}
           
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <Calendar className="h-3 w-3" />
               Sprint
             </Label>
             <Select
@@ -862,7 +861,7 @@ export function TicketDetailPanel({
               })}
               disabled={readOnly}
             >
-              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-sprint">
+              <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-sprint">
                 <SelectValue>
                   {currentSprint?.name || "Backlog"}
                 </SelectValue>
@@ -880,8 +879,8 @@ export function TicketDetailPanel({
           
           {/* Version selector */}
           <div className="flex items-center justify-between">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
-              <Tag className="h-4 w-4" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <Tag className="h-3 w-3" />
               Version
             </Label>
             <Select
@@ -891,7 +890,7 @@ export function TicketDetailPanel({
               })}
               disabled={readOnly}
             >
-              <SelectTrigger className={cn("w-[140px] h-8", readOnly && "opacity-60")} data-testid="select-version">
+              <SelectTrigger className={cn("w-[140px] h-7 text-xs", readOnly && "opacity-60")} data-testid="select-version">
                 <SelectValue placeholder="Version">
                   {ticket.version || "Aucune"}
                 </SelectValue>
@@ -912,8 +911,8 @@ export function TicketDetailPanel({
           {/* Linked Notes Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4" />
+              <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                <FileText className="h-3 w-3" />
                 Notes liées ({linkedNotes.length})
               </Label>
               {!readOnly && (
@@ -993,8 +992,8 @@ export function TicketDetailPanel({
             <>
               <Separator />
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4" />
+                <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+                  <FlaskConical className="h-3 w-3" />
                   Recette
                 </Label>
                 {effectiveRecipeInfo ? (
@@ -1030,7 +1029,7 @@ export function TicketDetailPanel({
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucune recette disponible</p>
+                  <p className="text-xs text-muted-foreground">Aucune recette disponible</p>
                 )}
               </div>
             </>
@@ -1050,11 +1049,11 @@ export function TicketDetailPanel({
         
         {/* Activity Log */}
         <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground flex items-center gap-2">
-            <History className="h-4 w-4" />
+          <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+            <History className="h-3 w-3" />
             Activité
           </Label>
-          <div className="text-sm text-muted-foreground space-y-2 max-h-40 overflow-y-auto">
+          <div className="text-xs text-muted-foreground space-y-2 max-h-40 overflow-y-auto">
             {ticket.createdAt && (
               <p data-testid="text-created-at">
                 Création {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: fr })}
@@ -1107,15 +1106,15 @@ export function TicketDetailPanel({
         
         {/* Comments Section */}
         <div className="space-y-3 flex-1 flex flex-col min-h-0">
-          <Label className="text-sm text-muted-foreground flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
+          <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
+            <MessageSquare className="h-3 w-3" />
             Commentaires ({comments.length})
           </Label>
           
           {/* Comments List */}
           <div className="flex-1 overflow-y-auto space-y-3" data-testid="comments-list">
             {comments.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">Aucun commentaire</p>
+              <p className="text-xs text-muted-foreground italic">Aucun commentaire</p>
             ) : (
               comments.map(comment => {
                 const author = getCommentAuthor(comment.authorId);
