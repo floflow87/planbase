@@ -4290,13 +4290,13 @@ function BacklogStats({
                   <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs bg-white text-gray-900 border shadow-lg p-3" side="right">
-                  <p className="text-sm leading-relaxed">
+                  <p className="text-xs font-light leading-relaxed">
                     La vélocité correspond à la quantité de travail réellement livrée par l'équipe sur un sprint, mesurée en points d'estimation.
                   </p>
-                  <p className="text-sm leading-relaxed mt-2">
+                  <p className="text-xs font-light leading-relaxed mt-2">
                     Elle représente la capacité réelle de l'équipe à livrer du travail estimé sur un sprint.
                   </p>
-                  <p className="text-sm leading-relaxed mt-2 text-muted-foreground">
+                  <p className="text-xs font-light leading-relaxed mt-2 text-gray-500">
                     Une baisse prolongée indique souvent un périmètre trop large, des estimations imprécises ou une charge invisible.
                   </p>
                 </TooltipContent>
@@ -4375,8 +4375,8 @@ function BacklogStats({
                       <AlertCircle className="h-3.5 w-3.5" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-xs text-left">
-                    <p className="text-xs">
+                  <TooltipContent side="right" className="max-w-xs bg-white text-gray-900 border shadow-lg p-3 text-left">
+                    <p className="text-xs font-light leading-relaxed">
                       Le burn down mesure à quelle vitesse le travail restant diminue pendant un sprint ou une période donnée, en comparant le travail livré (points ou tickets) au temps écoulé. Il permet de vérifier si l'équipe avance au rythme attendu pour atteindre les objectifs du sprint.
                     </p>
                   </TooltipContent>

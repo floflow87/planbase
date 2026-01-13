@@ -169,14 +169,6 @@ export default function Product() {
     return option?.label || mode;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader size="lg" />
-      </div>
-    );
-  }
-
   // Filter backlogs by search query (searches in name, description, and active sprint name)
   const filteredBacklogs = useMemo(() => {
     if (!searchQuery.trim()) return backlogs;
@@ -188,6 +180,14 @@ export default function Product() {
       b.project?.name.toLowerCase().includes(query)
     );
   }, [backlogs, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader size="lg" />
+      </div>
+    );
+  }
 
   // Calculate KPIs
   const kpis = [

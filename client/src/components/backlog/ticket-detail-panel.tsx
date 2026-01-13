@@ -172,16 +172,18 @@ export function TicketDetailPanel({
   
   // Fetch activities (state changes) for the ticket
   type TicketActivity = Activity & { user?: { id: string; firstName?: string | null; lastName?: string | null; email?: string | null } };
-  const activitiesQueryKey = ["/api/tickets", ticketId ?? "", ticketType ?? "", "activities"] as const;
+  // Map ticketType to backend subjectType: task -> backlog_task, bug -> backlog_task
+  const activitySubjectType = ticketType === "task" || ticketType === "bug" ? "backlog_task" : ticketType;
+  const activitiesQueryKey = ["/api/tickets", ticketId ?? "", activitySubjectType ?? "", "activities"] as const;
   
   const { data: ticketActivities = [] } = useQuery<TicketActivity[]>({
     queryKey: activitiesQueryKey,
     queryFn: async () => {
-      if (!ticketId || !ticketType) return [];
-      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/activities`, "GET");
+      if (!ticketId || !activitySubjectType) return [];
+      const res = await apiRequest(`/api/tickets/${ticketId}/${activitySubjectType}/activities`, "GET");
       return res.json();
     },
-    enabled: !!ticketId && !!ticketType,
+    enabled: !!ticketId && !!activitySubjectType,
     staleTime: 30000,
   });
   
@@ -478,6 +480,16 @@ export function TicketDetailPanel({
                   <ListTodo className="h-3 w-3 text-white" />
                 </div>
                 Task
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => ticket.type !== "bug" && onConvertType?.(ticket.id, ticket.type, "bug")}
+                className={cn("text-gray-900", ticket.type === "bug" && "opacity-50")}
+                disabled={ticket.type === "bug"}
+              >
+                <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-red-500">
+                  <Wrench className="h-3 w-3 text-white" />
+                </div>
+                Bug
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
