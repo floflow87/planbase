@@ -1066,6 +1066,8 @@ export function TicketDetailPanel({
               const payload = activity.payload as any;
               const previousStateLabel = backlogItemStateOptions.find(s => s.value === payload.previousState)?.label || payload.previousState;
               const newStateLabel = backlogItemStateOptions.find(s => s.value === payload.newState)?.label || payload.newState;
+              const previousStyle = getStateStyle(payload.previousState);
+              const newStyle = getStateStyle(payload.newState);
               const userName = activity.user?.firstName && activity.user?.lastName 
                 ? `${activity.user.firstName} ${activity.user.lastName}` 
                 : activity.user?.email || "Utilisateur";
@@ -1076,9 +1078,15 @@ export function TicketDetailPanel({
                   <span className="flex-1">
                     <span className="font-medium">{userName}</span>
                     {" : "}
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">{previousStateLabel}</Badge>
+                    <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", previousStyle.bg, previousStyle.text)}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", previousStyle.dot)} />
+                      {previousStateLabel}
+                    </Badge>
                     {" → "}
-                    <Badge variant="outline" className="text-[10px] px-1 py-0">{newStateLabel}</Badge>
+                    <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", newStyle.bg, newStyle.text)}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", newStyle.dot)} />
+                      {newStateLabel}
+                    </Badge>
                   </span>
                   <span className="text-muted-foreground text-[10px] flex-shrink-0">
                     {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true, locale: fr })}
