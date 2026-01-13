@@ -1706,6 +1706,7 @@ export function transformToFlatTickets(
       priority: (task as any).priority || null,
       sprintId: (task as any).sprintId || null,
       userStoryId: task.userStoryId || null,
+      epicId: (task as any).epicId || null,
       estimatePoints: task.estimatePoints,
       assigneeId: task.assigneeId || null,
       reporterId: task.reporterId || null,

@@ -2484,8 +2484,8 @@ export default function BacklogDetail() {
 
       {/* Sprint Close Modal */}
       <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Terminer le sprint</DialogTitle>
             <DialogDescription>
               {closingSprintId && (
@@ -2497,7 +2497,7 @@ export default function BacklogDetail() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 flex-1 overflow-y-auto min-h-0">
             {/* Time saved calculation */}
             {closingSprintId && (() => {
               const sprint = backlog.sprints.find(s => s.id === closingSprintId);
@@ -2511,7 +2511,7 @@ export default function BacklogDetail() {
                 
                 if (daysSaved > 0) {
                   return (
-                    <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 flex-shrink-0">
                       <div className="flex items-center gap-2">
                         <Trophy className="h-5 w-5 text-green-600 dark:text-green-500" />
                         <span className="font-medium text-green-700 dark:text-green-400">
@@ -2528,7 +2528,7 @@ export default function BacklogDetail() {
               return null;
             })()}
             
-            <div className="space-y-2">
+            <div className="space-y-2 flex-shrink-0">
               <Label>Rediriger les tickets non terminés vers :</Label>
               <Select value={redirectTarget} onValueChange={setRedirectTarget}>
                 <SelectTrigger data-testid="select-redirect-target">
@@ -2546,12 +2546,12 @@ export default function BacklogDetail() {
             </div>
             
             {closingSprintId && getUnfinishedTicketsForSprint(closingSprintId).length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-3 max-h-[200px] overflow-y-auto">
-                <p className="text-sm text-muted-foreground mb-2">Tickets à rediriger :</p>
-                <ul className="space-y-1">
+              <div className="bg-muted/50 rounded-lg p-3">
+                <p className="text-sm text-muted-foreground mb-2 flex-shrink-0">Tickets à rediriger :</p>
+                <ul className="space-y-1 max-h-[200px] overflow-y-auto">
                   {getUnfinishedTicketsForSprint(closingSprintId).map(ticket => (
                     <li key={ticket.id} className="text-sm flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
                         {ticket.type === "epic" ? "Epic" : ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
                       </Badge>
                       <span className="truncate">{ticket.title}</span>
@@ -2562,7 +2562,7 @@ export default function BacklogDetail() {
             )}
           </div>
           
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowSprintCloseModal(false)}>
               Annuler
             </Button>
