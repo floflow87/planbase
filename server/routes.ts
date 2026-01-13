@@ -6052,10 +6052,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user-stories/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const userId = req.userId!;
       const id = req.params.id;
       console.log("📝 PATCH user-story request body:", JSON.stringify(req.body));
       const data = updateUserStorySchema.parse(req.body);
       console.log("✅ PATCH user-story parsed data:", JSON.stringify(data));
+      
+      // Get current state before update for activity tracking
+      const [current] = await db.select().from(userStories)
+        .where(and(eq(userStories.id, id), eq(userStories.accountId, accountId)));
       
       const [updated] = await db.update(userStories)
         .set({ ...data, updatedAt: new Date() })
@@ -6065,6 +6070,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ error: "User story not found" });
       }
+      
+      // Track state change activity
+      if (current && data.state && current.state !== data.state) {
+        await storage.createActivity({
+          accountId,
+          subjectType: "user_story",
+          subjectId: id,
+          kind: "updated",
+          payload: { 
+            type: "state_change",
+            previousState: current.state,
+            newState: data.state,
+            description: `État modifié: ${current.state} → ${data.state}`
+          },
+          createdBy: userId,
+        });
+      }
+      
       res.json(updated);
     } catch (error: any) {
       console.error("❌ PATCH user-story error:", error);
@@ -6211,8 +6234,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/backlog-tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const userId = req.userId!;
       const id = req.params.id;
       const data = updateBacklogTaskSchema.parse(req.body);
+      
+      // Get current state before update for activity tracking
+      const [current] = await db.select().from(backlogTasks)
+        .where(and(eq(backlogTasks.id, id), eq(backlogTasks.accountId, accountId)));
       
       const [updated] = await db.update(backlogTasks)
         .set({ ...data, updatedAt: new Date() })
@@ -6222,6 +6250,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ error: "Task not found" });
       }
+      
+      // Track state change activity
+      if (current && data.state && current.state !== data.state) {
+        await storage.createActivity({
+          accountId,
+          subjectType: "backlog_task",
+          subjectId: id,
+          kind: "updated",
+          payload: { 
+            type: "state_change",
+            previousState: current.state,
+            newState: data.state,
+            description: `État modifié: ${current.state} → ${data.state}`
+          },
+          createdBy: userId,
+        });
+      }
+      
       res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -6811,6 +6857,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imported: createdTasks.length,
         tasks: createdTasks,
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // TICKET ACTIVITIES (state changes)
+  // ============================================
+
+  // Get activities for a ticket (state changes)
+  app.get("/api/tickets/:ticketId/:ticketType/activities", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const ticketId = req.params.ticketId;
+      const ticketType = req.params.ticketType;
+      
+      const result = await db.select().from(activities)
+        .where(and(
+          eq(activities.subjectId, ticketId),
+          eq(activities.accountId, accountId),
+          eq(activities.subjectType, ticketType)
+        ))
+        .orderBy(desc(activities.createdAt));
+      
+      // Enrich activities with user info
+      const enrichedActivities = await Promise.all(result.map(async (activity) => {
+        const [user] = await db.select({
+          id: appUsers.id,
+          firstName: appUsers.firstName,
+          lastName: appUsers.lastName,
+          email: appUsers.email,
+        }).from(appUsers).where(eq(appUsers.id, activity.createdBy));
+        return {
+          ...activity,
+          user,
+        };
+      }));
+      
+      res.json(enrichedActivities);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

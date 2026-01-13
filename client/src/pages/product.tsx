@@ -237,8 +237,8 @@ export default function Product() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-light">{kpi.title}</p>
-                      <h3 className="text-[22px] font-heading font-light mt-2 text-foreground">{kpi.value}</h3>
+                      <p className="text-xs text-muted-foreground font-medium">{kpi.title}</p>
+                      <h3 className="text-[22px] font-heading font-bold mt-2 text-foreground">{kpi.value}</h3>
                       <p className="text-[10px] text-muted-foreground mt-2">
                         {kpi.subtitle}
                       </p>
@@ -327,7 +327,7 @@ export default function Product() {
               >
                 <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm truncate">{backlog.name}</CardTitle>
+                    <CardTitle className="text-sm font-light truncate">{backlog.name}</CardTitle>
                     {backlog.description && (
                       <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {backlog.description}

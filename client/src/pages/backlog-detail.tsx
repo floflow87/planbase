@@ -9,7 +9,7 @@ import {
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
-  Wrench, Bug, Sparkles, ExternalLink, Filter
+  Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -891,7 +891,7 @@ export default function BacklogDetail() {
 
   // Priority order for sorting
   const priorityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
-  const stateOrder: Record<string, number> = { a_faire: 1, en_cours: 2, review: 3, termine: 4 };
+  const stateOrder: Record<string, number> = { a_faire: 1, en_cours: 2, testing: 3, to_fix: 4, review: 5, termine: 6 };
 
   // Apply filters and sorting to tickets
   const applyFiltersAndSort = (tickets: FlatTicket[]) => {
@@ -937,6 +937,10 @@ export default function BacklogDetail() {
       result.sort((a, b) => (priorityOrder[a.priority || "medium"] || 2) - (priorityOrder[b.priority || "medium"] || 2));
     } else if (sortBy === "state") {
       result.sort((a, b) => (stateOrder[a.state || "a_faire"] || 1) - (stateOrder[b.state || "a_faire"] || 1));
+    } else if (sortBy === "points_desc") {
+      result.sort((a, b) => (b.estimatePoints || 0) - (a.estimatePoints || 0));
+    } else if (sortBy === "points_asc") {
+      result.sort((a, b) => (a.estimatePoints || 0) - (b.estimatePoints || 0));
     } else if (sortBy === "title") {
       result.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     }
@@ -1868,6 +1872,8 @@ export default function BacklogDetail() {
                   <SelectItem value="state">État</SelectItem>
                   <SelectItem value="priority_desc">Priorité décroissante</SelectItem>
                   <SelectItem value="priority_asc">Priorité croissante</SelectItem>
+                  <SelectItem value="points_desc">Points décroissants</SelectItem>
+                  <SelectItem value="points_asc">Points croissants</SelectItem>
                   <SelectItem value="title">Titre (A-Z)</SelectItem>
                 </SelectContent>
               </Select>
@@ -4279,6 +4285,22 @@ function BacklogStats({
             <CardTitle className="text-base flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-violet-600" />
               Vélocité
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs bg-white text-gray-900 border shadow-lg p-3" side="right">
+                  <p className="text-sm leading-relaxed">
+                    La vélocité correspond à la quantité de travail réellement livrée par l'équipe sur un sprint, mesurée en points d'estimation.
+                  </p>
+                  <p className="text-sm leading-relaxed mt-2">
+                    Elle représente la capacité réelle de l'équipe à livrer du travail estimé sur un sprint.
+                  </p>
+                  <p className="text-sm leading-relaxed mt-2 text-muted-foreground">
+                    Une baisse prolongée indique souvent un périmètre trop large, des estimations imprécises ou une charge invisible.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>

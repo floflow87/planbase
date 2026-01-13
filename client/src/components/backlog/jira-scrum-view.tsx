@@ -4,7 +4,7 @@ import {
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
-  CheckSquare, Square, MoreHorizontal, Link2, Bug, Tag, X
+  CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ export interface FlatTicket {
   order: number;
   createdAt?: string | null;
   updatedAt?: string | null;
+  version?: string | null;
 }
 
 function ticketTypeIcon(type: TicketType) {
@@ -72,7 +73,7 @@ function ticketTypeIcon(type: TicketType) {
     case "task":
       return <ListTodo className="h-4 w-4" />;
     case "bug":
-      return <Bug className="h-4 w-4" />;
+      return <Wrench className="h-4 w-4 text-red-500" />;
   }
 }
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   X, Layers, BookOpen, ListTodo, Flag, User, Calendar,
-  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink
+  Pencil, Trash2, Clock, Check, Tag, Link2, ChevronDown, MessageSquare, History, Send, FileText, Plus, ChevronsUpDown, ClipboardList, FlaskConical, ExternalLink, Wrench, ArrowRight
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, TicketComment, Note, EntityLink, Project, Activity } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { 
@@ -49,6 +49,8 @@ function ticketTypeIcon(type: TicketType) {
       return <BookOpen className="h-5 w-5" />;
     case "task":
       return <ListTodo className="h-5 w-5" />;
+    case "bug":
+      return <Wrench className="h-5 w-5 text-red-500" />;
   }
 }
 
@@ -60,6 +62,8 @@ function ticketTypeColor(type: TicketType, epicColor?: string | null): string {
       return "#22C55E";
     case "task":
       return "#3B82F6";
+    case "bug":
+      return "#EF4444";
   }
 }
 
@@ -71,6 +75,8 @@ function ticketTypeLabel(type: TicketType): string {
       return "User Story";
     case "task":
       return "Task";
+    case "bug":
+      return "Bug";
   }
 }
 
@@ -163,6 +169,26 @@ export function TicketDetailPanel({
     enabled: !!ticketId && !!ticketType,
     staleTime: 0,
   });
+  
+  // Fetch activities (state changes) for the ticket
+  type TicketActivity = Activity & { user?: { id: string; firstName?: string | null; lastName?: string | null; email?: string | null } };
+  const activitiesQueryKey = ["/api/tickets", ticketId ?? "", ticketType ?? "", "activities"] as const;
+  
+  const { data: ticketActivities = [] } = useQuery<TicketActivity[]>({
+    queryKey: activitiesQueryKey,
+    queryFn: async () => {
+      if (!ticketId || !ticketType) return [];
+      const res = await apiRequest(`/api/tickets/${ticketId}/${ticketType}/activities`, "GET");
+      return res.json();
+    },
+    enabled: !!ticketId && !!ticketType,
+    staleTime: 30000,
+  });
+  
+  // Filter only state change activities
+  const stateChangeActivities = ticketActivities.filter(a => 
+    (a.payload as any)?.type === "state_change"
+  );
   
   // Fetch recipe for the ticket (if not provided via prop)
   const { data: fetchedRecipeData } = useQuery<{ recipe: TicketRecipeInfo & { conclusion: RecipeConclusion | null } | null }>({
@@ -974,13 +1000,40 @@ export function TicketDetailPanel({
             <History className="h-4 w-4" />
             Activité
           </Label>
-          <div className="text-sm text-muted-foreground space-y-1">
+          <div className="text-sm text-muted-foreground space-y-2 max-h-40 overflow-y-auto">
             {ticket.createdAt && (
               <p data-testid="text-created-at">
                 Création {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: fr })}
               </p>
             )}
-            {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && (
+            
+            {/* State change activities */}
+            {stateChangeActivities.map((activity) => {
+              const payload = activity.payload as any;
+              const previousStateLabel = backlogItemStateOptions.find(s => s.value === payload.previousState)?.label || payload.previousState;
+              const newStateLabel = backlogItemStateOptions.find(s => s.value === payload.newState)?.label || payload.newState;
+              const userName = activity.user?.firstName && activity.user?.lastName 
+                ? `${activity.user.firstName} ${activity.user.lastName}` 
+                : activity.user?.email || "Utilisateur";
+              
+              return (
+                <div key={activity.id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/30" data-testid={`activity-state-change-${activity.id}`}>
+                  <ArrowRight className="h-3 w-3 text-violet-500 flex-shrink-0" />
+                  <span className="flex-1">
+                    <span className="font-medium">{userName}</span>
+                    {" : "}
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">{previousStateLabel}</Badge>
+                    {" → "}
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">{newStateLabel}</Badge>
+                  </span>
+                  <span className="text-muted-foreground text-[10px] flex-shrink-0">
+                    {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true, locale: fr })}
+                  </span>
+                </div>
+              );
+            })}
+            
+            {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && stateChangeActivities.length === 0 && (
               <p data-testid="text-updated-at">
                 Mis à jour {formatDistanceToNow(new Date(ticket.updatedAt), { addSuffix: true, locale: fr })}
               </p>
