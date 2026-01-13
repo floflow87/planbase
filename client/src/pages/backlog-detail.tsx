@@ -3814,7 +3814,7 @@ function CompletedTicketsView({
                   <Badge 
                     variant="outline" 
                     className={cn(
-                      "text-xs",
+                      "text-[10px]",
                       ticket.type === 'epic' && "border-violet-300 bg-violet-50 text-violet-700",
                       ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700",
                       ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700",
@@ -3825,7 +3825,7 @@ function CompletedTicketsView({
                   </Badge>
                 </td>
                 <td className="px-4 py-2">
-                  <span className="text-sm font-medium text-gray-900">{ticket.title}</span>
+                  <span className="text-xs text-gray-900">{ticket.title}</span>
                 </td>
                 <td className="px-4 py-2 hidden sm:table-cell">
                   <Badge 
@@ -4702,6 +4702,42 @@ type SprintWithRecipes = Sprint & {
 // Recipe filter type
 type RecipeFilter = "all" | "todo" | "done";
 
+// Inline Input component that saves on blur instead of on every keystroke
+function RecipeInlineInput({ 
+  value, 
+  placeholder, 
+  onSave, 
+  testId 
+}: { 
+  value: string; 
+  placeholder: string; 
+  onSave: (value: string) => void;
+  testId: string;
+}) {
+  const [localValue, setLocalValue] = useState(value);
+  
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+  
+  const handleBlur = () => {
+    if (localValue !== value) {
+      onSave(localValue);
+    }
+  };
+  
+  return (
+    <Input
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className="h-8 text-xs bg-white border-gray-200"
+      data-testid={testId}
+    />
+  );
+}
+
 // RecetteView Component - Cahier de recette (QA Testing)
 function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprint[] }) {
   const { toast } = useToast();
@@ -5430,7 +5466,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             <Badge 
                               variant="outline" 
                               className={cn(
-                                "text-xs",
+                                "text-[10px]",
                                 ticket.type === "user_story" && "bg-green-100 border-green-300 text-green-700",
                                 ticket.type === "task" && "bg-blue-100 border-blue-300 text-blue-700",
                                 ticket.type === "bug" && "bg-red-100 border-red-300 text-red-700"
@@ -5438,7 +5474,7 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                             >
                               {ticket.type === "user_story" ? "Story" : ticket.type === "bug" ? "Bug" : "Task"}
                             </Badge>
-                            <span className="font-medium truncate max-w-[250px]" title={ticket.title}>
+                            <span className="text-xs truncate max-w-[250px]" title={ticket.title}>
                               {ticket.title}
                             </span>
                           </div>
@@ -5477,19 +5513,18 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                           </DropdownMenu>
                         </td>
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                          <Input
+                          <RecipeInlineInput
                             value={ticket.recipe?.observedResults || ""}
-                            onChange={(e) => {
+                            placeholder="Résultats..."
+                            testId={`input-results-${ticket.id}`}
+                            onSave={(val) => {
                               upsertRecipeMutation.mutate({
                                 sprintId: sprint.id,
                                 ticketId: ticket.id,
                                 ticketType: ticket.type,
-                                observedResults: e.target.value || null,
+                                observedResults: val || null,
                               });
                             }}
-                            placeholder="Résultats..."
-                            className="h-8 text-xs bg-white border-gray-200"
-                            data-testid={`input-results-${ticket.id}`}
                           />
                         </td>
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
@@ -5545,35 +5580,33 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
                           </DropdownMenu>
                         </td>
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                          <Input
+                          <RecipeInlineInput
                             value={ticket.recipe?.suggestions || ""}
-                            onChange={(e) => {
+                            placeholder="Suggestions..."
+                            testId={`input-suggestions-${ticket.id}`}
+                            onSave={(val) => {
                               upsertRecipeMutation.mutate({
                                 sprintId: sprint.id,
                                 ticketId: ticket.id,
                                 ticketType: ticket.type,
-                                suggestions: e.target.value || null,
+                                suggestions: val || null,
                               });
                             }}
-                            placeholder="Suggestions..."
-                            className="h-8 text-xs bg-white border-gray-200"
-                            data-testid={`input-suggestions-${ticket.id}`}
                           />
                         </td>
                         <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                          <Input
+                          <RecipeInlineInput
                             value={ticket.recipe?.remarks || ""}
-                            onChange={(e) => {
+                            placeholder="Remarques..."
+                            testId={`input-remarks-${ticket.id}`}
+                            onSave={(val) => {
                               upsertRecipeMutation.mutate({
                                 sprintId: sprint.id,
                                 ticketId: ticket.id,
                                 ticketType: ticket.type,
-                                remarks: e.target.value || null,
+                                remarks: val || null,
                               });
                             }}
-                            placeholder="Remarques..."
-                            className="h-8 text-xs bg-white border-gray-200"
-                            data-testid={`input-remarks-${ticket.id}`}
                           />
                         </td>
                         <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>

@@ -1072,24 +1072,26 @@ export function TicketDetailPanel({
                 : activity.user?.email || "Utilisateur";
               
               return (
-                <div key={activity.id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/30" data-testid={`activity-state-change-${activity.id}`}>
-                  <ArrowRight className="h-3 w-3 text-violet-500 flex-shrink-0" />
-                  <span className="flex-1">
-                    <span className="font-medium">{userName}</span>
-                    {" : "}
-                    <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", previousStyle.bg, previousStyle.text)}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", previousStyle.dot)} />
-                      {previousStateLabel}
-                    </Badge>
-                    {" → "}
-                    <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", newStyle.bg, newStyle.text)}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", newStyle.dot)} />
-                      {newStateLabel}
-                    </Badge>
-                  </span>
-                  <span className="text-muted-foreground text-[10px] flex-shrink-0">
+                <div key={activity.id} className="text-xs p-1.5 rounded bg-muted/30 space-y-0.5" data-testid={`activity-state-change-${activity.id}`}>
+                  <div className="flex items-center gap-2">
+                    <ArrowRight className="h-3 w-3 text-violet-500 flex-shrink-0" />
+                    <span className="flex-1">
+                      <span className="font-medium">{userName}</span>
+                      {" : "}
+                      <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", previousStyle.bg, previousStyle.text)}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", previousStyle.dot)} />
+                        {previousStateLabel}
+                      </Badge>
+                      {" → "}
+                      <Badge variant="secondary" className={cn("text-[10px] px-1 py-0", newStyle.bg, newStyle.text)}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full mr-1 inline-block", newStyle.dot)} />
+                        {newStateLabel}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div className="text-muted-foreground text-[10px] pl-5">
                     {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true, locale: fr })}
-                  </span>
+                  </div>
                 </div>
               );
             })}
