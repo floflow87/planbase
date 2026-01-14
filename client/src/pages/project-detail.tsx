@@ -2856,6 +2856,116 @@ export default function ProjectDetail() {
     return projectScopeItems.reduce((sum, item) => sum + (parseFloat(item.estimatedDays?.toString() || "0")), 0);
   }, [projectScopeItems]);
 
+  // Calculate pace projection for the project (mirrors TimeTrackingTab logic)
+  const paceProjection = useMemo(() => {
+    if (projectTimeEntries.length < 2) {
+      return { available: false, reason: "Pas assez de données" };
+    }
+    
+    const entriesWithDates = projectTimeEntries
+      .filter(e => e.startTime && e.duration && e.duration > 0)
+      .map(e => ({
+        date: new Date(e.startTime!),
+        duration: e.duration || 0,
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+    
+    if (entriesWithDates.length < 2) {
+      return { available: false, reason: "Pas assez de sessions" };
+    }
+    
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last7DaysEntries = entriesWithDates.filter(e => e.date >= sevenDaysAgo);
+    const last5Sessions = entriesWithDates.slice(0, 5);
+    
+    let selectedEntries: typeof entriesWithDates;
+    let windowLabel: string;
+    
+    const has7Days = last7DaysEntries.length >= 2;
+    const has5Sessions = last5Sessions.length >= 2;
+    
+    if (!has7Days && !has5Sessions) {
+      return { available: false, reason: "Données insuffisantes" };
+    }
+    
+    if (has7Days && has5Sessions) {
+      if (last7DaysEntries.length > last5Sessions.length) {
+        selectedEntries = last7DaysEntries;
+        windowLabel = "7 derniers jours";
+      } else {
+        selectedEntries = last5Sessions;
+        windowLabel = "5 dernières sessions";
+      }
+    } else if (has7Days) {
+      selectedEntries = last7DaysEntries;
+      windowLabel = "7 derniers jours";
+    } else {
+      selectedEntries = last5Sessions;
+      windowLabel = "5 dernières sessions";
+    }
+    
+    if (selectedEntries.length < 2) {
+      return { available: false, reason: "Données insuffisantes" };
+    }
+    
+    const windowTimeSeconds = selectedEntries.reduce((sum, e) => sum + e.duration, 0);
+    const windowTimeDays = windowTimeSeconds / 3600 / 8;
+    const oldestEntry = selectedEntries[selectedEntries.length - 1];
+    const newestEntry = selectedEntries[0];
+    const windowCalendarDays = Math.max(1, (newestEntry.date.getTime() - oldestEntry.date.getTime()) / (24 * 60 * 60 * 1000) + 1);
+    const pacePerDay = windowTimeDays / windowCalendarDays;
+    
+    if (pacePerDay <= 0) {
+      return { available: false, reason: "Rythme invalide" };
+    }
+    
+    const projectNumberOfDays = parseFloat(project?.numberOfDays?.toString() || "0") || 0;
+    const totalEstimatedDays = cdcEstimatedDays > 0 ? cdcEstimatedDays : projectNumberOfDays;
+    const totalTimeSeconds = projectTimeEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+    const totalTimeDays = totalTimeSeconds / 3600 / 8;
+    
+    if (totalEstimatedDays <= 0) {
+      return {
+        available: true,
+        noEstimation: true,
+        pacePerDay,
+        windowLabel,
+        windowTimeDays,
+        windowCalendarDays,
+        totalTimeDays,
+      };
+    }
+    
+    const actualRemainingDays = totalEstimatedDays - totalTimeDays;
+    
+    if (actualRemainingDays < 0) {
+      return { 
+        available: true, 
+        alreadyExceeded: true,
+        exceededBy: Math.abs(actualRemainingDays),
+        windowLabel,
+        pacePerDay,
+      };
+    }
+    
+    const calendarDaysNeeded = actualRemainingDays / pacePerDay;
+    const estimatedEndDate = new Date(now.getTime() + calendarDaysNeeded * 24 * 60 * 60 * 1000);
+    
+    return {
+      available: true,
+      alreadyExceeded: false,
+      estimatedEndDate,
+      calendarDaysNeeded: Math.ceil(calendarDaysNeeded),
+      calendarDaysNeededRaw: calendarDaysNeeded,
+      actualRemainingDays,
+      pacePerDay,
+      windowLabel,
+      windowTimeDays,
+      windowCalendarDays,
+    };
+  }, [projectTimeEntries, project?.numberOfDays, cdcEstimatedDays]);
+
   // Fetch all backlogs and filter by projectId
   interface BacklogWithDetails extends Backlog {
     ticketCounts?: { todo: number; inProgress: number; done: number; total: number };
