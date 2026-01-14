@@ -3736,6 +3736,10 @@ export default function ProjectDetail() {
               <Timer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Temps</span>
             </TabsTrigger>
+            <TabsTrigger value="resources" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-resources">
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Ressources</span>
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-1.5 text-xs h-9 px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
@@ -3767,10 +3771,6 @@ export default function ProjectDetail() {
             <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Roadmap</span>
-            </TabsTrigger>
-            <TabsTrigger value="resources" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-resources">
-              <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Ressources</span>
             </TabsTrigger>
           </TabsList>
 

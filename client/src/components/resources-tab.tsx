@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Sheet,
   SheetContent,
@@ -58,6 +60,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { format, parse } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+
 import {
   Plus,
   Users,
@@ -73,6 +79,7 @@ import {
   FlaskConical,
   Eye,
   EyeOff,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import type {
   ProjectResource,
@@ -81,6 +88,10 @@ import type {
   nonHumanCategoryOptions,
   costTypeOptions,
 } from "@shared/schema";
+
+function parseDateString(dateStr: string): Date {
+  return parse(dateStr, "yyyy-MM-dd", new Date());
+}
 
 interface ResourcesTabProps {
   projectId: string;
@@ -169,6 +180,8 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const [humanExpanded, setHumanExpanded] = useState(true);
   const [nonHumanExpanded, setNonHumanExpanded] = useState(true);
   const [showSimulations, setShowSimulations] = useState(false);
+  const [isStartDateOpen, setIsStartDateOpen] = useState(false);
+  const [isEndDateOpen, setIsEndDateOpen] = useState(false);
 
   const { data: resources = [], isLoading } = useQuery<ProjectResource[]>({
     queryKey: ["/api/projects", projectId, "resources"],
@@ -207,10 +220,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
         isSimulation: data.isSimulation ? 1 : 0,
         notes: data.notes || null,
       };
-      return apiRequest(`/api/projects/${projectId}/resources`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      return apiRequest(`/api/projects/${projectId}/resources`, "POST", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
@@ -243,10 +253,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
         isSimulation: data.isSimulation ? 1 : 0,
         notes: data.notes || null,
       };
-      return apiRequest(`/api/resources/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+      return apiRequest(`/api/resources/${id}`, "PATCH", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
@@ -261,7 +268,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/resources/${id}`, { method: "DELETE" });
+      return apiRequest(`/api/resources/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
@@ -634,7 +641,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
       </Card>
 
       <Sheet open={showDialog} onOpenChange={setShowDialog}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white dark:bg-background">
           <SheetHeader>
             <SheetTitle>
               {editingResource ? "Modifier la ressource" : formData.type === "human" ? "Nouvelle ressource humaine" : "Nouvelle ressource"}
@@ -804,24 +811,80 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startDate">Date de début</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  data-testid="input-start-date"
-                />
+                <Label>Date de début</Label>
+                <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.startDate && "text-muted-foreground"
+                      )}
+                      data-testid="button-start-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.startDate
+                        ? format(parseDateString(formData.startDate), "dd/MM/yyyy", { locale: fr })
+                        : "Sélectionner"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.startDate ? parseDateString(formData.startDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          setFormData({ ...formData, startDate: `${year}-${month}-${day}` });
+                        } else {
+                          setFormData({ ...formData, startDate: "" });
+                        }
+                        setIsStartDateOpen(false);
+                      }}
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
-                <Label htmlFor="endDate">Date de fin</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  data-testid="input-end-date"
-                />
+                <Label>Date de fin</Label>
+                <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.endDate && "text-muted-foreground"
+                      )}
+                      data-testid="button-end-date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.endDate
+                        ? format(parseDateString(formData.endDate), "dd/MM/yyyy", { locale: fr })
+                        : "Sélectionner"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.endDate ? parseDateString(formData.endDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          setFormData({ ...formData, endDate: `${year}-${month}-${day}` });
+                        } else {
+                          setFormData({ ...formData, endDate: "" });
+                        }
+                        setIsEndDateOpen(false);
+                      }}
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
