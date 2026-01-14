@@ -1,0 +1,295 @@
+Objectif du module Ressources
+
+Créer un onglet Ressources au niveau du projet permettant de :
+
+modéliser tous les coûts réels d’un projet (humains et non humains)
+
+simuler des scénarios de staffing et de dépenses
+
+recalculer en temps réel :
+
+le coût projet
+
+la marge projet
+
+les projections de rentabilité
+
+nourrir les recommandations décisionnelles
+
+👉 Toute modification d’une ressource impacte immédiatement la rentabilité et les alertes.
+
+1️⃣ Positionnement du module
+
+Le module Ressources est :
+
+un onglet du projet
+
+distinct du CDC (qui reste estimatif)
+
+distinct du temps (qui est réel)
+
+Il représente la structure de coûts projetée du projet.
+
+2️⃣ Types de ressources à gérer
+A. Ressources humaines
+
+Chaque ressource humaine contient :
+
+Type de profil
+
+ex : Développeur, Designer, Product Manager, Marketing, QA, DevOps…
+
+Mode
+
+Interne
+
+Freelance
+
+Sous-traitant
+
+Coût journalier interne (obligatoire)
+
+TJM facturé (optionnel, si facturable)
+
+Capacité
+
+jours / semaine
+
+ou % d’allocation
+
+Période d’intervention
+
+phases roadmap (T1, T2, T3…)
+
+ou dates personnalisées
+
+Facturable
+
+oui / non
+
+👉 Une ressource humaine peut être :
+
+partiellement facturable
+
+partiellement non facturable (ex : gestion, coordination)
+
+B. Ressources non humaines (coûts fixes / variables)
+
+Chaque ressource non humaine contient :
+
+Catégorie
+
+Hébergement
+
+Outils SaaS
+
+API / IA
+
+Licences
+
+Infrastructure
+
+Sous-traitance
+
+Autre
+
+Nom
+
+ex : Scaleway, Notion, Stripe, OpenAI, Figma…
+
+Type de coût
+
+Mensuel
+
+Annuel
+
+Ponctuel
+
+Montant
+
+ex : 45 €/mois
+
+Période d’application
+
+phases roadmap
+
+ou dates spécifiques
+
+Facturable
+
+oui / non
+
+3️⃣ Templates de ressources à la création du projet
+À la création d’un projet :
+
+proposer automatiquement un template de ressources
+
+basé sur le type de projet
+
+Exemples de templates
+🧠 Projet SaaS
+
+Hébergement cloud (€/mois)
+
+Base de données (€/mois)
+
+Emails transactionnels (€/mois)
+
+Outil analytics (€/mois)
+
+Outil support (€/mois)
+
+Nom de domaine (€/an)
+
+API IA (€/mois – optionnel)
+
+🛍️ E-commerce
+
+Hébergement / CMS
+
+Paiement (frais variables %)
+
+Outil emailing
+
+App RGPD
+
+Nom de domaine
+
+🎨 Branding / Design
+
+Logiciel design
+
+Banque d’assets
+
+Outils de présentation
+
+Impression (si concerné)
+
+👉 Tous les templates sont :
+
+pré-remplis
+
+100% modifiables
+
+désactivables
+
+4️⃣ Calculs financiers (temps réel)
+Calcul du coût projet
+
+Coût total =
+
+Σ (temps estimé × coût journalier des ressources humaines)
+
+Σ (ressources non humaines × durée d’application)
+
+Calcul du CA projet
+
+CA =
+
+Σ (temps facturable × TJM)
+
+forfaits éventuels
+
+Marge projet
+
+Marge =
+
+CA – Coûts
+
+affichée :
+
+en €
+
+en %
+
+👉 Toute modification :
+
+CDC
+
+ressource
+
+roadmap
+
+allocation
+→ déclenche un recalcul immédiat.
+
+5️⃣ Simulation & scénarios (effet “wahou”)
+
+Permettre à l’utilisateur de :
+
+ajouter une ressource “en simulation”
+
+modifier une allocation
+
+ajuster un coût
+
+sans impacter le projet réel tant que non validé
+
+Exemples de feedback instantané :
+
+“+1 dev sur T2 → marge +6%”
+
+“Outil X non facturable → marge -3%”
+
+“Déplacement de la ressource en T3 → risque de retard”
+
+6️⃣ Intégration avec les recommandations
+
+Le module Ressources alimente automatiquement les recos :
+
+⚠️ “La structure de coûts actuelle rend le projet déficitaire”
+
+💡 “Ce type de projet est rentable au-dessus de 650 €/j”
+
+🔁 “Décaler cette ressource en T2 améliore la marge de 8%”
+
+🧭 “Les coûts fixes représentent 32% du CA projet”
+
+7️⃣ UX & visualisation
+UI attendue
+
+Table claire, lisible
+
+Groupement :
+
+Humain
+
+Outils / Infrastructure
+
+Badges :
+
+Facturable / Non facturable
+
+Interne / Externe
+
+Totaux visibles en bas :
+
+Coût mensuel
+
+Coût total projet
+
+Impact marge
+
+Interactions
+
+Ajout rapide
+
+Duplication
+
+Désactivation temporaire
+
+Drag & drop entre phases roadmap
+
+8️⃣ Règles de cohérence produit
+
+Une ressource inactive :
+
+n’est pas prise en compte dans les calculs
+
+Une ressource non rattachée à une phase :
+
+génère un warning doux
+
+Une ressource coûteuse non facturable :
+
+génère une alerte explicite

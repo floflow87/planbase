@@ -115,7 +115,7 @@ export function PostCreationSuggestions({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
               data-testid="button-suggestion-roadmap"
             >
               <div className="p-3 rounded-full bg-white/20">
@@ -129,7 +129,7 @@ export function PostCreationSuggestions({
 
             <button
               onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
               data-testid="button-suggestion-backlog"
             >
               <div className="p-3 rounded-full bg-white/20">
@@ -143,7 +143,7 @@ export function PostCreationSuggestions({
 
             <button
               onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
               data-testid="button-suggestion-time-tracking"
             >
               <div className="p-3 rounded-full bg-white/20">
