@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
@@ -1340,8 +1340,10 @@ export default function CRM() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirmer la suppression</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.
+              </DialogDescription>
             </DialogHeader>
-            <p>Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.</p>
             <div className="flex justify-end gap-2 mt-4">
               <Button 
                 variant="outline" 
@@ -1376,8 +1378,10 @@ export default function CRM() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirmer la suppression</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer {selectedClients.size} client(s) ? Cette action est irréversible.
+              </DialogDescription>
             </DialogHeader>
-            <p>Êtes-vous sûr de vouloir supprimer {selectedClients.size} client(s) ? Cette action est irréversible.</p>
             <div className="flex justify-end gap-2 mt-4">
               <Button 
                 variant="outline" 

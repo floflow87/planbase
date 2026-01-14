@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -1264,6 +1265,9 @@ export function ListView({
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Rattacher les tâches à un projet</DialogTitle>
+            <DialogDescription>
+              Sélectionnez le projet auquel associer les tâches sélectionnées.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

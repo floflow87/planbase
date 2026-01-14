@@ -52,7 +52,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
@@ -1507,6 +1507,9 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         <DialogContent data-testid="dialog-link">
           <DialogHeader>
             <DialogTitle>Ajouter un lien</DialogTitle>
+            <DialogDescription>
+              Saisissez l'URL à lier au texte sélectionné.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1545,6 +1548,9 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
             <DialogTitle>
               Lier à {entityType === 'project' ? 'un projet' : entityType === 'task' ? 'une tâche' : 'un client'}
             </DialogTitle>
+            <DialogDescription>
+              Sélectionnez un élément à lier à cette note.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

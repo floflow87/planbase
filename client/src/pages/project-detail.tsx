@@ -4938,6 +4938,9 @@ export default function ProjectDetail() {
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Modifier le paiement</DialogTitle>
+                  <DialogDescription>
+                    Modifiez les informations du paiement.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div>

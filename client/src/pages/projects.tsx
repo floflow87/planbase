@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -1282,6 +1283,9 @@ function ListView({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rattacher les tâches à un projet</DialogTitle>
+            <DialogDescription>
+              Sélectionnez le projet auquel associer les tâches sélectionnées.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -4743,6 +4747,9 @@ export default function Projects() {
         <DialogContent data-testid="dialog-create-task">
           <DialogHeader>
             <DialogTitle>Nouvelle tâche</DialogTitle>
+            <DialogDescription>
+              Créez une nouvelle tâche et assignez-la à un projet.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -5024,6 +5031,9 @@ export default function Projects() {
         <DialogContent data-testid="dialog-create-column">
           <DialogHeader>
             <DialogTitle>Nouvelle colonne</DialogTitle>
+            <DialogDescription>
+              Ajoutez une nouvelle colonne au tableau Kanban.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -5058,6 +5068,9 @@ export default function Projects() {
         <DialogContent data-testid="dialog-rename-column">
           <DialogHeader>
             <DialogTitle>Renommer la colonne</DialogTitle>
+            <DialogDescription>
+              Modifiez le nom de cette colonne.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -5092,6 +5105,9 @@ export default function Projects() {
         <DialogContent data-testid="dialog-color-column">
           <DialogHeader>
             <DialogTitle>Changer la couleur</DialogTitle>
+            <DialogDescription>
+              Personnalisez la couleur de cette colonne.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
