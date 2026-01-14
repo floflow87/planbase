@@ -30,6 +30,7 @@ import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient
 import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
+import { ResourcesTab } from "@/components/resources-tab";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
@@ -3767,6 +3768,10 @@ export default function ProjectDetail() {
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
+            <TabsTrigger value="resources" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-resources">
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Ressources</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
@@ -4118,6 +4123,20 @@ export default function ProjectDetail() {
           <TabsContent value="roadmap" className="mt-0">
             {project?.accountId ? (
               <RoadmapTab projectId={id!} accountId={project.accountId} />
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-12">
+                    <Loader />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="resources" className="mt-0">
+            {project?.accountId ? (
+              <ResourcesTab projectId={id!} accountId={project.accountId} />
             ) : (
               <Card>
                 <CardContent className="pt-6">
