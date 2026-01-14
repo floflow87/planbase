@@ -82,6 +82,10 @@ import {
   retroCards,
   userOnboarding,
   activities,
+  insertResourceTemplateSchema,
+  insertProjectResourceSchema,
+  resourceTemplates,
+  projectResources,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -7731,6 +7735,361 @@ export async function registerRoutes(app: Express): Promise<Server> {
         globalInternalDailyCost,
         hasInternalDailyCost: effectiveInternalDailyCost !== null && effectiveInternalDailyCost > 0
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // PROJECT RESOURCES - Resource tracking
+  // ============================================
+
+  // Get all resources for a project
+  app.get("/api/projects/:projectId/resources", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { projectId } = req.params;
+      const { type, status, isSimulation } = req.query;
+      
+      let query = db.select().from(projectResources)
+        .where(and(
+          eq(projectResources.accountId, accountId),
+          eq(projectResources.projectId, projectId)
+        ));
+      
+      const resources = await query.orderBy(asc(projectResources.createdAt));
+      
+      // Filter in memory for optional params
+      let filtered = resources;
+      if (type) {
+        filtered = filtered.filter(r => r.type === type);
+      }
+      if (status) {
+        filtered = filtered.filter(r => r.status === status);
+      }
+      if (isSimulation !== undefined) {
+        const simValue = isSimulation === 'true' ? 1 : 0;
+        filtered = filtered.filter(r => r.isSimulation === simValue);
+      }
+      
+      res.json(filtered);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new project resource
+  app.post("/api/projects/:projectId/resources", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { projectId } = req.params;
+      
+      // Verify project exists and belongs to account
+      const project = await storage.getProject(projectId);
+      if (!project || project.accountId !== accountId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      const validated = insertProjectResourceSchema.parse({
+        ...req.body,
+        accountId,
+        projectId,
+        createdBy: userId,
+      });
+      
+      const [resource] = await db.insert(projectResources).values(validated).returning();
+      res.status(201).json(resource);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a project resource
+  app.patch("/api/resources/:resourceId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { resourceId } = req.params;
+      
+      // Verify resource exists and belongs to account
+      const [existing] = await db.select().from(projectResources)
+        .where(and(
+          eq(projectResources.id, resourceId),
+          eq(projectResources.accountId, accountId)
+        ));
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Resource not found" });
+      }
+      
+      const [updated] = await db.update(projectResources)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(projectResources.id, resourceId))
+        .returning();
+      
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a project resource
+  app.delete("/api/resources/:resourceId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { resourceId } = req.params;
+      
+      // Verify resource exists and belongs to account
+      const [existing] = await db.select().from(projectResources)
+        .where(and(
+          eq(projectResources.id, resourceId),
+          eq(projectResources.accountId, accountId)
+        ));
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Resource not found" });
+      }
+      
+      await db.delete(projectResources).where(eq(projectResources.id, resourceId));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get resource cost summary for a project
+  app.get("/api/projects/:projectId/resources/summary", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { projectId } = req.params;
+      const { isSimulation } = req.query;
+      
+      const resources = await db.select().from(projectResources)
+        .where(and(
+          eq(projectResources.accountId, accountId),
+          eq(projectResources.projectId, projectId)
+        ));
+      
+      // Filter simulation resources if specified
+      let filtered = resources;
+      if (isSimulation !== undefined) {
+        const simValue = isSimulation === 'true' ? 1 : 0;
+        filtered = filtered.filter(r => r.isSimulation === simValue);
+      }
+      
+      // Calculate totals
+      const humanResources = filtered.filter(r => r.type === 'human');
+      const nonHumanResources = filtered.filter(r => r.type === 'non_human');
+      
+      // Human resource costs (daily_cost_internal * capacity for each)
+      let totalInternalCost = 0;
+      let totalBilledAmount = 0;
+      
+      for (const resource of humanResources) {
+        const dailyCost = resource.dailyCostInternal ? parseFloat(resource.dailyCostInternal) : 0;
+        const dailyRate = resource.dailyRateBilled ? parseFloat(resource.dailyRateBilled) : 0;
+        const capacity = resource.capacity || 0;
+        
+        // Assuming capacity is in days, calculate total cost
+        totalInternalCost += dailyCost * capacity;
+        if (resource.isBillable === 1) {
+          totalBilledAmount += dailyRate * capacity;
+        }
+      }
+      
+      // Non-human resource costs
+      let totalNonHumanCost = 0;
+      for (const resource of nonHumanResources) {
+        const amount = resource.amount ? parseFloat(resource.amount) : 0;
+        totalNonHumanCost += amount;
+        totalInternalCost += amount;
+        if (resource.isBillable === 1) {
+          totalBilledAmount += amount;
+        }
+      }
+      
+      const margin = totalBilledAmount - totalInternalCost;
+      const marginPercent = totalBilledAmount > 0 ? (margin / totalBilledAmount) * 100 : 0;
+      
+      res.json({
+        humanCount: humanResources.length,
+        nonHumanCount: nonHumanResources.length,
+        totalCount: filtered.length,
+        totalInternalCost,
+        totalBilledAmount,
+        totalNonHumanCost,
+        margin,
+        marginPercent,
+        byType: {
+          human: {
+            count: humanResources.length,
+            internalCost: totalInternalCost - totalNonHumanCost,
+            billedAmount: totalBilledAmount - nonHumanResources.reduce((sum, r) => 
+              r.isBillable === 1 ? sum + (r.amount ? parseFloat(r.amount) : 0) : sum, 0)
+          },
+          nonHuman: {
+            count: nonHumanResources.length,
+            totalCost: totalNonHumanCost
+          }
+        }
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // RESOURCE TEMPLATES - Reusable resource definitions
+  // ============================================
+
+  // Get all resource templates for account
+  app.get("/api/resource-templates", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { type, projectType } = req.query;
+      
+      const templates = await db.select().from(resourceTemplates)
+        .where(eq(resourceTemplates.accountId, accountId))
+        .orderBy(asc(resourceTemplates.name));
+      
+      // Filter in memory for optional params
+      let filtered = templates;
+      if (type) {
+        filtered = filtered.filter(t => t.type === type);
+      }
+      if (projectType) {
+        filtered = filtered.filter(t => t.projectType === projectType || t.projectType === null);
+      }
+      
+      res.json(filtered);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a resource template
+  app.post("/api/resource-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      
+      const validated = insertResourceTemplateSchema.parse({
+        ...req.body,
+        accountId,
+      });
+      
+      const [template] = await db.insert(resourceTemplates).values(validated).returning();
+      res.status(201).json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a resource template
+  app.patch("/api/resource-templates/:templateId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { templateId } = req.params;
+      
+      // Verify template exists and belongs to account
+      const [existing] = await db.select().from(resourceTemplates)
+        .where(and(
+          eq(resourceTemplates.id, templateId),
+          eq(resourceTemplates.accountId, accountId)
+        ));
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      const [updated] = await db.update(resourceTemplates)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(resourceTemplates.id, templateId))
+        .returning();
+      
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a resource template
+  app.delete("/api/resource-templates/:templateId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { templateId } = req.params;
+      
+      // Verify template exists and belongs to account
+      const [existing] = await db.select().from(resourceTemplates)
+        .where(and(
+          eq(resourceTemplates.id, templateId),
+          eq(resourceTemplates.accountId, accountId)
+        ));
+      
+      if (!existing) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check if template is a system template
+      if (existing.isSystemTemplate === 1) {
+        return res.status(400).json({ error: "Cannot delete system template" });
+      }
+      
+      await db.delete(resourceTemplates).where(eq(resourceTemplates.id, templateId));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create resource from template
+  app.post("/api/projects/:projectId/resources/from-template", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const { projectId } = req.params;
+      const { templateId, overrides } = req.body;
+      
+      // Verify project exists
+      const project = await storage.getProject(projectId);
+      if (!project || project.accountId !== accountId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Get template
+      const [template] = await db.select().from(resourceTemplates)
+        .where(and(
+          eq(resourceTemplates.id, templateId),
+          eq(resourceTemplates.accountId, accountId)
+        ));
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Create resource from template
+      const resourceData = {
+        accountId,
+        projectId,
+        templateId: template.id,
+        name: template.name,
+        type: template.type,
+        profileType: template.profileType,
+        mode: template.mode,
+        dailyCostInternal: template.dailyCostInternal,
+        dailyRateBilled: template.dailyRateBilled,
+        capacity: template.defaultCapacity,
+        category: template.category,
+        costType: template.costType,
+        amount: template.defaultAmount,
+        isBillable: template.isBillable,
+        createdBy: userId,
+        ...overrides,
+      };
+      
+      const validated = insertProjectResourceSchema.parse(resourceData);
+      const [resource] = await db.insert(projectResources).values(validated).returning();
+      
+      res.status(201).json(resource);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
