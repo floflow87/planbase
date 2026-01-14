@@ -161,6 +161,22 @@ const categoryOptions: { value: string; label: string }[] = [
   { value: "license", label: "Licences" },
   { value: "infrastructure", label: "Infrastructure" },
   { value: "outsourcing", label: "Sous-traitance" },
+  { value: "template", label: "Template site internet" },
+  { value: "payment_fees", label: "Commissions de paiement" },
+  { value: "inpi", label: "Dépôt INPI" },
+  { value: "compliance", label: "RGPD / SOC2" },
+  { value: "monitoring", label: "Sentry / Datadog" },
+  { value: "cdn", label: "Cloudflare" },
+  { value: "backup", label: "Backups externalisés" },
+  { value: "ads", label: "Ads" },
+  { value: "seo", label: "SEO tools" },
+  { value: "design", label: "Design assets" },
+  { value: "communication", label: "Outil de communication" },
+  { value: "product", label: "Outil product" },
+  { value: "marketing", label: "Outil marketing & Branding" },
+  { value: "training", label: "Formation" },
+  { value: "storage", label: "Stockage" },
+  { value: "shipping", label: "Expédition" },
   { value: "other", label: "Autre" },
 ];
 
@@ -232,6 +248,10 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     queryKey: ["/api/projects", projectId, "resources"],
   });
 
+  const summaryUrl = showSimulations 
+    ? `/api/projects/${projectId}/resources/summary` 
+    : `/api/projects/${projectId}/resources/summary?isSimulation=false`;
+  
   const { data: summary } = useQuery<{
     humanCount: number;
     nonHumanCount: number;
@@ -242,7 +262,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     margin: number;
     marginPercent: number;
   }>({
-    queryKey: ["/api/projects", projectId, "resources", "summary", { isSimulation: showSimulations ? undefined : "false" }],
+    queryKey: [summaryUrl],
   });
 
   const createMutation = useMutation({
@@ -269,6 +289,9 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
       toast({ title: "Ressource créée", description: "La ressource a été ajoutée au projet.", variant: "success" });
       setShowDialog(false);
       resetForm();
@@ -302,6 +325,9 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
       toast({ title: "Ressource modifiée", description: "Les modifications ont été enregistrées.", variant: "success" });
       setShowDialog(false);
       resetForm();
@@ -317,6 +343,9 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
       toast({ title: "Ressource supprimée", description: "La ressource a été retirée du projet.", variant: "success" });
       setShowDeleteDialog(false);
       setResourceToDelete(null);
@@ -475,8 +504,8 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 Simulations
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-white text-muted-foreground font-light border shadow-sm">
-              Afficher/masquer les ressources de simulation pour estimer l'impact financier de scénarios hypothétiques
+            <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[200px] text-center">
+              Afficher/masquer les simulations<br/>pour estimer l'impact financier
             </TooltipContent>
           </Tooltip>
         </div>
