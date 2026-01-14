@@ -84,11 +84,30 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
   });
 
   if (isLoadingPhases || isLoadingMilestones) {
-    return null;
+    return (
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="bg-card/50 animate-pulse">
+            <CardContent className="pt-4 pb-3 px-4">
+              <div className="h-4 bg-muted rounded w-24 mb-2" />
+              <div className="h-6 bg-muted rounded w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   }
 
   if (!phasesData) {
-    return null;
+    return (
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="bg-card/50 col-span-full">
+          <CardContent className="pt-4 pb-3 px-4 text-center text-muted-foreground text-sm">
+            Impossible de charger les indicateurs de phase
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const formatDate = (dateStr: string | undefined | null) => {

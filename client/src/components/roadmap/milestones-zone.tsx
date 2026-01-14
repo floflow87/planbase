@@ -66,8 +66,42 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
     queryKey: [`/api/projects/${projectId}/roadmap/milestones`],
   });
 
-  if (isLoading || !milestonesData || milestonesData.totalCount === 0) {
-    return null;
+  if (isLoading) {
+    return (
+      <Card className="mb-4 animate-pulse">
+        <CardHeader className="py-3">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 bg-muted rounded" />
+            <div className="h-4 bg-muted rounded w-32" />
+          </div>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!milestonesData || milestonesData.totalCount === 0) {
+    return (
+      <Card className="mb-4">
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flag className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium">
+                Jalons
+              </CardTitle>
+            </div>
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              Aucun jalon
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 pb-3">
+          <p className="text-sm text-muted-foreground text-center py-2">
+            Ajoutez des éléments de type "Jalon" pour suivre vos objectifs clés
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   const formatDate = (dateStr: string | undefined | null) => {
