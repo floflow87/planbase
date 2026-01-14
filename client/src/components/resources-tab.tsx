@@ -80,7 +80,17 @@ import {
   Eye,
   EyeOff,
   Calendar as CalendarIcon,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import type {
   ProjectResource,
   humanProfileTypeOptions,
@@ -243,6 +253,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const [showSimulations, setShowSimulations] = useState(false);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   const { data: resources = [], isLoading } = useQuery<ProjectResource[]>({
     queryKey: ["/api/projects", projectId, "resources"],
@@ -845,21 +856,48 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Catégorie</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(v) => setFormData({ ...formData, category: v })}
-                    >
-                      <SelectTrigger data-testid="select-category">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoryOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isCategoryOpen}
+                          className="w-full justify-between font-normal"
+                          data-testid="select-category"
+                        >
+                          {categoryOptions.find(opt => opt.value === formData.category)?.label || "Sélectionner..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Rechercher..." />
+                          <CommandList>
+                            <CommandEmpty>Aucun résultat.</CommandEmpty>
+                            <CommandGroup>
+                              {categoryOptions.map((opt) => (
+                                <CommandItem
+                                  key={opt.value}
+                                  value={opt.label}
+                                  onSelect={() => {
+                                    setFormData({ ...formData, category: opt.value });
+                                    setIsCategoryOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      formData.category === opt.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {opt.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <Label>Type de coût</Label>
