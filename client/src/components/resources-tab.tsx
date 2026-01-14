@@ -170,6 +170,51 @@ const costTypeOptionsLocal: { value: string; label: string }[] = [
   { value: "one_time", label: "Ponctuel" },
 ];
 
+const humanResourceSuggestions = [
+  "Développeur Frontend",
+  "Développeur Backend",
+  "Développeur Fullstack",
+  "Designer UI/UX",
+  "Product Owner",
+  "Scrum Master",
+  "Chef de projet",
+  "DevOps Engineer",
+  "Data Scientist",
+  "QA Engineer",
+  "Tech Lead",
+  "Architecte logiciel",
+  "Business Analyst",
+  "Consultant technique",
+];
+
+const materialResourceSuggestions = [
+  "Template site internet",
+  "Commissions de paiement",
+  "Dépôt INPI",
+  "RGPD / SOC2",
+  "Sentry / Datadog",
+  "Cloudflare",
+  "Backups externalisés",
+  "Ads",
+  "SEO tools",
+  "Design assets",
+  "Outil de communication",
+  "Outil product",
+  "Outil marketing & Branding",
+  "Formation",
+  "Stockage",
+  "Expédition",
+  "AWS / GCP / Azure",
+  "Serveur dédié",
+  "Base de données managée",
+  "CDN",
+  "Nom de domaine",
+  "Certificat SSL",
+  "Email professionnel",
+  "CRM",
+  "Analytics",
+];
+
 export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const { toast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
@@ -179,7 +224,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const [resourceToDelete, setResourceToDelete] = useState<ProjectResource | null>(null);
   const [humanExpanded, setHumanExpanded] = useState(true);
   const [nonHumanExpanded, setNonHumanExpanded] = useState(true);
-  const [showSimulations, setShowSimulations] = useState(true);
+  const [showSimulations, setShowSimulations] = useState(false);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
 
@@ -257,7 +302,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
-      toast({ title: "Ressource modifiée", description: "Les modifications ont été enregistrées." });
+      toast({ title: "Ressource modifiée", description: "Les modifications ont été enregistrées.", variant: "success" });
       setShowDialog(false);
       resetForm();
     },
@@ -272,7 +317,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
-      toast({ title: "Ressource supprimée", description: "La ressource a été retirée du projet." });
+      toast({ title: "Ressource supprimée", description: "La ressource a été retirée du projet.", variant: "success" });
       setShowDeleteDialog(false);
       setResourceToDelete(null);
     },
@@ -398,7 +443,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             <div className="text-lg font-bold" data-testid="kpi-resource-count">
               {summary ? summary.totalCount : 0}
               <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({summary?.humanCount || 0} humaines, {summary?.nonHumanCount || 0} autres)
+                ({summary?.humanCount || 0} humaines, {summary?.nonHumanCount || 0} matérielles)
               </span>
             </div>
           </CardContent>
@@ -413,20 +458,27 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
           </Button>
           <Button size="sm" variant="outline" onClick={() => openCreateDialog("non_human")} data-testid="button-add-non-human">
             <Plus className="h-4 w-4 mr-1" />
-            Autre ressource
+            Ressource matérielle
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant={showSimulations ? "secondary" : "ghost"}
-            onClick={() => setShowSimulations(!showSimulations)}
-            data-testid="button-toggle-simulations"
-          >
-            {showSimulations ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
-            <FlaskConical className="h-4 w-4 mr-1" />
-            Simulations
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant={showSimulations ? "secondary" : "ghost"}
+                onClick={() => setShowSimulations(!showSimulations)}
+                data-testid="button-toggle-simulations"
+              >
+                {showSimulations ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
+                <FlaskConical className="h-4 w-4 mr-1" />
+                Simulations
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-muted-foreground font-light border shadow-sm">
+              Afficher/masquer les ressources de simulation pour estimer l'impact financier de scénarios hypothétiques
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -473,12 +525,10 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                           <div className="flex items-center gap-2">
                             {resource.name}
                             {resource.isSimulation === 1 && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <FlaskConical className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>Simulation</TooltipContent>
-                              </Tooltip>
+                              <div className="flex flex-col items-center">
+                                <Calculator className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-[10px] text-muted-foreground leading-none">simul.</span>
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -546,7 +596,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
               <div className="flex items-center gap-2">
                 {nonHumanExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 <Server className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm">Autres ressources</CardTitle>
+                <CardTitle className="text-sm">Ressources matérielles</CardTitle>
                 <Badge variant="secondary" className="ml-2">{nonHumanResources.length}</Badge>
               </div>
             </CardHeader>
@@ -556,7 +606,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
               {nonHumanResources.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Aucune autre ressource</p>
+                  <p className="text-sm">Aucune ressource matérielle</p>
                   <Button variant="link" size="sm" onClick={() => openCreateDialog("non_human")}>
                     Ajouter une ressource
                   </Button>
@@ -580,12 +630,10 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                           <div className="flex items-center gap-2">
                             {resource.name}
                             {resource.isSimulation === 1 && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <FlaskConical className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>Simulation</TooltipContent>
-                              </Tooltip>
+                              <div className="flex flex-col items-center">
+                                <Calculator className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-[10px] text-muted-foreground leading-none">simul.</span>
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -662,7 +710,18 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder={formData.type === "human" ? "Ex: Jean Dupont" : "Ex: Serveur AWS"}
                 data-testid="input-resource-name"
+                list={formData.type === "human" ? "human-suggestions" : "material-suggestions"}
               />
+              <datalist id="human-suggestions">
+                {humanResourceSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <datalist id="material-suggestions">
+                {materialResourceSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </div>
 
             {formData.type === "human" ? (
