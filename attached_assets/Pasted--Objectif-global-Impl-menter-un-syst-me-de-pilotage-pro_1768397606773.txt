@@ -1,0 +1,191 @@
+🎯 Objectif global
+
+Implémenter un système de pilotage projet interconnecté, où :
+
+les besoins (CDC)
+les coûts (ressources, humains & outils)
+les choix de roadmap agissent dynamiquement sur :
+
+le coût réel du projet
+la marge projet
+les alertes
+les recommandations décisionnelles
+
+👉 Toute modification (CDC, roadmap, ressource, coût) met à jour instantanément les marges et les projections.
+
+1️⃣ CDC — Source de vérité
+Fonctionnalités attendues
+
+Les rubriques CDC contiennent :
+
+type (Produit / Tech / Business / Marketing / Gestion…)
+
+phase (T1, T2, T3, LT)
+
+estimé en jours
+facturable (booléen)
+Le CDC peut :
+suggérer une roadmap
+suggérer un backlog
+sans obligation de création immédiate
+
+Règle clé
+
+Le CDC est une base d’estimation, pas un engagement figé.
+
+2️⃣ Roadmap — Traduction temporelle
+Construction
+
+La roadmap peut être :
+générée depuis le CDC
+créée manuellement
+
+Les phases :
+
+T1 = 3 mois à partir de la date de début du projet
+T2 = 6 mois
+T3 = 9 mois
+etc.
+
+Éléments roadmap
+
+Blocs roadmap
+Jalons (milestones - avec suggestion auto de milestones)
+
+Liens possibles avec :
+
+rubriques CDC
+Epics
+Tickets
+
+3️⃣ Epics — Pont CDC / Roadmap / Exécution
+Règles
+
+Une Epic peut :
+
+provenir d’une rubrique CDC
+provenir d’un bloc roadmap
+être créée manuellement
+
+Une Epic :
+
+peut ne pas être rattachée (autorisé)
+mais un rattachement est recommandé
+
+Une Epic ne dépend jamais directement d’un jalon
+
+5️⃣ Calculs financiers dynamiques (CRITIQUE)
+Calculs attendus
+
+Coût projet =
+(temps estimé × coût journalier humain)
+
+(ressources fixes × durée)
+
+CA projet =
+temps facturable × TJM
+
+forfait éventuel
+
+Marge projet =
+CA – Coûts
+
+Règle clé
+
+Toute modification du CDC, de la roadmap ou des ressources met à jour la marge en temps réel.
+
+6️⃣ Recommandations intelligentes (roadmap-aware)
+Exemples de recos à afficher
+
+📍 Position actuelle
+
+“Vous êtes actuellement en phase T1 – MVP”
+
+🧭 Rythme attendu
+
+“À ce stade, vous devriez avoir démarré le sprint #2”
+
+🎯 Prochain jalon
+
+“Prochain jalon : Démo MVP
+Échéance estimée : dans 21 jours”
+
+⚠️ Impact financier
+
+“Avec les ressources actuelles, la marge projet est de 12%
+Seuil recommandé : 20%”
+
+🔁 Simulation
+
+“+1 ressource dev sur T2 → marge estimée : 18%”
+
+7️⃣ OKR — Couche stratégique finale (arbre visuel)
+Structure OKR
+
+Objectifs (Business / Produit / Marketing)
+
+Key Results (mesurables)
+
+Tâches (liées aux tickets existants)
+
+Positionnement
+
+Onglet rattaché à la Roadmap
+
+Les OKR :
+
+lisent le CDC
+
+lisent la roadmap
+
+lisent les résultats (temps, marge)
+
+Ils n’imposent rien, ils éclairent les choix
+
+8️⃣ Visualisation en arbre (expérience clé)
+
+Afficher une vue hiérarchique :
+
+Objectif
+└── Key Result
+    └── Epic
+        └── Bloc Roadmap
+            └── Sprint
+                └── Ticket
+                    └── Temps / Coût / Impact
+
+
+Chaque nœud affiche :
+
+état
+
+progression
+
+impact financier
+
+alertes éventuelles
+
+9️⃣ Règle d’or produit
+
+Aucun élément ne doit être isolé.
+S’il existe, il doit influencer :
+
+le temps
+
+le coût
+
+la marge
+
+ou la décision.
+
+✅ Résultat attendu
+
+Un PlanBase où :
+
+chaque choix est visible
+
+chaque coût est compris
+
+chaque dérive est anticipée
+
+chaque décision est argumentée

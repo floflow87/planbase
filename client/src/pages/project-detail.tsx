@@ -4438,115 +4438,109 @@ export default function ProjectDetail() {
                   </p>
                 </div>
 
-                {project?.billingType === "time" && (
-                  <>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="billing-rate" className="text-xs mb-0">TJM projet</Label>
-                        {effectiveTJMData?.source === 'global' && !billingRateValue && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 cursor-help">
-                                <Info className="h-3 w-3 mr-1" />
-                                Global: {effectiveTJMData.globalTJM} €
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-xs">
-                                Ce projet utilise le TJM global défini dans les paramètres de votre compte. 
-                                Définissez un TJM projet ici pour le personnaliser.
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {effectiveTJMData?.source === 'project' && (
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                            Personnalisé
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label htmlFor="billing-rate" className="text-xs mb-0">TJM projet</Label>
+                    {effectiveTJMData?.source === 'global' && !billingRateValue && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs px-1.5 py-0.5 cursor-help">
+                            <Info className="h-3 w-3 mr-1" />
+                            Global: {effectiveTJMData.globalTJM} €
                           </Badge>
-                        )}
-                      </div>
-                      <Input
-                        id="billing-rate"
-                        type="number"
-                        placeholder={effectiveTJMData?.globalTJM ? `${effectiveTJMData.globalTJM} (global)` : "450"}
-                        value={billingRateValue}
-                        onChange={(e) => setBillingRateValue(e.target.value)}
-                        onBlur={async () => {
-                          const trimmedValue = billingRateValue.trim();
-                          if (trimmedValue !== project?.billingRate) {
-                            try {
-                              // Parse and validate the number
-                              const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
-                              if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
-                                throw new Error("Veuillez entrer un nombre valide");
-                              }
-                              
-                              await apiRequest(`/api/projects/${id}`, "PATCH", {
-                                billingRate: trimmedValue === "" ? null : trimmedValue,
-                              });
-                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'effective-tjm'] });
-                              queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
-                            } catch (error: any) {
-                              toast({
-                                title: "Erreur",
-                                description: error.message,
-                                variant: "destructive",
-                              });
-                              // Rollback to previous value
-                              setBillingRateValue(project?.billingRate || "");
-                            }
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="text-xs">
+                            Ce projet utilise le TJM global défini dans les paramètres de votre compte. 
+                            Définissez un TJM projet ici pour le personnaliser.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {effectiveTJMData?.source === 'project' && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                        Personnalisé
+                      </Badge>
+                    )}
+                  </div>
+                  <Input
+                    id="billing-rate"
+                    type="number"
+                    placeholder={effectiveTJMData?.globalTJM ? `${effectiveTJMData.globalTJM} (global)` : "450"}
+                    value={billingRateValue}
+                    onChange={(e) => setBillingRateValue(e.target.value)}
+                    onBlur={async () => {
+                      const trimmedValue = billingRateValue.trim();
+                      if (trimmedValue !== project?.billingRate) {
+                        try {
+                          const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                          if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                            throw new Error("Veuillez entrer un nombre valide");
                           }
-                        }}
-                        data-testid="input-billing-rate"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {!billingRateValue && effectiveTJMData?.globalTJM 
-                          ? "Laissez vide pour utiliser le TJM global"
-                          : "TJM spécifique à ce projet (override le global)"}
-                      </p>
-                    </div>
+                          
+                          await apiRequest(`/api/projects/${id}`, "PATCH", {
+                            billingRate: trimmedValue === "" ? null : trimmedValue,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'effective-tjm'] });
+                          queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                        } catch (error: any) {
+                          toast({
+                            title: "Erreur",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                          setBillingRateValue(project?.billingRate || "");
+                        }
+                      }
+                    }}
+                    data-testid="input-billing-rate"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {!billingRateValue && effectiveTJMData?.globalTJM 
+                      ? "Laissez vide pour utiliser le TJM global"
+                      : "TJM spécifique à ce projet (override le global)"}
+                  </p>
+                </div>
 
-                    <div>
-                      <Label htmlFor="billing-unit" className="text-xs">Unité de facturation</Label>
-                      <Select
-                        value={project?.billingUnit || "hour"}
-                        onValueChange={async (value) => {
-                          try {
-                            await apiRequest(`/api/projects/${id}`, "PATCH", {
-                              billingUnit: value,
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                            queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
-                            toast({
-                              title: "Mise à jour réussie",
-                              description: "L'unité de facturation a été modifiée",
-                              variant: "success",
-                            });
-                          } catch (error: any) {
-                            toast({
-                              title: "Erreur",
-                              description: error.message,
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                      >
-                        <SelectTrigger id="billing-unit" data-testid="select-billing-unit">
-                          <SelectValue placeholder="Sélectionner une unité" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="hour" data-testid="option-unit-hour">
-                            Heure
-                          </SelectItem>
-                          <SelectItem value="day" data-testid="option-unit-day">
-                            Jour
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
+                <div>
+                  <Label htmlFor="billing-unit" className="text-xs">Unité de facturation</Label>
+                  <Select
+                    value={project?.billingUnit || "hour"}
+                    onValueChange={async (value) => {
+                      try {
+                        await apiRequest(`/api/projects/${id}`, "PATCH", {
+                          billingUnit: value,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                        toast({
+                          title: "Mise à jour réussie",
+                          description: "L'unité de facturation a été modifiée",
+                          variant: "success",
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: "Erreur",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="billing-unit" data-testid="select-billing-unit">
+                      <SelectValue placeholder="Sélectionner une unité" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hour" data-testid="option-unit-hour">
+                        Heure
+                      </SelectItem>
+                      <SelectItem value="day" data-testid="option-unit-day">
+                        Jour
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div>
                   <Label htmlFor="total-billed" className="text-xs">Montant total facturé</Label>
