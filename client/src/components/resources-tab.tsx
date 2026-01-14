@@ -8,13 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -633,18 +633,18 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
         </Collapsible>
       </Card>
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
+      <Sheet open={showDialog} onOpenChange={setShowDialog}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
               {editingResource ? "Modifier la ressource" : formData.type === "human" ? "Nouvelle ressource humaine" : "Nouvelle ressource"}
-            </DialogTitle>
-            <DialogDescription>
+            </SheetTitle>
+            <SheetDescription>
               {formData.type === "human"
                 ? "Ajoutez les informations de la personne qui travaille sur le projet."
                 : "Ajoutez les coûts liés aux outils, services ou infrastructures."}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
           <div className="space-y-4">
             <div>
@@ -864,7 +864,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <SheetFooter className="mt-6">
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Annuler
             </Button>
@@ -875,9 +875,9 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             >
               {createMutation.isPending || updateMutation.isPending ? "Enregistrement..." : editingResource ? "Modifier" : "Créer"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
