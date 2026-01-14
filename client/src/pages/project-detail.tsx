@@ -551,6 +551,19 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
       return { available: false, reason: "Rythme invalide" };
     }
     
+    // If no estimation defined, just return pace info without projection
+    if (totalEstimatedDays <= 0) {
+      return {
+        available: true,
+        noEstimation: true,
+        pacePerDay,
+        windowLabel,
+        windowTimeDays,
+        windowCalendarDays,
+        totalTimeDays, // Include total time worked for display
+      };
+    }
+    
     // Calculate remaining time to complete
     const actualRemainingDays = totalEstimatedDays - totalTimeDays;
     
@@ -585,7 +598,8 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
     };
   };
   
-  const paceProjection = totalEstimatedDays > 0 ? calculatePaceProjection() : null;
+  // Calculate pace projection - always calculate so we can show work rhythm even without estimations
+  const paceProjection = calculatePaceProjection();
   
   // Calculate per-scope-item projections using ITEM-SPECIFIC pace
   // Each item's projection is based on its own work rhythm, not the global pace
@@ -3594,8 +3608,15 @@ export default function ProjectDetail() {
                     </Badge>
                   )}
                 </div>
+              ) : paceProjection?.available && paceProjection.pacePerDay ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span data-testid="time-pace-projection">
+                    Rythme : {(paceProjection.pacePerDay * 8).toFixed(1)}h/jour
+                  </span>
+                  <span>({paceProjection.windowLabel})</span>
+                </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Aucune estimation définie</p>
+                <p className="text-xs text-muted-foreground">Aucune donnée de projection</p>
               )}
             </Card>
 
@@ -4151,6 +4172,11 @@ export default function ProjectDetail() {
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
                           {totalBilled.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })}
                         </div>
+                        <div className="text-[10px] text-muted-foreground mt-1" data-testid="kpi-billing-type">
+                          {project?.billingType === "fixed_price" ? "Au forfait" : 
+                           project?.billingType === "time_based" ? "Au temps passé" : 
+                           "Mode de facturation non défini"}
+                        </div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -4180,6 +4206,12 @@ export default function ProjectDetail() {
                                         : "-")
                                   }
                                 </div>
+                                {effectiveTJMData?.effectiveTJM && effectiveTJMData.effectiveTJM > 0 && (
+                                  <div className="text-[10px] text-muted-foreground mt-1">
+                                    TJM cible : {effectiveTJMData.effectiveTJM.toLocaleString("fr-FR")} €
+                                    {effectiveTJMData.source === 'global' && " (global)"}
+                                  </div>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">

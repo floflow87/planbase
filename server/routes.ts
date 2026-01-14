@@ -2148,6 +2148,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return isNaN(parsed) ? 0 : parsed;
       };
       
+      // Calculate project duration in months for monthly costs
+      const calculateProjectMonths = (): number => {
+        const startDate = project.startDate ? new Date(project.startDate) : null;
+        const endDate = project.endDate ? new Date(project.endDate) : new Date(); // Default to today if no end date
+        
+        if (!startDate) return 1; // Default to 1 month if no start date
+        
+        // Calculate months between start and end dates
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000; // Average days per month
+        const monthsDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / msPerMonth));
+        return monthsDiff;
+      };
+      
+      const projectMonths = calculateProjectMonths();
+      
       for (const resource of resources) {
         if (resource.type === 'human') {
           // Human resources: dailyCost * capacity (capacity = days allocated to project)
@@ -2160,12 +2175,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalNonBillable += cost;
           }
         } else {
-          // Non-human resources: direct amount (already calculated per project duration)
+          // Non-human resources: amount is unit price, multiply by duration
           const amount = safeParseFloat(resource.amount);
+          const costType = resource.costType; // 'monthly' | 'annual' | 'one_time'
+          
+          let totalAmount = amount;
+          if (costType === 'monthly') {
+            // Multiply by number of months in project
+            totalAmount = amount * projectMonths;
+          } else if (costType === 'annual') {
+            // Multiply by years (projectMonths / 12), minimum 1
+            const projectYears = Math.max(1, projectMonths / 12);
+            totalAmount = amount * projectYears;
+          }
+          // 'one_time' keeps the original amount
+          
           if (resource.isBillable === 1) {
-            totalBillable += amount;
+            totalBillable += totalAmount;
           } else {
-            totalNonBillable += amount;
+            totalNonBillable += totalAmount;
           }
         }
       }
@@ -7925,14 +7953,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const humanResources = filtered.filter(r => r.type === 'human');
       const nonHumanResources = filtered.filter(r => r.type === 'non_human');
       
+      // Safe parseFloat that handles null, undefined, empty strings and NaN
+      const safeParseFloat = (value: string | number | null | undefined): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const parsed = typeof value === 'number' ? value : parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      
       // Human resource costs (daily_cost_internal * capacity for each)
       let totalInternalCost = 0;
       let totalBilledAmount = 0;
       
       for (const resource of humanResources) {
-        const dailyCost = resource.dailyCostInternal ? parseFloat(resource.dailyCostInternal) : 0;
-        const dailyRate = resource.dailyRateBilled ? parseFloat(resource.dailyRateBilled) : 0;
-        const capacity = resource.capacity || 0;
+        const dailyCost = safeParseFloat(resource.dailyCostInternal);
+        const dailyRate = safeParseFloat(resource.dailyRateBilled);
+        const capacity = safeParseFloat(resource.capacity);
         
         // Assuming capacity is in days, calculate total cost
         totalInternalCost += dailyCost * capacity;
@@ -7941,14 +7976,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Non-human resource costs
+      // Get project info for duration calculation
+      const [project] = await db.select().from(projects)
+        .where(and(
+          eq(projects.id, projectId),
+          eq(projects.accountId, accountId)
+        ));
+      
+      // Calculate project duration in months for monthly costs
+      const calculateProjectMonths = (): number => {
+        if (!project) return 1;
+        const startDate = project.startDate ? new Date(project.startDate) : null;
+        const endDate = project.endDate ? new Date(project.endDate) : new Date(); // Default to today if no end date
+        
+        if (!startDate) return 1; // Default to 1 month if no start date
+        
+        // Calculate months between start and end dates
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000; // Average days per month
+        const monthsDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / msPerMonth));
+        return monthsDiff;
+      };
+      
+      const projectMonths = calculateProjectMonths();
+      
+      // Non-human resource costs (amount is unit price, multiply by duration)
       let totalNonHumanCost = 0;
       for (const resource of nonHumanResources) {
-        const amount = resource.amount ? parseFloat(resource.amount) : 0;
-        totalNonHumanCost += amount;
-        totalInternalCost += amount;
+        const amount = safeParseFloat(resource.amount);
+        const costType = resource.costType; // 'monthly' | 'annual' | 'one_time'
+        
+        let totalAmount = amount;
+        if (costType === 'monthly') {
+          // Multiply by number of months in project
+          totalAmount = amount * projectMonths;
+        } else if (costType === 'annual') {
+          // Multiply by years (projectMonths / 12), minimum 1
+          const projectYears = Math.max(1, projectMonths / 12);
+          totalAmount = amount * projectYears;
+        }
+        // 'one_time' keeps the original amount
+        
+        totalNonHumanCost += totalAmount;
+        totalInternalCost += totalAmount;
         if (resource.isBillable === 1) {
-          totalBilledAmount += amount;
+          totalBilledAmount += totalAmount;
         }
       }
       
@@ -7968,8 +8039,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           human: {
             count: humanResources.length,
             internalCost: totalInternalCost - totalNonHumanCost,
-            billedAmount: totalBilledAmount - nonHumanResources.reduce((sum, r) => 
-              r.isBillable === 1 ? sum + (r.amount ? parseFloat(r.amount) : 0) : sum, 0)
+            billedAmount: totalBilledAmount - nonHumanResources.reduce((sum, r) => {
+              if (r.isBillable !== 1) return sum;
+              const amount = safeParseFloat(r.amount);
+              const costType = r.costType;
+              let totalAmount = amount;
+              if (costType === 'monthly') {
+                totalAmount = amount * projectMonths;
+              } else if (costType === 'annual') {
+                totalAmount = amount * Math.max(1, projectMonths / 12);
+              }
+              return sum + totalAmount;
+            }, 0)
           },
           nonHuman: {
             count: nonHumanResources.length,
