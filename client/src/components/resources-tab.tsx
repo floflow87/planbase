@@ -82,6 +82,8 @@ import {
   Calendar as CalendarIcon,
   Check,
   ChevronsUpDown,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Command,
@@ -421,6 +423,21 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     return resources.filter((r) => r.type === "non_human" && (showSimulations || r.isSimulation !== 1));
   }, [resources, showSimulations]);
 
+  // Calculate non-billable resources cost for display
+  const nonBillableCost = useMemo(() => {
+    const filteredResources = resources.filter(r => showSimulations || r.isSimulation !== 1);
+    return filteredResources.reduce((total, r) => {
+      if (r.isBillable === 1) return total;
+      if (r.type === "human") {
+        const dailyCost = parseFloat(r.dailyCostInternal?.toString() || "0");
+        const capacity = parseFloat(r.capacity?.toString() || "0");
+        return total + (dailyCost * capacity);
+      } else {
+        return total + parseFloat(r.amount?.toString() || "0");
+      }
+    }, 0);
+  }, [resources, showSimulations]);
+
   const getProfileLabel = (value: string | null) =>
     profileTypeOptions.find((o) => o.value === value)?.label || value || "-";
   const getModeLabel = (value: string | null) =>
@@ -463,6 +480,15 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <TrendingUp className="h-4 w-4" />
               <span className="text-xs">Marge prévisionnelle</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                  Une ressource n'impacte les KPIs financiers que si un montant est renseigné.<br/>
+                  Elle est ensuite considérée comme un coût interne et, si facturable, comme du chiffre d'affaires.
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="text-lg font-bold" data-testid="kpi-margin">
               {summary ? formatCurrency(summary.margin) : "-"}
@@ -472,6 +498,11 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 </span>
               )}
             </div>
+            {nonBillableCost > 0 && (
+              <div className="text-xs text-muted-foreground mt-1" data-testid="non-billable-breakdown">
+                Dont ressources non facturables : <span className="text-red-600">–{formatCurrency(nonBillableCost)}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -588,11 +619,31 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                           {resource.capacity ? `${resource.capacity} j` : "-"}
                         </TableCell>
                         <TableCell>
-                          {resource.isBillable === 1 ? (
-                            <Badge variant="default" className="text-xs bg-green-600">Oui</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">Non</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {resource.isBillable === 1 ? (
+                              <Badge variant="default" className="text-xs bg-green-600">Oui</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Non</Badge>
+                            )}
+                            {(() => {
+                              const resourceCost = parseFloat(resource.dailyCostInternal?.toString() || "0") * parseFloat(resource.capacity?.toString() || "0");
+                              const isSignificant = resource.isBillable !== 1 && 
+                                resourceCost >= 500 && 
+                                summary && summary.marginPercent < 15 &&
+                                nonBillableCost > 0 && 
+                                (resourceCost / nonBillableCost) >= 0.2;
+                              return isSignificant && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                                    Cette ressource dégrade significativement la marge du projet.
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -687,11 +738,31 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                           {resource.amount ? `${parseFloat(resource.amount).toLocaleString("fr-FR")} €` : "-"}
                         </TableCell>
                         <TableCell>
-                          {resource.isBillable === 1 ? (
-                            <Badge variant="default" className="text-xs bg-green-600">Oui</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">Non</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {resource.isBillable === 1 ? (
+                              <Badge variant="default" className="text-xs bg-green-600">Oui</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Non</Badge>
+                            )}
+                            {(() => {
+                              const resourceCost = parseFloat(resource.amount?.toString() || "0");
+                              const isSignificant = resource.isBillable !== 1 && 
+                                resourceCost >= 500 && 
+                                summary && summary.marginPercent < 15 &&
+                                nonBillableCost > 0 && 
+                                (resourceCost / nonBillableCost) >= 0.2;
+                              return isSignificant && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-black font-light border shadow-sm text-[11px] max-w-[220px]">
+                                    Cette ressource dégrade significativement la marge du projet.
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
