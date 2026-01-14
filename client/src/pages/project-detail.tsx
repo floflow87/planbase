@@ -5203,7 +5203,7 @@ export default function ProjectDetail() {
                           note: "Note",
                           task: "Tâche",
                           created: "Création",
-                          updated: "Mise à jour",
+                          updated: "Mise à jour du projet",
                           deleted: "Suppression",
                           file: "Fichier",
                           time_tracked: "Temps",

@@ -115,43 +115,43 @@ export function PostCreationSuggestions({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setLocation(`/roadmap?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-white dark:bg-card text-center transition-colors hover-elevate"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
               data-testid="button-suggestion-roadmap"
             >
-              <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
-                <Map className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <div className="p-3 rounded-full bg-white/20">
+                <Map className="h-5 w-5 text-white" />
               </div>
               <div>
-                <div className="font-medium text-sm">Roadmap</div>
-                <div className="text-xs text-muted-foreground mt-1">Visualiser les phases et jalons du projet</div>
+                <div className="font-medium text-sm text-white">Roadmap</div>
+                <div className="text-xs text-white/80 mt-1">Visualiser les phases et jalons du projet</div>
               </div>
             </button>
 
             <button
               onClick={() => setLocation(`/backlog?projectId=${project.id}`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-white dark:bg-card text-center transition-colors hover-elevate"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
               data-testid="button-suggestion-backlog"
             >
-              <div className="p-3 rounded-full bg-cyan-100 dark:bg-cyan-900/30">
-                <ListTodo className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              <div className="p-3 rounded-full bg-white/20">
+                <ListTodo className="h-5 w-5 text-white" />
               </div>
               <div>
-                <div className="font-medium text-sm">Backlog</div>
-                <div className="text-xs text-muted-foreground mt-1">Gérer les tickets et sprints</div>
+                <div className="font-medium text-sm text-white">Backlog</div>
+                <div className="text-xs text-white/80 mt-1">Gérer les tickets et sprints</div>
               </div>
             </button>
 
             <button
               onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-white dark:bg-card text-center transition-colors hover-elevate"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-colors hover-elevate bg-gradient-to-br from-violet-500 to-violet-700 text-white"
               data-testid="button-suggestion-time-tracking"
             >
-              <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
-                <Clock className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <div className="p-3 rounded-full bg-white/20">
+                <Clock className="h-5 w-5 text-white" />
               </div>
               <div>
-                <div className="font-medium text-sm">Temps vs CDC</div>
-                <div className="text-xs text-muted-foreground mt-1">Suivre le temps passé vs estimé</div>
+                <div className="font-medium text-sm text-white">Temps vs CDC</div>
+                <div className="text-xs text-white/80 mt-1">Suivre le temps passé vs estimé</div>
               </div>
             </button>
           </div>
