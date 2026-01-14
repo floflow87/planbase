@@ -1,0 +1,203 @@
+Objectif : implémenter/renforcer uniquement le module Roadmap d’un projet, avec phases T1/T2/T3 basées sur la date de début, blocs roadmap, jalons (milestones), liens (CDC/Epics/Tickets), et des indicateurs “roadmap-aware”. Ignore totalement Ressources/Finance/KPIs.
+
+Contexte & règles produit
+
+La roadmap peut être :
+
+générée depuis le CDC
+
+ou créée manuellement
+
+Les phases temporelles sont relatives à la date de début du projet :
+
+T1 = 0 → +3 mois
+
+T2 = +3 → +6 mois
+
+T3 = +6 → +9 mois
+
+LT = au-delà
+
+Un jalon (milestone) est un repère temporel important (date cible), distinct des Epics.
+
+Une Epic peut venir du CDC ou d’un bloc roadmap ou être manuelle, mais ne dépend jamais directement d’un jalon.
+
+Tous les éléments roadmap doivent pouvoir être liés à : rubriques CDC, Epics, Tickets.
+
+A) Modèle de données Roadmap
+A1. Roadmap items (blocs)
+
+Créer/valider une table roadmap_items :
+
+id, project_id
+
+title, description
+
+phase (T1|T2|T3|LT) (calculable mais stocké pour filtrage/édition)
+
+start_date (nullable)
+
+end_date (nullable)
+
+status (planned|in_progress|done|blocked)
+
+priority (optional)
+
+owner_user_id (optional)
+
+source_type (manual|cdc) + source_id (nullable)
+
+created_at, updated_at
+
+A2. Milestones (jalons)
+
+Table roadmap_milestones :
+
+id, project_id
+
+title, description
+
+target_date
+
+phase (T1|T2|T3|LT) (dérivé de target_date, mais stocké)
+
+status (planned|done|blocked)
+
+created_at, updated_at
+
+A3. Liens génériques
+
+Table roadmap_links :
+
+id
+
+roadmap_item_id (nullable) OR milestone_id (nullable) (contrainte: un seul des deux)
+
+link_type (cdc_section|epic|ticket)
+
+link_id
+
+created_at
+
+B) API (endpoints)
+
+Implémente des endpoints REST (ou routes RPC selon l’archi existante) :
+
+B1. Roadmap items
+
+GET /projects/:id/roadmap/items?phase=&status=&q=
+
+POST /projects/:id/roadmap/items
+
+PATCH /roadmap/items/:id
+
+DELETE /roadmap/items/:id
+
+POST /roadmap/items/:id/links
+
+DELETE /roadmap/links/:id
+
+B2. Milestones
+
+GET /projects/:id/roadmap/milestones?phase=&status=
+
+POST /projects/:id/roadmap/milestones
+
+PATCH /roadmap/milestones/:id
+
+DELETE /roadmap/milestones/:id
+
+POST /roadmap/milestones/:id/links
+
+B3. Phase computation
+
+GET /projects/:id/roadmap/phases → renvoie bornes T1/T2/T3/LT calculées depuis project.startDate + phase actuelle
+
+C) UI / UX (Roadmap)
+C1. Sélecteurs & vues
+
+2 vues roadmap :
+
+Gantt (si déjà existant : fiabiliser dates / drag / resize)
+
+Output board (colonnes : Planifié / En cours / Terminé / Bloqué)
+
+Filtres :
+
+Phase (T1/T2/T3/LT/All)
+
+Status
+
+Recherche texte
+
+CTA : “+ Nouveau bloc”, “+ Nouveau jalon”
+
+C2. Phase “relative”
+
+En haut de la roadmap :
+
+Badge “Phase actuelle : T1 (du JJ/MM au JJ/MM)”
+
+Indicateur “Prochain passage de phase : dans X jours”
+
+C3. Milestones (jalons)
+
+Zone “Jalons” (liste + timeline légère)
+
+Chaque milestone :
+
+date cible, statut
+
+bouton “Relier” (CDC/Epic/Ticket)
+
+Ajouter une fonctionnalité “Suggérer des jalons”
+
+basé sur mots clés et typologie des blocs (MVP, Démo, Go-live, Handover)
+
+affichage en preview avant création
+
+C4. Liens (CDC/Epic/Ticket)
+
+Sur chaque bloc roadmap :
+
+section “Liens”
+
+ajout via search-select (autocomplétion)
+
+Rendu : badges cliquables + compteur
+
+D) Génération depuis CDC (option, si module CDC existe déjà)
+
+Bouton : “Générer une roadmap depuis le CDC”
+
+Étapes :
+
+Prévisualisation : blocs proposés groupés par phase + type
+
+Sélection des blocs à créer (checkbox)
+
+Création des roadmap_items avec source_type=cdc, source_id=<cdc_section_id>
+
+E) Indicateurs roadmap-aware (sans finance)
+
+Créer un petit widget “Guidage” (style recos) dans Roadmap :
+
+“Vous êtes actuellement en phase T1”
+
+“Prochain jalon : X — dans N jours”
+
+“Blocs en retard : X” (si end_date < aujourd’hui & status ≠ done)
+
+“Blocs sans dates : X” (pour pousser à structurer)
+
+F) Tests indispensables
+
+Calcul phases T1/T2/T3 à partir de project.startDate
+
+Déduction de phase à partir de start/end/target_date
+
+Cohérence des filtres
+
+Contraintes de roadmap_links (un seul parent : item OU milestone)
+
+Génération CDC → roadmap (pas de doublons, preview OK)

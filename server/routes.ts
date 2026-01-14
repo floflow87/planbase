@@ -2575,6 +2575,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all epics for a project (via backlogs linked to the project)
+  app.get("/api/projects/:projectId/epics", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const projectId = req.params.projectId;
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const projectBacklogs = await db.select().from(backlogs)
+        .where(and(eq(backlogs.projectId, projectId), eq(backlogs.accountId, accountId)));
+      
+      const backlogIds = projectBacklogs.map(b => b.id);
+      if (backlogIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const projectEpics = await db.select().from(epics)
+        .where(and(
+          inArray(epics.backlogId, backlogIds),
+          eq(epics.accountId, accountId)
+        ))
+        .orderBy(asc(epics.order));
+      
+      res.json(projectEpics);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get all user stories for a project (via backlogs linked to the project)
+  app.get("/api/projects/:projectId/user-stories", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const projectId = req.params.projectId;
+      
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const projectBacklogs = await db.select().from(backlogs)
+        .where(and(eq(backlogs.projectId, projectId), eq(backlogs.accountId, accountId)));
+      
+      const backlogIds = projectBacklogs.map(b => b.id);
+      if (backlogIds.length === 0) {
+        return res.json([]);
+      }
+      
+      const projectStories = await db.select().from(userStories)
+        .where(and(
+          inArray(userStories.backlogId, backlogIds),
+          eq(userStories.accountId, accountId)
+        ))
+        .orderBy(asc(userStories.order));
+      
+      res.json(projectStories);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create a new task
   app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
@@ -4526,6 +4596,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
       res.json(roadmaps);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get roadmap phases for a project (T1/T2/T3/LT based on project startDate)
+  app.get("/api/projects/:projectId/roadmap/phases", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Calculate phase boundaries based on project startDate
+      const startDate = project.startDate ? new Date(project.startDate) : new Date();
+      const now = new Date();
+
+      // Phase boundaries (T1: 0-3 months, T2: 3-6 months, T3: 6-9 months, LT: beyond)
+      const t1End = new Date(startDate);
+      t1End.setMonth(t1End.getMonth() + 3);
+      
+      const t2End = new Date(startDate);
+      t2End.setMonth(t2End.getMonth() + 6);
+      
+      const t3End = new Date(startDate);
+      t3End.setMonth(t3End.getMonth() + 9);
+
+      // Determine current phase
+      let currentPhase = 'LT';
+      if (now < t1End) currentPhase = 'T1';
+      else if (now < t2End) currentPhase = 'T2';
+      else if (now < t3End) currentPhase = 'T3';
+
+      // Calculate days until next phase change
+      let nextPhaseDate: Date | null = null;
+      let nextPhase: string | null = null;
+      if (currentPhase === 'T1') {
+        nextPhaseDate = t1End;
+        nextPhase = 'T2';
+      } else if (currentPhase === 'T2') {
+        nextPhaseDate = t2End;
+        nextPhase = 'T3';
+      } else if (currentPhase === 'T3') {
+        nextPhaseDate = t3End;
+        nextPhase = 'LT';
+      }
+
+      const daysUntilNextPhase = nextPhaseDate 
+        ? Math.ceil((nextPhaseDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      // Get roadmap items for this project and count by phase
+      const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      let items: any[] = [];
+      for (const roadmap of roadmaps) {
+        const roadmapItems = await storage.getRoadmapItemsByRoadmapId(roadmap.id);
+        items = items.concat(roadmapItems);
+      }
+
+      // Helper function to calculate phase from a date
+      const getPhaseFromDate = (date: Date): string => {
+        if (date < t1End) return 'T1';
+        if (date < t2End) return 'T2';
+        if (date < t3End) return 'T3';
+        return 'LT';
+      };
+
+      // Count items by phase (using stored phase or calculated from dates)
+      const phasesCounts = { T1: 0, T2: 0, T3: 0, LT: 0, unassigned: 0 };
+      const lateItems: any[] = [];
+      const itemsWithoutDates: any[] = [];
+
+      for (const item of items) {
+        let itemPhase = item.phase;
+        
+        // If no phase stored, calculate from dates
+        if (!itemPhase) {
+          if (item.startDate) {
+            itemPhase = getPhaseFromDate(new Date(item.startDate));
+          } else if (item.targetDate) {
+            itemPhase = getPhaseFromDate(new Date(item.targetDate));
+          } else if (item.endDate) {
+            itemPhase = getPhaseFromDate(new Date(item.endDate));
+          }
+        }
+
+        if (itemPhase && phasesCounts[itemPhase as keyof typeof phasesCounts] !== undefined) {
+          phasesCounts[itemPhase as keyof typeof phasesCounts]++;
+        } else {
+          phasesCounts.unassigned++;
+          itemsWithoutDates.push(item);
+        }
+
+        // Check for late items (endDate < now and status != done)
+        if (item.endDate && new Date(item.endDate) < now && item.status !== 'done') {
+          lateItems.push(item);
+        }
+      }
+
+      res.json({
+        projectStartDate: project.startDate,
+        projectEndDate: project.endDate,
+        currentPhase,
+        phases: {
+          T1: {
+            start: startDate.toISOString().split('T')[0],
+            end: t1End.toISOString().split('T')[0],
+            isCurrent: currentPhase === 'T1',
+            itemCount: phasesCounts.T1,
+          },
+          T2: {
+            start: t1End.toISOString().split('T')[0],
+            end: t2End.toISOString().split('T')[0],
+            isCurrent: currentPhase === 'T2',
+            itemCount: phasesCounts.T2,
+          },
+          T3: {
+            start: t2End.toISOString().split('T')[0],
+            end: t3End.toISOString().split('T')[0],
+            isCurrent: currentPhase === 'T3',
+            itemCount: phasesCounts.T3,
+          },
+          LT: {
+            start: t3End.toISOString().split('T')[0],
+            end: null,
+            isCurrent: currentPhase === 'LT',
+            itemCount: phasesCounts.LT,
+          },
+        },
+        nextPhaseTransition: nextPhaseDate ? {
+          date: nextPhaseDate.toISOString().split('T')[0],
+          phase: nextPhase,
+          daysUntil: daysUntilNextPhase,
+        } : null,
+        indicators: {
+          totalItems: items.length,
+          lateItemsCount: lateItems.length,
+          itemsWithoutDatesCount: itemsWithoutDates.length,
+          unassignedPhaseCount: phasesCounts.unassigned,
+        },
+        lateItems: lateItems.slice(0, 5).map(i => ({ id: i.id, title: i.title, endDate: i.endDate })),
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get milestones for a project (roadmap items with type='milestone')
+  app.get("/api/projects/:projectId/roadmap/milestones", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get all roadmaps for the project
+      const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      let milestones: any[] = [];
+      
+      for (const roadmap of roadmaps) {
+        const items = await storage.getRoadmapItemsByRoadmapId(roadmap.id);
+        const roadmapMilestones = items.filter(item => item.type === 'milestone');
+        milestones = milestones.concat(roadmapMilestones);
+      }
+
+      // Sort by targetDate (soonest first)
+      milestones.sort((a, b) => {
+        const dateA = a.targetDate || a.endDate || '9999-12-31';
+        const dateB = b.targetDate || b.endDate || '9999-12-31';
+        return dateA.localeCompare(dateB);
+      });
+
+      // Find next upcoming milestone
+      const now = new Date();
+      const upcomingMilestones = milestones.filter(m => {
+        const targetDate = m.targetDate || m.endDate;
+        return targetDate && new Date(targetDate) >= now && m.status !== 'done';
+      });
+
+      res.json({
+        milestones,
+        totalCount: milestones.length,
+        upcomingCount: upcomingMilestones.length,
+        completedCount: milestones.filter(m => m.status === 'done').length,
+        nextMilestone: upcomingMilestones[0] || null,
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

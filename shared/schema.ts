@@ -738,8 +738,10 @@ export const roadmapItems = pgTable("roadmap_items", {
   type: text("type").notNull().default("deliverable"), // 'deliverable', 'milestone', 'initiative', 'epic_group', 'free_block'
   isGroup: boolean("is_group").notNull().default(false), // True for Epic/rubrique groups
   releaseTag: text("release_tag"), // 'MVP', 'V1', 'V2', 'Hotfix', 'Soon', etc.
+  phase: text("phase"), // 'T1', 'T2', 'T3', 'LT' - Calculated from dates relative to project startDate
   startDate: date("start_date"),
   endDate: date("end_date"),
+  targetDate: date("target_date"), // For milestones - target completion date
   status: text("status").notNull().default("planned"), // 'planned', 'in_progress', 'done', 'blocked'
   priority: text("priority").notNull().default("normal"), // 'low', 'normal', 'high', 'strategic'
   description: text("description"),
@@ -748,6 +750,9 @@ export const roadmapItems = pgTable("roadmap_items", {
   orderIndex: integer("order_index").notNull().default(0),
   color: text("color"), // Custom color for the item bar
   rice: jsonb("rice").notNull().default({}), // {reach,impact,confidence,effort}
+  sourceType: text("source_type"), // 'manual', 'cdc' - Source of the item
+  sourceId: uuid("source_id"), // Reference to CDC section if sourceType='cdc'
+  ownerUserId: uuid("owner_user_id").references(() => appUsers.id, { onDelete: "set null" }), // Owner/responsible user
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -755,6 +760,7 @@ export const roadmapItems = pgTable("roadmap_items", {
   projectIdx: index().on(table.projectId),
   parentIdx: index().on(table.parentId),
   releaseTagIdx: index().on(table.roadmapId, table.releaseTag),
+  phaseIdx: index().on(table.roadmapId, table.phase),
 }));
 
 export const roadmapItemLinks = pgTable("roadmap_item_links", {

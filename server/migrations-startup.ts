@@ -1303,6 +1303,20 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Project resources table created");
 
+    // Add new columns to roadmap_items for phases, milestones, and CDC integration
+    await db.execute(sql`
+      ALTER TABLE roadmap_items 
+      ADD COLUMN IF NOT EXISTS phase TEXT,
+      ADD COLUMN IF NOT EXISTS target_date DATE,
+      ADD COLUMN IF NOT EXISTS source_type TEXT,
+      ADD COLUMN IF NOT EXISTS source_id UUID,
+      ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES app_users(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_phase_idx ON roadmap_items(roadmap_id, phase);
+    `);
+    console.log("✅ Roadmap items phase and milestone columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

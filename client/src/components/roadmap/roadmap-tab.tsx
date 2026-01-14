@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
-import { Plus, Map, LayoutGrid, Calendar } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Map, LayoutGrid, Calendar, Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,58 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { GanttView } from "./gantt-view";
 import { OutputView } from "./output-view";
+import { RoadmapIndicators } from "./roadmap-indicators";
+import { MilestonesZone } from "./milestones-zone";
+import { RoadmapItemLinks } from "./roadmap-item-links";
 import type { Roadmap, RoadmapItem } from "@shared/schema";
+
+interface PhaseInfo {
+  projectStartDate: string | null;
+  currentPhase: string;
+  phases: {
+    [key: string]: {
+      start: string;
+      end: string | null;
+      isCurrent: boolean;
+      itemCount: number;
+    };
+  };
+  nextPhaseTransition: {
+    date: string;
+    phase: string;
+    daysUntil: number;
+  } | null;
+  indicators: {
+    totalItems: number;
+    lateItemsCount: number;
+    itemsWithoutDatesCount: number;
+    unassignedPhaseCount: number;
+  };
+}
+
+const PHASE_LABELS: { [key: string]: string } = {
+  T1: "Court terme (T1)",
+  T2: "Moyen terme (T2)",
+  T3: "Long terme (T3)",
+  LT: "Très long terme",
+  all: "Toutes les phases",
+};
+
+const STATUS_LABELS: { [key: string]: string } = {
+  planned: "Planifié",
+  in_progress: "En cours",
+  done: "Terminé",
+  blocked: "Bloqué",
+  all: "Tous les statuts",
+};
+
+const TYPE_LABELS: { [key: string]: string } = {
+  deliverable: "Livrable",
+  milestone: "Jalon",
+  initiative: "Initiative",
+  feature: "Fonctionnalité",
+  all: "Tous les types",
+};
 
 interface RoadmapTabProps {
   projectId: string;
@@ -42,6 +93,13 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     endDate: "",
     description: "",
   });
+  
+  // Filters state
+  const [filterPhase, setFilterPhase] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   const { data: roadmaps = [], isLoading: isLoadingRoadmaps } = useQuery<Roadmap[]>({
     queryKey: [`/api/projects/${projectId}/roadmaps`],
@@ -53,6 +111,74 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],
     enabled: !!activeRoadmapId,
   });
+  
+  // Query for phases data
+  const { data: phasesData } = useQuery<PhaseInfo>({
+    queryKey: [`/api/projects/${projectId}/roadmap/phases`],
+  });
+
+  // Calculate phase for an item based on its dates
+  const getItemPhase = (item: RoadmapItem): string | null => {
+    if (!phasesData?.phases) return null;
+    const itemPhase = (item as any).phase;
+    if (itemPhase) return itemPhase;
+    
+    const startDate = item.startDate || (item as any).targetDate || item.endDate;
+    if (!startDate) return null;
+    
+    const date = new Date(startDate);
+    for (const [phase, info] of Object.entries(phasesData.phases)) {
+      const phaseStart = new Date(info.start);
+      const phaseEnd = info.end ? new Date(info.end) : null;
+      if (date >= phaseStart && (!phaseEnd || date < phaseEnd)) {
+        return phase;
+      }
+    }
+    return 'LT';
+  };
+
+  // Filter items based on filters
+  const filteredItems = useMemo(() => {
+    let items = [...roadmapItems];
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      items = items.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        (item.description && item.description.toLowerCase().includes(query))
+      );
+    }
+    
+    // Filter by phase
+    if (filterPhase !== "all") {
+      items = items.filter(item => {
+        const phase = getItemPhase(item);
+        return phase === filterPhase;
+      });
+    }
+    
+    // Filter by status
+    if (filterStatus !== "all") {
+      items = items.filter(item => item.status === filterStatus);
+    }
+    
+    // Filter by type
+    if (filterType !== "all") {
+      items = items.filter(item => item.type === filterType);
+    }
+    
+    return items;
+  }, [roadmapItems, searchQuery, filterPhase, filterStatus, filterType, phasesData]);
+  
+  const hasActiveFilters = filterPhase !== "all" || filterStatus !== "all" || filterType !== "all" || searchQuery.trim() !== "";
+
+  const clearFilters = () => {
+    setFilterPhase("all");
+    setFilterStatus("all");
+    setFilterType("all");
+    setSearchQuery("");
+  };
 
   const createRoadmapMutation = useMutation({
     mutationFn: async (data: { name: string; horizon?: string }) => {
@@ -321,6 +447,20 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant={showFilters ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              data-testid="button-toggle-filters"
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              Filtres
+              {hasActiveFilters && (
+                <Badge variant="default" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-xs">
+                  {[filterPhase !== "all", filterStatus !== "all", filterType !== "all", searchQuery.trim() !== ""].filter(Boolean).length}
+                </Badge>
+              )}
+            </Button>
             <div className="flex items-center border rounded-md p-1">
               <Button
                 variant={viewMode === "gantt" ? "default" : "ghost"}
@@ -349,9 +489,89 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             </Button>
           </div>
         </div>
+        
+        {showFilters && (
+          <div className="mt-4 p-3 bg-muted/30 rounded-lg border">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-8"
+                  data-testid="input-search-roadmap"
+                />
+              </div>
+              
+              <Select value={filterPhase} onValueChange={setFilterPhase}>
+                <SelectTrigger className="w-[160px] h-8" data-testid="select-filter-phase">
+                  <SelectValue placeholder="Phase" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PHASE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[150px] h-8" data-testid="select-filter-status">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-[150px] h-8" data-testid="select-filter-type">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-8 text-muted-foreground"
+                  data-testid="button-clear-filters"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Effacer
+                </Button>
+              )}
+            </div>
+            
+            {phasesData?.currentPhase && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Phase actuelle:</span>
+                <Badge variant="outline" className="font-medium">
+                  {PHASE_LABELS[phasesData.currentPhase] || phasesData.currentPhase}
+                </Badge>
+                {phasesData.nextPhaseTransition && (
+                  <span className="text-xs">
+                    (transition vers {phasesData.nextPhaseTransition.phase} dans {phasesData.nextPhaseTransition.daysUntil}j)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
+        <RoadmapIndicators projectId={projectId} />
+        <MilestonesZone projectId={projectId} onMilestoneClick={handleOpenEditItem as any} />
+        
         {isLoadingItems ? (
           <div className="flex items-center justify-center py-12">
             <Loader />
@@ -367,17 +587,33 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               Ajouter un élément
             </Button>
           </div>
+        ) : filteredItems.length === 0 && hasActiveFilters ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
+            <Filter className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground mb-4">
+              Aucun élément ne correspond aux filtres sélectionnés.
+            </p>
+            <Button variant="outline" size="sm" onClick={clearFilters} data-testid="button-clear-filters-empty">
+              <X className="h-4 w-4 mr-1" />
+              Effacer les filtres
+            </Button>
+          </div>
         ) : (
           <div className="min-h-[400px]">
+            {hasActiveFilters && (
+              <div className="mb-3 text-sm text-muted-foreground">
+                {filteredItems.length} sur {roadmapItems.length} éléments affichés
+              </div>
+            )}
             {viewMode === "gantt" ? (
               <GanttView 
-                items={roadmapItems} 
+                items={filteredItems} 
                 onItemClick={handleOpenEditItem}
                 onAddItem={handleOpenAddItem}
               />
             ) : (
               <OutputView 
-                items={roadmapItems}
+                items={filteredItems}
                 onItemClick={handleOpenEditItem}
                 onAddItem={handleOpenAddItem}
                 onItemMove={handleItemMove}
@@ -536,6 +772,10 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 data-testid="input-item-description"
               />
             </div>
+
+            {editingItem && (
+              <RoadmapItemLinks roadmapItemId={editingItem.id} projectId={projectId} />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsItemDialogOpen(false)}>
