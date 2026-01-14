@@ -1568,6 +1568,135 @@ export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
 export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;
 
 // ============================================
+// PROJECT RESOURCES
+// ============================================
+
+// Resource templates (reusable across projects)
+export const resourceTemplates = pgTable("resource_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'human' | 'non_human'
+  // Human resource fields
+  profileType: text("profile_type"), // Développeur, Designer, PM, etc.
+  mode: text("mode"), // 'internal' | 'freelance' | 'contractor'
+  dailyCostInternal: numeric("daily_cost_internal", { precision: 10, scale: 2 }),
+  dailyRateBilled: numeric("daily_rate_billed", { precision: 10, scale: 2 }),
+  defaultCapacity: real("default_capacity"), // jours/semaine ou % allocation
+  // Non-human resource fields
+  category: text("category"), // 'hosting' | 'saas' | 'api' | 'license' | 'infrastructure' | 'outsourcing' | 'other'
+  costType: text("cost_type"), // 'monthly' | 'annual' | 'one_time'
+  defaultAmount: numeric("default_amount", { precision: 10, scale: 2 }),
+  // Common fields
+  isBillable: integer("is_billable").notNull().default(1), // 0 = false, 1 = true
+  projectType: text("project_type"), // For template matching: 'dev_saas', 'ecommerce', 'design', etc.
+  isSystemTemplate: integer("is_system_template").notNull().default(0), // 0 = user-created, 1 = system template
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountTypeIdx: index("resource_templates_account_type_idx").on(table.accountId, table.type),
+  projectTypeIdx: index("resource_templates_project_type_idx").on(table.projectType),
+}));
+
+export const insertResourceTemplateSchema = createInsertSchema(resourceTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertResourceTemplate = z.infer<typeof insertResourceTemplateSchema>;
+export type ResourceTemplate = typeof resourceTemplates.$inferSelect;
+
+// Project resources (actual resources assigned to a project)
+export const projectResources = pgTable("project_resources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  templateId: uuid("template_id").references(() => resourceTemplates.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'human' | 'non_human'
+  // Human resource fields
+  profileType: text("profile_type"), // Développeur, Designer, PM, etc.
+  mode: text("mode"), // 'internal' | 'freelance' | 'contractor'
+  dailyCostInternal: numeric("daily_cost_internal", { precision: 10, scale: 2 }),
+  dailyRateBilled: numeric("daily_rate_billed", { precision: 10, scale: 2 }),
+  capacity: real("capacity"), // jours/semaine ou % allocation
+  // Non-human resource fields
+  category: text("category"), // 'hosting' | 'saas' | 'api' | 'license' | 'infrastructure' | 'outsourcing' | 'other'
+  costType: text("cost_type"), // 'monthly' | 'annual' | 'one_time'
+  amount: numeric("amount", { precision: 10, scale: 2 }),
+  // Period fields
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  roadmapPhase: text("roadmap_phase"), // T1, T2, T3, LT, etc.
+  // Common fields
+  isBillable: integer("is_billable").notNull().default(1), // 0 = false, 1 = true
+  status: text("status").notNull().default("active"), // 'active' | 'disabled'
+  isSimulation: integer("is_simulation").notNull().default(0), // 0 = real, 1 = simulation only
+  notes: text("notes"),
+  metadata: jsonb("metadata").default({}),
+  createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index("project_resources_project_idx").on(table.projectId),
+  accountProjectIdx: index("project_resources_account_project_idx").on(table.accountId, table.projectId),
+  typeStatusIdx: index("project_resources_type_status_idx").on(table.projectId, table.type, table.status),
+}));
+
+export const insertProjectResourceSchema = createInsertSchema(projectResources).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertProjectResource = z.infer<typeof insertProjectResourceSchema>;
+export type ProjectResource = typeof projectResources.$inferSelect;
+
+// Resource type options for UI
+export const resourceTypeOptions = [
+  { value: "human", label: "Ressource humaine" },
+  { value: "non_human", label: "Ressource non humaine" },
+] as const;
+
+export const humanProfileTypeOptions = [
+  { value: "developer", label: "Développeur" },
+  { value: "designer", label: "Designer" },
+  { value: "product_manager", label: "Product Manager" },
+  { value: "marketing", label: "Marketing" },
+  { value: "qa", label: "QA / Testeur" },
+  { value: "devops", label: "DevOps" },
+  { value: "project_manager", label: "Chef de projet" },
+  { value: "consultant", label: "Consultant" },
+  { value: "other", label: "Autre" },
+] as const;
+
+export const humanModeOptions = [
+  { value: "internal", label: "Interne" },
+  { value: "freelance", label: "Freelance" },
+  { value: "contractor", label: "Sous-traitant" },
+] as const;
+
+export const nonHumanCategoryOptions = [
+  { value: "hosting", label: "Hébergement" },
+  { value: "saas", label: "Outils SaaS" },
+  { value: "api", label: "API / IA" },
+  { value: "license", label: "Licences" },
+  { value: "infrastructure", label: "Infrastructure" },
+  { value: "outsourcing", label: "Sous-traitance" },
+  { value: "other", label: "Autre" },
+] as const;
+
+export const costTypeOptions = [
+  { value: "monthly", label: "Mensuel" },
+  { value: "annual", label: "Annuel" },
+  { value: "one_time", label: "Ponctuel" },
+] as const;
+
+export const resourceStatusOptions = [
+  { value: "active", label: "Actif" },
+  { value: "disabled", label: "Désactivé" },
+] as const;
+
+// ============================================
 // CONFIG REGISTRY (DB-first settings)
 // ============================================
 

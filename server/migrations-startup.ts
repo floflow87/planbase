@@ -1232,6 +1232,77 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Entity links constraints updated for backlog ticket types");
 
+    // Create resource_templates table for reusable resource definitions
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS resource_templates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        profile_type TEXT,
+        mode TEXT,
+        daily_cost_internal NUMERIC(10, 2),
+        daily_rate_billed NUMERIC(10, 2),
+        default_capacity REAL,
+        category TEXT,
+        cost_type TEXT,
+        default_amount NUMERIC(10, 2),
+        is_billable INTEGER NOT NULL DEFAULT 1,
+        project_type TEXT,
+        is_system_template INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS resource_templates_account_type_idx ON resource_templates(account_id, type);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS resource_templates_project_type_idx ON resource_templates(project_type);
+    `);
+    console.log("✅ Resource templates table created");
+
+    // Create project_resources table for project-specific resources
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS project_resources (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        template_id UUID REFERENCES resource_templates(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        profile_type TEXT,
+        mode TEXT,
+        daily_cost_internal NUMERIC(10, 2),
+        daily_rate_billed NUMERIC(10, 2),
+        capacity REAL,
+        category TEXT,
+        cost_type TEXT,
+        amount NUMERIC(10, 2),
+        start_date DATE,
+        end_date DATE,
+        roadmap_phase TEXT,
+        is_billable INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
+        is_simulation INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        metadata JSONB DEFAULT '{}',
+        created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_resources_project_idx ON project_resources(project_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_resources_account_project_idx ON project_resources(account_id, project_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS project_resources_type_status_idx ON project_resources(project_id, type, status);
+    `);
+    console.log("✅ Project resources table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
