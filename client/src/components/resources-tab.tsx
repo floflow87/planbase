@@ -179,7 +179,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const [resourceToDelete, setResourceToDelete] = useState<ProjectResource | null>(null);
   const [humanExpanded, setHumanExpanded] = useState(true);
   const [nonHumanExpanded, setNonHumanExpanded] = useState(true);
-  const [showSimulations, setShowSimulations] = useState(false);
+  const [showSimulations, setShowSimulations] = useState(true);
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
 
@@ -224,7 +224,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
-      toast({ title: "Ressource créée", description: "La ressource a été ajoutée au projet." });
+      toast({ title: "Ressource créée", description: "La ressource a été ajoutée au projet.", variant: "success" });
       setShowDialog(false);
       resetForm();
     },
