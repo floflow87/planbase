@@ -229,7 +229,8 @@ export function calculateMetrics(
   project: Project,
   timeEntries: TimeEntry[],
   payments: ProjectPayment[],
-  globalTJM?: number // TJM global from account settings
+  globalTJM?: number, // TJM global from account settings
+  resourceCosts?: { totalNonBillable: number; totalBillable: number } // Resource costs to include in margin
 ): ProfitabilityMetrics {
   // Time metrics
   const actualDaysWorked = calculateActualDays(timeEntries);
@@ -278,11 +279,14 @@ export function calculateMetrics(
   const tjmGapPercent = targetTJM > 0 ? (tjmGap / targetTJM) * 100 : 0;
   
   // Profitability metrics - Based on billed amount (Montant facturé) for theoretical margin
-  // Marge = Montant facturé - (Coût cible * jours)
+  // Marge = Montant facturé - (Coût cible * jours) - Coût ressources non facturables
   // Le coût cible est UNIQUEMENT le TJM cible (global ou projet) - jamais internalDailyCost du projet
   const internalDailyCost = targetTJM;
   // Use daysForCostCalculation which falls back to theoretical days when no time is tracked
-  const totalCost = daysForCostCalculation * internalDailyCost;
+  const laborCost = daysForCostCalculation * internalDailyCost;
+  // Include non-billable resource costs in total cost
+  const nonBillableResourceCost = resourceCosts?.totalNonBillable || 0;
+  const totalCost = laborCost + nonBillableResourceCost;
   // Use totalBilled (montant facturé) instead of totalPaid (CA encaissé) for theoretical margin
   const margin = totalBilled - totalCost;
   const marginPercent = totalBilled > 0 ? (margin / totalBilled) * 100 : 0;
@@ -1300,9 +1304,10 @@ export function generateProfitabilityAnalysis(
   project: Project,
   timeEntries: TimeEntry[],
   payments: ProjectPayment[],
-  globalTJM?: number // TJM global from account settings
+  globalTJM?: number, // TJM global from account settings
+  resourceCosts?: { totalNonBillable: number; totalBillable: number } // Resource costs to include in margin
 ): ProfitabilityAnalysis {
-  const metrics = calculateMetrics(project, timeEntries, payments, globalTJM);
+  const metrics = calculateMetrics(project, timeEntries, payments, globalTJM, resourceCosts);
   const recommendations = generateRecommendations(
     metrics, 
     project.stage || undefined,

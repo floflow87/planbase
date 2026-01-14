@@ -1380,56 +1380,6 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         </Card>
       )}
 
-      {/* Profitability Summary Card */}
-      {metrics && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Rentabilité
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Marge</p>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={metrics.margin >= 0 ? "default" : "destructive"}
-                    className={metrics.margin >= 0 ? "bg-green-600 dark:bg-green-700" : ""}
-                    data-testid="badge-profitability"
-                  >
-                    {metrics.statusLabel}
-                  </Badge>
-                </div>
-                <p className={`text-lg font-semibold ${metrics.margin >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}`} data-testid="text-profit-loss">
-                  {metrics.margin >= 0 ? "+" : ""}{metrics.margin.toFixed(0)} €
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">TJM réel</p>
-                <p className="text-lg font-semibold">{metrics.actualTJM.toFixed(0)} €</p>
-                {metrics.targetTJM > 0 && (
-                  <p className="text-xs text-muted-foreground">Cible: {metrics.targetTJM.toFixed(0)} €</p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">CA facturé</p>
-                <p className="text-lg font-semibold">{metrics.totalBilled.toFixed(0)} €</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Encaissé</p>
-                <p className="text-lg font-semibold">{metrics.totalPaid.toFixed(0)} €</p>
-                <Button asChild variant="ghost" size="sm" className="h-6 text-xs gap-1 p-0" data-testid="link-to-finance">
-                  <Link href="/finance">
-                    Voir détails
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Time Recommendations */}
       {scopeItems.length > 0 && totalEstimatedDays > 0 && (() => {
@@ -4211,36 +4161,64 @@ export default function ProjectDetail() {
                         </div>
                       </CardContent>
                     </Card>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Card className="cursor-help">
-                          <CardContent className="pt-4 pb-4">
-                            <div className="text-xs text-muted-foreground mb-1">
-                              {isForfait ? "TJM facturé" : "TJM projet"}
-                            </div>
-                            <div className="text-lg font-bold" data-testid="kpi-effective-tjm">
-                              {isForfait 
-                                ? (effectiveDailyRate > 0 
-                                    ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
-                                    : "-")
-                                : (effectiveTJMData?.effectiveTJM 
-                                    ? `${effectiveTJMData.effectiveTJM} €`
-                                    : "-")
-                              }
-                            </div>
-                            {isForfait && effectiveDailyRate > 0 && profitabilityMetrics?.targetTJM && (
-                              <div className="text-[10px] text-muted-foreground mt-1">
-                                Cible : {profitabilityMetrics.targetTJM.toLocaleString("fr-FR")} €/j
+                    <Card>
+                      <CardContent className="pt-4 pb-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-help">
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  {isForfait ? "TJM facturé" : "TJM projet"}
+                                </div>
+                                <div className="text-lg font-bold" data-testid="kpi-effective-tjm">
+                                  {isForfait 
+                                    ? (effectiveDailyRate > 0 
+                                        ? effectiveDailyRate.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                        : "-")
+                                    : (effectiveTJMData?.effectiveTJM 
+                                        ? `${effectiveTJMData.effectiveTJM} €`
+                                        : "-")
+                                  }
+                                </div>
                               </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
-                        <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                              <p className="text-sm">{isForfait ? "Taux journalier réel calculé sur ce projet." : "Taux journalier moyen défini pour ce projet."}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{isForfait ? "Formule : Montant facturé ÷ Nombre de jours" : "Défini dans les paramètres du projet ou global"}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-help border-l pl-4">
+                                <div className="text-xs text-muted-foreground mb-1">TJM réel</div>
+                                <div className="text-lg font-bold" data-testid="kpi-actual-tjm">
+                                  {profitabilityMetrics?.actualTJM && profitabilityMetrics.actualTJM > 0
+                                    ? profitabilityMetrics.actualTJM.toLocaleString("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 0 })
+                                    : "-"}
+                                </div>
+                                {(() => {
+                                  const tjmFacture = isForfait ? effectiveDailyRate : (effectiveTJMData?.effectiveTJM || 0);
+                                  const tjmReel = profitabilityMetrics?.actualTJM || 0;
+                                  const ecart = tjmReel - tjmFacture;
+                                  if (tjmFacture > 0 && tjmReel > 0) {
+                                    return (
+                                      <div className={`text-[10px] mt-1 ${ecart >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                        Écart : {ecart >= 0 ? "+" : ""}{ecart.toLocaleString("fr-FR", { minimumFractionDigits: 0 })} €
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs bg-white dark:bg-gray-800 text-foreground">
+                              <p className="text-sm">TJM réel basé sur le CA encaissé et les jours travaillés.</p>
+                              <p className="text-xs text-muted-foreground mt-1">Formule : CA encaissé ÷ Jours travaillés</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                   
                   {/* Ligne 2: Prix minimum recommandé, Coût actualisé, Marge prévisionnelle */}

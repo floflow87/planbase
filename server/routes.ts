@@ -2127,9 +2127,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const globalTJMSetting = await storage.getSetting('ACCOUNT', req.accountId!, 'billing.defaultTJM');
       const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : undefined;
 
+      // Get resource costs for the project (non-simulation resources only, scoped by account)
+      // Note: Supabase stores integer fields which Drizzle returns as numbers
+      const resources = await db.select().from(projectResources)
+        .where(and(
+          eq(projectResources.projectId, req.params.projectId),
+          eq(projectResources.accountId, req.accountId!),
+          eq(projectResources.isSimulation, 0)
+        ));
+      
+      // Calculate non-billable and billable resource costs
+      // Note: Uses same calculation logic as resources summary endpoint for consistency
+      let totalNonBillable = 0;
+      let totalBillable = 0;
+      
+      // Safe parseFloat that handles null, undefined, empty strings and NaN
+      const safeParseFloat = (value: string | number | null | undefined): number => {
+        if (value === null || value === undefined || value === '') return 0;
+        const parsed = typeof value === 'number' ? value : parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      
+      for (const resource of resources) {
+        if (resource.type === 'human') {
+          // Human resources: dailyCost * capacity (capacity = days allocated to project)
+          const dailyCost = safeParseFloat(resource.dailyCostInternal);
+          const capacity = safeParseFloat(resource.capacity);
+          const cost = dailyCost * capacity;
+          if (resource.isBillable === 1) {
+            totalBillable += cost;
+          } else {
+            totalNonBillable += cost;
+          }
+        } else {
+          // Non-human resources: direct amount (already calculated per project duration)
+          const amount = safeParseFloat(resource.amount);
+          if (resource.isBillable === 1) {
+            totalBillable += amount;
+          } else {
+            totalNonBillable += amount;
+          }
+        }
+      }
+      const resourceCosts = { totalNonBillable, totalBillable };
+
       // Import and use profitability service
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
-      const analysis = generateProfitabilityAnalysis(project, timeEntries, payments, globalTJM);
+      const analysis = generateProfitabilityAnalysis(project, timeEntries, payments, globalTJM, resourceCosts);
 
       res.json(analysis);
     } catch (error: any) {

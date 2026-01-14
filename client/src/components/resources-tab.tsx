@@ -527,7 +527,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             <Plus className="h-4 w-4 mr-1" />
             Ressource humaine
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openCreateDialog("non_human")} data-testid="button-add-non-human">
+          <Button size="sm" variant="secondary" className="bg-white hover:bg-gray-50 dark:bg-gray-100 dark:hover:bg-gray-200 dark:text-gray-900" onClick={() => openCreateDialog("non_human")} data-testid="button-add-non-human">
             <Plus className="h-4 w-4 mr-1" />
             Ressource matérielle
           </Button>
