@@ -4526,6 +4526,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/roadmaps/:roadmapId/items", requireAuth, async (req, res) => {
     try {
+      // Verify the roadmap exists and belongs to user's account
+      const roadmap = await storage.getRoadmap(req.params.roadmapId);
+      if (!roadmap) {
+        return res.status(404).json({ error: "Roadmap not found" });
+      }
+      if (roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       const items = await storage.getRoadmapItemsByRoadmapId(req.params.roadmapId);
       res.json(items);
     } catch (error: any) {
