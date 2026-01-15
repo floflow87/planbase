@@ -4536,7 +4536,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const items = await storage.getRoadmapItemsByRoadmapId(req.params.roadmapId);
-      res.json(items);
+      
+      // Calculate milestone status for milestone items
+      const enrichedItems = items.map(item => {
+        if (item.type === 'milestone') {
+          return {
+            ...item,
+            milestoneStatus: calculateMilestoneStatus(item),
+          };
+        }
+        return item;
+      });
+      
+      res.json(enrichedItems);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -4755,6 +4767,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to calculate milestone status
+  function calculateMilestoneStatus(milestone: any, linkedProgress?: number): string {
+    const now = new Date();
+    const targetDate = milestone.targetDate || milestone.endDate;
+    
+    // If already validated
+    if (milestone.validatedAt) {
+      return 'validated';
+    }
+    
+    // If marked as done
+    if (milestone.status === 'done') {
+      return 'validated';
+    }
+    
+    // If no target date, status unknown
+    if (!targetDate) {
+      return 'upcoming';
+    }
+    
+    const target = new Date(targetDate);
+    const daysUntilTarget = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If target date is past
+    if (daysUntilTarget < 0) {
+      return 'overdue';
+    }
+    
+    // Calculate expected progress based on time
+    const startDate = milestone.startDate ? new Date(milestone.startDate) : null;
+    let expectedProgress = 0;
+    
+    if (startDate && startDate < target) {
+      const totalDays = (target.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const elapsedDays = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      expectedProgress = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+    }
+    
+    const actualProgress = linkedProgress !== undefined ? linkedProgress : (milestone.progress || 0);
+    
+    // At risk: less than 14 days remaining OR behind schedule
+    if (daysUntilTarget <= 14 && actualProgress < expectedProgress * 0.8) {
+      return 'at_risk';
+    }
+    
+    // Achievable: on track with progress
+    if (actualProgress >= expectedProgress * 0.8) {
+      return 'achievable';
+    }
+    
+    // Upcoming: far in the future
+    if (daysUntilTarget > 30) {
+      return 'upcoming';
+    }
+    
+    // Default to at_risk if close but not on track
+    return actualProgress >= 50 ? 'achievable' : 'at_risk';
+  }
+
   // Get milestones for a project (roadmap items with type='milestone')
   app.get("/api/projects/:projectId/roadmap/milestones", requireAuth, async (req, res) => {
     try {
@@ -4776,8 +4847,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         milestones = milestones.concat(roadmapMilestones);
       }
 
+      // Calculate status for each milestone
+      const milestonesWithStatus = milestones.map(m => ({
+        ...m,
+        milestoneStatus: calculateMilestoneStatus(m),
+      }));
+
       // Sort by targetDate (soonest first)
-      milestones.sort((a, b) => {
+      milestonesWithStatus.sort((a, b) => {
         const dateA = a.targetDate || a.endDate || '9999-12-31';
         const dateB = b.targetDate || b.endDate || '9999-12-31';
         return dateA.localeCompare(dateB);
@@ -4785,17 +4862,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Find next upcoming milestone
       const now = new Date();
-      const upcomingMilestones = milestones.filter(m => {
+      const upcomingMilestones = milestonesWithStatus.filter(m => {
         const targetDate = m.targetDate || m.endDate;
-        return targetDate && new Date(targetDate) >= now && m.status !== 'done';
+        return targetDate && new Date(targetDate) >= now && m.milestoneStatus !== 'validated';
       });
 
+      // Count by status
+      const atRiskMilestones = milestonesWithStatus.filter(m => m.milestoneStatus === 'at_risk');
+      const overdueMilestones = milestonesWithStatus.filter(m => m.milestoneStatus === 'overdue');
+      const criticalAtRisk = milestonesWithStatus.filter(m => m.isCritical && (m.milestoneStatus === 'at_risk' || m.milestoneStatus === 'overdue'));
+
       res.json({
-        milestones,
-        totalCount: milestones.length,
+        milestones: milestonesWithStatus,
+        totalCount: milestonesWithStatus.length,
         upcomingCount: upcomingMilestones.length,
-        completedCount: milestones.filter(m => m.status === 'done').length,
+        completedCount: milestonesWithStatus.filter(m => m.milestoneStatus === 'validated').length,
+        atRiskCount: atRiskMilestones.length,
+        overdueCount: overdueMilestones.length,
+        criticalAtRiskCount: criticalAtRisk.length,
         nextMilestone: upcomingMilestones[0] || null,
+        nextCriticalMilestone: upcomingMilestones.find(m => m.isCritical) || null,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get roadmap recommendations based on milestone status
+  app.get("/api/projects/:projectId/roadmap/recommendations", requireAuth, async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      let milestones: any[] = [];
+      let allItems: any[] = [];
+      
+      for (const roadmap of roadmaps) {
+        const items = await storage.getRoadmapItemsByRoadmapId(roadmap.id);
+        allItems = allItems.concat(items);
+        const roadmapMilestones = items.filter(item => item.type === 'milestone');
+        milestones = milestones.concat(roadmapMilestones);
+      }
+
+      const recommendations: Array<{
+        id: string;
+        type: 'warning' | 'critical' | 'info' | 'suggestion';
+        title: string;
+        description: string;
+        action?: string;
+        relatedItemId?: string;
+        relatedItemTitle?: string;
+        priority: number;
+      }> = [];
+
+      const now = new Date();
+
+      // Analyze milestones and generate recommendations
+      for (const milestone of milestones) {
+        const status = calculateMilestoneStatus(milestone);
+        const targetDate = milestone.targetDate || milestone.endDate;
+        const daysUntilTarget = targetDate 
+          ? Math.ceil((new Date(targetDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        // Critical: Overdue critical milestones
+        if (status === 'overdue' && milestone.isCritical) {
+          recommendations.push({
+            id: `crit-overdue-${milestone.id}`,
+            type: 'critical',
+            title: 'Jalon critique en retard',
+            description: `Le jalon "${milestone.title}" est critique et en retard. Une action immédiate est requise.`,
+            action: 'Réviser les dépendances et établir un plan de rattrapage',
+            relatedItemId: milestone.id,
+            relatedItemTitle: milestone.title,
+            priority: 100,
+          });
+        }
+        // Warning: Overdue non-critical milestones  
+        else if (status === 'overdue') {
+          recommendations.push({
+            id: `warn-overdue-${milestone.id}`,
+            type: 'warning',
+            title: 'Jalon en retard',
+            description: `Le jalon "${milestone.title}" a dépassé sa date cible.`,
+            action: 'Mettre à jour la date ou marquer comme terminé',
+            relatedItemId: milestone.id,
+            relatedItemTitle: milestone.title,
+            priority: 70,
+          });
+        }
+        // Critical: At-risk critical milestones
+        else if (status === 'at_risk' && milestone.isCritical) {
+          recommendations.push({
+            id: `crit-risk-${milestone.id}`,
+            type: 'critical',
+            title: 'Jalon critique à risque',
+            description: `Le jalon critique "${milestone.title}" est à risque (${daysUntilTarget !== null ? `${daysUntilTarget}j restants` : ''}).`,
+            action: 'Intensifier le suivi et débloquer les obstacles',
+            relatedItemId: milestone.id,
+            relatedItemTitle: milestone.title,
+            priority: 90,
+          });
+        }
+        // Warning: At-risk non-critical milestones
+        else if (status === 'at_risk') {
+          recommendations.push({
+            id: `warn-risk-${milestone.id}`,
+            type: 'warning',
+            title: 'Jalon à risque',
+            description: `Le jalon "${milestone.title}" pourrait ne pas être atteint à temps (${daysUntilTarget !== null ? `${daysUntilTarget}j restants` : ''}).`,
+            action: 'Vérifier les blocages et ajuster si nécessaire',
+            relatedItemId: milestone.id,
+            relatedItemTitle: milestone.title,
+            priority: 50,
+          });
+        }
+        // Info: Upcoming validation required
+        else if (milestone.validationRequired && milestone.validationRequired !== 'none' && status === 'achievable' && daysUntilTarget !== null && daysUntilTarget <= 14) {
+          const validationLabels: { [key: string]: string } = {
+            client: 'du client',
+            internal: 'interne',
+            external: 'externe',
+          };
+          recommendations.push({
+            id: `info-validation-${milestone.id}`,
+            type: 'info',
+            title: 'Validation à planifier',
+            description: `Le jalon "${milestone.title}" nécessite une validation ${validationLabels[milestone.validationRequired] || ''} dans ${daysUntilTarget}j.`,
+            action: 'Préparer la session de validation',
+            relatedItemId: milestone.id,
+            relatedItemTitle: milestone.title,
+            priority: 30,
+          });
+        }
+      }
+
+      // General recommendations
+      const milestonesWithoutDates = milestones.filter(m => !m.targetDate && !m.endDate);
+      if (milestonesWithoutDates.length > 0) {
+        recommendations.push({
+          id: 'suggestion-no-dates',
+          type: 'suggestion',
+          title: 'Jalons sans dates',
+          description: `${milestonesWithoutDates.length} jalon(s) n'ont pas de date cible définie.`,
+          action: 'Définir des dates pour améliorer le suivi',
+          priority: 20,
+        });
+      }
+
+      // Check for items without phase
+      const itemsWithoutPhase = allItems.filter(i => !i.phase);
+      if (itemsWithoutPhase.length > 0) {
+        recommendations.push({
+          id: 'suggestion-no-phase',
+          type: 'suggestion',
+          title: 'Éléments sans phase',
+          description: `${itemsWithoutPhase.length} élément(s) n'ont pas de phase assignée.`,
+          action: 'Assigner les éléments à une phase pour structurer la roadmap',
+          priority: 15,
+        });
+      }
+
+      // Sort recommendations by priority (highest first)
+      recommendations.sort((a, b) => b.priority - a.priority);
+
+      res.json({
+        recommendations,
+        summary: {
+          criticalCount: recommendations.filter(r => r.type === 'critical').length,
+          warningCount: recommendations.filter(r => r.type === 'warning').length,
+          infoCount: recommendations.filter(r => r.type === 'info').length,
+          suggestionCount: recommendations.filter(r => r.type === 'suggestion').length,
+        },
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

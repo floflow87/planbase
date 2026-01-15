@@ -43,16 +43,33 @@ interface MilestonesInfo {
     targetDate?: string;
     endDate?: string;
     status: string;
+    milestoneStatus?: string;
+    milestoneType?: string;
+    isCritical?: boolean;
   }>;
   totalCount: number;
   upcomingCount: number;
   completedCount: number;
+  atRiskCount: number;
+  overdueCount: number;
+  criticalAtRiskCount: number;
   nextMilestone: {
     id: string;
     title: string;
     targetDate?: string;
     endDate?: string;
     status: string;
+    milestoneStatus?: string;
+    isCritical?: boolean;
+  } | null;
+  nextCriticalMilestone: {
+    id: string;
+    title: string;
+    targetDate?: string;
+    endDate?: string;
+    status: string;
+    milestoneStatus?: string;
+    isCritical?: boolean;
   } | null;
 }
 
@@ -156,17 +173,24 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
         </CardContent>
       </Card>
 
-      <Card className="bg-card/50">
+      <Card className={`bg-card/50 ${milestonesData?.criticalAtRiskCount && milestonesData.criticalAtRiskCount > 0 ? "border-orange-500/30" : ""}`}>
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
-                <Flag className="h-3.5 w-3.5" />
-                Prochain jalon
+                <Flag className={`h-3.5 w-3.5 ${nextMilestone?.isCritical ? "text-orange-500" : ""}`} />
+                {nextMilestone?.isCritical ? "Prochain jalon critique" : "Prochain jalon"}
               </div>
               {nextMilestone ? (
-                <div className="text-sm font-medium truncate" title={nextMilestone.title}>
-                  {nextMilestone.title}
+                <div className="flex items-center gap-1.5">
+                  <div className="text-sm font-medium truncate" title={nextMilestone.title}>
+                    {nextMilestone.title}
+                  </div>
+                  {nextMilestone.isCritical && (
+                    <Badge variant="outline" className="shrink-0 bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20 text-[10px] px-1">
+                      Critique
+                    </Badge>
+                  )}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground italic">
@@ -175,15 +199,30 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
               )}
             </div>
             {nextMilestoneDate && (
-              <Badge variant="outline" className="ml-2 shrink-0">
+              <Badge 
+                variant="outline" 
+                className={`ml-2 shrink-0 ${nextMilestone?.milestoneStatus === 'at_risk' ? "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20" : nextMilestone?.milestoneStatus === 'overdue' ? "bg-destructive/10 text-destructive border-destructive/20" : ""}`}
+              >
                 {formatDate(nextMilestoneDate)}
               </Badge>
             )}
           </div>
           {milestonesData && milestonesData.totalCount > 0 && (
-            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-              <Target className="h-3 w-3" />
-              {milestonesData.completedCount}/{milestonesData.totalCount} jalons atteints
+            <div className="mt-2 flex items-center justify-between">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <Target className="h-3 w-3" />
+                {milestonesData.completedCount}/{milestonesData.totalCount} atteints
+              </div>
+              {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
+                <div className="text-xs flex items-center gap-2">
+                  {milestonesData.atRiskCount > 0 && (
+                    <span className="text-orange-600 dark:text-orange-400">{milestonesData.atRiskCount} à risque</span>
+                  )}
+                  {milestonesData.overdueCount > 0 && (
+                    <span className="text-destructive">{milestonesData.overdueCount} en retard</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

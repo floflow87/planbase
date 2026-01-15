@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Plus, Map, LayoutGrid, Calendar, Search, Filter, X } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar, Search, Filter, X, AlertTriangle, CheckCircle2, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,15 +9,43 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { GanttView } from "./gantt-view";
 import { OutputView } from "./output-view";
 import { RoadmapIndicators } from "./roadmap-indicators";
+import { RoadmapRecommendations } from "./roadmap-recommendations";
 import { MilestonesZone } from "./milestones-zone";
 import { RoadmapItemLinks } from "./roadmap-item-links";
 import type { Roadmap, RoadmapItem } from "@shared/schema";
+
+// Milestone types
+const MILESTONE_TYPES = [
+  { value: "DELIVERY", label: "Livraison" },
+  { value: "VALIDATION", label: "Validation" },
+  { value: "DECISION", label: "Décision" },
+  { value: "GO_NO_GO", label: "Go/No-Go" },
+  { value: "DEMO", label: "Démonstration" },
+  { value: "RELEASE", label: "Release" },
+  { value: "PHASE_END", label: "Fin de phase" },
+];
+
+// Completion rules
+const COMPLETION_RULES = [
+  { value: "MANUAL", label: "Manuelle" },
+  { value: "ALL_LINKED_EPICS_DONE", label: "Tous les Epics liés terminés" },
+  { value: "PERCENT_THRESHOLD", label: "Seuil de pourcentage" },
+];
+
+// Validation requirements
+const VALIDATION_REQUIREMENTS = [
+  { value: "NONE", label: "Aucune" },
+  { value: "CLIENT", label: "Client" },
+  { value: "INTERNAL", label: "Interne" },
+  { value: "EXTERNAL", label: "Externe" },
+];
 
 interface PhaseInfo {
   projectStartDate: string | null;
@@ -92,6 +120,13 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     startDate: "",
     endDate: "",
     description: "",
+    // Milestone-specific fields
+    milestoneType: "DELIVERY",
+    isCritical: false,
+    completionRule: "MANUAL",
+    completionThreshold: 80,
+    validationRequired: "NONE",
+    impactEstimate: { timeImpactDays: 0, marginImpactPercent: 0, riskLevel: "low" } as { timeImpactDays: number; marginImpactPercent: number; riskLevel: string },
   });
   
   // Filters state
@@ -219,7 +254,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
   const createItemMutation = useMutation({
     mutationFn: async (data: typeof itemForm) => {
-      return apiRequest('/api/roadmap-items', 'POST', {
+      const payload: Record<string, unknown> = {
         roadmapId: activeRoadmapId,
         projectId,
         title: data.title,
@@ -230,7 +265,19 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
         endDate: data.endDate || null,
         description: data.description || null,
         orderIndex: roadmapItems.length,
-      });
+      };
+      // Add milestone-specific fields only for milestones
+      if (data.type === "milestone") {
+        payload.milestoneType = data.milestoneType;
+        payload.isCritical = data.isCritical;
+        payload.completionRule = data.completionRule;
+        payload.completionThreshold = data.completionRule === "PERCENT_THRESHOLD" ? data.completionThreshold : null;
+        payload.validationRequired = data.validationRequired;
+        payload.impactEstimate = data.impactEstimate;
+        // For milestones, use endDate as targetDate
+        payload.targetDate = data.endDate || null;
+      }
+      return apiRequest('/api/roadmap-items', 'POST', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
@@ -252,7 +299,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<typeof itemForm> }) => {
-      return apiRequest(`/api/roadmap-items/${id}`, 'PATCH', {
+      const payload: Record<string, unknown> = {
         title: data.title,
         type: data.type,
         priority: data.priority,
@@ -260,7 +307,26 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
         startDate: data.startDate || null,
         endDate: data.endDate || null,
         description: data.description || null,
-      });
+      };
+      // Add milestone-specific fields only for milestones
+      if (data.type === "milestone") {
+        payload.milestoneType = data.milestoneType;
+        payload.isCritical = data.isCritical;
+        payload.completionRule = data.completionRule;
+        payload.completionThreshold = data.completionRule === "PERCENT_THRESHOLD" ? data.completionThreshold : null;
+        payload.validationRequired = data.validationRequired;
+        payload.impactEstimate = data.impactEstimate;
+        payload.targetDate = data.endDate || null;
+      } else {
+        // Clear milestone fields if type changed from milestone to something else
+        payload.milestoneType = null;
+        payload.isCritical = false;
+        payload.completionRule = "MANUAL";
+        payload.completionThreshold = null;
+        payload.validationRequired = "NONE";
+        payload.impactEstimate = {};
+      }
+      return apiRequest(`/api/roadmap-items/${id}`, 'PATCH', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
@@ -290,6 +356,12 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       startDate: "",
       endDate: "",
       description: "",
+      milestoneType: "DELIVERY",
+      isCritical: false,
+      completionRule: "MANUAL",
+      completionThreshold: 80,
+      validationRequired: "NONE",
+      impactEstimate: { timeImpactDays: 0, marginImpactPercent: 0, riskLevel: "low" },
     });
   };
 
@@ -301,6 +373,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
   const handleOpenEditItem = (item: RoadmapItem) => {
     setEditingItem(item);
+    const impactEst = (item as any).impactEstimate || { timeImpactDays: 0, marginImpactPercent: 0, riskLevel: "low" };
     setItemForm({
       title: item.title,
       type: item.type,
@@ -309,6 +382,12 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
       startDate: item.startDate || "",
       endDate: item.endDate || "",
       description: item.description || "",
+      milestoneType: (item as any).milestoneType || "DELIVERY",
+      isCritical: (item as any).isCritical || false,
+      completionRule: (item as any).completionRule || "MANUAL",
+      completionThreshold: (item as any).completionThreshold || 80,
+      validationRequired: (item as any).validationRequired || "NONE",
+      impactEstimate: impactEst,
     });
     setIsItemDialogOpen(true);
   };
@@ -570,6 +649,10 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
       <CardContent>
         <RoadmapIndicators projectId={projectId} />
+        <RoadmapRecommendations projectId={projectId} onItemClick={(id) => {
+          const item = roadmapItems.find(i => i.id === id);
+          if (item) handleOpenEditItem(item);
+        }} />
         <MilestonesZone projectId={projectId} onMilestoneClick={handleOpenEditItem as any} />
         
         {isLoadingItems ? (
@@ -737,29 +820,180 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="item-start-date">Date de début</Label>
-                <Input
-                  id="item-start-date"
-                  type="date"
-                  value={itemForm.startDate}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, startDate: e.target.value }))}
-                  data-testid="input-item-start-date"
-                />
-              </div>
+            {/* Milestone-specific fields */}
+            {itemForm.type === "milestone" && (
+              <div className="border rounded-md p-4 space-y-4 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Paramètres du jalon</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="milestone-type">Type de jalon</Label>
+                    <Select value={itemForm.milestoneType} onValueChange={(v) => setItemForm(prev => ({ ...prev, milestoneType: v }))}>
+                      <SelectTrigger id="milestone-type" data-testid="select-milestone-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MILESTONE_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="validation-required">Validation requise</Label>
+                    <Select value={itemForm.validationRequired} onValueChange={(v) => setItemForm(prev => ({ ...prev, validationRequired: v }))}>
+                      <SelectTrigger id="validation-required" data-testid="select-validation-required">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {VALIDATION_REQUIREMENTS.map((req) => (
+                          <SelectItem key={req.value} value={req.value}>{req.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is-critical" className="text-sm">Jalon critique</Label>
+                    <p className="text-xs text-muted-foreground">Bloque la progression du projet si en retard</p>
+                  </div>
+                  <Switch
+                    id="is-critical"
+                    checked={itemForm.isCritical}
+                    onCheckedChange={(checked) => setItemForm(prev => ({ ...prev, isCritical: checked }))}
+                    data-testid="switch-is-critical"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="completion-rule">Règle de complétion</Label>
+                    <Select value={itemForm.completionRule} onValueChange={(v) => setItemForm(prev => ({ ...prev, completionRule: v }))}>
+                      <SelectTrigger id="completion-rule" data-testid="select-completion-rule">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMPLETION_RULES.map((rule) => (
+                          <SelectItem key={rule.value} value={rule.value}>{rule.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {itemForm.completionRule === "PERCENT_THRESHOLD" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="completion-threshold">Seuil (%)</Label>
+                      <Input
+                        id="completion-threshold"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={itemForm.completionThreshold}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, completionThreshold: parseInt(e.target.value) || 0 }))}
+                        data-testid="input-completion-threshold"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">Estimation d'impact en cas de retard</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="impact-days" className="text-xs text-muted-foreground">Jours</Label>
+                      <Input
+                        id="impact-days"
+                        type="number"
+                        min={0}
+                        value={itemForm.impactEstimate.timeImpactDays}
+                        onChange={(e) => setItemForm(prev => ({ 
+                          ...prev, 
+                          impactEstimate: { ...prev.impactEstimate, timeImpactDays: parseInt(e.target.value) || 0 }
+                        }))}
+                        data-testid="input-impact-days"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="impact-margin" className="text-xs text-muted-foreground">Marge (%)</Label>
+                      <Input
+                        id="impact-margin"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={itemForm.impactEstimate.marginImpactPercent}
+                        onChange={(e) => setItemForm(prev => ({ 
+                          ...prev, 
+                          impactEstimate: { ...prev.impactEstimate, marginImpactPercent: parseInt(e.target.value) || 0 }
+                        }))}
+                        data-testid="input-impact-margin"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="impact-risk" className="text-xs text-muted-foreground">Risque</Label>
+                      <Select 
+                        value={itemForm.impactEstimate.riskLevel} 
+                        onValueChange={(v) => setItemForm(prev => ({ 
+                          ...prev, 
+                          impactEstimate: { ...prev.impactEstimate, riskLevel: v }
+                        }))}
+                      >
+                        <SelectTrigger id="impact-risk" data-testid="select-impact-risk">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Faible</SelectItem>
+                          <SelectItem value="medium">Moyen</SelectItem>
+                          <SelectItem value="high">Élevé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {itemForm.type === "milestone" ? (
               <div className="space-y-2">
-                <Label htmlFor="item-end-date">Date de fin</Label>
+                <Label htmlFor="item-target-date">Date cible</Label>
                 <Input
-                  id="item-end-date"
+                  id="item-target-date"
                   type="date"
                   value={itemForm.endDate}
-                  onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value }))}
-                  data-testid="input-item-end-date"
+                  onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value, startDate: e.target.value }))}
+                  data-testid="input-item-target-date"
                 />
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="item-start-date">Date de début</Label>
+                  <Input
+                    id="item-start-date"
+                    type="date"
+                    value={itemForm.startDate}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, startDate: e.target.value }))}
+                    data-testid="input-item-start-date"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="item-end-date">Date de fin</Label>
+                  <Input
+                    id="item-end-date"
+                    type="date"
+                    value={itemForm.endDate}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, endDate: e.target.value }))}
+                    data-testid="input-item-end-date"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="item-description">Description (optionnel)</Label>
