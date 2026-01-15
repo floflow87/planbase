@@ -804,99 +804,13 @@ export default function RoadmapPage() {
               <RoadmapIndicators projectId={selectedProjectId} />
             )}
 
-            {/* Milestones Zone */}
+            {/* Milestones Zone + Recommendations side by side */}
             {selectedProjectId && (
-              <MilestonesZone projectId={selectedProjectId} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <MilestonesZone projectId={selectedProjectId} />
+                <RoadmapRecommendations projectId={selectedProjectId} />
+              </div>
             )}
-
-            {/* Roadmap Recommendations */}
-            {selectedProjectId && (
-              <RoadmapRecommendations projectId={selectedProjectId} />
-            )}
-
-            {/* Filters Bar */}
-            <Card className="mb-4">
-              <CardContent className="py-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Rechercher..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-9"
-                      data-testid="input-search-roadmap"
-                    />
-                  </div>
-                  
-                  <Button
-                    variant={showFilters ? "secondary" : "outline"}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="h-9"
-                    data-testid="button-toggle-filters"
-                  >
-                    <Filter className="h-4 w-4 mr-1" />
-                    Filtres
-                    {hasActiveFilters && (
-                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">
-                        {[filterPhase !== "all", filterStatus !== "all", filterType !== "all"].filter(Boolean).length}
-                      </Badge>
-                    )}
-                  </Button>
-
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-9 text-muted-foreground"
-                      data-testid="button-clear-filters"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Effacer
-                    </Button>
-                  )}
-
-                  {showFilters && (
-                    <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t mt-2">
-                      <Select value={filterPhase} onValueChange={setFilterPhase}>
-                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-phase">
-                          <SelectValue placeholder="Phase" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PHASE_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-status">
-                          <SelectValue placeholder="Statut" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-type">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader className="pb-4">
@@ -976,6 +890,84 @@ export default function RoadmapPage() {
                     Nouvelle
                   </Button>
                 </div>
+              </div>
+
+              {/* Filters Bar - inside card */}
+              <div className="flex flex-wrap items-center gap-3 pt-4 border-t mt-4">
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-search-roadmap"
+                  />
+                </div>
+                
+                <Button
+                  variant={showFilters ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  data-testid="button-toggle-filters"
+                >
+                  <Filter className="h-4 w-4 mr-1" />
+                  Filtres
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="ml-1.5">
+                      {[filterPhase !== "all", filterStatus !== "all", filterType !== "all"].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    data-testid="button-clear-filters"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Effacer
+                  </Button>
+                )}
+
+                {showFilters && (
+                  <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t mt-2">
+                    <Select value={filterPhase} onValueChange={setFilterPhase}>
+                      <SelectTrigger className="w-[160px]" data-testid="select-filter-phase">
+                        <SelectValue placeholder="Phase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PHASE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-[160px]" data-testid="select-filter-status">
+                        <SelectValue placeholder="Statut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-[160px]" data-testid="select-filter-type">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </CardHeader>
 

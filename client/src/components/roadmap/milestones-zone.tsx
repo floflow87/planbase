@@ -68,7 +68,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
 
   if (isLoading) {
     return (
-      <Card className="mb-4 animate-pulse">
+      <Card className="animate-pulse">
         <CardHeader className="py-3">
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 bg-muted rounded" />
@@ -81,7 +81,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
 
   if (!milestonesData || milestonesData.totalCount === 0) {
     return (
-      <Card className="mb-4">
+      <Card>
         <CardHeader className="py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
   const displayedMilestones = showCompleted ? milestonesData.milestones : upcomingMilestones;
 
   return (
-    <Card className="mb-4">
+    <Card>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CardHeader className="py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <CollapsibleTrigger asChild>

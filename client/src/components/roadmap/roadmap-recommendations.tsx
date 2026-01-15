@@ -105,7 +105,7 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
   };
 
   return (
-    <Card className="bg-card/50 mb-4">
+    <Card className="bg-card/50">
       <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
