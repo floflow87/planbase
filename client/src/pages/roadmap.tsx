@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,33 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { GanttView } from "@/components/roadmap/gantt-view";
 import { OutputView } from "@/components/roadmap/output-view";
+import { RoadmapIndicators } from "@/components/roadmap/roadmap-indicators";
+import { MilestonesZone } from "@/components/roadmap/milestones-zone";
 import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory, BacklogTask } from "@shared/schema";
+
+const PHASE_LABELS: { [key: string]: string } = {
+  T1: "Court terme (T1)",
+  T2: "Moyen terme (T2)",
+  T3: "Long terme (T3)",
+  LT: "Très long terme",
+  all: "Toutes les phases",
+};
+
+const STATUS_LABELS: { [key: string]: string } = {
+  planned: "Planifié",
+  in_progress: "En cours",
+  done: "Terminé",
+  blocked: "Bloqué",
+  all: "Tous les statuts",
+};
+
+const TYPE_LABELS: { [key: string]: string } = {
+  deliverable: "Livrable",
+  milestone: "Jalon",
+  initiative: "Initiative",
+  feature: "Fonctionnalité",
+  all: "Tous les types",
+};
 
 type ViewMode = "gantt" | "output";
 type LinkedType = "free" | "epic" | "ticket" | "cdc";
@@ -68,6 +94,13 @@ export default function RoadmapPage() {
   const [renameValue, setRenameValue] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roadmapToManage, setRoadmapToManage] = useState<Roadmap | null>(null);
+  
+  // Filters state
+  const [filterPhase, setFilterPhase] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   
   const [itemForm, setItemForm] = useState({
     title: "",
@@ -163,6 +196,46 @@ export default function RoadmapPage() {
     });
     return Array.from(tags).sort();
   }, [roadmapItems]);
+
+  // Filter items based on selected filters
+  const filteredItems = useMemo(() => {
+    return roadmapItems.filter(item => {
+      // Phase filter
+      if (filterPhase !== "all") {
+        const itemPhase = (item as any).phase;
+        if (itemPhase !== filterPhase) return false;
+      }
+      
+      // Status filter
+      if (filterStatus !== "all" && item.status !== filterStatus) {
+        return false;
+      }
+      
+      // Type filter
+      if (filterType !== "all" && item.type !== filterType) {
+        return false;
+      }
+      
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const titleMatch = item.title.toLowerCase().includes(query);
+        const descMatch = item.description?.toLowerCase().includes(query) || false;
+        if (!titleMatch && !descMatch) return false;
+      }
+      
+      return true;
+    });
+  }, [roadmapItems, filterPhase, filterStatus, filterType, searchQuery]);
+
+  const hasActiveFilters = filterPhase !== "all" || filterStatus !== "all" || filterType !== "all" || searchQuery.trim() !== "";
+
+  const clearFilters = () => {
+    setFilterPhase("all");
+    setFilterStatus("all");
+    setFilterType("all");
+    setSearchQuery("");
+  };
 
   useEffect(() => {
     const savedRoadmapId = localStorage.getItem("roadmap-selected-roadmap");
@@ -682,11 +755,106 @@ export default function RoadmapPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
+          <>
+            {/* Roadmap Indicators */}
+            {selectedProjectId && (
+              <RoadmapIndicators projectId={selectedProjectId} />
+            )}
+
+            {/* Milestones Zone */}
+            {selectedProjectId && (
+              <MilestonesZone projectId={selectedProjectId} />
+            )}
+
+            {/* Filters Bar */}
+            <Card className="mb-4">
+              <CardContent className="py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Rechercher..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 h-9"
+                      data-testid="input-search-roadmap"
+                    />
+                  </div>
+                  
+                  <Button
+                    variant={showFilters ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="h-9"
+                    data-testid="button-toggle-filters"
+                  >
+                    <Filter className="h-4 w-4 mr-1" />
+                    Filtres
+                    {hasActiveFilters && (
+                      <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">
+                        {[filterPhase !== "all", filterStatus !== "all", filterType !== "all"].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-9 text-muted-foreground"
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Effacer
+                    </Button>
+                  )}
+
+                  {showFilters && (
+                    <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t mt-2">
+                      <Select value={filterPhase} onValueChange={setFilterPhase}>
+                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-phase">
+                          <SelectValue placeholder="Phase" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PHASE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-status">
+                          <SelectValue placeholder="Statut" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-[160px] h-9" data-testid="select-filter-type">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
                     <SelectTrigger className="w-[200px]" data-testid="select-roadmap">
                       <SelectValue placeholder="Sélectionner une roadmap" />
                     </SelectTrigger>
@@ -768,22 +936,31 @@ export default function RoadmapPage() {
                 <div className="flex items-center justify-center py-12">
                   <Loader />
                 </div>
-              ) : roadmapItems.length === 0 ? (
+              ) : filteredItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
                   <CalendarIcon className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground mb-4">
-                    Cette roadmap est vide. Ajoutez des éléments pour commencer.
+                    {hasActiveFilters 
+                      ? "Aucun élément ne correspond aux filtres sélectionnés."
+                      : "Cette roadmap est vide. Ajoutez des éléments pour commencer."}
                   </p>
-                  <Button variant="outline" size="sm" onClick={handleOpenAddItem} data-testid="button-add-first-item">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Ajouter un élément
-                  </Button>
+                  {hasActiveFilters ? (
+                    <Button variant="outline" size="sm" onClick={clearFilters} data-testid="button-clear-filters-empty">
+                      <X className="h-4 w-4 mr-1" />
+                      Effacer les filtres
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={handleOpenAddItem} data-testid="button-add-first-item">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ajouter un élément
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="min-h-[400px]">
                   {viewMode === "gantt" ? (
                     <GanttView 
-                      items={roadmapItems} 
+                      items={filteredItems} 
                       dependencies={roadmapDependencies}
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
@@ -793,7 +970,7 @@ export default function RoadmapPage() {
                     />
                   ) : (
                     <OutputView 
-                      items={roadmapItems}
+                      items={filteredItems}
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
                       onItemMove={handleItemMove}
@@ -803,6 +980,7 @@ export default function RoadmapPage() {
               )}
             </CardContent>
           </Card>
+          </>
         )}
       </div>
 
