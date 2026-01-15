@@ -1139,9 +1139,19 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
             {showTodayLine && (
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                style={{ left: todayPosition + LEFT_PANEL_WIDTH }}
+                style={{ left: todayPosition }}
+                data-testid="today-line"
               >
-                <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rounded-full" />
+                {/* Chevron pointing down */}
+                <div className="absolute -top-6 -left-[22px] flex flex-col items-center">
+                  <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 bg-background/90 px-1.5 py-0.5 rounded shadow-sm border border-red-200 dark:border-red-800">
+                    Aujourd'hui
+                  </span>
+                  <svg width="12" height="8" viewBox="0 0 12 8" className="text-red-500 mt-0.5">
+                    <polygon points="6,8 0,0 12,0" fill="currentColor" />
+                  </svg>
+                </div>
+                <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
               </div>
             )}
           </div>

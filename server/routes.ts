@@ -4847,6 +4847,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         milestones = milestones.concat(roadmapMilestones);
       }
 
+      // Auto-mark milestones as done when target date has passed
+      const now = new Date();
+      for (const milestone of milestones) {
+        const targetDate = milestone.targetDate || milestone.endDate;
+        if (targetDate && milestone.status !== 'done' && !milestone.validatedAt) {
+          const target = new Date(targetDate);
+          if (target < now) {
+            // Auto-mark as done in database
+            await storage.updateRoadmapItem(milestone.id, { status: 'done' });
+            milestone.status = 'done';
+          }
+        }
+      }
+
       // Calculate status for each milestone
       const milestonesWithStatus = milestones.map(m => ({
         ...m,
@@ -4861,7 +4875,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Find next upcoming milestone
-      const now = new Date();
       const upcomingMilestones = milestonesWithStatus.filter(m => {
         const targetDate = m.targetDate || m.endDate;
         return targetDate && new Date(targetDate) >= now && m.milestoneStatus !== 'validated';
@@ -5040,6 +5053,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
           infoCount: recommendations.filter(r => r.type === 'info').length,
           suggestionCount: recommendations.filter(r => r.type === 'suggestion').length,
         },
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Import CDC (Cahier des Charges) items into roadmap
+  app.post("/api/projects/:projectId/roadmap/import-cdc", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      if (project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get scope items for this project
+      const scopeItems = await storage.getProjectScopeItems(req.params.projectId);
+      if (!scopeItems || scopeItems.length === 0) {
+        return res.status(400).json({ error: "Aucun élément CDC trouvé pour ce projet" });
+      }
+
+      // Get or create roadmap for this project
+      let roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      let roadmap = roadmaps[0];
+      
+      if (!roadmap) {
+        roadmap = await storage.createRoadmap({
+          accountId: req.accountId!,
+          projectId: req.params.projectId,
+          name: project.name + " - Roadmap",
+          description: "Roadmap générée depuis le CDC",
+        });
+      }
+
+      // Calculate phase dates based on project start date
+      const projectStartDate = project.startDate ? new Date(project.startDate) : new Date();
+      const getPhaseStartDate = (phase: string | null): Date => {
+        const base = new Date(projectStartDate);
+        switch (phase) {
+          case 'T1': return base;
+          case 'T2': 
+            base.setMonth(base.getMonth() + 3);
+            return new Date(base);
+          case 'T3': 
+            base.setMonth(base.getMonth() + 6);
+            return new Date(base);
+          case 'T4': 
+          case 'LT': 
+            base.setMonth(base.getMonth() + 9);
+            return new Date(base);
+          default: return new Date(projectStartDate);
+        }
+      };
+
+      const getPhaseEndDate = (phase: string | null, estimatedDays: number | null): Date => {
+        const start = getPhaseStartDate(phase);
+        const days = estimatedDays ? Math.ceil(parseFloat(String(estimatedDays))) : 7;
+        return new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+      };
+
+      // Filter out items that already have a roadmap item generated
+      const itemsToImport = scopeItems.filter(item => !item.generatedRoadmapItemId);
+      
+      if (itemsToImport.length === 0) {
+        return res.json({ 
+          message: "Tous les éléments CDC ont déjà été importés", 
+          importedCount: 0,
+          skippedCount: scopeItems.length
+        });
+      }
+
+      // Create roadmap items for each scope item
+      const createdItems: any[] = [];
+      for (const scopeItem of itemsToImport) {
+        const startDate = getPhaseStartDate(scopeItem.phase);
+        const endDate = getPhaseEndDate(scopeItem.phase, scopeItem.estimatedDays ? parseFloat(String(scopeItem.estimatedDays)) : null);
+        
+        const roadmapItem = await storage.createRoadmapItem({
+          roadmapId: roadmap.id,
+          title: scopeItem.label,
+          description: scopeItem.description || undefined,
+          type: 'deliverable',
+          status: 'planned',
+          phase: scopeItem.phase || undefined,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          progress: 0,
+          sourceType: 'cdc',
+          sourceId: scopeItem.id,
+        });
+        
+        // Update scope item with generated roadmap item ID
+        await storage.updateProjectScopeItem(scopeItem.id, {
+          generatedRoadmapItemId: roadmapItem.id,
+        });
+        
+        createdItems.push(roadmapItem);
+      }
+
+      res.json({
+        message: `${createdItems.length} élément(s) importé(s) avec succès`,
+        importedCount: createdItems.length,
+        skippedCount: scopeItems.length - itemsToImport.length,
+        items: createdItems,
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

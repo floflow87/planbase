@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -395,6 +395,28 @@ export default function RoadmapPage() {
     setRoadmapToManage(roadmap);
     setIsDeleteDialogOpen(true);
   };
+
+  const importCdcMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/projects/${selectedProjectId}/roadmap/import-cdc`, 'POST', {});
+    },
+    onSuccess: (result: { message: string; importedCount: number; skippedCount: number }) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      toast({
+        title: "Import CDC terminé",
+        description: result.message,
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur d'import",
+        description: error.message || "Impossible d'importer les éléments du CDC.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const createItemMutation = useMutation({
     mutationFn: async (data: typeof itemForm) => {
@@ -885,6 +907,16 @@ export default function RoadmapPage() {
                       Output
                     </Button>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => importCdcMutation.mutate()}
+                    disabled={importCdcMutation.isPending || !selectedProjectId}
+                    data-testid="button-import-cdc"
+                  >
+                    <FileUp className="h-4 w-4 mr-1" />
+                    {importCdcMutation.isPending ? "Import..." : "Importer CDC"}
+                  </Button>
                   <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
                     <Plus className="h-4 w-4 mr-1" />
                     Nouvelle
