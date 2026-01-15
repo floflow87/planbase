@@ -795,7 +795,7 @@ export default function RoadmapPage() {
 
   return (
     <div className="h-full overflow-auto p-6 bg-[#F8FAFC] dark:bg-background" data-testid="roadmap-view">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <Rocket className="h-6 w-6 text-primary" />
@@ -902,7 +902,7 @@ export default function RoadmapPage() {
 
             {/* Milestones Zone + Recommendations side by side */}
             {selectedProjectId && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <MilestonesZone projectId={selectedProjectId} />
                 <RoadmapRecommendations projectId={selectedProjectId} />
               </div>
