@@ -566,7 +566,8 @@ export default function RoadmapPage() {
   // Bulk update mutation
   const bulkUpdateMutation = useMutation({
     mutationFn: async ({ itemIds, data }: { itemIds: string[]; data: Record<string, any> }) => {
-      return apiRequest('/api/roadmap-items/bulk', 'PATCH', { itemIds, data });
+      const response = await apiRequest('/api/roadmap-items/bulk', 'PATCH', { itemIds, data });
+      return response.json();
     },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
@@ -587,10 +588,12 @@ export default function RoadmapPage() {
   // Bulk delete mutation - using POST for reliable body parsing
   const bulkDeleteMutation = useMutation({
     mutationFn: async (itemIds: string[]) => {
-      return apiRequest('/api/roadmap-items/bulk-delete', 'POST', { itemIds });
+      const response = await apiRequest('/api/roadmap-items/bulk-delete', 'POST', { itemIds });
+      return response.json();
     },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      setSelectedItemIds(new Set()); // Clear selection after delete
       toast({
         title: "Éléments supprimés",
         description: `${result.deleted} élément(s) ont été supprimés.`,
