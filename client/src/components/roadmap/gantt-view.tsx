@@ -110,6 +110,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const [hasAutoFitted, setHasAutoFitted] = useState(false);
+  const justDraggedRef = useRef(false);
 
   // Auto-fit view to show items with dates
   useEffect(() => {
@@ -643,6 +644,9 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     onUpdateItemDates(dragState.itemId, newStartDate, newEndDate);
     setDragState(null);
     setDragPreview(null);
+    // Prevent onClick from firing after drag
+    justDraggedRef.current = true;
+    setTimeout(() => { justDraggedRef.current = false; }, 100);
   }, [dragState, pixelsToDays, onUpdateItemDates]);
 
   useEffect(() => {
@@ -1129,7 +1133,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                               left: dragState?.itemId === item.id && dragPreview ? dragPreview.left : position.left,
                               width: item.type === "milestone" ? ROW_HEIGHT - 16 : (dragState?.itemId === item.id && dragPreview ? dragPreview.width : position.width),
                             }}
-                            onClick={() => !dragState && onItemClick?.(item)}
+                            onClick={() => !dragState && !justDraggedRef.current && onItemClick?.(item)}
                             onMouseDown={(e) => item.type !== "milestone" && handleDragStart(e, item, "move")}
                             data-testid={`gantt-bar-${item.id}`}
                           >

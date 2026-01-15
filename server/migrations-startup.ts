@@ -739,13 +739,19 @@ export async function runStartupMigrations() {
     console.log("✅ Ticket recipes table created");
     
     // Update ticket_recipes conclusion check constraint to include 'termine'
-    await db.execute(sql`
-      ALTER TABLE ticket_recipes DROP CONSTRAINT IF EXISTS ticket_recipes_conclusion_check;
-    `);
-    await db.execute(sql`
-      ALTER TABLE ticket_recipes ADD CONSTRAINT ticket_recipes_conclusion_check 
-        CHECK (conclusion IS NULL OR conclusion IN ('termine', 'a_ameliorer', 'a_fix', 'a_ajouter'));
-    `);
+    try {
+      await db.execute(sql`
+        ALTER TABLE ticket_recipes DROP CONSTRAINT IF EXISTS ticket_recipes_conclusion_check;
+      `);
+      await db.execute(sql`
+        ALTER TABLE ticket_recipes ADD CONSTRAINT ticket_recipes_conclusion_check 
+          CHECK (conclusion IS NULL OR conclusion IN ('termine', 'a_ameliorer', 'a_fix', 'a_ajouter'));
+      `);
+    } catch (e: any) {
+      if (!e.message?.includes('already exists')) {
+        throw e;
+      }
+    }
     console.log("✅ Ticket recipes conclusion constraint updated");
     
     // Add remarks column to ticket_recipes table
