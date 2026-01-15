@@ -5147,7 +5147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Update scope item with generated roadmap item ID
-        await storage.updateProjectScopeItem(scopeItem.id, {
+        await storage.updateScopeItem(scopeItem.id, {
           generatedRoadmapItemId: roadmapItem.id,
         });
         
