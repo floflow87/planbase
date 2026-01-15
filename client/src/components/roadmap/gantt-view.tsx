@@ -9,14 +9,24 @@ const safeParseDate = (date: Date | string | null | undefined): Date | null => {
   if (typeof date === 'string') return parseISO(date);
   return null;
 };
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter, Folder, FolderOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter, Folder, FolderOpen, Trash2, Calendar, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { RoadmapItem, RoadmapDependency } from "@shared/schema";
+
+export interface BulkActionData {
+  type?: string;
+  priority?: string;
+  status?: string;
+  releaseTag?: string | null;
+  startDate?: string;
+  endDate?: string;
+}
 
 type DependencyType = "start_to_start" | "start_to_finish" | "finish_to_start" | "finish_to_finish";
 
@@ -28,6 +38,8 @@ interface GanttViewProps {
   onCreateAtDate?: (startDate: Date, endDate: Date) => void;
   onUpdateItemDates?: (itemId: string, startDate: Date, endDate: Date) => void;
   onCreateDependency?: (fromItemId: string, toItemId: string, type: DependencyType) => void;
+  onBulkDelete?: (itemIds: string[]) => void;
+  onBulkUpdate?: (itemIds: string[], data: BulkActionData) => void;
 }
 
 type DragType = "move" | "resize-start" | "resize-end" | null;
@@ -86,7 +98,7 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -94,8 +106,53 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragPreview, setDragPreview] = useState<{ left: number; width: number } | null>(null);
   const [depDragState, setDepDragState] = useState<DependencyDragState | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+
+  const toggleSelection = useCallback((itemId: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(items.map(item => item.id)));
+  }, [items]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkAction = useCallback((action: string, value?: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    
+    switch (action) {
+      case 'delete':
+        onBulkDelete?.(ids);
+        clearSelection();
+        break;
+      case 'type':
+        onBulkUpdate?.(ids, { type: value });
+        break;
+      case 'priority':
+        onBulkUpdate?.(ids, { priority: value });
+        break;
+      case 'status':
+        onBulkUpdate?.(ids, { status: value });
+        break;
+      case 'releaseTag':
+        onBulkUpdate?.(ids, { releaseTag: value || null });
+        break;
+    }
+  }, [selectedIds, onBulkDelete, onBulkUpdate, clearSelection]);
 
   const toggleCollapse = useCallback((itemId: string) => {
     setCollapsedIds(prev => {
@@ -727,9 +784,99 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
         </div>
       </div>
 
+      {/* Bulk Actions Bar - appears when items are selected */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-violet-50 dark:bg-violet-900/20 border-b" data-testid="bulk-actions-bar">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={clearSelection} data-testid="button-clear-selection">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select onValueChange={(v) => handleBulkAction('type', v)}>
+              <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="select-bulk-type">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deliverable">Livrable</SelectItem>
+                <SelectItem value="milestone">Jalon</SelectItem>
+                <SelectItem value="initiative">Initiative</SelectItem>
+                <SelectItem value="free_block">Bloc libre</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select onValueChange={(v) => handleBulkAction('priority', v)}>
+              <SelectTrigger className="w-[110px] h-8 text-xs" data-testid="select-bulk-priority">
+                <SelectValue placeholder="Priorité" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Basse</SelectItem>
+                <SelectItem value="normal">Normale</SelectItem>
+                <SelectItem value="high">Haute</SelectItem>
+                <SelectItem value="strategic">Stratégique</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select onValueChange={(v) => handleBulkAction('status', v)}>
+              <SelectTrigger className="w-[110px] h-8 text-xs" data-testid="select-bulk-status">
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="planned">Planifié</SelectItem>
+                <SelectItem value="in_progress">En cours</SelectItem>
+                <SelectItem value="done">Terminé</SelectItem>
+                <SelectItem value="blocked">Bloqué</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select onValueChange={(v) => handleBulkAction('releaseTag', v === 'none' ? '' : v)}>
+              <SelectTrigger className="w-[100px] h-8 text-xs" data-testid="select-bulk-version">
+                <SelectValue placeholder="Version" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                <SelectItem value="MVP">MVP</SelectItem>
+                <SelectItem value="V1">V1</SelectItem>
+                <SelectItem value="V2">V2</SelectItem>
+                <SelectItem value="V3">V3</SelectItem>
+                <SelectItem value="Hotfix">Hotfix</SelectItem>
+                <SelectItem value="Soon">Soon</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {onBulkDelete && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={() => handleBulkAction('delete')}
+                data-testid="button-bulk-delete"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Supprimer
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-shrink-0 border-r bg-background" style={{ width: LEFT_PANEL_WIDTH }}>
-          <div className="h-[60px] border-b px-3 flex items-center bg-muted/50">
+          <div className="h-[60px] border-b px-3 flex items-center gap-2 bg-muted/50">
+            <Checkbox 
+              checked={sortedItems.length > 0 && selectedIds.size === sortedItems.length}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setSelectedIds(new Set(sortedItems.map(item => item.id)));
+                } else {
+                  clearSelection();
+                }
+              }}
+              data-testid="checkbox-select-all"
+            />
             <span className="text-sm font-semibold text-muted-foreground">Éléments</span>
           </div>
           <div className="overflow-y-auto" style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
@@ -740,18 +887,28 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
               const isCollapsed = collapsedIds.has(item.id);
               const indentPx = item.depth * 16;
 
+              const isSelected = selectedIds.has(item.id);
+              
               return (
                 <div
                   key={item.id}
                   className={cn(
                     "flex items-center gap-1.5 px-2 border-b hover-elevate cursor-pointer",
                     item.hasChildren && "bg-muted/20",
-                    item.isGroup && "bg-violet-50/50 dark:bg-violet-900/10"
+                    item.isGroup && "bg-violet-50/50 dark:bg-violet-900/10",
+                    isSelected && "bg-violet-100 dark:bg-violet-900/30"
                   )}
                   style={{ height: ROW_HEIGHT, paddingLeft: `${8 + indentPx}px` }}
                   onClick={() => onItemClick?.(item)}
                   data-testid={`gantt-item-row-${item.id}`}
                 >
+                  <Checkbox 
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelection(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-shrink-0"
+                    data-testid={`checkbox-item-${item.id}`}
+                  />
                   {item.hasChildren ? (
                     <button
                       onClick={(e) => {
