@@ -5090,29 +5090,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate phase dates based on project start date
+      // All items in the same phase start at the same date:
+      // T1: project start date (J+0)
+      // T2: J+90 days
+      // T3: J+180 days
+      // T4/LT: J+270 days
       const projectStartDate = project.startDate ? new Date(project.startDate) : new Date();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      
       const getPhaseStartDate = (phase: string | null): Date => {
-        const base = new Date(projectStartDate);
+        const baseTime = projectStartDate.getTime();
         switch (phase) {
-          case 'T1': return base;
-          case 'T2': 
-            base.setMonth(base.getMonth() + 3);
-            return new Date(base);
-          case 'T3': 
-            base.setMonth(base.getMonth() + 6);
-            return new Date(base);
+          case 'T1': return new Date(baseTime);
+          case 'T2': return new Date(baseTime + 90 * DAY_MS);
+          case 'T3': return new Date(baseTime + 180 * DAY_MS);
           case 'T4': 
-          case 'LT': 
-            base.setMonth(base.getMonth() + 9);
-            return new Date(base);
-          default: return new Date(projectStartDate);
+          case 'LT': return new Date(baseTime + 270 * DAY_MS);
+          default: return new Date(baseTime); // Default to project start
         }
       };
 
       const getPhaseEndDate = (phase: string | null, estimatedDays: number | null): Date => {
         const start = getPhaseStartDate(phase);
-        const days = estimatedDays ? Math.ceil(parseFloat(String(estimatedDays))) : 7;
-        return new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+        // Use the estimated days from CDC, default to 7 days if not specified
+        const days = estimatedDays && estimatedDays > 0 ? Math.ceil(estimatedDays) : 7;
+        return new Date(start.getTime() + days * DAY_MS);
       };
 
       // Filter out items that already have a roadmap item generated
