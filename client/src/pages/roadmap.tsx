@@ -28,6 +28,7 @@ import { GanttView } from "@/components/roadmap/gantt-view";
 import { OutputView } from "@/components/roadmap/output-view";
 import { RoadmapIndicators } from "@/components/roadmap/roadmap-indicators";
 import { MilestonesZone } from "@/components/roadmap/milestones-zone";
+import { RoadmapRecommendations } from "@/components/roadmap/roadmap-recommendations";
 import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory, BacklogTask } from "@shared/schema";
 
 const PHASE_LABELS: { [key: string]: string } = {
@@ -806,6 +807,11 @@ export default function RoadmapPage() {
             {/* Milestones Zone */}
             {selectedProjectId && (
               <MilestonesZone projectId={selectedProjectId} />
+            )}
+
+            {/* Roadmap Recommendations */}
+            {selectedProjectId && (
+              <RoadmapRecommendations projectId={selectedProjectId} />
             )}
 
             {/* Filters Bar */}
