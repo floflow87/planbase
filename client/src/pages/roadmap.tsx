@@ -418,6 +418,26 @@ export default function RoadmapPage() {
     },
   });
 
+  const resetCdcMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/projects/${selectedProjectId}/roadmap/reset-cdc`, 'POST', {});
+      return response.json();
+    },
+    onSuccess: (result: { message: string; resetCount: number; diagnostic: any }) => {
+      toast({
+        title: "Réinitialisation terminée",
+        description: `${result.message}. Vous pouvez maintenant réimporter les éléments CDC.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur de réinitialisation",
+        description: error.message || "Impossible de réinitialiser les éléments CDC.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createItemMutation = useMutation({
     mutationFn: async (data: typeof itemForm) => {
       return apiRequest('/api/roadmap-items', 'POST', {
@@ -961,16 +981,38 @@ export default function RoadmapPage() {
                       Output
                     </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => importCdcMutation.mutate()}
-                    disabled={importCdcMutation.isPending || !selectedProjectId}
-                    data-testid="button-import-cdc"
-                  >
-                    <FileUp className="h-4 w-4 mr-1" />
-                    {importCdcMutation.isPending ? "Import..." : "Importer CDC"}
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={(importCdcMutation.isPending || resetCdcMutation.isPending) || !selectedProjectId}
+                        data-testid="button-import-cdc"
+                      >
+                        <FileUp className="h-4 w-4 mr-1" />
+                        {importCdcMutation.isPending ? "Import..." : resetCdcMutation.isPending ? "Reset..." : "CDC"}
+                        <ChevronsUpDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => importCdcMutation.mutate()}
+                        disabled={importCdcMutation.isPending}
+                      >
+                        <FileUp className="h-4 w-4 mr-2" />
+                        Importer CDC
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => resetCdcMutation.mutate()}
+                        disabled={resetCdcMutation.isPending}
+                        className="text-orange-600"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Réinitialiser import CDC
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
                     <Plus className="h-4 w-4 mr-1" />
                     Nouvelle

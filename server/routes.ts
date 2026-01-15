@@ -5306,6 +5306,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic endpoint for CDC import issues - reset orphaned scope items
+  app.post("/api/projects/:projectId/roadmap/reset-cdc", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.projectId);
+      if (!project || project.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get scope items for this project
+      const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+      
+      // Get roadmaps for this project
+      const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      const roadmap = roadmaps[0];
+      
+      // Get all roadmap items
+      const roadmapItems = roadmap ? await storage.getRoadmapItemsByRoadmapId(roadmap.id) : [];
+      const roadmapItemIds = new Set(roadmapItems.map(ri => ri.id));
+      
+      // Find orphaned scope items (have generatedRoadmapItemId but the item doesn't exist)
+      const orphanedItems = scopeItems.filter(si => 
+        si.generatedRoadmapItemId && !roadmapItemIds.has(si.generatedRoadmapItemId)
+      );
+      
+      console.log("🔍 Diagnostic:", {
+        totalScopeItems: scopeItems.length,
+        scopeItemsWithRoadmapId: scopeItems.filter(si => si.generatedRoadmapItemId).length,
+        actualRoadmapItems: roadmapItems.length,
+        orphanedItems: orphanedItems.length,
+      });
+      
+      // Reset orphaned scope items
+      for (const item of orphanedItems) {
+        await storage.updateScopeItem(item.id, {
+          generatedRoadmapItemId: null,
+        });
+      }
+      
+      res.json({
+        message: `${orphanedItems.length} élément(s) CDC réinitialisé(s)`,
+        resetCount: orphanedItems.length,
+        diagnostic: {
+          totalScopeItems: scopeItems.length,
+          scopeItemsWithRoadmapId: scopeItems.filter(si => si.generatedRoadmapItemId).length,
+          actualRoadmapItems: roadmapItems.length,
+          orphanedItems: orphanedItems.length,
+        }
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Get backlogs by project ID
   app.get("/api/projects/:projectId/backlogs", requireAuth, async (req, res) => {
     try {
