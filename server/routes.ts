@@ -4617,6 +4617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { itemIds, data } = req.body;
       
+      console.log("📦 Bulk update request - itemIds:", JSON.stringify(itemIds), "data:", JSON.stringify(data));
+      
       if (!Array.isArray(itemIds) || itemIds.length === 0) {
         return res.status(400).json({ error: "itemIds must be a non-empty array" });
       }

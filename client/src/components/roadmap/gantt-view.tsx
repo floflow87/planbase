@@ -1071,7 +1071,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                 <Button
                   variant={sortByDate ? "secondary" : "ghost"}
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-7 w-7 hover:bg-white dark:hover:bg-white/20"
                   onClick={toggleSortByDate}
                   data-testid="button-toggle-sort"
                 >
