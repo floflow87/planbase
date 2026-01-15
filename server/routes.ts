@@ -4694,13 +4694,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk delete roadmap items
-  app.delete("/api/roadmap-items/bulk", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  // Bulk delete roadmap items - using POST instead of DELETE for reliable body parsing
+  app.post("/api/roadmap-items/bulk-delete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const { itemIds } = req.body;
       
+      console.log("🗑️ Bulk delete request - itemIds:", JSON.stringify(itemIds));
+      
       if (!Array.isArray(itemIds) || itemIds.length === 0) {
         return res.status(400).json({ error: "itemIds must be a non-empty array" });
+      }
+      
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const invalidIds = itemIds.filter(id => !uuidRegex.test(id));
+      if (invalidIds.length > 0) {
+        console.log("🗑️ Invalid UUIDs detected:", invalidIds);
+        return res.status(400).json({ error: `Invalid UUID format for ids: ${invalidIds.join(', ')}` });
       }
 
       let deleted = 0;

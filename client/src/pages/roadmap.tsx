@@ -584,10 +584,10 @@ export default function RoadmapPage() {
     },
   });
 
-  // Bulk delete mutation
+  // Bulk delete mutation - using POST for reliable body parsing
   const bulkDeleteMutation = useMutation({
     mutationFn: async (itemIds: string[]) => {
-      return apiRequest('/api/roadmap-items/bulk', 'DELETE', { itemIds });
+      return apiRequest('/api/roadmap-items/bulk-delete', 'POST', { itemIds });
     },
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
