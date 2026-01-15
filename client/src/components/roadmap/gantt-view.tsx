@@ -122,10 +122,6 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     });
   }, []);
 
-  const selectAll = useCallback(() => {
-    setSelectedIds(new Set(items.map(item => item.id)));
-  }, [items]);
-
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
   }, []);
@@ -915,7 +911,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                         e.stopPropagation();
                         toggleCollapse(item.id);
                       }}
-                      className="p-0.5 rounded hover:bg-muted flex-shrink-0"
+                      className="p-0.5 rounded hover-elevate flex-shrink-0"
                       data-testid={`button-toggle-${item.id}`}
                     >
                       {isCollapsed ? (

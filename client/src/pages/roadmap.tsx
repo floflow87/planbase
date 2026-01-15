@@ -563,6 +563,57 @@ export default function RoadmapPage() {
     },
   });
 
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ itemIds, data }: { itemIds: string[]; data: Record<string, any> }) => {
+      return apiRequest('/api/roadmap-items/bulk', 'PATCH', { itemIds, data });
+    },
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      toast({
+        title: "Éléments mis à jour",
+        description: `${result.updated} élément(s) ont été modifiés.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les éléments.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      return apiRequest('/api/roadmap-items/bulk', 'DELETE', { itemIds });
+    },
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+      toast({
+        title: "Éléments supprimés",
+        description: `${result.deleted} élément(s) ont été supprimés.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer les éléments.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handlers for bulk actions
+  const handleBulkDelete = (itemIds: string[]) => {
+    bulkDeleteMutation.mutate(itemIds);
+  };
+
+  const handleBulkUpdate = (itemIds: string[], data: Record<string, any>) => {
+    bulkUpdateMutation.mutate({ itemIds, data });
+  };
+
   const resetItemForm = () => {
     setItemForm({
       title: "",
@@ -1039,6 +1090,8 @@ export default function RoadmapPage() {
                       onCreateAtDate={handleCreateAtDate}
                       onUpdateItemDates={handleUpdateItemDates}
                       onCreateDependency={handleCreateDependency}
+                      onBulkDelete={handleBulkDelete}
+                      onBulkUpdate={handleBulkUpdate}
                     />
                   ) : (
                     <OutputView 

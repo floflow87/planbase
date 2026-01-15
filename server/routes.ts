@@ -4612,6 +4612,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update roadmap items with schema validation
+  app.patch("/api/roadmap-items/bulk", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { itemIds, data } = req.body;
+      
+      if (!Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ error: "itemIds must be a non-empty array" });
+      }
+
+      // Whitelist allowed fields for bulk update
+      const allowedFields = ['type', 'priority', 'status', 'releaseTag', 'startDate', 'endDate'];
+      const sanitizedData: Record<string, any> = {};
+      
+      for (const key of Object.keys(data || {})) {
+        if (allowedFields.includes(key)) {
+          sanitizedData[key] = data[key];
+        }
+      }
+
+      if (Object.keys(sanitizedData).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+
+      // Validate field values
+      const validTypes = ['deliverable', 'milestone', 'initiative', 'free_block'];
+      const validPriorities = ['low', 'normal', 'high', 'strategic'];
+      const validStatuses = ['planned', 'in_progress', 'done', 'blocked'];
+      const validReleaseTags = ['MVP', 'V1', 'V2', 'V3', 'Hotfix', 'Soon', null, ''];
+
+      if (sanitizedData.type && !validTypes.includes(sanitizedData.type)) {
+        return res.status(400).json({ error: "Invalid type value" });
+      }
+      if (sanitizedData.priority && !validPriorities.includes(sanitizedData.priority)) {
+        return res.status(400).json({ error: "Invalid priority value" });
+      }
+      if (sanitizedData.status && !validStatuses.includes(sanitizedData.status)) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+      if (sanitizedData.releaseTag !== undefined && !validReleaseTags.includes(sanitizedData.releaseTag)) {
+        return res.status(400).json({ error: "Invalid releaseTag value" });
+      }
+      
+      // Validate date formats
+      if (sanitizedData.startDate) {
+        const parsed = new Date(sanitizedData.startDate);
+        if (isNaN(parsed.getTime())) {
+          return res.status(400).json({ error: "Invalid startDate format" });
+        }
+      }
+      if (sanitizedData.endDate) {
+        const parsed = new Date(sanitizedData.endDate);
+        if (isNaN(parsed.getTime())) {
+          return res.status(400).json({ error: "Invalid endDate format" });
+        }
+      }
+
+      const results = [];
+      const errors: { id: string; reason: string }[] = [];
+      
+      for (const id of itemIds) {
+        const existing = await storage.getRoadmapItem(id);
+        if (!existing) {
+          errors.push({ id, reason: "not_found" });
+          continue;
+        }
+        
+        const roadmap = await storage.getRoadmap(existing.roadmapId);
+        if (!roadmap || roadmap.accountId !== req.accountId) {
+          errors.push({ id, reason: "access_denied" });
+          continue;
+        }
+
+        const updated = await storage.updateRoadmapItem(id, sanitizedData);
+        results.push(updated);
+      }
+
+      res.json({ updated: results.length, items: results, errors });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Bulk delete roadmap items
+  app.delete("/api/roadmap-items/bulk", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { itemIds } = req.body;
+      
+      if (!Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ error: "itemIds must be a non-empty array" });
+      }
+
+      let deleted = 0;
+      const errors: { id: string; reason: string }[] = [];
+      
+      for (const id of itemIds) {
+        const existing = await storage.getRoadmapItem(id);
+        if (!existing) {
+          errors.push({ id, reason: "not_found" });
+          continue;
+        }
+        
+        const roadmap = await storage.getRoadmap(existing.roadmapId);
+        if (!roadmap || roadmap.accountId !== req.accountId) {
+          errors.push({ id, reason: "access_denied" });
+          continue;
+        }
+
+        await storage.deleteRoadmapItem(id);
+        deleted++;
+      }
+
+      res.json({ deleted, success: true, errors });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Get roadmaps by project ID
   app.get("/api/projects/:projectId/roadmaps", requireAuth, async (req, res) => {
     try {
