@@ -109,6 +109,37 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+  const [hasAutoFitted, setHasAutoFitted] = useState(false);
+
+  // Auto-fit view to show items with dates
+  useEffect(() => {
+    if (hasAutoFitted || items.length === 0) return;
+    
+    // Find the earliest start date among items with dates
+    const itemsWithDates = items.filter(item => item.startDate);
+    if (itemsWithDates.length === 0) return;
+    
+    const dates = itemsWithDates
+      .map(item => safeParseDate(item.startDate))
+      .filter((d): d is Date => d !== null);
+    
+    if (dates.length === 0) return;
+    
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const optimalStart = startOfMonth(minDate);
+    
+    // Only adjust if the items are outside the current view
+    const currentViewEnd = addMonths(viewStartDate, zoom === "month" ? 6 : zoom === "week" ? 2 : 1);
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    
+    const itemsOutsideView = minDate < viewStartDate || maxDate > currentViewEnd;
+    
+    if (itemsOutsideView) {
+      setViewStartDate(optimalStart);
+    }
+    
+    setHasAutoFitted(true);
+  }, [items, hasAutoFitted, viewStartDate, zoom]);
 
   const toggleSelection = useCallback((itemId: string) => {
     setSelectedIds(prev => {
