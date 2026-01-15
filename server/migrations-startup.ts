@@ -1317,6 +1317,29 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmap items phase and milestone columns added");
 
+    // Add milestone-specific columns to roadmap_items for enhanced milestone management
+    await db.execute(sql`
+      ALTER TABLE roadmap_items 
+      ADD COLUMN IF NOT EXISTS milestone_type TEXT,
+      ADD COLUMN IF NOT EXISTS is_critical BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS completion_rule TEXT DEFAULT 'MANUAL',
+      ADD COLUMN IF NOT EXISTS completion_threshold INTEGER,
+      ADD COLUMN IF NOT EXISTS validation_required TEXT DEFAULT 'NONE',
+      ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS validated_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS impact_estimate JSONB DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS milestone_status TEXT,
+      ADD COLUMN IF NOT EXISTS objective_id UUID,
+      ADD COLUMN IF NOT EXISTS key_result_id UUID;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_milestone_type_idx ON roadmap_items(roadmap_id, milestone_type);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS roadmap_items_is_critical_idx ON roadmap_items(roadmap_id, is_critical);
+    `);
+    console.log("✅ Roadmap items milestone-specific columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

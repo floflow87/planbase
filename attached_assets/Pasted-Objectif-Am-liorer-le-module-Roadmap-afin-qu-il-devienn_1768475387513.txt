@@ -1,0 +1,124 @@
+Objectif
+Améliorer le module Roadmap afin qu’il devienne un véritable outil de pilotage stratégique,
+avec un rôle central des jalons (milestones) comme points de décision, de validation
+et de transition entre phases projet.
+
+Contexte
+Le module Roadmap existe déjà (vue Gantt + Output) avec des blocs roadmap.
+Une première couche de pilotage (phase actuelle, prochain jalon, éléments en retard)
+a été ajoutée récemment.
+
+Ce prompt concerne UNIQUEMENT :
+- l’enrichissement du concept de jalon
+- son intégration dans la roadmap
+- son impact sur les recommandations et le pilotage
+
+---
+
+1. Évolution du modèle de données "RoadmapItem"
+
+Ajouter des champs spécifiques lorsque type = "JALON" :
+
+- milestoneType (enum) :
+  - DELIVERY
+  - VALIDATION
+  - DECISION
+  - GO_NO_GO
+  - DEMO
+  - RELEASE
+  - PHASE_END
+
+- phase (enum) :
+  - T1
+  - T2
+  - T3
+  - LT
+  (auto-calculée via la date mais éditable)
+
+- isCritical (boolean)
+
+- completionRule (enum) :
+  - MANUAL
+  - ALL_LINKED_EPICS_DONE
+  - %_TICKETS_DONE_THRESHOLD
+
+- completionThreshold (number, optionnel)
+  (ex: 80% de tickets terminés)
+
+- validationRequired (enum) :
+  - NONE
+  - CLIENT
+  - INTERNAL
+  - EXTERNAL
+
+- impactEstimate :
+  - timeImpactDays (number)
+  - marginImpactPercent (number)
+  - riskLevel (LOW | MEDIUM | HIGH)
+
+---
+
+2. Formulaire "Ajouter un élément" — Cas Jalons
+
+Adapter dynamiquement le formulaire :
+
+Si type = "Jalon" :
+- afficher les champs spécifiques jalon
+- masquer les champs non pertinents
+- ajouter une aide contextuelle expliquant le rôle d’un jalon
+
+---
+
+3. Calculs & statut des jalons
+
+Un jalon :
+- n’est jamais "terminé" automatiquement par défaut
+- peut afficher un statut calculé :
+  - À venir
+  - Atteignable
+  - À risque
+  - En retard
+  - Validé
+
+Le statut dépend :
+- des dates
+- des règles de complétion
+- de l’état des éléments liés (epics, tickets, roadmap items)
+
+---
+
+4. Intégration dans le pilotage Roadmap
+
+Mettre à jour le header Roadmap :
+
+- Phase actuelle (basée sur la date et les jalons)
+- Prochain jalon critique
+- Jours avant le prochain jalon
+- Nombre de jalons en retard ou à risque
+
+---
+
+5. Recommandations "roadmap-aware"
+
+Ajouter des recommandations automatiques basées sur les jalons :
+
+Exemples :
+- "Vous êtes en phase T1 — aucun jalon critique n’est défini"
+- "Le jalon 'Validation Recos' est prévu dans 12 jours mais seulement 40% des tickets sont terminés"
+- "Si ce jalon est manqué, l’impact estimé est -6% de marge"
+
+---
+
+6. Préparer l’intégration future OKR (sans implémenter)
+
+Prévoir dans le modèle la possibilité future de lier :
+- un jalon à un Objectif ou Key Result
+
+Sans logique active pour l’instant.
+
+---
+
+Contraintes
+- Respecter l’isolation multi-tenant existante
+- Ne pas casser les blocs roadmap existants
+- Le jalon reste un élément de lecture et de décision, pas une tâche

@@ -753,6 +753,30 @@ export const roadmapItems = pgTable("roadmap_items", {
   sourceType: text("source_type"), // 'manual', 'cdc' - Source of the item
   sourceId: uuid("source_id"), // Reference to CDC section if sourceType='cdc'
   ownerUserId: uuid("owner_user_id").references(() => appUsers.id, { onDelete: "set null" }), // Owner/responsible user
+  
+  // ========== Milestone-specific fields (when type = 'milestone') ==========
+  // Type of milestone: 'DELIVERY', 'VALIDATION', 'DECISION', 'GO_NO_GO', 'DEMO', 'RELEASE', 'PHASE_END'
+  milestoneType: text("milestone_type"),
+  // Is this a critical milestone that blocks project progression?
+  isCritical: boolean("is_critical").default(false),
+  // Rule for automatic completion: 'MANUAL', 'ALL_LINKED_EPICS_DONE', 'PERCENT_THRESHOLD'
+  completionRule: text("completion_rule").default("MANUAL"),
+  // Threshold percentage for PERCENT_THRESHOLD completion rule (e.g., 80)
+  completionThreshold: integer("completion_threshold"),
+  // Validation requirement: 'NONE', 'CLIENT', 'INTERNAL', 'EXTERNAL'
+  validationRequired: text("validation_required").default("NONE"),
+  // Validated status for milestones (replaces 'done' for validation milestones)
+  validatedAt: timestamp("validated_at", { withTimezone: true }),
+  validatedBy: uuid("validated_by").references(() => appUsers.id, { onDelete: "set null" }),
+  // Impact estimate for milestone slip: { timeImpactDays, marginImpactPercent, riskLevel }
+  impactEstimate: jsonb("impact_estimate").default({}),
+  // Calculated milestone status: 'upcoming', 'achievable', 'at_risk', 'overdue', 'validated'
+  milestoneStatus: text("milestone_status"),
+  
+  // ========== Future OKR integration (prepared, not active) ==========
+  objectiveId: uuid("objective_id"), // Link to future Objective
+  keyResultId: uuid("key_result_id"), // Link to future Key Result
+  
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -761,6 +785,8 @@ export const roadmapItems = pgTable("roadmap_items", {
   parentIdx: index().on(table.parentId),
   releaseTagIdx: index().on(table.roadmapId, table.releaseTag),
   phaseIdx: index().on(table.roadmapId, table.phase),
+  milestoneTypeIdx: index().on(table.roadmapId, table.milestoneType),
+  isCriticalIdx: index().on(table.roadmapId, table.isCritical),
 }));
 
 export const roadmapItemLinks = pgTable("roadmap_item_links", {
