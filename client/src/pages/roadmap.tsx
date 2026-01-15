@@ -162,6 +162,45 @@ export default function RoadmapPage() {
     enabled: !!activeRoadmapId,
   });
 
+  // Query for phases data (aligned with roadmap-tab)
+  interface PhaseInfo {
+    projectStartDate: string | null;
+    currentPhase: string;
+    phases: {
+      [key: string]: {
+        start: string;
+        end: string | null;
+        isCurrent: boolean;
+        itemCount: number;
+      };
+    };
+  }
+  
+  const { data: phasesData } = useQuery<PhaseInfo>({
+    queryKey: [`/api/projects/${selectedProjectId}/roadmap/phases`],
+    enabled: !!selectedProjectId,
+  });
+
+  // Calculate phase for an item based on its dates (aligned with roadmap-tab)
+  const getItemPhase = (item: RoadmapItem): string | null => {
+    if (!phasesData?.phases) return null;
+    const itemPhase = (item as any).phase;
+    if (itemPhase) return itemPhase;
+    
+    const startDate = item.startDate || (item as any).targetDate || item.endDate;
+    if (!startDate) return null;
+    
+    const date = new Date(startDate);
+    for (const [phase, info] of Object.entries(phasesData.phases)) {
+      const phaseStart = new Date(info.start);
+      const phaseEnd = info.end ? new Date(info.end) : null;
+      if (date >= phaseStart && (!phaseEnd || date < phaseEnd)) {
+        return phase;
+      }
+    }
+    return 'LT';
+  };
+
   const { data: backlogs = [] } = useQuery<{ id: string }[]>({
     queryKey: [`/api/projects/${selectedProjectId}/backlogs`],
     enabled: !!selectedProjectId,
@@ -197,36 +236,39 @@ export default function RoadmapPage() {
     return Array.from(tags).sort();
   }, [roadmapItems]);
 
-  // Filter items based on selected filters
+  // Filter items based on selected filters (aligned with roadmap-tab)
   const filteredItems = useMemo(() => {
-    return roadmapItems.filter(item => {
-      // Phase filter
-      if (filterPhase !== "all") {
-        const itemPhase = (item as any).phase;
-        if (itemPhase !== filterPhase) return false;
-      }
-      
-      // Status filter
-      if (filterStatus !== "all" && item.status !== filterStatus) {
-        return false;
-      }
-      
-      // Type filter
-      if (filterType !== "all" && item.type !== filterType) {
-        return false;
-      }
-      
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const titleMatch = item.title.toLowerCase().includes(query);
-        const descMatch = item.description?.toLowerCase().includes(query) || false;
-        if (!titleMatch && !descMatch) return false;
-      }
-      
-      return true;
-    });
-  }, [roadmapItems, filterPhase, filterStatus, filterType, searchQuery]);
+    let items = [...roadmapItems];
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      items = items.filter(item => 
+        item.title.toLowerCase().includes(query) ||
+        (item.description && item.description.toLowerCase().includes(query))
+      );
+    }
+    
+    // Filter by phase using getItemPhase
+    if (filterPhase !== "all") {
+      items = items.filter(item => {
+        const phase = getItemPhase(item);
+        return phase === filterPhase;
+      });
+    }
+    
+    // Filter by status
+    if (filterStatus !== "all") {
+      items = items.filter(item => item.status === filterStatus);
+    }
+    
+    // Filter by type
+    if (filterType !== "all") {
+      items = items.filter(item => item.type === filterType);
+    }
+    
+    return items;
+  }, [roadmapItems, searchQuery, filterPhase, filterStatus, filterType, phasesData]);
 
   const hasActiveFilters = filterPhase !== "all" || filterStatus !== "all" || filterType !== "all" || searchQuery.trim() !== "";
 
