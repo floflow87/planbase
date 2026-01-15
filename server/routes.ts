@@ -4622,7 +4622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Whitelist allowed fields for bulk update
-      const allowedFields = ['type', 'priority', 'status', 'releaseTag', 'startDate', 'endDate'];
+      const allowedFields = ['type', 'priority', 'status', 'releaseTag', 'startDate', 'endDate', 'phase'];
       const sanitizedData: Record<string, any> = {};
       
       for (const key of Object.keys(data || {})) {
@@ -4640,6 +4640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validPriorities = ['low', 'normal', 'high', 'strategic'];
       const validStatuses = ['planned', 'in_progress', 'done', 'blocked'];
       const validReleaseTags = ['MVP', 'V1', 'V2', 'V3', 'Hotfix', 'Soon', null, ''];
+      const validPhases = ['T1', 'T2', 'T3', 'T4', 'LT', null, ''];
 
       if (sanitizedData.type && !validTypes.includes(sanitizedData.type)) {
         return res.status(400).json({ error: "Invalid type value" });
@@ -4652,6 +4653,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (sanitizedData.releaseTag !== undefined && !validReleaseTags.includes(sanitizedData.releaseTag)) {
         return res.status(400).json({ error: "Invalid releaseTag value" });
+      }
+      if (sanitizedData.phase !== undefined && !validPhases.includes(sanitizedData.phase)) {
+        return res.status(400).json({ error: "Invalid phase value" });
       }
       
       // Validate date formats

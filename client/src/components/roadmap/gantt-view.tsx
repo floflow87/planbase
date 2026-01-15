@@ -24,6 +24,7 @@ export interface BulkActionData {
   priority?: string;
   status?: string;
   releaseTag?: string | null;
+  phase?: string | null;
   startDate?: string;
   endDate?: string;
 }
@@ -46,7 +47,8 @@ interface GanttViewProps {
 interface RowDragState {
   itemId: string;
   initialY: number;
-  currentIndex: number;
+  startIndex: number; // Original position of the item
+  currentIndex: number; // Current visual position during drag
 }
 
 type DragType = "move" | "resize-start" | "resize-end" | null;
@@ -95,6 +97,14 @@ const RELEASE_TAG_COLORS: Record<string, { bg: string; text: string; border: str
 
 const RELEASE_TAG_OPTIONS = ["all", "MVP", "V1", "V2", "V3", "Hotfix", "Soon"] as const;
 
+const PHASE_COLORS: Record<string, { text: string; border: string }> = {
+  T1: { text: "text-sky-700 dark:text-sky-300", border: "border-sky-400" },
+  T2: { text: "text-teal-700 dark:text-teal-300", border: "border-teal-400" },
+  T3: { text: "text-orange-700 dark:text-orange-300", border: "border-orange-400" },
+  T4: { text: "text-rose-700 dark:text-rose-300", border: "border-rose-400" },
+  LT: { text: "text-gray-600 dark:text-gray-400", border: "border-gray-400" },
+};
+
 const ROW_HEIGHT = 48;
 const HEADER_HEIGHT = 60;
 const LEFT_PANEL_WIDTH = 280;
@@ -140,8 +150,10 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
     const optimalStart = startOfMonth(minDate);
     
-    // Only adjust if the items are outside the current view
-    const currentViewEnd = addMonths(viewStartDate, zoom === "month" ? 6 : zoom === "week" ? 2 : 1);
+    // Only adjust if the items are outside the current view (matching viewEndDate logic)
+    const currentViewEnd = zoom === "day" 
+      ? addDays(viewStartDate, 45) 
+      : addMonths(viewStartDate, zoom === "month" ? 12 : 4);
     const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
     
     const itemsOutsideView = minDate < viewStartDate || maxDate > currentViewEnd;
@@ -190,6 +202,9 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
       case 'releaseTag':
         onBulkUpdate?.(ids, { releaseTag: value || null });
         break;
+      case 'phase':
+        onBulkUpdate?.(ids, { phase: value || null });
+        break;
     }
   }, [selectedIds, onBulkDelete, onBulkUpdate, clearSelection]);
 
@@ -208,13 +223,13 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const viewEndDate = useMemo(() => {
     switch (zoom) {
       case "day":
-        return addDays(viewStartDate, 30);
+        return addDays(viewStartDate, 45); // Extended from 30 to 45 days
       case "week":
-        return addMonths(viewStartDate, 2);
+        return addMonths(viewStartDate, 4); // Extended from 2 to 4 months for larger screens
       case "month":
-        return addMonths(viewStartDate, 6);
+        return addMonths(viewStartDate, 12); // Extended from 6 to 12 months for larger screens
       default:
-        return addMonths(viewStartDate, 2);
+        return addMonths(viewStartDate, 4);
     }
   }, [viewStartDate, zoom]);
 
@@ -769,13 +784,14 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   }, [depDragState, handleDepDragMove, handleDepDragEnd]);
 
   // Row drag handlers for vertical reordering
-  const handleRowDragStart = useCallback((e: React.MouseEvent, itemId: string, currentIndex: number) => {
+  const handleRowDragStart = useCallback((e: React.MouseEvent, itemId: string, rowIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
     setRowDragState({
       itemId,
       initialY: e.clientY,
-      currentIndex,
+      startIndex: rowIndex,
+      currentIndex: rowIndex,
     });
   }, []);
 
@@ -784,7 +800,8 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     
     const deltaY = e.clientY - rowDragState.initialY;
     const deltaRows = Math.round(deltaY / ROW_HEIGHT);
-    const newIndex = Math.max(0, Math.min(sortedItems.length - 1, rowDragState.currentIndex + deltaRows));
+    // Calculate new index from startIndex (not currentIndex) to avoid accumulation bug
+    const newIndex = Math.max(0, Math.min(sortedItems.length - 1, rowDragState.startIndex + deltaRows));
     
     if (newIndex !== rowDragState.currentIndex) {
       setRowDragState(prev => prev ? { ...prev, currentIndex: newIndex } : null);
@@ -797,8 +814,17 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
       return;
     }
     
-    const originalIndex = sortedItems.findIndex(item => item.id === rowDragState.itemId);
-    const newIndex = rowDragState.currentIndex;
+    // Re-derive originalIndex from current sortedItems to handle dynamic changes
+    const actualOriginalIndex = sortedItems.findIndex(item => item.id === rowDragState.itemId);
+    
+    // If item is no longer in list or startIndex became stale, abort
+    if (actualOriginalIndex === -1 || actualOriginalIndex !== rowDragState.startIndex) {
+      setRowDragState(null);
+      return;
+    }
+    
+    const originalIndex = actualOriginalIndex;
+    const newIndex = Math.min(rowDragState.currentIndex, sortedItems.length - 1);
     
     if (originalIndex !== newIndex) {
       // Check if the items have different start dates
@@ -994,6 +1020,20 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
               </SelectContent>
             </Select>
 
+            <Select onValueChange={(v) => handleBulkAction('phase', v === 'none' ? '' : v)}>
+              <SelectTrigger className="w-[90px] h-8 text-xs" data-testid="select-bulk-phase">
+                <SelectValue placeholder="Phase" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                <SelectItem value="T1">T1</SelectItem>
+                <SelectItem value="T2">T2</SelectItem>
+                <SelectItem value="T3">T3</SelectItem>
+                <SelectItem value="T4">T4</SelectItem>
+                <SelectItem value="LT">LT</SelectItem>
+              </SelectContent>
+            </Select>
+
             {onBulkDelete && (
               <Button 
                 variant="destructive" 
@@ -1138,6 +1178,18 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                         >
                           <Tag className="h-2.5 w-2.5 mr-0.5" />
                           {item.releaseTag}
+                        </Badge>
+                      )}
+                      {item.phase && PHASE_COLORS[item.phase] && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            PHASE_COLORS[item.phase].text,
+                            PHASE_COLORS[item.phase].border
+                          )}
+                        >
+                          {item.phase}
                         </Badge>
                       )}
                       {item.hasChildren && item.childrenProgress !== undefined ? (
