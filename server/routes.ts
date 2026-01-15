@@ -5071,7 +5071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get scope items for this project
-      const scopeItems = await storage.getProjectScopeItems(req.params.projectId);
+      const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
       if (!scopeItems || scopeItems.length === 0) {
         return res.status(400).json({ error: "Aucun élément CDC trouvé pour ce projet" });
       }
