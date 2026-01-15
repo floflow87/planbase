@@ -1078,7 +1078,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                   <ArrowUpDown className={cn("h-4 w-4", sortByDate && "text-primary")} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="bg-white dark:bg-slate-900 text-foreground border shadow-lg">
                 {sortByDate ? "Tri par date (actif)" : "Tri personnalisé"}
               </TooltipContent>
             </Tooltip>
