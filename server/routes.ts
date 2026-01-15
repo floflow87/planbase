@@ -4621,6 +4621,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "itemIds must be a non-empty array" });
       }
 
+      // Validate UUID format for all itemIds
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const invalidIds = itemIds.filter((id: any) => typeof id !== 'string' || !uuidRegex.test(id));
+      if (invalidIds.length > 0) {
+        console.log("📦 Bulk update - Invalid UUIDs detected:", invalidIds);
+        return res.status(400).json({ error: `Invalid UUID format for ids: ${invalidIds.join(', ')}` });
+      }
+
       // Whitelist allowed fields for bulk update
       const allowedFields = ['type', 'priority', 'status', 'releaseTag', 'startDate', 'endDate', 'phase'];
       const sanitizedData: Record<string, any> = {};
@@ -4656,6 +4664,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (sanitizedData.phase !== undefined && !validPhases.includes(sanitizedData.phase)) {
         return res.status(400).json({ error: "Invalid phase value" });
+      }
+      
+      // Normalize empty strings to null for nullable fields
+      if (sanitizedData.releaseTag === '') {
+        sanitizedData.releaseTag = null;
+      }
+      if (sanitizedData.phase === '') {
+        sanitizedData.phase = null;
       }
       
       // Validate date formats
