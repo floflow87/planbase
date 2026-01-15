@@ -5189,22 +5189,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import CDC (Cahier des Charges) items into roadmap
   app.post("/api/projects/:projectId/roadmap/import-cdc", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log("📥 Import CDC started for project:", req.params.projectId);
+      
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
+        console.log("❌ Project not found");
         return res.status(404).json({ error: "Project not found" });
       }
       if (project.accountId !== req.accountId) {
+        console.log("❌ Access denied - accountId mismatch");
         return res.status(403).json({ error: "Access denied" });
       }
 
       // Get scope items for this project
       const scopeItems = await storage.getScopeItemsByProjectId(req.params.projectId);
+      console.log("📋 Found scope items:", scopeItems?.length || 0);
+      
       if (!scopeItems || scopeItems.length === 0) {
+        console.log("❌ No scope items found for project");
         return res.status(400).json({ error: "Aucun élément CDC trouvé pour ce projet" });
       }
 
       // Get or create roadmap for this project
       let roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
+      console.log("📋 Found roadmaps:", roadmaps.length, roadmaps.map(r => ({ id: r.id, name: r.name })));
       let roadmap = roadmaps[0];
       
       if (!roadmap) {
@@ -5246,8 +5254,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter out items that already have a roadmap item generated
       const itemsToImport = scopeItems.filter(item => !item.generatedRoadmapItemId);
+      console.log("📋 Items to import (without generatedRoadmapItemId):", itemsToImport.length);
+      console.log("📋 Items already imported:", scopeItems.length - itemsToImport.length);
       
       if (itemsToImport.length === 0) {
+        console.log("⚠️ All items already imported, nothing to do");
         return res.json({ 
           message: "Tous les éléments CDC ont déjà été importés", 
           importedCount: 0,
@@ -5256,6 +5267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create roadmap items for each scope item
+      console.log("🔨 Creating roadmap items for roadmap:", roadmap.id);
       const createdItems: any[] = [];
       for (const scopeItem of itemsToImport) {
         const startDate = getPhaseStartDate(scopeItem.phase);
