@@ -398,7 +398,8 @@ export default function RoadmapPage() {
 
   const importCdcMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/projects/${selectedProjectId}/roadmap/import-cdc`, 'POST', {});
+      const response = await apiRequest(`/api/projects/${selectedProjectId}/roadmap/import-cdc`, 'POST', {});
+      return response.json();
     },
     onSuccess: (result: { message: string; importedCount: number; skippedCount: number }) => {
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
@@ -406,7 +407,6 @@ export default function RoadmapPage() {
       toast({
         title: "Import CDC terminé",
         description: result.message,
-        variant: "success",
       });
     },
     onError: (error: any) => {
