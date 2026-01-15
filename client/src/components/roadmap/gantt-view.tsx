@@ -9,7 +9,7 @@ const safeParseDate = (date: Date | string | null | undefined): Date | null => {
   if (typeof date === 'string') return parseISO(date);
   return null;
 };
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter, Folder, FolderOpen, Trash2, Calendar, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, GripVertical, Circle, CheckCircle2, AlertCircle, Clock, Tag, Filter, Folder, FolderOpen, Trash2, Calendar, X, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,6 +40,13 @@ interface GanttViewProps {
   onCreateDependency?: (fromItemId: string, toItemId: string, type: DependencyType) => void;
   onBulkDelete?: (itemIds: string[]) => void;
   onBulkUpdate?: (itemIds: string[], data: BulkActionData) => void;
+  onReorderItems?: (itemIds: string[]) => void;
+}
+
+interface RowDragState {
+  itemId: string;
+  initialY: number;
+  currentIndex: number;
 }
 
 type DragType = "move" | "resize-start" | "resize-end" | null;
@@ -98,7 +105,7 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -111,6 +118,10 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const [hasAutoFitted, setHasAutoFitted] = useState(false);
   const justDraggedRef = useRef(false);
+  const [sortByDate, setSortByDate] = useState(true);
+  const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
+  const [customOrder, setCustomOrder] = useState<string[]>([]);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
 
   // Auto-fit view to show items with dates
   useEffect(() => {
@@ -304,7 +315,24 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     return result;
   }, [items, releaseTagFilter, collapsedIds]);
 
-  const sortedItems = hierarchicalItems;
+  const sortedItems = useMemo((): HierarchicalItem[] => {
+    if (sortByDate) {
+      // Already sorted by date in hierarchicalItems
+      return hierarchicalItems;
+    }
+    
+    // Use custom order if available
+    if (customOrder.length > 0) {
+      const orderMap = new Map(customOrder.map((id, idx) => [id, idx]));
+      return [...hierarchicalItems].sort((a, b) => {
+        const aIdx = orderMap.get(a.id) ?? Infinity;
+        const bIdx = orderMap.get(b.id) ?? Infinity;
+        return aIdx - bIdx;
+      });
+    }
+    
+    return hierarchicalItems;
+  }, [hierarchicalItems, sortByDate, customOrder]);
 
   const getItemPosition = useCallback((item: RoadmapItem) => {
     if (!item.startDate) return null;
@@ -740,6 +768,93 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     }
   }, [depDragState, handleDepDragMove, handleDepDragEnd]);
 
+  // Row drag handlers for vertical reordering
+  const handleRowDragStart = useCallback((e: React.MouseEvent, itemId: string, currentIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRowDragState({
+      itemId,
+      initialY: e.clientY,
+      currentIndex,
+    });
+  }, []);
+
+  const handleRowDragMove = useCallback((e: MouseEvent) => {
+    if (!rowDragState || !leftPanelRef.current) return;
+    
+    const deltaY = e.clientY - rowDragState.initialY;
+    const deltaRows = Math.round(deltaY / ROW_HEIGHT);
+    const newIndex = Math.max(0, Math.min(sortedItems.length - 1, rowDragState.currentIndex + deltaRows));
+    
+    if (newIndex !== rowDragState.currentIndex) {
+      setRowDragState(prev => prev ? { ...prev, currentIndex: newIndex } : null);
+    }
+  }, [rowDragState, sortedItems.length]);
+
+  const handleRowDragEnd = useCallback(() => {
+    if (!rowDragState) {
+      setRowDragState(null);
+      return;
+    }
+    
+    const originalIndex = sortedItems.findIndex(item => item.id === rowDragState.itemId);
+    const newIndex = rowDragState.currentIndex;
+    
+    if (originalIndex !== newIndex) {
+      // Check if the items have different start dates
+      const draggedItem = sortedItems[originalIndex];
+      const targetItem = sortedItems[newIndex];
+      
+      const draggedDate = safeParseDate(draggedItem?.startDate);
+      const targetDate = safeParseDate(targetItem?.startDate);
+      
+      // If dates are different, disable sort by date
+      const datesAreSame = (!draggedDate && !targetDate) || 
+        (draggedDate && targetDate && draggedDate.getTime() === targetDate.getTime());
+      
+      if (!datesAreSame) {
+        setSortByDate(false);
+      }
+      
+      // Create new order
+      const newOrder = sortedItems.map(item => item.id);
+      const [removed] = newOrder.splice(originalIndex, 1);
+      newOrder.splice(newIndex, 0, removed);
+      setCustomOrder(newOrder);
+      
+      // Notify parent
+      onReorderItems?.(newOrder);
+    }
+    
+    setRowDragState(null);
+  }, [rowDragState, sortedItems, onReorderItems]);
+
+  useEffect(() => {
+    if (rowDragState) {
+      window.addEventListener("mousemove", handleRowDragMove);
+      window.addEventListener("mouseup", handleRowDragEnd);
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
+      
+      return () => {
+        window.removeEventListener("mousemove", handleRowDragMove);
+        window.removeEventListener("mouseup", handleRowDragEnd);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+    }
+  }, [rowDragState, handleRowDragMove, handleRowDragEnd]);
+
+  const toggleSortByDate = useCallback(() => {
+    setSortByDate(prev => {
+      if (!prev) {
+        // Re-enabling sort by date, clear custom order
+        setCustomOrder([]);
+      }
+      return !prev;
+    });
+  }, []);
+
   return (
     <div className="flex flex-col h-full" data-testid="gantt-view">
       <div className="flex items-center justify-between p-3 border-b bg-muted/30">
@@ -896,22 +1011,40 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-shrink-0 border-r bg-background" style={{ width: LEFT_PANEL_WIDTH }}>
-          <div className="h-[60px] border-b px-3 flex items-center gap-2 bg-muted/50">
-            <Checkbox 
-              checked={sortedItems.length > 0 && selectedIds.size === sortedItems.length}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setSelectedIds(new Set(sortedItems.map(item => item.id)));
-                } else {
-                  clearSelection();
-                }
-              }}
-              data-testid="checkbox-select-all"
-            />
-            <span className="text-sm font-semibold text-muted-foreground">Éléments</span>
+          <div className="h-[60px] border-b px-3 flex items-center justify-between bg-muted/50">
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                checked={sortedItems.length > 0 && selectedIds.size === sortedItems.length}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setSelectedIds(new Set(sortedItems.map(item => item.id)));
+                  } else {
+                    clearSelection();
+                  }
+                }}
+                data-testid="checkbox-select-all"
+              />
+              <span className="text-sm font-semibold text-muted-foreground">Éléments</span>
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={sortByDate ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={toggleSortByDate}
+                  data-testid="button-toggle-sort"
+                >
+                  <ArrowUpDown className={cn("h-4 w-4", sortByDate && "text-primary")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {sortByDate ? "Tri par date (actif)" : "Tri personnalisé"}
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <div className="overflow-y-auto" style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
-            {sortedItems.map((item) => {
+          <div ref={leftPanelRef} className="overflow-y-auto" style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
+            {sortedItems.map((item, rowIndex) => {
               const typeColors = ITEM_TYPE_COLORS[item.type] || ITEM_TYPE_COLORS.deliverable;
               const statusInfo = STATUS_ICONS[item.status] || STATUS_ICONS.planned;
               const StatusIcon = statusInfo.icon;
@@ -919,6 +1052,8 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
               const indentPx = item.depth * 16;
 
               const isSelected = selectedIds.has(item.id);
+              const isDragging = rowDragState?.itemId === item.id;
+              const isDropTarget = rowDragState && rowDragState.currentIndex === rowIndex && rowDragState.itemId !== item.id;
               
               return (
                 <div
@@ -927,12 +1062,22 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                     "flex items-center gap-1.5 px-2 border-b hover-elevate cursor-pointer",
                     item.hasChildren && "bg-muted/20",
                     item.isGroup && "bg-violet-50/50 dark:bg-violet-900/10",
-                    isSelected && "bg-violet-100 dark:bg-violet-900/30"
+                    isSelected && "bg-violet-100 dark:bg-violet-900/30",
+                    isDragging && "opacity-50 bg-violet-200 dark:bg-violet-800/50",
+                    isDropTarget && "border-t-2 border-t-primary"
                   )}
-                  style={{ height: ROW_HEIGHT, paddingLeft: `${8 + indentPx}px` }}
+                  style={{ height: ROW_HEIGHT, paddingLeft: `${4 + indentPx}px` }}
                   onClick={() => onItemClick?.(item)}
                   data-testid={`gantt-item-row-${item.id}`}
                 >
+                  <div
+                    className="cursor-grab hover:text-primary p-0.5 flex-shrink-0"
+                    onMouseDown={(e) => handleRowDragStart(e, item.id, rowIndex)}
+                    onClick={(e) => e.stopPropagation()}
+                    data-testid={`grip-row-${item.id}`}
+                  >
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  </div>
                   <Checkbox 
                     checked={isSelected}
                     onCheckedChange={() => toggleSelection(item.id)}
