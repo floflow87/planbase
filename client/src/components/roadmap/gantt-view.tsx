@@ -349,6 +349,42 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     return hierarchicalItems;
   }, [hierarchicalItems, sortByDate, customOrder]);
 
+  // Get info about whether item is outside visible range (for showing arrows)
+  const getItemOutOfViewInfo = useCallback((item: RoadmapItem): { direction: 'left' | 'right' | null; dateLabel: string } | null => {
+    if (!item.startDate) return null;
+    
+    const start = safeParseDate(item.startDate);
+    if (!start) return null;
+    const end = item.endDate ? safeParseDate(item.endDate) || addDays(start, 1) : addDays(start, 1);
+    
+    const startOffset = differenceInDays(start, viewStartDate);
+    const endOffset = differenceInDays(end, viewStartDate);
+    
+    const viewDays = zoom === "day" ? 45 : zoom === "week" ? 120 : 365;
+    
+    // Item ends before view starts (completely to the left)
+    if (endOffset < 0) {
+      const dateLabel = zoom === "day" 
+        ? format(end, "d MMM", { locale: fr })
+        : zoom === "week"
+          ? format(end, "'S'w", { locale: fr })
+          : format(end, "MMM yyyy", { locale: fr });
+      return { direction: 'left', dateLabel };
+    }
+    
+    // Item starts after view ends (completely to the right)
+    if (startOffset > viewDays) {
+      const dateLabel = zoom === "day"
+        ? format(start, "d MMM", { locale: fr })
+        : zoom === "week"
+          ? format(start, "'S'w", { locale: fr })
+          : format(start, "MMM yyyy", { locale: fr });
+      return { direction: 'right', dateLabel };
+    }
+    
+    return null;
+  }, [viewStartDate, zoom]);
+
   const getItemPosition = useCallback((item: RoadmapItem) => {
     if (!item.startDate) return null;
     
@@ -381,7 +417,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     width = duration * pixelsPerDay;
     
     // Check if item is completely out of view
-    const viewDays = zoom === "day" ? 30 : zoom === "week" ? 60 : 180;
+    const viewDays = zoom === "day" ? 45 : zoom === "week" ? 120 : 365;
     if (endOffset < 0 || startOffset > viewDays) {
       return null; // Item is completely outside visible range
     }
@@ -1444,13 +1480,41 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                       </Tooltip>
                     )}
 
-                    {!position && (
-                      <div className="absolute inset-y-2 left-4 flex items-center">
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                          Dates non définies
-                        </Badge>
-                      </div>
-                    )}
+                    {!position && (() => {
+                      const outOfViewInfo = getItemOutOfViewInfo(item);
+                      if (outOfViewInfo) {
+                        // Dates are defined but outside visible range
+                        return (
+                          <div 
+                            className={cn(
+                              "absolute inset-y-2 flex items-center gap-1",
+                              outOfViewInfo.direction === 'left' ? "left-2" : "right-2"
+                            )}
+                          >
+                            {outOfViewInfo.direction === 'left' && (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <ChevronLeft className="h-3 w-3" />
+                                {outOfViewInfo.dateLabel}
+                              </Badge>
+                            )}
+                            {outOfViewInfo.direction === 'right' && (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                {outOfViewInfo.dateLabel}
+                                <ChevronRight className="h-3 w-3" />
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      }
+                      // No dates defined at all
+                      return (
+                        <div className="absolute inset-y-2 left-4 flex items-center">
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Dates non définies
+                          </Badge>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
