@@ -4572,47 +4572,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
-    try {
-      const existing = await storage.getRoadmapItem(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ error: "Roadmap item not found" });
-      }
-      
-      // Verify access through roadmap
-      const roadmap = await storage.getRoadmap(existing.roadmapId);
-      if (!roadmap || roadmap.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const item = await storage.updateRoadmapItem(req.params.id, req.body);
-      res.json(item);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
-    try {
-      const existing = await storage.getRoadmapItem(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ error: "Roadmap item not found" });
-      }
-      
-      // Verify access through roadmap
-      const roadmap = await storage.getRoadmap(existing.roadmapId);
-      if (!roadmap || roadmap.accountId !== req.accountId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      const success = await storage.deleteRoadmapItem(req.params.id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
   // Bulk update roadmap items with schema validation
+  // IMPORTANT: This route MUST be defined BEFORE /api/roadmap-items/:id to avoid Express matching "bulk" as an :id
   app.patch("/api/roadmap-items/bulk", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
       const { itemIds, data } = req.body;
@@ -4713,6 +4674,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ updated: results.length, items: results, errors });
     } catch (error: any) {
       console.error("🔴 BULK UPDATE ERROR:", error.message, error.stack);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmapItem(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      
+      // Verify access through roadmap
+      const roadmap = await storage.getRoadmap(existing.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const item = await storage.updateRoadmapItem(req.params.id, req.body);
+      res.json(item);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const existing = await storage.getRoadmapItem(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Roadmap item not found" });
+      }
+      
+      // Verify access through roadmap
+      const roadmap = await storage.getRoadmap(existing.roadmapId);
+      if (!roadmap || roadmap.accountId !== req.accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteRoadmapItem(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
