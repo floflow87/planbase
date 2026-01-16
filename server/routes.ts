@@ -5190,6 +5190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: `${itemsWithoutPhase.length} élément(s) n'ont pas de phase assignée.`,
           action: 'Assigner les éléments à une phase pour structurer la roadmap',
           priority: 15,
+          relatedItems: itemsWithoutPhase.slice(0, 10).map(i => ({ id: i.id, title: i.title })),
         });
       }
 

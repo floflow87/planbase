@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -12,6 +13,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+interface RelatedItem {
+  id: string;
+  title: string;
+}
+
 interface Recommendation {
   id: string;
   type: 'warning' | 'critical' | 'info' | 'suggestion';
@@ -20,6 +26,7 @@ interface Recommendation {
   action?: string;
   relatedItemId?: string;
   relatedItemTitle?: string;
+  relatedItems?: RelatedItem[];
   priority: number;
 }
 
@@ -152,7 +159,28 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
                     {config.label}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">{rec.description}</p>
+                {rec.relatedItems && rec.relatedItems.length > 0 ? (
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">{rec.description}</p>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-64" side="bottom" align="start">
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Éléments concernés :</p>
+                        {rec.relatedItems.map(item => (
+                          <div key={item.id} className="text-xs py-1 px-2 bg-muted/50 rounded truncate">
+                            {item.title}
+                          </div>
+                        ))}
+                        {rec.relatedItems.length >= 10 && (
+                          <p className="text-[10px] text-muted-foreground italic">... et plus</p>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{rec.description}</p>
+                )}
                 {rec.action && (
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <ChevronRight className="h-3 w-3" />

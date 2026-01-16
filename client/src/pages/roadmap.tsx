@@ -112,6 +112,7 @@ export default function RoadmapPage() {
     endDate: null as Date | null,
     description: "",
     releaseTag: "",
+    phase: "" as string,
     linkedType: "free" as LinkedType,
     linkedId: null as string | null,
     linkedTitle: "",
@@ -451,6 +452,7 @@ export default function RoadmapPage() {
         endDate: data.endDate ? format(data.endDate, "yyyy-MM-dd") : null,
         description: data.description || null,
         releaseTag: data.releaseTag || null,
+        phase: data.phase || null,
         orderIndex: roadmapItems.length,
         epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
@@ -486,6 +488,7 @@ export default function RoadmapPage() {
         endDate: data.endDate ? format(data.endDate, "yyyy-MM-dd") : null,
         description: data.description || null,
         releaseTag: data.releaseTag || null,
+        phase: data.phase || null,
         epicId: data.linkedType === "epic" ? data.linkedId : null,
       });
     },
@@ -594,6 +597,7 @@ export default function RoadmapPage() {
       toast({
         title: "Éléments mis à jour",
         description: `${result.updated} élément(s) ont été modifiés.`,
+        className: "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
       });
     },
     onError: () => {
@@ -647,6 +651,7 @@ export default function RoadmapPage() {
       endDate: null,
       description: "",
       releaseTag: "",
+      phase: "",
       linkedType: "free",
       linkedId: null,
       linkedTitle: "",
@@ -681,6 +686,7 @@ export default function RoadmapPage() {
       endDate: item.endDate ? new Date(item.endDate) : null,
       description: item.description || "",
       releaseTag: item.releaseTag || "",
+      phase: item.phase || "",
       linkedType,
       linkedId,
       linkedTitle,
@@ -1546,6 +1552,26 @@ export default function RoadmapPage() {
                   </PopoverContent>
                 </Popover>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="item-phase">Phase</Label>
+              <Select 
+                value={itemForm.phase} 
+                onValueChange={(v) => setItemForm(prev => ({ ...prev, phase: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger id="item-phase" data-testid="select-item-phase">
+                  <SelectValue placeholder="Aucune phase" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune phase</SelectItem>
+                  <SelectItem value="T1">T1</SelectItem>
+                  <SelectItem value="T2">T2</SelectItem>
+                  <SelectItem value="T3">T3</SelectItem>
+                  <SelectItem value="T4">T4</SelectItem>
+                  <SelectItem value="LT">LT (Long terme)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

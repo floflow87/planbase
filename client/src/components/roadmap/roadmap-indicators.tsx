@@ -102,7 +102,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
 
   if (isLoadingPhases || isLoadingMilestones) {
     return (
-      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="bg-card/50 animate-pulse">
             <CardContent className="pt-4 pb-3 px-4">
@@ -117,7 +117,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
 
   if (!phasesData) {
     return (
-      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-card/50 col-span-full">
           <CardContent className="pt-4 pb-3 px-4 text-center text-muted-foreground text-sm">
             Impossible de charger les indicateurs de phase
@@ -139,7 +139,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
   const nextMilestoneDate = nextMilestone?.targetDate || nextMilestone?.endDate;
 
   return (
-    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <Card className="bg-card/50">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">

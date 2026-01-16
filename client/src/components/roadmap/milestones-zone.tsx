@@ -18,6 +18,7 @@ interface Milestone {
   id: string;
   title: string;
   description?: string;
+  startDate?: string;
   targetDate?: string;
   endDate?: string;
   status: string;
@@ -201,9 +202,12 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                         )}
                         
                         <div className="flex items-center gap-2 mt-1">
-                          {targetDate && (
+                          {(milestone.startDate || targetDate) && (
                             <span className={`text-xs ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                              {formatDate(targetDate)}
+                              {milestone.startDate && formatDate(milestone.startDate)}
+                              {milestone.startDate && targetDate && " → "}
+                              {!milestone.startDate && targetDate && formatDate(targetDate)}
+                              {milestone.startDate && targetDate && formatDate(targetDate)}
                               {daysUntil !== null && milestone.status !== "done" && (
                                 <span className="ml-1">
                                   ({isOverdue ? `${Math.abs(daysUntil)}j de retard` : `dans ${daysUntil}j`})
