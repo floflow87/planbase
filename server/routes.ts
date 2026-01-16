@@ -4712,6 +4712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ updated: results.length, items: results, errors });
     } catch (error: any) {
+      console.error("🔴 BULK UPDATE ERROR:", error.message, error.stack);
       res.status(400).json({ error: error.message });
     }
   });
