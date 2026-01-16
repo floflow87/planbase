@@ -69,6 +69,10 @@ const translateSubjectType = (subjectType: string) => {
     contact: "contact",
     mindmap: "whiteboard",
     backlog: "backlog",
+    roadmap: "roadmap",
+    roadmap_item: "élément roadmap",
+    milestone: "jalon",
+    rubrique: "rubrique",
   };
   return translations[subjectType] || subjectType;
 };
@@ -123,6 +127,10 @@ const getActivityUrl = (subjectType: string, subjectId: string): string | null =
     contact: `/crm`,
     mindmap: `/mindmaps/${subjectId}`,
     backlog: `/product/backlog/${subjectId}`,
+    roadmap: `/roadmap`,
+    roadmap_item: `/roadmap`,
+    milestone: `/roadmap`,
+    rubrique: `/roadmap`,
   };
   return routes[subjectType] || null;
 };

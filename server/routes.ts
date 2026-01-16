@@ -4465,6 +4465,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.userId || req.body.createdBy,
       });
       const roadmap = await storage.createRoadmap(data);
+      
+      // Log activity
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType: "roadmap",
+          subjectId: roadmap.id,
+          kind: "created",
+          description: `Roadmap créée : ${roadmap.name}`,
+          occurredAt: new Date(),
+          payload: { description: `Roadmap créée : ${roadmap.name}` },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json(roadmap);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4497,6 +4512,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const roadmap = await storage.updateRoadmap(req.params.id, req.body);
+      
+      // Log activity
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType: "roadmap",
+          subjectId: roadmap!.id,
+          kind: "updated",
+          description: `Roadmap mise à jour : ${roadmap!.name}`,
+          occurredAt: new Date(),
+          payload: { description: `Roadmap mise à jour : ${roadmap!.name}` },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json(roadmap);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4513,7 +4543,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      const roadmapName = existing.name;
       const success = await storage.deleteRoadmap(req.params.id);
+      
+      // Log activity
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType: "roadmap",
+          subjectId: req.params.id,
+          kind: "deleted",
+          description: `Roadmap supprimée : ${roadmapName}`,
+          occurredAt: new Date(),
+          payload: { description: `Roadmap supprimée : ${roadmapName}` },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4565,6 +4611,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📌 Parsed data:", JSON.stringify(data));
       const item = await storage.createRoadmapItem(data);
       console.log("📌 Created item:", JSON.stringify(item));
+      
+      // Log activity - determine subject type based on item type
+      const subjectType = item.type === "milestone" ? "milestone" : (item.type === "epic_group" || item.isGroup) ? "rubrique" : "roadmap_item";
+      const typeLabel = item.type === "milestone" ? "Jalon" : (item.type === "epic_group" || item.isGroup) ? "Rubrique" : "Élément roadmap";
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType,
+          subjectId: item.id,
+          kind: "created",
+          description: `${typeLabel} créé : ${item.title}`,
+          occurredAt: new Date(),
+          payload: { description: `${typeLabel} créé : ${item.title}`, roadmapId: item.roadmapId },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json(item);
     } catch (error: any) {
       console.error("❌ Error creating roadmap item:", error.message, error);
@@ -4692,6 +4755,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const item = await storage.updateRoadmapItem(req.params.id, req.body);
+      
+      // Log activity - determine subject type based on item type
+      const subjectType = item!.type === "milestone" ? "milestone" : (item!.type === "epic_group" || item!.isGroup) ? "rubrique" : "roadmap_item";
+      const typeLabel = item!.type === "milestone" ? "Jalon" : (item!.type === "epic_group" || item!.isGroup) ? "Rubrique" : "Élément roadmap";
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType,
+          subjectId: item!.id,
+          kind: "updated",
+          description: `${typeLabel} mis à jour : ${item!.title}`,
+          occurredAt: new Date(),
+          payload: { description: `${typeLabel} mis à jour : ${item!.title}`, roadmapId: item!.roadmapId },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json(item);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -4711,7 +4791,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Store info before deletion for activity logging
+      const subjectType = existing.type === "milestone" ? "milestone" : (existing.type === "epic_group" || existing.isGroup) ? "rubrique" : "roadmap_item";
+      const typeLabel = existing.type === "milestone" ? "Jalon" : (existing.type === "epic_group" || existing.isGroup) ? "Rubrique" : "Élément roadmap";
+      const itemTitle = existing.title;
+      const roadmapId = existing.roadmapId;
+      
       const success = await storage.deleteRoadmapItem(req.params.id);
+      
+      // Log activity
+      if (req.userId) {
+        await storage.createActivity({
+          accountId: req.accountId!,
+          subjectType,
+          subjectId: req.params.id,
+          kind: "deleted",
+          description: `${typeLabel} supprimé : ${itemTitle}`,
+          occurredAt: new Date(),
+          payload: { description: `${typeLabel} supprimé : ${itemTitle}`, roadmapId },
+          createdBy: req.userId,
+        });
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
