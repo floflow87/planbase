@@ -1,7 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle, Search } from "lucide-react";
+import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle, Search, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,6 +56,20 @@ type BacklogWithProject = Backlog & {
   } | null;
 };
 
+// Column configuration for the list view
+const COLUMN_CONFIG = {
+  name: { label: "Nom", className: "px-4 py-2" },
+  mode: { label: "Mode", className: "px-4 py-2 hidden sm:table-cell" },
+  activeSprint: { label: "Sprint actif", className: "px-4 py-2 hidden md:table-cell" },
+  tickets: { label: "Tickets", className: "px-4 py-2 hidden lg:table-cell" },
+  project: { label: "Projet", className: "px-4 py-2 hidden xl:table-cell" },
+  creator: { label: "Créateur", className: "px-4 py-2 hidden xl:table-cell" },
+  createdAt: { label: "Créé le", className: "px-4 py-2 hidden lg:table-cell" },
+  actions: { label: "", className: "px-4 py-2 w-12" },
+};
+
+const DEFAULT_COLUMN_ORDER = ["name", "mode", "activeSprint", "tickets", "project", "creator", "createdAt", "actions"];
+
 export default function Product() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -55,10 +83,53 @@ export default function Product() {
     return (saved === "grid" || saved === "list") ? saved : "list";
   });
   
+  // Column order for list view - persisted in localStorage
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem("product-column-order");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Ensure all default columns exist (in case new columns were added)
+        const validColumns = parsed.filter((col: string) => col in COLUMN_CONFIG);
+        const missingColumns = DEFAULT_COLUMN_ORDER.filter(col => !validColumns.includes(col));
+        return [...validColumns, ...missingColumns];
+      } catch {
+        return DEFAULT_COLUMN_ORDER;
+      }
+    }
+    return DEFAULT_COLUMN_ORDER;
+  });
+  
   // Persist view mode changes
   useEffect(() => {
     localStorage.setItem("backlog-view-mode", viewMode);
   }, [viewMode]);
+  
+  // Persist column order changes
+  useEffect(() => {
+    localStorage.setItem("product-column-order", JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  // Handle column drag end
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setColumnOrder((items) => {
+      const oldIndex = items.indexOf(active.id as string);
+      const newIndex = items.indexOf(over.id as string);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
   
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -188,6 +259,186 @@ export default function Product() {
       </div>
     );
   }
+
+  // Sortable table header component
+  const SortableTableHeader = ({ columnId }: { columnId: string }) => {
+    const config = COLUMN_CONFIG[columnId as keyof typeof COLUMN_CONFIG];
+    
+    // Actions column is not draggable
+    if (columnId === "actions") {
+      return (
+        <th className={config.className}>
+          {config.label}
+        </th>
+      );
+    }
+
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: columnId });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <th
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        className={config.className}
+        data-testid={`th-${columnId}`}
+      >
+        <div className="flex items-center gap-1">
+          <button
+            {...listeners}
+            className="cursor-grab hover:bg-accent p-0.5 rounded"
+            title="Glisser pour réorganiser"
+            data-testid={`drag-handle-column-${columnId}`}
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <span>{config.label}</span>
+        </div>
+      </th>
+    );
+  };
+
+  // Render cell content based on column id
+  const renderCellContent = (columnId: string, backlog: BacklogWithProject) => {
+    switch (columnId) {
+      case "name":
+        return (
+          <td className="px-4 py-2" key={columnId}>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium">{backlog.name}</span>
+              {backlog.description && (
+                <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
+              )}
+            </div>
+          </td>
+        );
+      case "mode":
+        return (
+          <td className="px-4 py-2 hidden sm:table-cell" key={columnId}>
+            <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs">
+              {getModeIcon(backlog.mode)}
+              {getModeLabel(backlog.mode)}
+            </Badge>
+          </td>
+        );
+      case "activeSprint":
+        return (
+          <td className="px-4 py-2 hidden md:table-cell" key={columnId}>
+            {backlog.activeSprint ? (
+              <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit text-xs" data-testid={`list-badge-active-sprint-${backlog.id}`}>
+                <Play className="h-3 w-3" />
+                {backlog.activeSprint.name}
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            )}
+          </td>
+        );
+      case "tickets":
+        return (
+          <td className="px-4 py-2 hidden lg:table-cell" key={columnId}>
+            {backlog.ticketCounts && backlog.ticketCounts.total > 0 ? (
+              <div className="flex items-center gap-1" data-testid={`list-ticket-counts-${backlog.id}`}>
+                <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-1.5">
+                  {backlog.ticketCounts.todo}
+                </Badge>
+                <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs px-1.5">
+                  {backlog.ticketCounts.inProgress}
+                </Badge>
+                <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-1.5">
+                  {backlog.ticketCounts.done}
+                </Badge>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-xs">0</span>
+            )}
+          </td>
+        );
+      case "project":
+        return (
+          <td className="px-4 py-2 hidden xl:table-cell" key={columnId}>
+            {backlog.project ? (
+              <Badge variant="outline" className="flex items-center gap-1 w-fit text-xs">
+                <Folder className="h-3 w-3" />
+                {backlog.project.name}
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            )}
+          </td>
+        );
+      case "creator":
+        return (
+          <td className="px-4 py-2 hidden xl:table-cell" key={columnId}>
+            {backlog.creator ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-creator-${backlog.id}`}>
+                <User className="h-3 w-3" />
+                <span>
+                  {backlog.creator.firstName && backlog.creator.lastName 
+                    ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
+                    : backlog.creator.email || "Inconnu"}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            )}
+          </td>
+        );
+      case "createdAt":
+        return (
+          <td className="px-4 py-2 hidden lg:table-cell" key={columnId}>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
+            </div>
+          </td>
+        );
+      case "actions":
+        return (
+          <td className="px-4 py-2" key={columnId} onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-list-menu-backlog-${backlog.id}`}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-white dark:bg-white border shadow-md">
+                <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`list-menu-open-backlog-${backlog.id}`}>
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Ouvrir
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="text-destructive cursor-pointer"
+                  onClick={() => {
+                    setSelectedBacklog(backlog);
+                    setShowDeleteDialog(true);
+                  }}
+                  data-testid={`list-menu-delete-backlog-${backlog.id}`}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </td>
+        );
+      default:
+        return null;
+    }
+  };
 
   // Calculate KPIs
   const kpis = [
@@ -403,130 +654,33 @@ export default function Product() {
             ))}
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr className="text-left text-xs font-medium text-muted-foreground">
-                  <th className="px-4 py-2">Nom</th>
-                  <th className="px-4 py-2 hidden sm:table-cell">Mode</th>
-                  <th className="px-4 py-2 hidden md:table-cell">Sprint actif</th>
-                  <th className="px-4 py-2 hidden lg:table-cell">Tickets</th>
-                  <th className="px-4 py-2 hidden xl:table-cell">Projet</th>
-                  <th className="px-4 py-2 hidden xl:table-cell">Créateur</th>
-                  <th className="px-4 py-2 hidden lg:table-cell">Créé le</th>
-                  <th className="px-4 py-2 w-12"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y bg-white dark:bg-gray-900">
-                {filteredBacklogs.map((backlog) => (
-                  <tr 
-                    key={backlog.id}
-                    className="hover:bg-muted/30 cursor-pointer group"
-                    onClick={() => navigate(`/product/backlog/${backlog.id}`)}
-                    data-testid={`row-backlog-${backlog.id}`}
-                  >
-                    <td className="px-4 py-2">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-medium">{backlog.name}</span>
-                        {backlog.description && (
-                          <span className="text-xs text-muted-foreground line-clamp-1">{backlog.description}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 hidden sm:table-cell">
-                      <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs">
-                        {getModeIcon(backlog.mode)}
-                        {getModeLabel(backlog.mode)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2 hidden md:table-cell">
-                      {backlog.activeSprint ? (
-                        <Badge className="bg-violet-500 text-white flex items-center gap-1 w-fit text-xs" data-testid={`list-badge-active-sprint-${backlog.id}`}>
-                          <Play className="h-3 w-3" />
-                          {backlog.activeSprint.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 hidden lg:table-cell">
-                      {backlog.ticketCounts && backlog.ticketCounts.total > 0 ? (
-                        <div className="flex items-center gap-1" data-testid={`list-ticket-counts-${backlog.id}`}>
-                          <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-1.5">
-                            {backlog.ticketCounts.todo}
-                          </Badge>
-                          <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs px-1.5">
-                            {backlog.ticketCounts.inProgress}
-                          </Badge>
-                          <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-1.5">
-                            {backlog.ticketCounts.done}
-                          </Badge>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">0</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 hidden xl:table-cell">
-                      {backlog.project ? (
-                        <Badge variant="outline" className="flex items-center gap-1 w-fit text-xs">
-                          <Folder className="h-3 w-3" />
-                          {backlog.project.name}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 hidden xl:table-cell">
-                      {backlog.creator ? (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-creator-${backlog.id}`}>
-                          <User className="h-3 w-3" />
-                          <span>
-                            {backlog.creator.firstName && backlog.creator.lastName 
-                              ? `${backlog.creator.firstName} ${backlog.creator.lastName}`
-                              : backlog.creator.email || "Inconnu"}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 hidden lg:table-cell">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(backlog.createdAt), "d MMM yyyy", { locale: fr })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-list-menu-backlog-${backlog.id}`}>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white dark:bg-white border shadow-md">
-                          <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`list-menu-open-backlog-${backlog.id}`}>
-                            <ArrowRight className="h-4 w-4 mr-2" />
-                            Ouvrir
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive cursor-pointer"
-                            onClick={() => {
-                              setSelectedBacklog(backlog);
-                              setShowDeleteDialog(true);
-                            }}
-                            data-testid={`list-menu-delete-backlog-${backlog.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
+          <DndContext sensors={sensors} onDragEnd={handleColumnDragEnd}>
+            <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr className="text-left text-xs font-medium text-muted-foreground">
+                    <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                      {columnOrder.map((columnId) => (
+                        <SortableTableHeader key={columnId} columnId={columnId} />
+                      ))}
+                    </SortableContext>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y bg-white dark:bg-gray-900">
+                  {filteredBacklogs.map((backlog) => (
+                    <tr 
+                      key={backlog.id}
+                      className="hover:bg-muted/30 cursor-pointer group"
+                      onClick={() => navigate(`/product/backlog/${backlog.id}`)}
+                      data-testid={`row-backlog-${backlog.id}`}
+                    >
+                      {columnOrder.map((columnId) => renderCellContent(columnId, backlog))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DndContext>
         )}
       </div>
 
