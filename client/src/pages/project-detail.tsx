@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -2850,6 +2850,29 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
   const projectScopeItems = projectScopeItemsData?.scopeItems || [];
+
+  // Fetch roadmap milestones for reminder display
+  interface RoadmapMilestone {
+    id: string;
+    title: string;
+    targetDate?: string | null;
+    endDate?: string | null;
+    status: string;
+    isCritical?: boolean;
+    milestoneStatus?: string;
+  }
+  interface MilestonesResponse {
+    milestones: RoadmapMilestone[];
+    nextMilestone: RoadmapMilestone | null;
+    nextCriticalMilestone: RoadmapMilestone | null;
+    upcomingCount: number;
+    atRiskCount: number;
+    overdueCount: number;
+  }
+  const { data: milestonesData } = useQuery<MilestonesResponse>({
+    queryKey: ['/api/projects', id, 'roadmap', 'milestones'],
+    enabled: !!id,
+  });
   
   // Calculate CDC estimated days for auto-completion
   const cdcEstimatedDays = useMemo(() => {
@@ -3593,6 +3616,62 @@ export default function ProjectDetail() {
                   </PopoverContent>
                 </Popover>
               </div>
+              {/* Roadmap Milestone Reminder */}
+              {milestonesData?.nextMilestone && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer",
+                        milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                        milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                        (!milestonesData.nextMilestone.milestoneStatus || milestonesData.nextMilestone.milestoneStatus === 'upcoming' || milestonesData.nextMilestone.milestoneStatus === 'achievable') && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      )}
+                      onClick={() => setActiveTab("roadmap")}
+                      data-testid="milestone-reminder"
+                    >
+                      {milestonesData.nextMilestone.milestoneStatus === 'overdue' ? (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      ) : milestonesData.nextMilestone.milestoneStatus === 'at_risk' ? (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      ) : (
+                        <Bell className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline font-medium truncate max-w-[150px]">
+                        {milestonesData.nextMilestone.title}
+                      </span>
+                      {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                        <span className="text-[10px] opacity-80">
+                          {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM", { locale: fr })}
+                        </span>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <div className="space-y-1">
+                      <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
+                      {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                        <p className="text-xs text-muted-foreground">
+                          Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}
+                        </p>
+                      )}
+                      {milestonesData.upcomingCount > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir
+                        </p>
+                      )}
+                      {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
+                          {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
+                          {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground italic">Cliquer pour voir la roadmap</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto items-center">
@@ -3821,6 +3900,10 @@ export default function ProjectDetail() {
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Ressources</span>
             </TabsTrigger>
+            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
+              <Map className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Roadmap</span>
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-1.5 text-xs h-9 px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
@@ -3848,10 +3931,6 @@ export default function ProjectDetail() {
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="backlogs-count">
                 {projectBacklogs.length}
               </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
-              <Map className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
           </TabsList>
 

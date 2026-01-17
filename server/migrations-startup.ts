@@ -1346,6 +1346,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmap items milestone-specific columns added");
 
+    // Add roadmap_item_id column to sprints for linking sprints to roadmap elements
+    await db.execute(sql`
+      ALTER TABLE sprints 
+      ADD COLUMN IF NOT EXISTS roadmap_item_id UUID REFERENCES roadmap_items(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS sprints_roadmap_item_idx ON sprints(roadmap_item_id);
+    `);
+    console.log("✅ Sprints roadmap_item_id column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

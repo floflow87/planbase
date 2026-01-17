@@ -1118,6 +1118,7 @@ export const sprints = pgTable("sprints", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  roadmapItemId: uuid("roadmap_item_id").references(() => roadmapItems.id, { onDelete: "set null" }), // Link to roadmap element
   name: text("name").notNull(),
   goal: text("goal"), // Sprint goal
   startDate: timestamp("start_date", { withTimezone: true }),
@@ -1132,6 +1133,7 @@ export const sprints = pgTable("sprints", {
 }, (table) => ({
   accountIdx: index().on(table.accountId),
   backlogIdx: index().on(table.backlogId),
+  roadmapItemIdx: index().on(table.roadmapItemId),
 }));
 
 // Backlog Columns (Kanban mode)

@@ -486,7 +486,7 @@ export default function BacklogDetail() {
   });
 
   const createSprintMutation = useMutation({
-    mutationFn: async (data: { name: string; goal?: string; startDate?: string; endDate?: string }) => {
+    mutationFn: async (data: { name: string; goal?: string; startDate?: string; endDate?: string; roadmapItemId?: string | null }) => {
       return apiRequest(`/api/backlogs/${id}/sprints`, "POST", data);
     },
     onMutate: async (data) => {
@@ -2351,6 +2351,7 @@ export default function BacklogDetail() {
         open={showSprintDialog}
         onClose={() => { setShowSprintDialog(false); setEditingSprint(null); }}
         sprint={editingSprint}
+        projectId={backlog?.projectId}
         onCreate={(data) => createSprintMutation.mutate(data)}
         onUpdate={(data) => editingSprint && updateSprintMutation.mutate({ sprintId: editingSprint.id, data })}
         isPending={createSprintMutation.isPending || updateSprintMutation.isPending}
@@ -3126,10 +3127,20 @@ function TaskDialog({
   );
 }
 
+interface RoadmapItemOption {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  roadmapId: string;
+  roadmapName?: string;
+}
+
 function SprintSheet({ 
   open, 
   onClose, 
   sprint,
+  projectId,
   onCreate, 
   onUpdate,
   isPending 
@@ -3137,7 +3148,8 @@ function SprintSheet({
   open: boolean; 
   onClose: () => void;
   sprint: Sprint | null;
-  onCreate: (data: { name: string; goal?: string; startDate?: string; endDate?: string }) => void;
+  projectId?: string | null;
+  onCreate: (data: { name: string; goal?: string; startDate?: string; endDate?: string; roadmapItemId?: string | null }) => void;
   onUpdate: (data: Partial<Sprint>) => void;
   isPending: boolean;
 }) {
@@ -3145,6 +3157,42 @@ function SprintSheet({
   const [goal, setGoal] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [roadmapItemId, setRoadmapItemId] = useState<string | null>(null);
+
+  // Fetch roadmaps for the project
+  const { data: roadmaps = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/roadmaps'],
+    enabled: !!projectId,
+  });
+
+  // Filter roadmaps by projectId
+  const projectRoadmaps = useMemo(() => {
+    if (!projectId) return [];
+    return roadmaps.filter((r: any) => r.projectId === projectId);
+  }, [roadmaps, projectId]);
+
+  // Fetch roadmap items for each roadmap
+  const { data: roadmapItemsData = [] } = useQuery<RoadmapItemOption[]>({
+    queryKey: ['/api/projects', projectId, 'roadmap-items-for-sprint'],
+    queryFn: async () => {
+      if (!projectId || projectRoadmaps.length === 0) return [];
+      const allItems: RoadmapItemOption[] = [];
+      for (const roadmap of projectRoadmaps) {
+        try {
+          const res = await apiRequest(`/api/roadmaps/${roadmap.id}/items`, 'GET');
+          const items = await res.json();
+          allItems.push(...items.map((item: any) => ({
+            ...item,
+            roadmapName: roadmap.name
+          })));
+        } catch (e) {
+          // Ignore errors for roadmaps that may not have items
+        }
+      }
+      return allItems;
+    },
+    enabled: !!projectId && projectRoadmaps.length > 0,
+  });
 
   useEffect(() => {
     if (sprint) {
@@ -3152,11 +3200,13 @@ function SprintSheet({
       setGoal(sprint.goal || "");
       setStartDate(sprint.startDate ? new Date(sprint.startDate) : undefined);
       setEndDate(sprint.endDate ? new Date(sprint.endDate) : undefined);
+      setRoadmapItemId((sprint as any).roadmapItemId || null);
     } else {
       setName("");
       setGoal("");
       setStartDate(undefined);
       setEndDate(undefined);
+      setRoadmapItemId(null);
     }
   }, [sprint, open]);
 
@@ -3166,7 +3216,8 @@ function SprintSheet({
       name, 
       goal: goal || undefined, 
       startDate: startDate || null, 
-      endDate: endDate || null 
+      endDate: endDate || null,
+      roadmapItemId: roadmapItemId || null
     };
     
     if (sprint) {
@@ -3260,6 +3311,38 @@ function SprintSheet({
               </Popover>
             </div>
           </div>
+          {/* Roadmap item link */}
+          {projectId && roadmapItemsData.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-gray-700">Lier à un élément de roadmap</Label>
+              <Select 
+                value={roadmapItemId || "none"} 
+                onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}
+              >
+                <SelectTrigger className="bg-white border-gray-300 text-gray-900" data-testid="select-sprint-roadmap-item">
+                  <SelectValue placeholder="Aucun élément lié" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="none">Aucun élément lié</SelectItem>
+                  {roadmapItemsData.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] px-1">
+                          {item.type === 'milestone' ? 'Jalon' : 
+                           item.type === 'epic_group' ? 'Rubrique' : 
+                           item.type === 'deliverable' ? 'Livrable' : item.type}
+                        </Badge>
+                        <span className="truncate">{item.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Liez ce sprint à un élément de la roadmap pour le suivi
+              </p>
+            </div>
+          )}
         </div>
         <SheetFooter className="flex gap-2 border-t border-gray-200 pt-4">
           <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700" data-testid="button-cancel-sprint">

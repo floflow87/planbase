@@ -1,0 +1,193 @@
+PlanBase est un outil de pilotage projet où CDC, Roadmap, Backlog, Ressources et Finances sont interconnectés.
+
+L’onglet OKR constitue la couche stratégique finale :
+
+il n’impose rien
+
+il lit l’existant
+
+il éclaire les décisions
+
+Les OKR doivent refléter l’impact réel des choix projet (temps, coût, marge), pas créer une structure isolée.
+
+🎯 Objectif de cette feature
+
+Créer un onglet “OKR” rattaché à la Roadmap d’un projet, permettant :
+
+de formaliser les objectifs stratégiques
+
+de mesurer leur atteinte via des Key Results
+
+de relier ces KR à l’exécution réelle (epics, roadmap, tickets)
+
+d’afficher l’impact financier et opérationnel de chaque objectif
+
+👉 Toute modification du CDC, de la roadmap, des ressources ou du temps passé répercute automatiquement l’état et l’impact des OKR.
+
+🧱 Structure fonctionnelle attendue
+1️⃣ Hiérarchie OKR (arbre)
+
+Implémenter une structure hiérarchique visuelle et navigable :
+
+Objectif
+└── Key Result
+    └── Epic
+        └── Bloc Roadmap
+            └── Sprint
+                └── Ticket
+
+
+⚠️ Les liens Epic / Roadmap / Sprint / Ticket sont des références, pas des duplications.
+
+2️⃣ Objectifs (niveau 1)
+
+Types d’objectifs (enum) :
+
+Business
+
+Produit
+
+Marketing
+
+Champs Objectif :
+
+titre
+
+type (Business / Produit / Marketing)
+
+description (optionnelle)
+
+phase cible (T1 / T2 / T3 / LT)
+
+statut calculé (À risque / En bonne voie / Atteint)
+
+impact financier calculé (marge estimée associée)
+
+progression (%)
+
+📌 Un objectif n’a pas de dates fixes : il vit au rythme de la roadmap.
+
+3️⃣ Key Results (niveau 2)
+
+Les KR sont mesurables, jamais abstraits.
+
+Champs KR :
+
+titre
+
+type de mesure :
+
+livraison (features / epics)
+
+temps
+
+marge
+
+adoption / volume (extensible)
+
+valeur cible
+
+valeur actuelle (calculée)
+
+statut (OK / Critique / En retard)
+
+🔗 Un Key Result peut être relié à :
+
+une ou plusieurs Epics
+
+des blocs de Roadmap
+
+des Tickets existants
+
+4️⃣ Lecture dynamique des données (CRITIQUE)
+
+Les OKR ne stockent pas de vérité métier.
+
+Ils lisent :
+
+le CDC (estimations, phases, facturable)
+
+la Roadmap (T1–T3, jalons, blocs)
+
+le Backlog (epics, tickets, sprints)
+
+le Temps passé
+
+les Ressources (humaines & matérielles)
+
+les calculs financiers (coût, CA, marge)
+
+👉 Exemple :
+
+si une Epic liée à un KR dérive → le KR passe “Critique”
+
+si la marge projet descend sous un seuil → l’objectif Business devient “À risque”
+
+📊 Indicateurs à afficher par nœud
+Objectif
+
+progression globale (%)
+
+statut synthétique
+
+impact marge estimé
+
+alertes actives (oui / non)
+
+Key Result
+
+valeur actuelle vs cible
+
+statut
+
+dépendances bloquantes
+
+Epic / Roadmap / Ticket (en lecture seule)
+
+avancement
+
+temps consommé
+
+écart estimé
+
+impact sur marge
+
+🧠 Recommandations OKR (lecture seule)
+
+Afficher des insights automatiques, par exemple :
+
+“L’objectif Rentabilité MVP est à risque à cause de l’Epic Audit process”
+
+“Le KR Livrer MVP avant T2 dépend d’un jalon prévu dans 21 jours”
+
+“Atteindre cet objectif nécessiterait +1 ressource dev en T2 (impact marge : -4%)”
+
+⚠️ Les OKR ne déclenchent pas d’actions automatiques, seulement des recommandations.
+
+🎨 UX / UI attendue
+
+Onglet OKR dans la page Roadmap
+
+Vue arborescente dépliable / repliable
+
+Codes couleurs cohérents avec le reste de l’app :
+
+Vert : OK
+
+Orange : À risque
+
+Rouge : Critique
+
+Aucun écran vide :
+
+proposer des objectifs suggérés selon le type de projet (lecture seule, duplicables)
+
+🧩 Règles produit fondamentales
+
+Un OKR ne crée jamais de ticket, d’epic ou de roadmap
+
+Il se branche sur l’existant
+
+Aucun OKR n’est obligatoire
+
+Supprimer un OKR ne supprime jamais l’exécution
