@@ -1356,6 +1356,64 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Sprints roadmap_item_id column added");
 
+    // Create OKR tables
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS okr_objectives (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        description text,
+        type text NOT NULL DEFAULT 'business',
+        target_phase text,
+        status text NOT NULL DEFAULT 'on_track',
+        progress real DEFAULT 0,
+        estimated_margin_impact real,
+        position integer NOT NULL DEFAULT 0,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_okr_objectives_account_project ON okr_objectives(account_id, project_id);
+      CREATE INDEX IF NOT EXISTS idx_okr_objectives_project ON okr_objectives(project_id);
+    `);
+    console.log("✅ OKR objectives table created");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS okr_key_results (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        objective_id uuid NOT NULL REFERENCES okr_objectives(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        metric_type text NOT NULL DEFAULT 'delivery',
+        target_value real NOT NULL,
+        current_value real DEFAULT 0,
+        unit text,
+        status text NOT NULL DEFAULT 'on_track',
+        weight real DEFAULT 1,
+        position integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_okr_key_results_objective ON okr_key_results(objective_id);
+      CREATE INDEX IF NOT EXISTS idx_okr_key_results_account ON okr_key_results(account_id);
+    `);
+    console.log("✅ OKR key results table created");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS okr_links (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        key_result_id uuid NOT NULL REFERENCES okr_key_results(id) ON DELETE CASCADE,
+        entity_type text NOT NULL,
+        entity_id uuid NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_okr_links_key_result ON okr_links(key_result_id);
+      CREATE INDEX IF NOT EXISTS idx_okr_links_entity ON okr_links(entity_type, entity_id);
+    `);
+    console.log("✅ OKR links table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

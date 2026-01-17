@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import { Loader } from "@/components/Loader";
 import { ProjectScopeSection } from "@/components/ProjectScopeSection";
 import { RoadmapTab } from "@/components/roadmap/roadmap-tab";
 import { ResourcesTab } from "@/components/resources-tab";
+import { OkrTreeView } from "@/components/okr/okr-tree-view";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
@@ -3904,6 +3905,10 @@ export default function ProjectDetail() {
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
+            <TabsTrigger value="okr" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-okr">
+              <Target className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">OKR</span>
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-1.5 text-xs h-9 px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
@@ -4283,6 +4288,20 @@ export default function ProjectDetail() {
           <TabsContent value="roadmap" className="mt-0">
             {project?.accountId ? (
               <RoadmapTab projectId={id!} accountId={project.accountId} />
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-12">
+                    <Loader />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="okr" className="mt-0">
+            {project?.accountId ? (
+              <OkrTreeView projectId={id!} />
             ) : (
               <Card>
                 <CardContent className="pt-6">

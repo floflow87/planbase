@@ -86,6 +86,14 @@ import {
   insertProjectResourceSchema,
   resourceTemplates,
   projectResources,
+  okrObjectives,
+  okrKeyResults,
+  okrLinks,
+  insertOkrObjectiveSchema,
+  updateOkrObjectiveSchema,
+  insertOkrKeyResultSchema,
+  updateOkrKeyResultSchema,
+  insertOkrLinkSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
@@ -5808,6 +5816,321 @@ export async function registerRoutes(app: Express): Promise<Server> {
         itemsUpdated: results.length,
         results 
       });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // OKR ROUTES
+  // ============================================
+
+  // Get OKR objectives for a project
+  app.get("/api/projects/:projectId/okr/objectives", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const projectId = req.params.projectId;
+      
+      const objectives = await db.select().from(okrObjectives)
+        .where(and(eq(okrObjectives.accountId, accountId), eq(okrObjectives.projectId, projectId)))
+        .orderBy(okrObjectives.position);
+      
+      res.json(objectives);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get full OKR tree for a project (objectives + key results + links)
+  app.get("/api/projects/:projectId/okr", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const projectId = req.params.projectId;
+      
+      const objectives = await db.select().from(okrObjectives)
+        .where(and(eq(okrObjectives.accountId, accountId), eq(okrObjectives.projectId, projectId)))
+        .orderBy(okrObjectives.position);
+      
+      const objectiveIds = objectives.map(o => o.id);
+      
+      let keyResults: any[] = [];
+      let links: any[] = [];
+      
+      if (objectiveIds.length > 0) {
+        keyResults = await db.select().from(okrKeyResults)
+          .where(and(
+            eq(okrKeyResults.accountId, accountId),
+            inArray(okrKeyResults.objectiveId, objectiveIds)
+          ))
+          .orderBy(okrKeyResults.position);
+        
+        const krIds = keyResults.map(kr => kr.id);
+        if (krIds.length > 0) {
+          links = await db.select().from(okrLinks)
+            .where(and(
+              eq(okrLinks.accountId, accountId),
+              inArray(okrLinks.keyResultId, krIds)
+            ));
+        }
+      }
+      
+      // Build tree structure
+      const tree = objectives.map(obj => ({
+        ...obj,
+        keyResults: keyResults
+          .filter(kr => kr.objectiveId === obj.id)
+          .map(kr => ({
+            ...kr,
+            links: links.filter(l => l.keyResultId === kr.id)
+          }))
+      }));
+      
+      res.json(tree);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create OKR objective
+  app.post("/api/projects/:projectId/okr/objectives", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const projectId = req.params.projectId;
+      
+      const data = insertOkrObjectiveSchema.parse({
+        ...req.body,
+        accountId,
+        projectId,
+        createdBy: userId,
+      });
+      
+      const [objective] = await db.insert(okrObjectives).values(data).returning();
+      res.status(201).json(objective);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update OKR objective
+  app.patch("/api/okr/objectives/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const data = updateOkrObjectiveSchema.parse(req.body);
+      
+      const [updated] = await db.update(okrObjectives)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(okrObjectives.id, id), eq(okrObjectives.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Objective not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete OKR objective
+  app.delete("/api/okr/objectives/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(okrObjectives)
+        .where(and(eq(okrObjectives.id, id), eq(okrObjectives.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Objective not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create Key Result for an objective
+  app.post("/api/okr/objectives/:objectiveId/key-results", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const objectiveId = req.params.objectiveId;
+      
+      // Verify objective belongs to account
+      const [objective] = await db.select().from(okrObjectives)
+        .where(and(eq(okrObjectives.id, objectiveId), eq(okrObjectives.accountId, accountId)));
+      
+      if (!objective) {
+        return res.status(404).json({ error: "Objective not found" });
+      }
+      
+      const data = insertOkrKeyResultSchema.parse({
+        ...req.body,
+        accountId,
+        objectiveId,
+      });
+      
+      const [keyResult] = await db.insert(okrKeyResults).values(data).returning();
+      res.status(201).json(keyResult);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update Key Result
+  app.patch("/api/okr/key-results/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const data = updateOkrKeyResultSchema.parse(req.body);
+      
+      const [updated] = await db.update(okrKeyResults)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(okrKeyResults.id, id), eq(okrKeyResults.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Key Result not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete Key Result
+  app.delete("/api/okr/key-results/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(okrKeyResults)
+        .where(and(eq(okrKeyResults.id, id), eq(okrKeyResults.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Key Result not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Add link from Key Result to entity
+  app.post("/api/okr/key-results/:keyResultId/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const keyResultId = req.params.keyResultId;
+      
+      // Verify key result belongs to account
+      const [kr] = await db.select().from(okrKeyResults)
+        .where(and(eq(okrKeyResults.id, keyResultId), eq(okrKeyResults.accountId, accountId)));
+      
+      if (!kr) {
+        return res.status(404).json({ error: "Key Result not found" });
+      }
+      
+      const data = insertOkrLinkSchema.parse({
+        ...req.body,
+        accountId,
+        keyResultId,
+      });
+      
+      const [link] = await db.insert(okrLinks).values(data).returning();
+      res.status(201).json(link);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove link
+  app.delete("/api/okr/links/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(okrLinks)
+        .where(and(eq(okrLinks.id, id), eq(okrLinks.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create task from Key Result (special action allowed per user requirement)
+  app.post("/api/okr/key-results/:keyResultId/create-task", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const keyResultId = req.params.keyResultId;
+      
+      // Verify key result exists and get objective project
+      const [kr] = await db.select().from(okrKeyResults)
+        .where(and(eq(okrKeyResults.id, keyResultId), eq(okrKeyResults.accountId, accountId)));
+      
+      if (!kr) {
+        return res.status(404).json({ error: "Key Result not found" });
+      }
+      
+      const [objective] = await db.select().from(okrObjectives)
+        .where(eq(okrObjectives.id, kr.objectiveId));
+      
+      if (!objective) {
+        return res.status(404).json({ error: "Objective not found" });
+      }
+      
+      // Get or create backlog for project
+      const [existingBacklog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.accountId, accountId), eq(backlogs.projectId, objective.projectId)));
+      
+      let backlogId: string;
+      if (existingBacklog) {
+        backlogId = existingBacklog.id;
+      } else {
+        // Create a new backlog for the project
+        const [newBacklog] = await db.insert(backlogs).values({
+          accountId,
+          name: "Backlog OKR",
+          projectId: objective.projectId,
+          createdBy: userId,
+        }).returning();
+        backlogId = newBacklog.id;
+      }
+      
+      // Create task linked to the KR
+      const { title, description, sprintId, epicId } = req.body;
+      
+      const [task] = await db.insert(backlogTasks).values({
+        accountId,
+        backlogId,
+        name: title || `Tâche pour: ${kr.title}`,
+        description: description || `Créé depuis le Key Result: ${kr.title}`,
+        state: "backlog",
+        taskType: "task",
+        epicId: epicId || null,
+        sprintId: sprintId || null,
+        createdBy: userId,
+      }).returning();
+      
+      // Create link from KR to this task
+      await db.insert(okrLinks).values({
+        accountId,
+        keyResultId,
+        entityType: "task",
+        entityId: task.id,
+      });
+      
+      res.status(201).json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -814,6 +814,62 @@ export const roadmapDependencies = pgTable("roadmap_dependencies", {
 }));
 
 // ============================================
+// OKR (Objectives & Key Results)
+// ============================================
+
+export const okrObjectives = pgTable("okr_objectives", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type").notNull().default("business"), // 'business', 'product', 'marketing'
+  targetPhase: text("target_phase"), // 'T1', 'T2', 'T3', 'LT' (Long Term)
+  status: text("status").notNull().default("on_track"), // Calculated: 'at_risk', 'on_track', 'achieved', 'critical'
+  progress: real("progress").default(0), // 0-100 calculated from KRs
+  estimatedMarginImpact: real("estimated_margin_impact"), // Financial impact in percentage
+  position: integer("position").notNull().default(0),
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountProjectIdx: index().on(table.accountId, table.projectId),
+  projectIdx: index().on(table.projectId),
+}));
+
+export const okrKeyResults = pgTable("okr_key_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  objectiveId: uuid("objective_id").notNull().references(() => okrObjectives.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  metricType: text("metric_type").notNull().default("delivery"), // 'delivery', 'time', 'margin', 'adoption', 'volume'
+  targetValue: real("target_value").notNull(),
+  currentValue: real("current_value").default(0),
+  unit: text("unit"), // e.g., '%', 'features', 'days', '€'
+  status: text("status").notNull().default("on_track"), // 'ok', 'critical', 'late', 'achieved'
+  weight: real("weight").default(1), // Weight for objective progress calculation
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  objectiveIdx: index().on(table.objectiveId),
+  accountIdx: index().on(table.accountId),
+}));
+
+// Links KRs to existing entities (epics, roadmap items, sprints, tasks)
+export const okrLinks = pgTable("okr_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  keyResultId: uuid("key_result_id").notNull().references(() => okrKeyResults.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(), // 'epic', 'roadmap_item', 'sprint', 'task'
+  entityId: uuid("entity_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  keyResultIdx: index().on(table.keyResultId),
+  entityIdx: index().on(table.entityType, table.entityId),
+}));
+
+// ============================================
 // CLIENT COMMENTS
 // ============================================
 
@@ -1471,6 +1527,15 @@ export const upsertTicketRecipeSchema = z.object({
   pushToTicket: z.boolean().optional(), // Flag to push comment to ticket
 });
 
+// OKR Schemas
+export const insertOkrObjectiveSchema = createInsertSchema(okrObjectives).omit({ id: true, createdAt: true, updatedAt: true, progress: true, status: true });
+export const updateOkrObjectiveSchema = insertOkrObjectiveSchema.omit({ accountId: true, projectId: true, createdBy: true }).partial();
+
+export const insertOkrKeyResultSchema = createInsertSchema(okrKeyResults).omit({ id: true, createdAt: true, updatedAt: true });
+export const updateOkrKeyResultSchema = insertOkrKeyResultSchema.omit({ accountId: true, objectiveId: true }).partial();
+
+export const insertOkrLinkSchema = createInsertSchema(okrLinks).omit({ id: true, createdAt: true });
+
 // Insert types
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
@@ -1600,6 +1665,16 @@ export type InsertTicketAcceptanceCriteria = z.infer<typeof insertTicketAcceptan
 export type TicketRecipe = typeof ticketRecipes.$inferSelect;
 export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
 export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;
+
+// OKR Types
+export type OkrObjective = typeof okrObjectives.$inferSelect;
+export type InsertOkrObjective = z.infer<typeof insertOkrObjectiveSchema>;
+export type UpdateOkrObjective = z.infer<typeof updateOkrObjectiveSchema>;
+export type OkrKeyResult = typeof okrKeyResults.$inferSelect;
+export type InsertOkrKeyResult = z.infer<typeof insertOkrKeyResultSchema>;
+export type UpdateOkrKeyResult = z.infer<typeof updateOkrKeyResultSchema>;
+export type OkrLink = typeof okrLinks.$inferSelect;
+export type InsertOkrLink = z.infer<typeof insertOkrLinkSchema>;
 
 // ============================================
 // PROJECT RESOURCES
@@ -1793,6 +1868,46 @@ export const mindmapNodeTypeOptions = [
 ] as const;
 
 export type MindmapNodeType = typeof mindmapNodeTypeOptions[number]["value"];
+
+// OKR Type Options
+export const okrObjectiveTypeOptions = [
+  { value: "business", label: "Business", icon: "TrendingUp", color: "#10B981" },
+  { value: "product", label: "Produit", icon: "Package", color: "#7C3AED" },
+  { value: "marketing", label: "Marketing", icon: "Megaphone", color: "#06B6D4" },
+] as const;
+
+export type OkrObjectiveType = typeof okrObjectiveTypeOptions[number]["value"];
+
+// OKR Target Phase Options
+export const okrTargetPhaseOptions = [
+  { value: "T1", label: "T1 (Court terme)" },
+  { value: "T2", label: "T2 (Moyen terme)" },
+  { value: "T3", label: "T3 (Long terme)" },
+  { value: "LT", label: "Long terme" },
+] as const;
+
+export type OkrTargetPhase = typeof okrTargetPhaseOptions[number]["value"];
+
+// OKR Status Options
+export const okrStatusOptions = [
+  { value: "on_track", label: "En bonne voie", color: "#10B981" },
+  { value: "at_risk", label: "À risque", color: "#F59E0B" },
+  { value: "critical", label: "Critique", color: "#EF4444" },
+  { value: "achieved", label: "Atteint", color: "#3B82F6" },
+] as const;
+
+export type OkrStatus = typeof okrStatusOptions[number]["value"];
+
+// Key Result Metric Type Options
+export const okrMetricTypeOptions = [
+  { value: "delivery", label: "Livraison (features/epics)", icon: "Package" },
+  { value: "time", label: "Temps", icon: "Clock" },
+  { value: "margin", label: "Marge", icon: "DollarSign" },
+  { value: "adoption", label: "Adoption", icon: "Users" },
+  { value: "volume", label: "Volume", icon: "BarChart" },
+] as const;
+
+export type OkrMetricType = typeof okrMetricTypeOptions[number]["value"];
 
 // Billing Status Options - Re-exported from centralized config for backwards compatibility
 export { 
