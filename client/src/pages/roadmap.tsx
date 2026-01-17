@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader } from "@/components/Loader";
+import { OkrTreeView } from "@/components/okr/okr-tree-view";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -863,7 +865,20 @@ export default function RoadmapPage() {
           </div>
         </div>
 
-        {!selectedProjectId ? (
+        <Tabs defaultValue="roadmap" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="roadmap" className="gap-1.5" data-testid="tab-roadmap-main">
+              <Map className="h-4 w-4" />
+              Roadmap
+            </TabsTrigger>
+            <TabsTrigger value="okr" className="gap-1.5" data-testid="tab-okr-main">
+              <Target className="h-4 w-4" />
+              OKR
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="roadmap" className="mt-0">
+            {!selectedProjectId ? (
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -1157,7 +1172,27 @@ export default function RoadmapPage() {
             </CardContent>
           </Card>
           </>
-        )}
+            )}
+          </TabsContent>
+
+          <TabsContent value="okr" className="mt-0">
+            {selectedProjectId ? (
+              <OkrTreeView projectId={selectedProjectId} />
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Target className="h-16 w-16 text-muted-foreground mb-6" />
+                    <h3 className="text-xl font-semibold mb-2">Sélectionnez un projet</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      Choisissez un projet dans le menu déroulant ci-dessus pour afficher et gérer ses OKR.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Sheet open={isCreateDialogOpen} onOpenChange={(open) => {

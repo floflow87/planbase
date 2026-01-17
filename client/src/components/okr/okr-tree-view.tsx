@@ -582,7 +582,7 @@ function ObjectiveSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="bg-white dark:bg-background">
         <SheetHeader>
           <SheetTitle>{objective ? "Modifier l'objectif" : "Nouvel objectif"}</SheetTitle>
           <SheetDescription>
