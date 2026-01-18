@@ -1,0 +1,180 @@
+L’objectif est de faire de l’onglet OKR une couche stratégique lisible, connectée à l’exécution réelle, sans devenir un backlog bis.
+
+Les OKR :
+
+n’imposent rien
+
+ne dupliquent pas les tickets
+
+lisent l’existant (CDC, Roadmap, Epics, Sprints, Tickets, Temps, Coûts)
+
+servent à éclairer les décisions
+
+🎯 Objectif de l’amélioration
+
+Renforcer la lisibilité stratégique des OKR en montrant clairement ce qu’ils pilotent réellement, via des liens explicites mais légers avec :
+
+Epics
+
+Jalons (milestones)
+
+Blocs roadmap
+
+Sprints
+
+Tickets
+
+Sans surcharge visuelle ni complexité d’édition.
+
+🧱 Structure OKR existante (à conserver)
+
+Objectif
+
+type : Business / Produit / Marketing
+
+phase : T1 / T2 / T3 / LT
+
+statut calculé : OK / À risque / Critique
+
+progression (%)
+
+Key Results
+
+mesurables
+
+rattachés à un Objectif
+
+progression propre
+
+✨ Amélioration demandée — Lien OKR ↔ Exécution
+1️⃣ Système de liens légers (non bloquants)
+
+Ajouter la possibilité de lier facultativement :
+
+un Objectif ou un Key Result à :
+
+une ou plusieurs Epics
+
+un ou plusieurs Jalons
+
+un ou plusieurs Blocs Roadmap
+
+un ou plusieurs Sprints
+
+des Tickets
+
+⚠️ Règles :
+
+Les liens sont optionnels
+
+Aucun lien n’est obligatoire
+
+Les OKR ne créent pas de dépendance dure
+
+2️⃣ Affichage visuel attendu (lecture seule par défaut)
+
+Sous chaque Objectif ou Key Result, afficher une ligne synthétique du type :
+
+🔗 Piloté par
+• 2 Epics
+• 1 Jalon
+• 5 Tickets
+• 1 Sprint actif
+
+📌 Comportement :
+
+Cliquable → ouvre un drawer / modal de consultation
+
+Pas d’édition lourde inline
+
+Pas de duplication des objets
+
+3️⃣ Impact sur la progression OKR (lecture intelligente)
+
+La progression d’un Key Result peut être :
+
+manuelle (par défaut)
+
+ou assistée par les éléments liés
+
+Exemples :
+
+% d’epics terminées
+
+avancement moyen des tickets liés
+
+atteinte d’un jalon clé
+
+sprint terminé / en retard
+
+⚠️ La progression assistée :
+
+est explicite (badge “assistée”)
+
+peut être désactivée à tout moment
+
+ne force jamais le calcul
+
+4️⃣ Indicateurs d’alerte contextuels
+
+Si un OKR est en statut Critique, afficher une explication automatique :
+
+Exemples :
+
+“Aucun sprint lié en cours”
+
+“Epic ‘Onboarding V2’ en retard de 12j”
+
+“Jalon ‘Démo MVP’ dépassé”
+
+👉 Ces messages sont :
+
+générés automatiquement
+
+purement informatifs
+
+orientés décision
+
+5️⃣ Lien explicite avec la Roadmap (temps)
+
+Ajouter, au niveau de l’Objectif :
+
+phase courante (T1 / T2…)
+
+position temporelle :
+
+Objectif attendu en T1 — J-17 avant fin de phase
+
+Ou :
+
+Objectif en retard par rapport à la roadmap (+9j)
+
+🧠 Principe produit à respecter
+
+Les OKR lisent le système
+
+Ils ne le pilotent pas directement
+
+Ils servent de boussole stratégique
+
+Toute information affichée doit aider à :
+
+comprendre
+
+arbitrer
+
+décider
+
+✅ Résultat attendu
+
+Un onglet OKR qui :
+
+relie clairement stratégie ↔ exécution
+
+montre ce que chaque objectif pilote réellement
+
+explique les statuts (OK / Risque / Critique)
+
+reste lisible, sobre, et non intrusif
+
+s’intègre naturellement dans la Roadmap existante

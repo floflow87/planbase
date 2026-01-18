@@ -16,7 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Plus, ChevronDown, ChevronRight, Target, Key, TrendingUp, Package, Megaphone,
-  AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus
+  AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus,
+  List, GitBranch
 } from "lucide-react";
 import type { OkrObjective, OkrKeyResult, OkrLink } from "@shared/schema";
 import { okrObjectiveTypeOptions, okrTargetPhaseOptions, okrStatusOptions, okrMetricTypeOptions } from "@shared/schema";
@@ -29,8 +30,11 @@ interface OkrTreeViewProps {
   projectId: string;
 }
 
+type ViewMode = "list" | "tree";
+
 export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const { toast } = useToast();
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [expandedObjectives, setExpandedObjectives] = useState<Set<string>>(new Set());
   const [expandedKRs, setExpandedKRs] = useState<Set<string>>(new Set());
   const [showObjectiveSheet, setShowObjectiveSheet] = useState(false);
@@ -53,7 +57,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif créé" });
+      toast({ title: "Objectif créé", className: "bg-green-500 text-white border-green-600" });
       setShowObjectiveSheet(false);
     },
     onError: (error: any) => {
@@ -68,7 +72,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif mis à jour" });
+      toast({ title: "Objectif mis à jour", className: "bg-green-500 text-white border-green-600" });
       setShowObjectiveSheet(false);
       setEditingObjective(null);
     },
@@ -83,7 +87,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif supprimé" });
+      toast({ title: "Objectif supprimé", className: "bg-green-500 text-white border-green-600" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -97,7 +101,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result créé" });
+      toast({ title: "Key Result créé", className: "bg-green-500 text-white border-green-600" });
       setShowKRSheet(false);
       setSelectedObjectiveId(null);
     },
@@ -113,7 +117,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result mis à jour" });
+      toast({ title: "Key Result mis à jour", className: "bg-green-500 text-white border-green-600" });
       setShowKRSheet(false);
       setEditingKR(null);
     },
@@ -128,7 +132,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result supprimé" });
+      toast({ title: "Key Result supprimé", className: "bg-green-500 text-white border-green-600" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -142,7 +146,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Tâche créée" });
+      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600" });
       setShowCreateTaskDialog(false);
       setSelectedKRId(null);
       setNewTaskTitle("");
@@ -217,7 +221,35 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={viewMode === "list" ? "default" : "ghost"}
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-foreground border">Vue liste</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={viewMode === "tree" ? "default" : "ghost"}
+                onClick={() => setViewMode("tree")}
+                data-testid="button-view-tree"
+              >
+                <GitBranch className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-foreground border">Vue hiérarchique</TooltipContent>
+          </Tooltip>
+        </div>
         <Button
           size="sm"
           onClick={() => {
@@ -251,7 +283,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "list" ? (
         <div className="space-y-3">
           {okrTree.map((objective) => (
             <Card key={objective.id} className="overflow-hidden" data-testid={`card-objective-${objective.id}`}>
@@ -306,7 +338,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Modifier</TooltipContent>
+                          <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -324,7 +356,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Plus className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Ajouter un Key Result</TooltipContent>
+                          <TooltipContent className="bg-white text-foreground border">Ajouter un Key Result</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -342,7 +374,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Supprimer</TooltipContent>
+                          <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
                         </Tooltip>
                       </div>
                     </div>
@@ -419,7 +451,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                     <ListPlus className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Créer une tâche</TooltipContent>
+                                <TooltipContent className="bg-white text-foreground border">Créer une tâche</TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -436,7 +468,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Modifier</TooltipContent>
+                                <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -453,7 +485,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Supprimer</TooltipContent>
+                                <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
                               </Tooltip>
                             </div>
                           </div>
@@ -465,6 +497,110 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               </Collapsible>
             </Card>
           ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto pb-4" data-testid="okr-tree-view">
+          <div className="flex flex-col items-center min-w-max">
+            {okrTree.map((objective, objIndex) => (
+              <div key={objective.id} className="flex flex-col items-center">
+                <Card 
+                  className={`${getStatusColor(objective.status)} text-white min-w-[200px] max-w-[280px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setEditingObjective(objective);
+                    setShowObjectiveSheet(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setEditingObjective(objective);
+                      setShowObjectiveSheet(true);
+                    }
+                  }}
+                  data-testid={`tree-objective-${objective.id}`}
+                >
+                  <CardContent className="px-6 py-4">
+                    <div className="font-semibold text-sm mb-1">{objective.title}</div>
+                    <div className="text-xs opacity-90 mb-2">
+                      {okrObjectiveTypeOptions.find(o => o.value === objective.type)?.label || objective.type}
+                      {objective.targetPhase && ` - ${objective.targetPhase}`}
+                    </div>
+                    <div className="bg-white/20 rounded-full h-1.5 mb-1">
+                      <div 
+                        className="bg-white rounded-full h-1.5 transition-all"
+                        style={{ width: `${objective.progress || 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs opacity-75">{objective.progress || 0}%</div>
+                  </CardContent>
+                </Card>
+
+                {objective.keyResults.length > 0 && (
+                  <>
+                    <div className="w-0.5 h-6 bg-border" />
+                    <div className="flex items-start relative">
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-border" 
+                           style={{ 
+                             width: objective.keyResults.length > 1 
+                               ? `calc(${(objective.keyResults.length - 1) * 180}px + 50%)` 
+                               : '0px',
+                             left: objective.keyResults.length > 1 ? '0' : '50%',
+                             transform: objective.keyResults.length > 1 ? 'none' : 'translateX(-50%)'
+                           }} 
+                      />
+                      <div className="flex gap-4">
+                        {objective.keyResults.map((kr) => (
+                          <div key={kr.id} className="flex flex-col items-center">
+                            <div className="w-0.5 h-4 bg-border" />
+                            <Card 
+                              className="min-w-[160px] max-w-[200px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                setEditingKR(kr);
+                                setSelectedObjectiveId(objective.id);
+                                setShowKRSheet(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setEditingKR(kr);
+                                  setSelectedObjectiveId(objective.id);
+                                  setShowKRSheet(true);
+                                }
+                              }}
+                              data-testid={`tree-kr-${kr.id}`}
+                            >
+                              <CardContent className="px-4 py-3">
+                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                  {getMetricIcon(kr.metricType)}
+                                  <span className="font-medium text-xs">{kr.title}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {kr.currentValue || 0} / {kr.targetValue} {kr.unit || ''}
+                                </div>
+                                <div className="bg-muted rounded-full h-1 mt-2">
+                                  <div 
+                                    className="bg-primary rounded-full h-1 transition-all"
+                                    style={{ width: `${Math.min((kr.currentValue || 0) / kr.targetValue * 100, 100)}%` }}
+                                  />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {objIndex < okrTree.length - 1 && (
+                  <div className="w-0.5 h-8 bg-border my-4" />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
