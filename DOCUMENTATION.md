@@ -225,7 +225,133 @@ Planbase est une plateforme SaaS modulaire complète conçue pour les freelances
 - Token d'invitation avec expiration
 - Statuts : pending, accepted, revoked, expired
 
-### 8. Sécurité et authentification
+### 8. Système OKR (Objectifs et Résultats Clés)
+
+**Vue d'ensemble**
+Le système OKR permet de définir des objectifs stratégiques pour chaque projet et de les suivre via des résultats clés mesurables. Les résultats clés peuvent être liés à des éléments de travail existants (tâches, epics, sprints, roadmap).
+
+**Modèle de données**
+- `okr_objectives` : Objectifs stratégiques par projet
+  - `id` : UUID unique
+  - `projectId` : Lien vers le projet
+  - `title` : Titre de l'objectif
+  - `description` : Description détaillée (optionnelle)
+  - `type` : Type d'objectif (business, product, technical, operational)
+  - `targetPhase` : Phase cible (mvp, growth, scale, enterprise)
+  - `status` : Statut (draft, active, completed, cancelled)
+  - `progress` : Progression globale (0-100%)
+  - `startDate` / `endDate` : Période de l'objectif
+  - `order` : Position dans la liste
+
+- `okr_key_results` : Résultats clés par objectif
+  - `id` : UUID unique
+  - `objectiveId` : Lien vers l'objectif parent
+  - `title` : Titre du résultat clé
+  - `description` : Description (optionnelle)
+  - `metricType` : Type de métrique (percentage, number, currency, boolean)
+  - `startValue` / `targetValue` / `currentValue` : Valeurs de suivi
+  - `progress` : Progression calculée (0-100%)
+  - `status` : Statut (not_started, on_track, at_risk, behind, completed)
+  - `order` : Position dans la liste
+
+- `okr_links` : Liens entre Key Results et entités
+  - `id` : UUID unique
+  - `keyResultId` : Lien vers le résultat clé
+  - `entityType` : Type d'entité (task, epic, sprint, roadmap_item)
+  - `entityId` : ID de l'entité liée
+
+**Vues disponibles**
+
+*Vue Liste*
+- Affichage des objectifs en cartes avec KR sous forme de liste
+- Barre de progression par objectif
+- Actions rapides : créer KR, lier entité, supprimer
+- Tâches liées affichées avec fond blanc (`bg-white dark:bg-gray-900`)
+
+*Vue Hiérarchique (Arbre)*
+- Structure arborescente : Objectif → Key Results → Entités liées
+- Tâches liées affichées horizontalement sous chaque KR avec `flex-wrap`
+- Fond blanc pour les entités liées (`bg-white dark:bg-gray-900`)
+- Taille de police : 11px pour les titres des entités liées
+- Clic sur une tâche ouvre le `TaskDetailModal` avec édition complète
+
+**Fonctionnalités des liens**
+
+*Types d'entités supportés*
+- **Tâche** : Lien vers une tâche du projet (affiche titre + badge)
+- **Epic** : Lien vers un epic du backlog
+- **Sprint** : Lien vers un sprint
+- **Roadmap Item** : Lien vers une étape de la roadmap
+
+*Création de liens*
+1. Cliquer sur l'icône de lien à côté d'un KR
+2. Sélectionner le type d'entité
+3. Choisir l'entité dans la liste déroulante
+4. Confirmer pour créer le lien
+
+*Création de tâche depuis un KR*
+1. Cliquer sur l'icône + à côté d'un KR
+2. Saisir le titre de la nouvelle tâche
+3. La tâche est créée dans le backlog du projet
+4. Un lien automatique est créé vers le KR
+
+**Intégration TaskDetailModal**
+
+En cliquant sur une tâche liée (dans les deux vues), le panneau de détail de tâche s'ouvre avec toutes les fonctionnalités :
+- Édition du titre et description
+- Changement de statut/colonne
+- Assignation utilisateur
+- Priorité et date d'échéance
+- Effort (1-5 étoiles)
+- Autosave automatique (500ms debounce)
+
+**Données requises pour le composant OkrTreeView**
+```typescript
+const usersQuery = useQuery({ queryKey: ["/api/accounts/:accountId/users"] });
+const projectsQuery = useQuery({ queryKey: ["/api/projects"] });
+const taskColumnsQuery = useQuery({ queryKey: ["/api/task-columns"] });
+const backlogsQuery = useQuery({ queryKey: ["/api/backlogs"] });
+const tasksQuery = useQuery({ queryKey: [`/api/projects/${projectId}/tasks`] });
+```
+
+**Sécurité multi-tenant**
+- Toutes les tables OKR incluent `accountId` pour le RLS
+- Les tâches sont récupérées via `/api/projects/:projectId/tasks` avec scoping accountId+projectId
+- Les liens ne peuvent référencer que des entités du même compte/projet
+
+**Styles UI/UX**
+- Fond blanc pour les entités liées : `bg-white dark:bg-gray-900`
+- Layout horizontal en vue arbre : `flex flex-wrap gap-1.5`
+- Police des titres d'entités : `text-[11px]`
+- Badges de type : `text-[9px]` avec variant secondary
+- Interaction hover : classe `hover-elevate`
+- Bouton de suppression de lien : icône poubelle avec `stopPropagation`
+
+**Toast notifications**
+- Création de lien : "Lien créé avec succès"
+- Suppression de lien : "Lien supprimé"
+- Création de tâche depuis KR : "Tâche créée et liée au Key Result"
+
+**Endpoints API**
+```
+GET    /api/projects/:projectId/okr/objectives
+POST   /api/projects/:projectId/okr/objectives
+PATCH  /api/projects/:projectId/okr/objectives/:id
+DELETE /api/projects/:projectId/okr/objectives/:id
+
+GET    /api/projects/:projectId/okr/objectives/:objectiveId/key-results
+POST   /api/projects/:projectId/okr/objectives/:objectiveId/key-results
+PATCH  /api/projects/:projectId/okr/key-results/:id
+DELETE /api/projects/:projectId/okr/key-results/:id
+
+GET    /api/projects/:projectId/okr/key-results/:keyResultId/links
+POST   /api/projects/:projectId/okr/key-results/:keyResultId/links
+DELETE /api/projects/:projectId/okr/links/:id
+
+POST   /api/projects/:projectId/okr/key-results/:keyResultId/create-task
+```
+
+### 9. Sécurité et authentification
 
 **Authentification actuelle (développement)**
 - Authentification basée sur les headers
@@ -292,6 +418,11 @@ Planbase est une plateforme SaaS modulaire complète conçue pour les freelances
 - `products` : Catalogue produits
 - `features` : Fonctionnalités produit
 - `roadmap_items` : Items de roadmap
+
+#### OKR (Objectifs et Résultats Clés)
+- `okr_objectives` : Objectifs stratégiques par projet
+- `okr_key_results` : Résultats clés mesurables
+- `okr_links` : Liens vers tâches, epics, sprints, roadmap
 
 ### Relations clés
 
@@ -574,6 +705,10 @@ git push origin feature/nom-feature
 - ✅ Activités et historique
 
 **Améliorations récentes**
+- Système OKR complet avec objectifs, key results et liens vers entités
+- Vue hiérarchique OKR avec tâches liées affichées horizontalement
+- Intégration TaskDetailModal dans les vues OKR pour édition complète
+- Fond blanc pour les tâches liées (bg-white dark:bg-gray-900)
 - Correction du calcul du KPI "Opportunités" (exclusion won/lost)
 - Vue Liste par défaut pour les tâches de projet
 - Accordion pour les catégories de tâches avec collapse/expand
@@ -598,5 +733,5 @@ Propriétaire - Tous droits réservés
 
 ---
 
-**Date de dernière mise à jour** : 3 novembre 2025
-**Version** : 1.0.0-MVP
+**Date de dernière mise à jour** : 18 janvier 2026
+**Version** : 1.1.0
