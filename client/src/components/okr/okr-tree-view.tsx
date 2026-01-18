@@ -887,6 +887,12 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           setObjectiveToDelete(editingObjective.id);
           setShowDeleteObjectiveDialog(true);
         } : undefined}
+        onAddKR={editingObjective ? () => {
+          setSelectedObjectiveId(editingObjective.id);
+          setEditingKR(null);
+          setShowObjectiveSheet(false);
+          setShowKRSheet(true);
+        } : undefined}
         isPending={createObjectiveMutation.isPending || updateObjectiveMutation.isPending}
         isDeleting={deleteObjectiveMutation.isPending}
       />
@@ -1083,6 +1089,7 @@ function ObjectiveSheet({
   objective,
   onSave,
   onDelete,
+  onAddKR,
   isPending,
   isDeleting,
 }: {
@@ -1091,6 +1098,7 @@ function ObjectiveSheet({
   objective: OkrObjective | null;
   onSave: (data: any) => void;
   onDelete?: () => void;
+  onAddKR?: () => void;
   isPending: boolean;
   isDeleting?: boolean;
 }) {
@@ -1184,18 +1192,36 @@ function ObjectiveSheet({
           </div>
         </div>
         <SheetFooter className="flex justify-between gap-2">
-          {objective && onDelete && (
-            <Button
-              variant="destructive"
-              onClick={onDelete}
-              disabled={isDeleting}
-              data-testid="button-delete-objective-sheet"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isDeleting ? "Suppression..." : "Supprimer"}
-            </Button>
-          )}
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2">
+            {objective && onDelete && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    onClick={onDelete}
+                    disabled={isDeleting}
+                    data-testid="button-delete-objective-sheet"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
+              </Tooltip>
+            )}
+            {objective && onAddKR && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAddKR}
+                data-testid="button-add-kr-from-objective-sheet"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Ajouter un KR
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
@@ -1330,7 +1356,7 @@ function KeyResultSheet({
         </div>
         <SheetFooter className="flex-col gap-3">
           {keyResult && (onLink || onCreateTask) && (
-            <div className="flex gap-2 w-full">
+            <div className="flex gap-2 w-full border-t pt-3">
               {onLink && (
                 <Button
                   variant="outline"
@@ -1338,8 +1364,8 @@ function KeyResultSheet({
                   onClick={() => onLink(keyResult.id)}
                   data-testid="button-link-kr-sheet"
                 >
-                  <Link2 className="h-4 w-4 mr-1" />
-                  Lier
+                  <Link2 className="h-4 w-4 mr-1.5" />
+                  Lier un élément
                 </Button>
               )}
               {onCreateTask && (
@@ -1349,8 +1375,8 @@ function KeyResultSheet({
                   onClick={() => onCreateTask(keyResult.id, keyResult.title)}
                   data-testid="button-create-task-kr-sheet"
                 >
-                  <ListPlus className="h-4 w-4 mr-1" />
-                  Tâche
+                  <ListPlus className="h-4 w-4 mr-1.5" />
+                  Créer une tâche
                 </Button>
               )}
             </div>
