@@ -739,8 +739,9 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           setShowKRSheet(false);
           setShowLinkDialog(true);
         }}
-        onCreateTask={(krId) => {
+        onCreateTask={(krId, krTitle) => {
           setSelectedKRId(krId);
+          setNewTaskTitle(`Tâche pour: ${krTitle}`);
           setShowKRSheet(false);
           setShowCreateTaskDialog(true);
         }}
@@ -982,7 +983,7 @@ function KeyResultSheet({
   onOpenChange: (open: boolean) => void;
   keyResult: OkrKeyResult | null;
   onLink?: (krId: string) => void;
-  onCreateTask?: (krId: string) => void;
+  onCreateTask?: (krId: string, krTitle: string) => void;
   objectiveId: string | null;
   onSave: (data: any) => void;
   isPending: boolean;
@@ -1100,7 +1101,7 @@ function KeyResultSheet({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onCreateTask(keyResult.id)}
+                onClick={() => onCreateTask(keyResult.id, keyResult.title)}
                 data-testid="button-create-task-kr-sheet"
               >
                 <ListPlus className="h-4 w-4 mr-1" />
