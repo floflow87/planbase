@@ -19,8 +19,9 @@ import {
   AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus,
   List, GitBranch
 } from "lucide-react";
-import type { OkrObjective, OkrKeyResult, OkrLink, Task, Epic, Sprint, RoadmapItem } from "@shared/schema";
+import type { OkrObjective, OkrKeyResult, OkrLink, Task, Epic, Sprint, RoadmapItem, AppUser, Project, TaskColumn, Backlog } from "@shared/schema";
 import { okrObjectiveTypeOptions, okrTargetPhaseOptions, okrStatusOptions, okrMetricTypeOptions } from "@shared/schema";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 
 interface EnrichedOkrLink extends OkrLink {
   entity?: Task | Epic | Sprint | RoadmapItem | null;
@@ -72,6 +73,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [linkEntityType, setLinkEntityType] = useState<"task" | "epic" | "sprint" | "roadmap_item">("task");
   const [linkEntityId, setLinkEntityId] = useState<string>("");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
 
   const { data: okrTree = [], isLoading } = useQuery<OkrObjectiveWithKRs[]>({
     queryKey: ["/api/projects", projectId, "okr"],
@@ -99,8 +102,25 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   });
 
   // Get tasks for this project (from /tasks page - generic tasks, project-scoped)
-  const { data: projectTasks = [] } = useQuery<any[]>({
+  const { data: projectTasks = [] } = useQuery<Task[]>({
     queryKey: ["/api/projects", projectId, "tasks"],
+  });
+
+  // Queries for TaskDetailModal
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
+  });
+
+  const { data: backlogs = [] } = useQuery<Backlog[]>({
+    queryKey: ["/api/backlogs"],
   });
 
   const createObjectiveMutation = useMutation({
@@ -241,6 +261,37 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (data: Partial<Task> & { id: string }) => {
+      const res = await apiRequest(`/api/tasks/${data.id}`, "PATCH", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      toast({ title: "Tâche mise à jour", variant: "success" });
+      setIsTaskDetailOpen(false);
+      setSelectedTask(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleTaskClick = (link: EnrichedOkrLink) => {
+    if (link.entityType === "task" && link.entity) {
+      setSelectedTask(link.entity as Task);
+      setIsTaskDetailOpen(true);
+    }
+  };
+
+  const handleSaveTaskDetail = (taskData: Partial<Task>) => {
+    if (selectedTask) {
+      updateTaskMutation.mutate({ id: selectedTask.id, ...taskData });
+    }
+  };
 
   const toggleObjective = (id: string) => {
     const newSet = new Set(expandedObjectives);
@@ -611,8 +662,9 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                   return (
                                     <div
                                       key={link.id}
-                                      className="flex items-center gap-2 p-2 bg-[#f0edf5] dark:bg-[#2d2a3e] border rounded text-xs"
+                                      className="flex items-center gap-2 p-2 bg-white dark:bg-gray-900 border rounded text-xs cursor-pointer hover-elevate"
                                       data-testid={`linked-entity-${link.id}`}
+                                      onClick={() => handleTaskClick(link)}
                                     >
                                       <Badge variant="secondary" className="text-[10px]">
                                         {typeLabels[link.entityType] || link.entityType}
@@ -628,7 +680,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                           <Button
                                             size="icon"
                                             variant="ghost"
-                                            onClick={() => deleteLinkMutation.mutate(link.id)}
+                                            onClick={(e) => { e.stopPropagation(); deleteLinkMutation.mutate(link.id); }}
                                             data-testid={`button-unlink-${link.id}`}
                                           >
                                             <Trash2 className="h-3 w-3 text-muted-foreground" />
@@ -767,8 +819,9 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                     return (
                                       <div
                                         key={link.id}
-                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-[#f0edf5] dark:bg-[#2d2a3e] border rounded text-[10px] min-w-[140px] max-w-[180px]"
+                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-gray-900 border rounded text-[11px] min-w-[140px] max-w-[180px] cursor-pointer hover-elevate"
                                         data-testid={`tree-linked-entity-${link.id}`}
+                                        onClick={() => handleTaskClick(link)}
                                       >
                                         <Badge variant="secondary" className="text-[9px] px-1 py-0">
                                           {typeLabels[link.entityType] || link.entityType}
@@ -950,6 +1003,29 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task Detail Modal */}
+      {selectedTask && (() => {
+        const taskProjectColumns = selectedTask.projectId
+          ? taskColumns.filter((c) => c.projectId === selectedTask.projectId)
+          : taskColumns.filter((c) => !c.projectId);
+        const sortedTaskColumns = [...taskProjectColumns].sort((a, b) => a.order - b.order);
+        return (
+          <TaskDetailModal
+            task={selectedTask}
+            users={users}
+            projects={projects}
+            columns={sortedTaskColumns}
+            backlogs={backlogs}
+            isOpen={isTaskDetailOpen}
+            onClose={() => {
+              setIsTaskDetailOpen(false);
+              setSelectedTask(null);
+            }}
+            onSave={handleSaveTaskDetail}
+          />
+        );
+      })()}
     </div>
   );
 }
