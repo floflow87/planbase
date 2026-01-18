@@ -1593,11 +1593,11 @@ export default function Tasks() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 bg-popover">
+                <PopoverContent className="w-[300px] p-0">
                   <Command>
                     <CommandInput placeholder="Rechercher un projet..." />
                     <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
+                    <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
                         onSelect={() => toggleProjectSelection("all")}
                         data-testid="option-project-all"
@@ -1644,11 +1644,11 @@ export default function Tasks() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[220px] p-0 bg-popover">
+                <PopoverContent className="w-[220px] p-0">
                   <Command>
                     <CommandInput placeholder="Rechercher un statut..." />
                     <CommandEmpty>Aucun statut trouvé.</CommandEmpty>
-                    <CommandGroup className="max-h-[300px] overflow-y-auto bg-popover">
+                    <CommandGroup className="max-h-[300px] overflow-y-auto">
                       <CommandItem
                         onSelect={() => toggleStatusSelection("all")}
                         data-testid="option-status-all"
@@ -1968,7 +1968,7 @@ export default function Tasks() {
 
         {/* Create Task Sheet */}
         <Sheet open={isCreateTaskDialogOpen} onOpenChange={setIsCreateTaskDialogOpen}>
-          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col bg-popover" data-testid="sheet-create-task">
+          <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col " data-testid="sheet-create-task">
             <SheetHeader>
               <SheetTitle>Nouvelle tâche</SheetTitle>
             </SheetHeader>
@@ -1992,7 +1992,7 @@ export default function Tasks() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 bg-popover">
+                  <PopoverContent className="w-full p-0 ">
                     <Command>
                       <CommandInput placeholder="Rechercher un projet..." />
                       <CommandList>
@@ -2065,10 +2065,10 @@ export default function Tasks() {
                     value={newTaskPriority}
                     onValueChange={(value: "low" | "medium" | "high") => setNewTaskPriority(value)}
                   >
-                    <SelectTrigger id="task-priority" className="bg-popover" data-testid="select-new-task-priority">
+                    <SelectTrigger id="task-priority" className="" data-testid="select-new-task-priority">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-popover">
+                    <SelectContent className="">
                       {TASK_PRIORITIES.map((p) => (
                         <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
                       ))}
@@ -2081,10 +2081,10 @@ export default function Tasks() {
                     value={newTaskAssignedTo || "unassigned"}
                     onValueChange={(value) => setNewTaskAssignedTo(value === "unassigned" ? undefined : value)}
                   >
-                    <SelectTrigger id="task-assigned" className="bg-popover" data-testid="select-new-task-assigned">
+                    <SelectTrigger id="task-assigned" className="" data-testid="select-new-task-assigned">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-popover">
+                    <SelectContent className="">
                       <SelectItem value="unassigned">Non assigné</SelectItem>
                       {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
@@ -2147,12 +2147,12 @@ export default function Tasks() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 bg-popover">
+                  <PopoverContent className="w-full p-0 ">
                     <Command>
                       <CommandInput placeholder="Rechercher une colonne..." />
                       <CommandList>
                         <CommandEmpty>Aucune colonne trouvée.</CommandEmpty>
-                        <CommandGroup className="bg-popover">
+                        <CommandGroup className="">
                           {(() => {
                             const columnsToDisplay = newTaskProjectId === "none" 
                               ? globalTaskColumns 
@@ -2210,7 +2210,7 @@ export default function Tasks() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-popover">
+                  <PopoverContent className="w-auto p-0 ">
                     <Calendar
                       mode="single"
                       selected={newTaskDueDate}
@@ -2259,7 +2259,7 @@ export default function Tasks() {
 
         {/* Create Column Dialog */}
         <Dialog open={isCreateColumnDialogOpen} onOpenChange={setIsCreateColumnDialogOpen}>
-          <DialogContent data-testid="dialog-create-column" className="bg-popover">
+          <DialogContent data-testid="dialog-create-column" className="">
             <DialogHeader>
               <DialogTitle>Nouvelle colonne</DialogTitle>
             </DialogHeader>
@@ -2295,7 +2295,7 @@ export default function Tasks() {
 
         {/* Rename Column Dialog */}
         <Dialog open={isRenameColumnDialogOpen} onOpenChange={setIsRenameColumnDialogOpen}>
-          <DialogContent data-testid="dialog-rename-column" className="bg-popover">
+          <DialogContent data-testid="dialog-rename-column" className="">
             <DialogHeader>
               <DialogTitle>Renommer la colonne</DialogTitle>
             </DialogHeader>
@@ -2331,7 +2331,7 @@ export default function Tasks() {
 
         {/* Change Color Dialog */}
         <Dialog open={isColorColumnDialogOpen} onOpenChange={setIsColorColumnDialogOpen}>
-          <DialogContent data-testid="dialog-color-column" className="bg-popover">
+          <DialogContent data-testid="dialog-color-column" className="">
             <DialogHeader>
               <DialogTitle>Changer la couleur</DialogTitle>
             </DialogHeader>
@@ -2364,7 +2364,7 @@ export default function Tasks() {
 
         {/* Delete Column Dialog */}
         <AlertDialog open={isDeleteColumnDialogOpen} onOpenChange={setIsDeleteColumnDialogOpen}>
-          <AlertDialogContent data-testid="dialog-delete-column" className="bg-popover">
+          <AlertDialogContent data-testid="dialog-delete-column" className="">
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>
@@ -2387,7 +2387,7 @@ export default function Tasks() {
 
         {/* Delete Task Dialog */}
         <AlertDialog open={isDeleteTaskDialogOpen} onOpenChange={setIsDeleteTaskDialogOpen}>
-          <AlertDialogContent data-testid="dialog-delete-task" className="bg-popover">
+          <AlertDialogContent data-testid="dialog-delete-task" className="">
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
               <AlertDialogDescription>

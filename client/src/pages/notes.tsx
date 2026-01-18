@@ -965,7 +965,7 @@ export default function Notes() {
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuContent align="end" >
                               <DropdownMenuItem 
                                 onClick={() => navigate(`/notes/${note.id}`)}
                                 data-testid={`button-open-note-mobile-${note.id}`}
@@ -1204,7 +1204,7 @@ export default function Notes() {
                             {note.status === "draft" ? "Brouillon" : note.status === "active" ? "Publiée" : "Archivée"}
                           </Badge>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-popover">
+                        <DropdownMenuContent >
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1260,7 +1260,7 @@ export default function Notes() {
                             {note.visibility === "private" ? "Privée" : note.visibility === "account" ? "Équipe" : "Client"}
                           </Badge>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-popover">
+                        <DropdownMenuContent >
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1333,7 +1333,7 @@ export default function Notes() {
                             </Badge>
                           )}
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-popover max-h-[300px] overflow-y-auto">
+                        <DropdownMenuContent className=" max-h-[300px] overflow-y-auto">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1377,7 +1377,7 @@ export default function Notes() {
                             <MoreVertical className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuContent align="end" >
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();

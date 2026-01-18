@@ -749,6 +749,48 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                 </div>
                               </CardContent>
                             </Card>
+                            {kr.links.length > 0 && (
+                              <div className="flex flex-col items-center mt-2">
+                                <div className="w-0.5 h-3 bg-border" />
+                                <div className="space-y-1">
+                                  {kr.links.map((link) => {
+                                    const entityTitle = link.entity 
+                                      ? ('title' in link.entity ? link.entity.title : 
+                                         'name' in link.entity ? link.entity.name : 'Élément lié')
+                                      : (link.entityId ? `${link.entityType} (${link.entityId.slice(0, 8)}...)` : 'Élément inconnu');
+                                    const typeLabels: Record<string, string> = {
+                                      task: 'Tâche',
+                                      epic: 'Epic',
+                                      sprint: 'Sprint',
+                                      roadmap_item: 'Roadmap'
+                                    };
+                                    return (
+                                      <div
+                                        key={link.id}
+                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-[#f0edf5] dark:bg-[#2d2a3e] border rounded text-[10px] min-w-[140px] max-w-[180px]"
+                                        data-testid={`tree-linked-entity-${link.id}`}
+                                      >
+                                        <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                                          {typeLabels[link.entityType] || link.entityType}
+                                        </Badge>
+                                        <span className="flex-1 truncate">{entityTitle}</span>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteLinkMutation.mutate(link.id);
+                                          }}
+                                          data-testid={`button-tree-unlink-${link.id}`}
+                                        >
+                                          <Trash2 className="h-3 w-3 text-muted-foreground" />
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
