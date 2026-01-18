@@ -5874,6 +5874,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Fetch linked entity details
+      const taskIds = links.filter(l => l.entityType === "task").map(l => l.entityId);
+      const epicIds = links.filter(l => l.entityType === "epic").map(l => l.entityId);
+      const sprintIds = links.filter(l => l.entityType === "sprint").map(l => l.entityId);
+      const roadmapItemIds = links.filter(l => l.entityType === "roadmap_item").map(l => l.entityId);
+      
+      let linkedTasks: any[] = [];
+      let linkedEpics: any[] = [];
+      let linkedSprints: any[] = [];
+      let linkedRoadmapItems: any[] = [];
+      
+      if (taskIds.length > 0) {
+        linkedTasks = await db.select().from(backlogTasks)
+          .where(and(eq(backlogTasks.accountId, accountId), inArray(backlogTasks.id, taskIds)));
+      }
+      if (epicIds.length > 0) {
+        linkedEpics = await db.select().from(epics)
+          .where(and(eq(epics.accountId, accountId), inArray(epics.id, epicIds)));
+      }
+      if (sprintIds.length > 0) {
+        linkedSprints = await db.select().from(sprints)
+          .where(and(eq(sprints.accountId, accountId), inArray(sprints.id, sprintIds)));
+      }
+      if (roadmapItemIds.length > 0) {
+        linkedRoadmapItems = await db.select().from(roadmapItems)
+          .where(and(eq(roadmapItems.projectId, projectId), inArray(roadmapItems.id, roadmapItemIds)));
+      }
+      
+      // Create lookup maps for entity details
+      const taskMap = new Map(linkedTasks.map(t => [t.id, t]));
+      const epicMap = new Map(linkedEpics.map(e => [e.id, e]));
+      const sprintMap = new Map(linkedSprints.map(s => [s.id, s]));
+      const roadmapItemMap = new Map(linkedRoadmapItems.map(r => [r.id, r]));
+      
+      // Enrich links with entity details
+      const enrichedLinks = links.map(link => {
+        let entity = null;
+        switch (link.entityType) {
+          case "task":
+            entity = taskMap.get(link.entityId);
+            break;
+          case "epic":
+            entity = epicMap.get(link.entityId);
+            break;
+          case "sprint":
+            entity = sprintMap.get(link.entityId);
+            break;
+          case "roadmap_item":
+            entity = roadmapItemMap.get(link.entityId);
+            break;
+        }
+        return { ...link, entity };
+      });
+      
       // Build tree structure with dynamic progress/status calculation
       const tree = objectives.map(obj => {
         const objKeyResults = keyResults.filter(kr => kr.objectiveId === obj.id);
@@ -5901,7 +5955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: dynamicStatus,
           keyResults: objKeyResults.map(kr => ({
             ...kr,
-            links: links.filter(l => l.keyResultId === kr.id)
+            links: enrichedLinks.filter(l => l.keyResultId === kr.id)
           }))
         };
       });

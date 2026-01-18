@@ -19,11 +19,15 @@ import {
   AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus,
   List, GitBranch
 } from "lucide-react";
-import type { OkrObjective, OkrKeyResult, OkrLink } from "@shared/schema";
+import type { OkrObjective, OkrKeyResult, OkrLink, BacklogTask, Epic, Sprint, RoadmapItem } from "@shared/schema";
 import { okrObjectiveTypeOptions, okrTargetPhaseOptions, okrStatusOptions, okrMetricTypeOptions } from "@shared/schema";
 
+interface EnrichedOkrLink extends OkrLink {
+  entity?: BacklogTask | Epic | Sprint | RoadmapItem | null;
+}
+
 interface OkrObjectiveWithKRs extends OkrObjective {
-  keyResults: (OkrKeyResult & { links: OkrLink[] })[];
+  keyResults: (OkrKeyResult & { links: EnrichedOkrLink[] })[];
 }
 
 interface OkrTreeViewProps {
@@ -483,106 +487,157 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                     ) : (
                       <div className="space-y-2 ml-8">
                         {objective.keyResults.map((kr) => (
-                          <div
-                            key={kr.id}
-                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover-elevate"
-                            data-testid={`kr-item-${kr.id}`}
-                          >
-                            <div className="p-1 rounded bg-primary/10">
-                              {getMetricIcon(kr.metricType)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-xs truncate">{kr.title}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {okrMetricTypeOptions.find(o => o.value === kr.metricType)?.label || kr.metricType}
-                                </Badge>
+                          <div key={kr.id} className="space-y-1">
+                            <div
+                              className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover-elevate"
+                              data-testid={`kr-item-${kr.id}`}
+                            >
+                              <div className="p-1 rounded bg-primary/10">
+                                {getMetricIcon(kr.metricType)}
                               </div>
-                              <div className="flex items-center gap-3 mt-1">
-                                <Progress
-                                  value={kr.targetValue > 0 ? ((kr.currentValue || 0) / kr.targetValue) * 100 : 0}
-                                  className="h-1.5 w-24"
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  {kr.currentValue || 0} / {kr.targetValue} {kr.unit || ""}
-                                </span>
-                                {kr.links.length > 0 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Link2 className="h-3 w-3 mr-1" />
-                                    {kr.links.length} lien(s)
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-xs truncate">{kr.title}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {okrMetricTypeOptions.find(o => o.value === kr.metricType)?.label || kr.metricType}
                                   </Badge>
-                                )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <Progress
+                                    value={kr.targetValue > 0 ? ((kr.currentValue || 0) / kr.targetValue) * 100 : 0}
+                                    className="h-1.5 w-24"
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {kr.currentValue || 0} / {kr.targetValue} {kr.unit || ""}
+                                  </span>
+                                  {kr.links.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Link2 className="h-3 w-3 mr-1" />
+                                      {kr.links.length} lien(s)
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedKRId(kr.id);
+                                        setNewTaskTitle(`Tâche pour: ${kr.title}`);
+                                        setShowCreateTaskDialog(true);
+                                      }}
+                                      data-testid={`button-create-task-${kr.id}`}
+                                    >
+                                      <ListPlus className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-foreground border">Créer une tâche</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedKRId(kr.id);
+                                        setShowLinkDialog(true);
+                                      }}
+                                      data-testid={`button-link-kr-${kr.id}`}
+                                    >
+                                      <Link2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-foreground border">Lier à Epic/Sprint/Roadmap</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedObjectiveId(objective.id);
+                                        setEditingKR(kr);
+                                        setShowKRSheet(true);
+                                      }}
+                                      data-testid={`button-edit-kr-${kr.id}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        if (confirm("Supprimer ce Key Result ?")) {
+                                          deleteKRMutation.mutate(kr.id);
+                                        }
+                                      }}
+                                      data-testid={`button-delete-kr-${kr.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setSelectedKRId(kr.id);
-                                      setNewTaskTitle(`Tâche pour: ${kr.title}`);
-                                      setShowCreateTaskDialog(true);
-                                    }}
-                                    data-testid={`button-create-task-${kr.id}`}
-                                  >
-                                    <ListPlus className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-white text-foreground border">Créer une tâche</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setSelectedKRId(kr.id);
-                                      setShowLinkDialog(true);
-                                    }}
-                                    data-testid={`button-link-kr-${kr.id}`}
-                                  >
-                                    <Link2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-white text-foreground border">Lier à Epic/Sprint/Roadmap</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setSelectedObjectiveId(objective.id);
-                                      setEditingKR(kr);
-                                      setShowKRSheet(true);
-                                    }}
-                                    data-testid={`button-edit-kr-${kr.id}`}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-white text-foreground border">Modifier</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      if (confirm("Supprimer ce Key Result ?")) {
-                                        deleteKRMutation.mutate(kr.id);
-                                      }
-                                    }}
-                                    data-testid={`button-delete-kr-${kr.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
-                              </Tooltip>
-                            </div>
+                            {kr.links.length > 0 && (
+                              <div className="ml-8 space-y-1">
+                                {kr.links.map((link) => {
+                                  const entityTitle = link.entity 
+                                    ? ('title' in link.entity ? link.entity.title : 
+                                       'name' in link.entity ? link.entity.name : 'Élément lié')
+                                    : (link.entityId ? `${link.entityType} (${link.entityId.slice(0, 8)}...)` : 'Élément inconnu');
+                                  const entityState = link.entity 
+                                    ? ('state' in link.entity ? link.entity.state : 
+                                       'status' in link.entity ? link.entity.status : null)
+                                    : null;
+                                  const typeLabels: Record<string, string> = {
+                                    task: 'Tâche',
+                                    epic: 'Epic',
+                                    sprint: 'Sprint',
+                                    roadmap_item: 'Roadmap'
+                                  };
+                                  return (
+                                    <div
+                                      key={link.id}
+                                      className="flex items-center gap-2 p-2 bg-background border rounded text-xs"
+                                      data-testid={`linked-entity-${link.id}`}
+                                    >
+                                      <Badge variant="secondary" className="text-[10px]">
+                                        {typeLabels[link.entityType] || link.entityType}
+                                      </Badge>
+                                      <span className="flex-1 truncate">{entityTitle}</span>
+                                      {entityState && (
+                                        <Badge variant="outline" className="text-[10px]">
+                                          {entityState}
+                                        </Badge>
+                                      )}
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => deleteLinkMutation.mutate(link.id)}
+                                            data-testid={`button-unlink-${link.id}`}
+                                          >
+                                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="bg-white text-foreground border">Supprimer le lien</TooltipContent>
+                                      </Tooltip>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
