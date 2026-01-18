@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -32,9 +32,29 @@ interface OkrTreeViewProps {
 
 type ViewMode = "list" | "tree";
 
+const OKR_VIEW_MODE_KEY = "planbase_okr_view_mode";
+
+function getStoredViewMode(): ViewMode {
+  if (typeof window === 'undefined') return "list";
+  try {
+    const saved = localStorage.getItem(OKR_VIEW_MODE_KEY);
+    return (saved === "list" || saved === "tree") ? saved : "list";
+  } catch {
+    return "list";
+  }
+}
+
 export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
+  
+  useEffect(() => {
+    try {
+      localStorage.setItem(OKR_VIEW_MODE_KEY, viewMode);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [viewMode]);
   const [expandedObjectives, setExpandedObjectives] = useState<Set<string>>(new Set());
   const [expandedKRs, setExpandedKRs] = useState<Set<string>>(new Set());
   const [showObjectiveSheet, setShowObjectiveSheet] = useState(false);
@@ -504,7 +524,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
             {okrTree.map((objective, objIndex) => (
               <div key={objective.id} className="flex flex-col items-center">
                 <Card 
-                  className={`${getStatusColor(objective.status)} text-white min-w-[200px] max-w-[280px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2`}
+                  className="min-w-[200px] max-w-[280px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  style={{ backgroundColor: '#7C3AED' }}
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -521,8 +542,11 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                   data-testid={`tree-objective-${objective.id}`}
                 >
                   <CardContent className="px-6 py-4">
-                    <div className="font-semibold text-sm mb-1">{objective.title}</div>
-                    <div className="text-xs opacity-90 mb-2">
+                    <div className="flex justify-center mb-2">
+                      <Badge className="bg-white/20 text-white text-[10px] px-1.5 py-0.5">Obj.</Badge>
+                    </div>
+                    <div className="font-semibold text-sm mb-1 text-white">{objective.title}</div>
+                    <div className="text-xs text-white/90 mb-2">
                       {okrObjectiveTypeOptions.find(o => o.value === objective.type)?.label || objective.type}
                       {objective.targetPhase && ` - ${objective.targetPhase}`}
                     </div>
@@ -532,7 +556,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                         style={{ width: `${objective.progress || 0}%` }}
                       />
                     </div>
-                    <div className="text-xs opacity-75">{objective.progress || 0}%</div>
+                    <div className="text-xs text-white/75">{objective.progress || 0}%</div>
                   </CardContent>
                 </Card>
 
@@ -554,7 +578,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                           <div key={kr.id} className="flex flex-col items-center">
                             <div className="w-0.5 h-4 bg-border" />
                             <Card 
-                              className="min-w-[160px] max-w-[200px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              className="min-w-[160px] max-w-[200px] text-center cursor-pointer hover-elevate active-elevate-2 overflow-visible focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-violet-200"
+                              style={{ backgroundColor: '#EFE8FC' }}
                               role="button"
                               tabIndex={0}
                               onClick={() => {
@@ -573,17 +598,20 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               data-testid={`tree-kr-${kr.id}`}
                             >
                               <CardContent className="px-4 py-3">
+                                <div className="flex justify-center mb-2">
+                                  <Badge className="text-[10px] px-1.5 py-0.5" style={{ backgroundColor: '#7C3AED', color: 'white' }}>KR</Badge>
+                                </div>
                                 <div className="flex items-center justify-center gap-1.5 mb-1">
                                   {getMetricIcon(kr.metricType)}
-                                  <span className="font-medium text-xs">{kr.title}</span>
+                                  <span className="font-medium text-xs text-violet-900">{kr.title}</span>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-violet-700">
                                   {kr.currentValue || 0} / {kr.targetValue} {kr.unit || ''}
                                 </div>
-                                <div className="bg-muted rounded-full h-1 mt-2">
+                                <div className="rounded-full h-1 mt-2" style={{ backgroundColor: 'rgba(124, 58, 237, 0.2)' }}>
                                   <div 
-                                    className="bg-primary rounded-full h-1 transition-all"
-                                    style={{ width: `${Math.min((kr.currentValue || 0) / kr.targetValue * 100, 100)}%` }}
+                                    className="rounded-full h-1 transition-all"
+                                    style={{ width: `${Math.min((kr.currentValue || 0) / kr.targetValue * 100, 100)}%`, backgroundColor: '#7C3AED' }}
                                   />
                                 </div>
                               </CardContent>

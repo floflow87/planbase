@@ -6134,9 +6134,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [task] = await db.insert(backlogTasks).values({
         accountId,
         backlogId,
-        name: title || `Tâche pour: ${kr.title}`,
+        title: title || `Tâche pour: ${kr.title}`,
         description: description || `Créé depuis le Key Result: ${kr.title}`,
-        state: "backlog",
+        state: "a_faire",
         taskType: "task",
         epicId: epicId || null,
         sprintId: sprintId || null,
