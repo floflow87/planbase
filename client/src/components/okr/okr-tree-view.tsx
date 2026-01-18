@@ -60,14 +60,30 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [showObjectiveSheet, setShowObjectiveSheet] = useState(false);
   const [showKRSheet, setShowKRSheet] = useState(false);
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [editingObjective, setEditingObjective] = useState<OkrObjective | null>(null);
   const [editingKR, setEditingKR] = useState<OkrKeyResult | null>(null);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedKRId, setSelectedKRId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [linkEntityType, setLinkEntityType] = useState<"epic" | "sprint" | "roadmap_item">("epic");
+  const [linkEntityId, setLinkEntityId] = useState<string>("");
 
   const { data: okrTree = [], isLoading } = useQuery<OkrObjectiveWithKRs[]>({
     queryKey: ["/api/projects", projectId, "okr"],
+  });
+
+  // Queries for linking entities
+  const { data: projectEpics = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "epics"],
+  });
+
+  const { data: projectSprints = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "sprints"],
+  });
+
+  const { data: projectRoadmapItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "roadmap"],
   });
 
   const createObjectiveMutation = useMutation({
@@ -166,10 +182,42 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Tâche créée", className: "bg-green-500 text-white border-green-600" });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "backlog"] });
+      toast({ title: "Tâche créée et liée au Key Result", className: "bg-green-500 text-white border-green-600" });
       setShowCreateTaskDialog(false);
       setSelectedKRId(null);
       setNewTaskTitle("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createLinkMutation = useMutation({
+    mutationFn: async ({ keyResultId, entityType, entityId }: { keyResultId: string; entityType: string; entityId: string }) => {
+      const res = await apiRequest(`/api/okr/links`, "POST", { keyResultId, entityType, entityId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      toast({ title: "Lien créé", className: "bg-green-500 text-white border-green-600" });
+      setShowLinkDialog(false);
+      setSelectedKRId(null);
+      setLinkEntityId("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      await apiRequest(`/api/okr/links/${linkId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      toast({ title: "Lien supprimé", className: "bg-green-500 text-white border-green-600" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -479,6 +527,22 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                     size="icon"
                                     variant="ghost"
                                     onClick={() => {
+                                      setSelectedKRId(kr.id);
+                                      setShowLinkDialog(true);
+                                    }}
+                                    data-testid={`button-link-kr-${kr.id}`}
+                                  >
+                                    <Link2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-white text-foreground border">Lier à Epic/Sprint/Roadmap</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => {
                                       setSelectedObjectiveId(objective.id);
                                       setEditingKR(kr);
                                       setShowKRSheet(true);
@@ -662,9 +726,12 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       />
 
       <Dialog open={showCreateTaskDialog} onOpenChange={setShowCreateTaskDialog}>
-        <DialogContent className="bg-white dark:bg-background">
+        <DialogContent className="bg-white dark:bg-background" aria-describedby="create-task-description">
           <DialogHeader>
             <DialogTitle>Créer une tâche depuis ce Key Result</DialogTitle>
+            <p id="create-task-description" className="text-sm text-muted-foreground">
+              La tâche sera ajoutée au backlog du projet et liée à ce Key Result.
+            </p>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -691,6 +758,68 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               data-testid="button-confirm-create-task"
             >
               Créer la tâche
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pour lier un KR à un Epic/Sprint/Roadmap */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent className="bg-white dark:bg-background" aria-describedby="link-dialog-description">
+          <DialogHeader>
+            <DialogTitle>Lier ce Key Result</DialogTitle>
+            <p id="link-dialog-description" className="text-sm text-muted-foreground">
+              Créez un lien vers un Epic, Sprint ou une étape de roadmap existante.
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Type d'élément</Label>
+              <Select value={linkEntityType} onValueChange={(v: "epic" | "sprint" | "roadmap_item") => { setLinkEntityType(v); setLinkEntityId(""); }}>
+                <SelectTrigger data-testid="select-link-entity-type">
+                  <SelectValue placeholder="Sélectionner un type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="epic">Epic</SelectItem>
+                  <SelectItem value="sprint">Sprint</SelectItem>
+                  <SelectItem value="roadmap_item">Étape Roadmap</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Élément à lier</Label>
+              <Select value={linkEntityId} onValueChange={setLinkEntityId}>
+                <SelectTrigger data-testid="select-link-entity">
+                  <SelectValue placeholder="Sélectionner un élément" />
+                </SelectTrigger>
+                <SelectContent>
+                  {linkEntityType === "epic" && projectEpics.map((epic: any) => (
+                    <SelectItem key={epic.id} value={epic.id}>{epic.name || epic.title}</SelectItem>
+                  ))}
+                  {linkEntityType === "sprint" && projectSprints.map((sprint: any) => (
+                    <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
+                  ))}
+                  {linkEntityType === "roadmap_item" && projectRoadmapItems.map((item: any) => (
+                    <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLinkDialog(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedKRId && linkEntityId) {
+                  createLinkMutation.mutate({ keyResultId: selectedKRId, entityType: linkEntityType, entityId: linkEntityId });
+                }
+              }}
+              disabled={!linkEntityId || createLinkMutation.isPending}
+              data-testid="button-confirm-create-link"
+            >
+              Créer le lien
             </Button>
           </DialogFooter>
         </DialogContent>

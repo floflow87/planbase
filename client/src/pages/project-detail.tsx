@@ -3616,62 +3616,6 @@ export default function ProjectDetail() {
                   </PopoverContent>
                 </Popover>
               </div>
-              {/* Roadmap Milestone Reminder */}
-              {milestonesData?.nextMilestone && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className={cn(
-                        "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer",
-                        milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                        milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                        (!milestonesData.nextMilestone.milestoneStatus || milestonesData.nextMilestone.milestoneStatus === 'upcoming' || milestonesData.nextMilestone.milestoneStatus === 'achievable') && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      )}
-                      onClick={() => setActiveTab("roadmap")}
-                      data-testid="milestone-reminder"
-                    >
-                      {milestonesData.nextMilestone.milestoneStatus === 'overdue' ? (
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      ) : milestonesData.nextMilestone.milestoneStatus === 'at_risk' ? (
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      ) : (
-                        <Bell className="h-3.5 w-3.5" />
-                      )}
-                      <span className="hidden sm:inline font-medium truncate max-w-[150px]">
-                        {milestonesData.nextMilestone.title}
-                      </span>
-                      {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                        <span className="text-[10px] opacity-80">
-                          {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM", { locale: fr })}
-                        </span>
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <div className="space-y-1">
-                      <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
-                      {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
-                        <p className="text-xs text-muted-foreground">
-                          Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}
-                        </p>
-                      )}
-                      {milestonesData.upcomingCount > 1 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir
-                        </p>
-                      )}
-                      {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400">
-                          {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
-                          {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
-                          {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground italic">Cliquer pour voir la roadmap</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              )}
             </div>
           </div>
           <div className="flex gap-2 w-full sm:w-auto items-center">
@@ -3853,8 +3797,8 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Data Completeness Indicators */}
-        {dataWarnings.length > 0 && (
+        {/* Data Completeness Indicators & Roadmap Reminder */}
+        {(dataWarnings.length > 0 || milestonesData?.nextMilestone) && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {dataWarnings.map((warning, index) => (
               <Badge 
@@ -3876,6 +3820,60 @@ export default function ProjectDetail() {
                 {warning.message}
               </Badge>
             ))}
+            {/* Roadmap Milestone Reminder */}
+            {milestonesData?.nextMilestone && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs cursor-pointer w-fit",
+                      milestonesData.nextMilestone.milestoneStatus === 'overdue' && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                      milestonesData.nextMilestone.milestoneStatus === 'at_risk' && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                      (!milestonesData.nextMilestone.milestoneStatus || milestonesData.nextMilestone.milestoneStatus === 'upcoming' || milestonesData.nextMilestone.milestoneStatus === 'achievable') && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    )}
+                    onClick={() => setActiveTab("roadmap")}
+                    data-testid="milestone-reminder"
+                  >
+                    {milestonesData.nextMilestone.milestoneStatus === 'overdue' ? (
+                      <AlertTriangle className="h-3 w-3" />
+                    ) : milestonesData.nextMilestone.milestoneStatus === 'at_risk' ? (
+                      <AlertTriangle className="h-3 w-3" />
+                    ) : (
+                      <Bell className="h-3 w-3" />
+                    )}
+                    <span className="font-medium">{milestonesData.nextMilestone.title}</span>
+                    {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                      <span className="text-[10px] opacity-80">
+                        {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMM", { locale: fr })}
+                      </span>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <div className="space-y-1">
+                    <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
+                    {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
+                      <p className="text-xs text-muted-foreground">
+                        Date cible : {format(new Date(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate!), "d MMMM yyyy", { locale: fr })}
+                      </p>
+                    )}
+                    {milestonesData.upcomingCount > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        +{milestonesData.upcomingCount - 1} autre{milestonesData.upcomingCount > 2 ? 's' : ''} étape{milestonesData.upcomingCount > 2 ? 's' : ''} à venir
+                      </p>
+                    )}
+                    {(milestonesData.atRiskCount > 0 || milestonesData.overdueCount > 0) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {milestonesData.overdueCount > 0 && `${milestonesData.overdueCount} en retard`}
+                        {milestonesData.overdueCount > 0 && milestonesData.atRiskCount > 0 && ', '}
+                        {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground italic">Cliquer pour voir la roadmap</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         )}
 
