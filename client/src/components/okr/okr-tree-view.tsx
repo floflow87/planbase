@@ -752,7 +752,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                             {kr.links.length > 0 && (
                               <div className="flex flex-col items-center mt-2">
                                 <div className="w-0.5 h-3 bg-border" />
-                                <div className="space-y-1">
+                                <div className="flex flex-wrap gap-1 justify-center">
                                   {kr.links.map((link) => {
                                     const entityTitle = link.entity 
                                       ? ('title' in link.entity ? link.entity.title : 
