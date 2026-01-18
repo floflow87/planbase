@@ -19,11 +19,11 @@ import {
   AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus,
   List, GitBranch
 } from "lucide-react";
-import type { OkrObjective, OkrKeyResult, OkrLink, BacklogTask, Epic, Sprint, RoadmapItem } from "@shared/schema";
+import type { OkrObjective, OkrKeyResult, OkrLink, Task, Epic, Sprint, RoadmapItem } from "@shared/schema";
 import { okrObjectiveTypeOptions, okrTargetPhaseOptions, okrStatusOptions, okrMetricTypeOptions } from "@shared/schema";
 
 interface EnrichedOkrLink extends OkrLink {
-  entity?: BacklogTask | Epic | Sprint | RoadmapItem | null;
+  entity?: Task | Epic | Sprint | RoadmapItem | null;
 }
 
 interface OkrObjectiveWithKRs extends OkrObjective {
@@ -70,7 +70,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedKRId, setSelectedKRId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [linkEntityType, setLinkEntityType] = useState<"epic" | "sprint" | "roadmap_item">("epic");
+  const [linkEntityType, setLinkEntityType] = useState<"task" | "epic" | "sprint" | "roadmap_item">("task");
   const [linkEntityId, setLinkEntityId] = useState<string>("");
 
   const { data: okrTree = [], isLoading } = useQuery<OkrObjectiveWithKRs[]>({
@@ -96,6 +96,11 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const { data: projectRoadmapItems = [] } = useQuery<any[]>({
     queryKey: [`/api/roadmaps/${firstRoadmapId}/items`],
     enabled: !!firstRoadmapId,
+  });
+
+  // Get tasks for this project (from /tasks page - generic tasks, project-scoped)
+  const { data: projectTasks = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "tasks"],
   });
 
   const createObjectiveMutation = useMutation({
@@ -192,13 +197,11 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       const res = await apiRequest(`/api/okr/key-results/${keyResultId}/create-task`, "POST", { title });
       return res.json();
     },
-    onSuccess: (data: { backlogId: string; projectId: string }) => {
+    onSuccess: (data: { projectId: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      // Invalidate all backlog-related queries for proper UI refresh
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", data.backlogId] });
-      queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${data.backlogId}/tasks`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${data.projectId}/backlogs`] });
+      // Invalidate /api/tasks and project-scoped tasks so the new task appears in /tasks page
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
       toast({ title: "Tâche créée et liée au Key Result", className: "bg-green-500 text-white border-green-600" });
       setShowCreateTaskDialog(false);
       setSelectedKRId(null);
@@ -846,17 +849,18 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           <DialogHeader>
             <DialogTitle>Lier ce Key Result</DialogTitle>
             <p id="link-dialog-description" className="text-sm text-muted-foreground">
-              Créez un lien vers un Epic, Sprint ou une étape de roadmap existante.
+              Créez un lien vers une Tâche, Epic, Sprint ou une étape de roadmap existante.
             </p>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Type d'élément</Label>
-              <Select value={linkEntityType} onValueChange={(v: "epic" | "sprint" | "roadmap_item") => { setLinkEntityType(v); setLinkEntityId(""); }}>
+              <Select value={linkEntityType} onValueChange={(v: "task" | "epic" | "sprint" | "roadmap_item") => { setLinkEntityType(v); setLinkEntityId(""); }}>
                 <SelectTrigger data-testid="select-link-entity-type">
                   <SelectValue placeholder="Sélectionner un type" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="task">Tâche</SelectItem>
                   <SelectItem value="epic">Epic</SelectItem>
                   <SelectItem value="sprint">Sprint</SelectItem>
                   <SelectItem value="roadmap_item">Étape Roadmap</SelectItem>
@@ -870,6 +874,9 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                   <SelectValue placeholder="Sélectionner un élément" />
                 </SelectTrigger>
                 <SelectContent>
+                  {linkEntityType === "task" && projectTasks.map((task: any) => (
+                    <SelectItem key={task.id} value={task.id}>{task.title}</SelectItem>
+                  ))}
                   {linkEntityType === "epic" && projectEpics.map((epic: any) => (
                     <SelectItem key={epic.id} value={epic.id}>{epic.name || epic.title}</SelectItem>
                   ))}

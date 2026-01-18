@@ -5886,8 +5886,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let linkedRoadmapItems: any[] = [];
       
       if (taskIds.length > 0) {
-        linkedTasks = await db.select().from(backlogTasks)
-          .where(and(eq(backlogTasks.accountId, accountId), inArray(backlogTasks.id, taskIds)));
+        linkedTasks = await db.select().from(tasks)
+          .where(and(eq(tasks.accountId, accountId), inArray(tasks.id, taskIds)));
       }
       if (epicIds.length > 0) {
         linkedEpics = await db.select().from(epics)
@@ -6164,36 +6164,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Objective not found" });
       }
       
-      // Get or create backlog for project
-      const [existingBacklog] = await db.select().from(backlogs)
-        .where(and(eq(backlogs.accountId, accountId), eq(backlogs.projectId, objective.projectId)));
+      // Create task in generic tasks table (for /tasks page)
+      const { title, description } = req.body;
       
-      let backlogId: string;
-      if (existingBacklog) {
-        backlogId = existingBacklog.id;
-      } else {
-        // Create a new backlog for the project
-        const [newBacklog] = await db.insert(backlogs).values({
-          accountId,
-          name: "Backlog OKR",
-          projectId: objective.projectId,
-          createdBy: userId,
-        }).returning();
-        backlogId = newBacklog.id;
-      }
-      
-      // Create task linked to the KR
-      const { title, description, sprintId, epicId } = req.body;
-      
-      const [task] = await db.insert(backlogTasks).values({
+      const [task] = await db.insert(tasks).values({
         accountId,
-        backlogId,
+        projectId: objective.projectId,
         title: title || `Tâche pour: ${kr.title}`,
         description: description || `Créé depuis le Key Result: ${kr.title}`,
-        state: "a_faire",
-        taskType: "task",
-        epicId: epicId || null,
-        sprintId: sprintId || null,
+        status: "todo",
+        priority: "medium",
         createdBy: userId,
       }).returning();
       
@@ -6205,8 +6185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: task.id,
       });
       
-      // Return task with backlogId for cache invalidation
-      res.status(201).json({ ...task, backlogId, projectId: objective.projectId });
+      // Return task with projectId for cache invalidation
+      res.status(201).json({ ...task, projectId: objective.projectId });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
