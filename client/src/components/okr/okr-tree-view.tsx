@@ -634,7 +634,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       />
 
       <Dialog open={showCreateTaskDialog} onOpenChange={setShowCreateTaskDialog}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-background">
           <DialogHeader>
             <DialogTitle>Créer une tâche depuis ce Key Result</DialogTitle>
           </DialogHeader>
@@ -839,7 +839,7 @@ function KeyResultSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="bg-white dark:bg-background">
         <SheetHeader>
           <SheetTitle>{keyResult ? "Modifier le Key Result" : "Nouveau Key Result"}</SheetTitle>
           <SheetDescription>
