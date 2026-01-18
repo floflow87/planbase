@@ -142,7 +142,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif créé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Objectif créé", variant: "success" });
       setShowObjectiveSheet(false);
     },
     onError: (error: any) => {
@@ -157,7 +157,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif mis à jour", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Objectif mis à jour", variant: "success" });
       setShowObjectiveSheet(false);
       setEditingObjective(null);
     },
@@ -172,7 +172,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Objectif supprimé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Objectif supprimé", variant: "success" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -186,7 +186,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result créé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Key Result créé", variant: "success" });
       setShowKRSheet(false);
       setSelectedObjectiveId(null);
     },
@@ -202,7 +202,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result mis à jour", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Key Result mis à jour", variant: "success" });
       setShowKRSheet(false);
       setEditingKR(null);
     },
@@ -217,7 +217,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Key Result supprimé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Key Result supprimé", variant: "success" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
