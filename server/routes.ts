@@ -6151,7 +6151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: task.id,
       });
       
-      res.status(201).json(task);
+      // Return task with backlogId for cache invalidation
+      res.status(201).json({ ...task, backlogId, projectId: objective.projectId });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

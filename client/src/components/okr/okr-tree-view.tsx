@@ -82,8 +82,16 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     queryKey: ["/api/projects", projectId, "sprints"],
   });
 
+  // First get roadmaps for this project
+  const { data: projectRoadmaps = [] } = useQuery<any[]>({
+    queryKey: [`/api/projects/${projectId}/roadmaps`],
+  });
+
+  // Then get items from the first roadmap (if any)
+  const firstRoadmapId = projectRoadmaps[0]?.id;
   const { data: projectRoadmapItems = [] } = useQuery<any[]>({
-    queryKey: ["/api/projects", projectId, "roadmap"],
+    queryKey: [`/api/roadmaps/${firstRoadmapId}/items`],
+    enabled: !!firstRoadmapId,
   });
 
   const createObjectiveMutation = useMutation({
@@ -180,10 +188,13 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       const res = await apiRequest(`/api/okr/key-results/${keyResultId}/create-task`, "POST", { title });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { backlogId: string; projectId: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      // Invalidate all backlog-related queries for proper UI refresh
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "backlog"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", data.backlogId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${data.backlogId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${data.projectId}/backlogs`] });
       toast({ title: "Tâche créée et liée au Key Result", className: "bg-green-500 text-white border-green-600" });
       setShowCreateTaskDialog(false);
       setSelectedKRId(null);
@@ -723,6 +734,16 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           }
         }}
         isPending={createKRMutation.isPending || updateKRMutation.isPending}
+        onLink={(krId) => {
+          setSelectedKRId(krId);
+          setShowKRSheet(false);
+          setShowLinkDialog(true);
+        }}
+        onCreateTask={(krId) => {
+          setSelectedKRId(krId);
+          setShowKRSheet(false);
+          setShowCreateTaskDialog(true);
+        }}
       />
 
       <Dialog open={showCreateTaskDialog} onOpenChange={setShowCreateTaskDialog}>
@@ -954,10 +975,14 @@ function KeyResultSheet({
   objectiveId,
   onSave,
   isPending,
+  onLink,
+  onCreateTask,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   keyResult: OkrKeyResult | null;
+  onLink?: (krId: string) => void;
+  onCreateTask?: (krId: string) => void;
   objectiveId: string | null;
   onSave: (data: any) => void;
   isPending: boolean;
@@ -1058,17 +1083,43 @@ function KeyResultSheet({
             />
           </div>
         </div>
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!title.trim() || targetValue <= 0 || isPending}
-            data-testid="button-save-kr"
-          >
-            {keyResult ? "Mettre à jour" : "Créer"}
-          </Button>
+        <SheetFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
+            {keyResult && onLink && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onLink(keyResult.id)}
+                data-testid="button-link-kr-sheet"
+              >
+                <Link2 className="h-4 w-4 mr-1" />
+                Lier
+              </Button>
+            )}
+            {keyResult && onCreateTask && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCreateTask(keyResult.id)}
+                data-testid="button-create-task-kr-sheet"
+              >
+                <ListPlus className="h-4 w-4 mr-1" />
+                Tâche
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!title.trim() || targetValue <= 0 || isPending}
+              data-testid="button-save-kr"
+            >
+              {keyResult ? "Mettre à jour" : "Créer"}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

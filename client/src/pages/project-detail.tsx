@@ -3849,7 +3849,7 @@ export default function ProjectDetail() {
                     )}
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
+                <TooltipContent side="bottom" className="max-w-xs bg-white text-foreground border">
                   <div className="space-y-1">
                     <p className="font-medium">Prochaine étape : {milestonesData.nextMilestone.title}</p>
                     {(milestonesData.nextMilestone.targetDate || milestonesData.nextMilestone.endDate) && (
@@ -3869,7 +3869,6 @@ export default function ProjectDetail() {
                         {milestonesData.atRiskCount > 0 && `${milestonesData.atRiskCount} à risque`}
                       </p>
                     )}
-                    <p className="text-[10px] text-muted-foreground italic">Cliquer pour voir la roadmap</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
