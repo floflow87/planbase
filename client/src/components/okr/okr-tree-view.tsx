@@ -1107,7 +1107,7 @@ function ObjectiveSheet({
   const [type, setType] = useState<string>("business");
   const [targetPhase, setTargetPhase] = useState<string | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     if (objective) {
       setTitle(objective.title);
       setDescription(objective.description || "");
@@ -1119,7 +1119,7 @@ function ObjectiveSheet({
       setType("business");
       setTargetPhase(null);
     }
-  });
+  }, [objective]);
 
   const handleSave = () => {
     onSave({
@@ -1191,7 +1191,7 @@ function ObjectiveSheet({
             />
           </div>
           {objective && (onAddKR || onDelete) && (
-            <div className="flex items-center gap-2 pt-2 border-t">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
               {onAddKR && (
                 <Button
                   variant="outline"
@@ -1261,7 +1261,7 @@ function KeyResultSheet({
   const [currentValue, setCurrentValue] = useState<number>(0);
   const [unit, setUnit] = useState<string>("%");
 
-  useState(() => {
+  useEffect(() => {
     if (keyResult) {
       setTitle(keyResult.title);
       setMetricType(keyResult.metricType);
@@ -1275,7 +1275,7 @@ function KeyResultSheet({
       setCurrentValue(0);
       setUnit("%");
     }
-  });
+  }, [keyResult]);
 
   const handleSave = () => {
     onSave({
@@ -1351,7 +1351,7 @@ function KeyResultSheet({
             />
           </div>
           {keyResult && (onLink || onCreateTask) && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t">
               {onLink && (
                 <Button
                   variant="outline"
