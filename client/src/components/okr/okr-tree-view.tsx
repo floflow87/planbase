@@ -207,7 +207,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
 
   const createLinkMutation = useMutation({
     mutationFn: async ({ keyResultId, entityType, entityId }: { keyResultId: string; entityType: string; entityId: string }) => {
-      const res = await apiRequest(`/api/okr/links`, "POST", { keyResultId, entityType, entityId });
+      const res = await apiRequest(`/api/okr/key-results/${keyResultId}/links`, "POST", { entityType, entityId });
       return res.json();
     },
     onSuccess: () => {
@@ -1084,32 +1084,34 @@ function KeyResultSheet({
             />
           </div>
         </div>
-        <SheetFooter className="flex-col sm:flex-row gap-2">
-          <div className="flex gap-2">
-            {keyResult && onLink && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onLink(keyResult.id)}
-                data-testid="button-link-kr-sheet"
-              >
-                <Link2 className="h-4 w-4 mr-1" />
-                Lier
-              </Button>
-            )}
-            {keyResult && onCreateTask && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onCreateTask(keyResult.id, keyResult.title)}
-                data-testid="button-create-task-kr-sheet"
-              >
-                <ListPlus className="h-4 w-4 mr-1" />
-                Tâche
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2 ml-auto">
+        <SheetFooter className="flex-col gap-3">
+          {keyResult && (onLink || onCreateTask) && (
+            <div className="flex gap-2 w-full">
+              {onLink && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onLink(keyResult.id)}
+                  data-testid="button-link-kr-sheet"
+                >
+                  <Link2 className="h-4 w-4 mr-1" />
+                  Lier
+                </Button>
+              )}
+              {onCreateTask && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onCreateTask(keyResult.id, keyResult.title)}
+                  data-testid="button-create-task-kr-sheet"
+                >
+                  <ListPlus className="h-4 w-4 mr-1" />
+                  Tâche
+                </Button>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 w-full justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
