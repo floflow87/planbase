@@ -12,6 +12,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -66,6 +76,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [showKRSheet, setShowKRSheet] = useState(false);
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [showDeleteObjectiveDialog, setShowDeleteObjectiveDialog] = useState(false);
+  const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
   const [editingObjective, setEditingObjective] = useState<OkrObjective | null>(null);
   const [editingKR, setEditingKR] = useState<OkrKeyResult | null>(null);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
@@ -871,8 +883,43 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
             createObjectiveMutation.mutate(data);
           }
         }}
+        onDelete={editingObjective ? () => {
+          setObjectiveToDelete(editingObjective.id);
+          setShowDeleteObjectiveDialog(true);
+        } : undefined}
         isPending={createObjectiveMutation.isPending || updateObjectiveMutation.isPending}
+        isDeleting={deleteObjectiveMutation.isPending}
       />
+
+      {/* AlertDialog pour confirmation de suppression d'objectif */}
+      <AlertDialog open={showDeleteObjectiveDialog} onOpenChange={setShowDeleteObjectiveDialog}>
+        <AlertDialogContent data-testid="dialog-delete-objective-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'objectif</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cet objectif ? Cette action est irréversible et supprimera également tous les résultats clés et liens associés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-objective">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (objectiveToDelete) {
+                  deleteObjectiveMutation.mutate(objectiveToDelete);
+                  setShowDeleteObjectiveDialog(false);
+                  setShowObjectiveSheet(false);
+                  setObjectiveToDelete(null);
+                }
+              }}
+              disabled={deleteObjectiveMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-objective"
+            >
+              {deleteObjectiveMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <KeyResultSheet
         open={showKRSheet}
@@ -1035,13 +1082,17 @@ function ObjectiveSheet({
   onOpenChange,
   objective,
   onSave,
+  onDelete,
   isPending,
+  isDeleting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   objective: OkrObjective | null;
   onSave: (data: any) => void;
+  onDelete?: () => void;
   isPending: boolean;
+  isDeleting?: boolean;
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -1132,17 +1183,30 @@ function ObjectiveSheet({
             />
           </div>
         </div>
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!title.trim() || isPending}
-            data-testid="button-save-objective"
-          >
-            {objective ? "Mettre à jour" : "Créer"}
-          </Button>
+        <SheetFooter className="flex justify-between gap-2">
+          {objective && onDelete && (
+            <Button
+              variant="destructive"
+              onClick={onDelete}
+              disabled={isDeleting}
+              data-testid="button-delete-objective-sheet"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!title.trim() || isPending}
+              data-testid="button-save-objective"
+            >
+              {objective ? "Mettre à jour" : "Créer"}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>
