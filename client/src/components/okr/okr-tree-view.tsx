@@ -370,7 +370,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-end gap-2">
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
