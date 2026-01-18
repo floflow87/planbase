@@ -216,41 +216,37 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Objectifs & Résultats Clés (OKR)</h2>
-          <p className="text-sm text-muted-foreground">
-            Définissez vos objectifs stratégiques et mesurez leur atteinte
-          </p>
-        </div>
+    <div className="space-y-3 text-sm">
+      <div className="flex items-center justify-end">
         <Button
+          size="sm"
           onClick={() => {
             setEditingObjective(null);
             setShowObjectiveSheet(true);
           }}
           data-testid="button-add-objective"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
           Nouvel objectif
         </Button>
       </div>
 
       {okrTree.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Target className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Aucun objectif défini</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <Target className="h-10 w-10 text-muted-foreground mb-3" />
+            <h3 className="text-sm font-medium mb-1">Aucun objectif défini</h3>
+            <p className="text-xs text-muted-foreground text-center max-w-md mb-3">
               Les OKR vous permettent de définir des objectifs stratégiques et de mesurer leur progression via des résultats clés mesurables.
             </p>
             <Button
+              size="sm"
               onClick={() => {
                 setEditingObjective(null);
                 setShowObjectiveSheet(true);
               }}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
               Créer mon premier objectif
             </Button>
           </CardContent>
@@ -265,18 +261,18 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               >
                 <CollapsibleTrigger asChild>
                   <CardHeader className="cursor-pointer hover-elevate py-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       {expandedObjectives.has(objective.id) ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <div className={`p-2 rounded-lg ${getStatusColor(objective.status)} bg-opacity-20`}>
+                      <div className={`p-1.5 rounded-lg ${getStatusColor(objective.status)} bg-opacity-20`}>
                         {getTypeIcon(objective.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <CardTitle className="text-base truncate">{objective.title}</CardTitle>
+                          <CardTitle className="text-sm truncate">{objective.title}</CardTitle>
                           <Badge variant="outline" className="text-xs">
                             {okrObjectiveTypeOptions.find(o => o.value === objective.type)?.label || objective.type}
                           </Badge>
@@ -288,7 +284,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           <Progress value={objective.progress || 0} className="h-2 w-32" />
-                          <span className="text-xs text-muted-foreground">{Math.round(objective.progress || 0)}%</span>
+                          <span className="text-xs text-muted-foreground">{objective.progress || 0}%</span>
                           <Badge className={`${getStatusColor(objective.status)} text-white text-xs`}>
                             {getStatusLabel(objective.status)}
                           </Badge>
@@ -381,12 +377,12 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                             className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover-elevate"
                             data-testid={`kr-item-${kr.id}`}
                           >
-                            <div className="p-1.5 rounded bg-primary/10">
+                            <div className="p-1 rounded bg-primary/10">
                               {getMetricIcon(kr.metricType)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm truncate">{kr.title}</span>
+                                <span className="font-medium text-xs truncate">{kr.title}</span>
                                 <Badge variant="outline" className="text-xs">
                                   {okrMetricTypeOptions.find(o => o.value === kr.metricType)?.label || kr.metricType}
                                 </Badge>

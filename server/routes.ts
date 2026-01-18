@@ -5874,16 +5874,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Build tree structure
-      const tree = objectives.map(obj => ({
-        ...obj,
-        keyResults: keyResults
-          .filter(kr => kr.objectiveId === obj.id)
-          .map(kr => ({
+      // Build tree structure with dynamic progress/status calculation
+      const tree = objectives.map(obj => {
+        const objKeyResults = keyResults.filter(kr => kr.objectiveId === obj.id);
+        
+        // Calculate dynamic progress from Key Results
+        let dynamicProgress = 0;
+        if (objKeyResults.length > 0) {
+          const totalProgress = objKeyResults.reduce((sum, kr) => {
+            const krProgress = kr.targetValue > 0 ? ((kr.currentValue || 0) / kr.targetValue) * 100 : 0;
+            return sum + Math.min(krProgress, 100);
+          }, 0);
+          dynamicProgress = Math.round(totalProgress / objKeyResults.length);
+        }
+        
+        // Determine dynamic status based on progress
+        let dynamicStatus: string;
+        if (dynamicProgress >= 100) dynamicStatus = "achieved";
+        else if (dynamicProgress >= 70) dynamicStatus = "on_track";
+        else if (dynamicProgress >= 40) dynamicStatus = "at_risk";
+        else dynamicStatus = "critical";
+        
+        return {
+          ...obj,
+          progress: dynamicProgress,
+          status: dynamicStatus,
+          keyResults: objKeyResults.map(kr => ({
             ...kr,
             links: links.filter(l => l.keyResultId === kr.id)
           }))
-      }));
+        };
+      });
       
       res.json(tree);
     } catch (error: any) {
