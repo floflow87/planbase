@@ -530,7 +530,7 @@ export default function NoteDetail() {
   const handleDeleteConfirm = useCallback(async () => {
     try {
       await apiRequest(`/api/notes/${id}`, "DELETE");
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       toast({
         title: "Note supprimée",
         description: "La note a été supprimée avec succès",

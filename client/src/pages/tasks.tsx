@@ -1586,7 +1586,7 @@ export default function Tasks() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={projectSelectorOpen}
-                    className="w-full sm:w-[280px] justify-between text-[12px]"
+                    className="w-full sm:w-[280px] justify-between text-[12px] bg-white dark:bg-white"
                     data-testid="select-project"
                   >
                     {getSelectedProjectsText()}
@@ -1981,7 +1981,7 @@ export default function Tasks() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={projectComboboxOpen}
-                      className="w-full justify-between"
+                      className="w-full justify-between bg-white dark:bg-white"
                       data-testid="button-select-project"
                     >
                       {newTaskProjectId === "none"

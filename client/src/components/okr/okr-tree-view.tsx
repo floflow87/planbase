@@ -202,7 +202,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
       // Invalidate /api/tasks and project-scoped tasks so the new task appears in /tasks page
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
-      toast({ title: "Tâche créée et liée au Key Result", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Tâche créée et liée au Key Result", variant: "success" });
       setShowCreateTaskDialog(false);
       setSelectedKRId(null);
       setNewTaskTitle("");
@@ -219,7 +219,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Lien créé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Lien créé", variant: "success" });
       setShowLinkDialog(false);
       setSelectedKRId(null);
       setLinkEntityId("");
@@ -235,7 +235,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
-      toast({ title: "Lien supprimé", className: "bg-green-500 text-white border-green-600" });
+      toast({ title: "Lien supprimé", variant: "success" });
     },
     onError: (error: any) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -611,7 +611,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                   return (
                                     <div
                                       key={link.id}
-                                      className="flex items-center gap-2 p-2 bg-background border rounded text-xs"
+                                      className="flex items-center gap-2 p-2 bg-[#f0edf5] dark:bg-[#2d2a3e] border rounded text-xs"
                                       data-testid={`linked-entity-${link.id}`}
                                     >
                                       <Badge variant="secondary" className="text-[10px]">
