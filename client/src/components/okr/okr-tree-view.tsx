@@ -1190,49 +1190,46 @@ function ObjectiveSheet({
               data-testid="input-objective-description"
             />
           </div>
+          {objective && (onAddKR || onDelete) && (
+            <div className="flex items-center gap-2 pt-2 border-t">
+              {onAddKR && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAddKR}
+                  data-testid="button-add-kr-from-objective-sheet"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Ajouter un KR
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  data-testid="button-delete-objective-sheet"
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Supprimer
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-        <SheetFooter className="flex justify-between gap-2">
-          <div className="flex gap-2">
-            {objective && onDelete && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    onClick={onDelete}
-                    disabled={isDeleting}
-                    data-testid="button-delete-objective-sheet"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-white text-foreground border">Supprimer</TooltipContent>
-              </Tooltip>
-            )}
-            {objective && onAddKR && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onAddKR}
-                data-testid="button-add-kr-from-objective-sheet"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Ajouter un KR
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Annuler
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!title.trim() || isPending}
-              data-testid="button-save-objective"
-            >
-              {objective ? "Mettre à jour" : "Créer"}
-            </Button>
-          </div>
+        <SheetFooter className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!title.trim() || isPending}
+            data-testid="button-save-objective"
+          >
+            {objective ? "Mettre à jour" : "Créer"}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -1353,10 +1350,8 @@ function KeyResultSheet({
               data-testid="input-kr-unit"
             />
           </div>
-        </div>
-        <SheetFooter className="flex-col gap-3">
           {keyResult && (onLink || onCreateTask) && (
-            <div className="flex gap-2 w-full border-t pt-3">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
               {onLink && (
                 <Button
                   variant="outline"
@@ -1365,7 +1360,7 @@ function KeyResultSheet({
                   data-testid="button-link-kr-sheet"
                 >
                   <Link2 className="h-4 w-4 mr-1.5" />
-                  Lier un élément
+                  Lier
                 </Button>
               )}
               {onCreateTask && (
@@ -1376,23 +1371,23 @@ function KeyResultSheet({
                   data-testid="button-create-task-kr-sheet"
                 >
                   <ListPlus className="h-4 w-4 mr-1.5" />
-                  Créer une tâche
+                  Créer tâche
                 </Button>
               )}
             </div>
           )}
-          <div className="flex gap-2 w-full justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Annuler
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!title.trim() || targetValue <= 0 || isPending}
-              data-testid="button-save-kr"
-            >
-              {keyResult ? "Mettre à jour" : "Créer"}
-            </Button>
-          </div>
+        </div>
+        <SheetFooter className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!title.trim() || targetValue <= 0 || isPending}
+            data-testid="button-save-kr"
+          >
+            {keyResult ? "Mettre à jour" : "Créer"}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
