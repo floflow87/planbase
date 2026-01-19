@@ -1610,10 +1610,10 @@ function DraggableProjectCard({
           </Badge>
         </div>
         
-        {(project.totalBilled || project.budget) && (
+        {project.totalBilled && (
           <div className="text-[10px] mt-2 flex items-center gap-1">
             <span className="font-medium text-primary">
-              {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
+              {parseFloat(project.totalBilled).toLocaleString("fr-FR", {
                 style: "currency",
                 currency: "EUR",
                 minimumFractionDigits: 0,
@@ -2979,6 +2979,34 @@ export default function Projects() {
                 />
               </div>
               <div className="flex items-center gap-2">
+                {/* Billing status filter dropdown */}
+                <Select
+                  value={projectBillingFilters.length === 1 ? projectBillingFilters[0] : projectBillingFilters.length > 1 ? "multiple" : "all"}
+                  onValueChange={(value) => {
+                    if (value === "all") {
+                      setProjectBillingFilters([]);
+                    } else if (value !== "multiple") {
+                      setProjectBillingFilters([value]);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[160px] h-9" data-testid="select-billing-filter">
+                    <Banknote className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Règlement">
+                      {projectBillingFilters.length === 0 ? "Tous statuts" : 
+                       projectBillingFilters.length === 1 ? billingStatusOptions.find(o => o.value === projectBillingFilters[0])?.label : 
+                       `${projectBillingFilters.length} statuts`}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous statuts</SelectItem>
+                    {billingStatusOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {/* Filters button with badge */}
                 <Button 
                   variant="outline" 
@@ -3135,9 +3163,9 @@ export default function Projects() {
                     comparison = dateA - dateB;
                     break;
                   case "budget":
-                    const budgetA = parseFloat(a.budget || "0");
-                    const budgetB = parseFloat(b.budget || "0");
-                    comparison = budgetA - budgetB;
+                    const billedA = parseFloat(a.totalBilled || "0");
+                    const billedB = parseFloat(b.totalBilled || "0");
+                    comparison = billedA - billedB;
                     break;
                   case "billingStatus":
                     const billingOrder: Record<string, number> = { brouillon: 0, devis_envoye: 1, devis_accepte: 2, bon_commande: 3, facture: 4, paye: 5, partiel: 6, annule: 7, retard: 8 };
@@ -3344,9 +3372,9 @@ export default function Projects() {
                                 ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                                 : "Pas de date"}
                             </div>
-                            {(project.totalBilled || project.budget) && (
+                            {project.totalBilled && (
                               <div className="font-medium text-foreground">
-                                {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
+                                {parseFloat(project.totalBilled).toLocaleString("fr-FR", {
                                   style: "currency",
                                   currency: "EUR",
                                   minimumFractionDigits: 0,
@@ -3542,9 +3570,9 @@ export default function Projects() {
                                   ? formatDate(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
                                   : "Pas de date"}
                               </div>
-                              {(project.totalBilled || project.budget) && (
+                              {project.totalBilled && (
                                 <div className="font-medium text-foreground">
-                                  {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
+                                  {parseFloat(project.totalBilled).toLocaleString("fr-FR", {
                                     style: "currency",
                                     currency: "EUR",
                                     minimumFractionDigits: 0,
@@ -3587,8 +3615,8 @@ export default function Projects() {
                                   progress: "Progression",
                                   category: "Catégorie",
                                   startDate: "Début",
-                                  budget: "Budget",
-                                  billingStatus: "Facturation",
+                                  budget: "Facturé",
+                                  billingStatus: "Règlement",
                                   actions: "Actions",
                                 };
                                 
@@ -3905,20 +3933,20 @@ export default function Projects() {
                                       value={tempBudgetValue}
                                       onChange={(e) => setTempBudgetValue(e.target.value)}
                                       onBlur={() => {
-                                        const budgetValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
+                                        const billedValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
                                         updateProjectMutation.mutate({
                                           id: project.id,
-                                          data: { budget: budgetValue }
+                                          data: { totalBilled: billedValue }
                                         });
                                         setEditingBudgetProjectId(null);
                                         setTempBudgetValue("");
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
-                                          const budgetValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
+                                          const billedValue = tempBudgetValue.trim() === "" ? null : parseFloat(tempBudgetValue);
                                           updateProjectMutation.mutate({
                                             id: project.id,
-                                            data: { budget: budgetValue }
+                                            data: { totalBilled: billedValue }
                                           });
                                           setEditingBudgetProjectId(null);
                                           setTempBudgetValue("");
@@ -3929,21 +3957,21 @@ export default function Projects() {
                                       }}
                                       autoFocus
                                       className="h-8 text-[11px] text-right w-24"
-                                      placeholder="Budget"
+                                      placeholder="Montant"
                                       data-testid={`input-edit-budget-${project.id}`}
                                     />
                                   ) : (
                                     <button
                                       onClick={() => {
                                         setEditingBudgetProjectId(project.id);
-                                        setTempBudgetValue(project.budget || "");
+                                        setTempBudgetValue(project.totalBilled || "");
                                       }}
                                       className="hover-elevate active-elevate-2 rounded-md px-2 py-1 text-right w-full"
                                       data-testid={`button-edit-budget-${project.id}`}
                                     >
-                                      {(project.totalBilled || project.budget) ? (
+                                      {project.totalBilled ? (
                                         <span className="font-medium text-[11px]">
-                                          {parseFloat(project.totalBilled || project.budget || "0").toLocaleString("fr-FR", {
+                                          {parseFloat(project.totalBilled).toLocaleString("fr-FR", {
                                             style: "currency",
                                             currency: "EUR",
                                             minimumFractionDigits: 0,
@@ -4247,8 +4275,8 @@ export default function Projects() {
               { id: "progress", label: "Progression" },
               { id: "category", label: "Catégorie" },
               { id: "startDate", label: "Début" },
-              { id: "budget", label: "Budget" },
-              { id: "billingStatus", label: "Facturation" },
+              { id: "budget", label: "Facturé" },
+              { id: "billingStatus", label: "Règlement" },
               { id: "actions", label: "Actions", disabled: true },
             ].map((column) => (
               <div key={column.id} className="flex items-center justify-between">
