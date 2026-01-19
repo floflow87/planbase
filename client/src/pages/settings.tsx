@@ -1400,7 +1400,8 @@ export default function Settings() {
                   </p>
                   <Button
                     variant="outline"
-                    onClick={startOnboarding}
+                    onClick={() => startOnboarding()}
+                    className="text-[12px]"
                     data-testid="button-restart-onboarding"
                   >
                     <HelpCircle className="w-4 h-4 mr-2" />

@@ -1033,13 +1033,15 @@ export default function BacklogDetail() {
   };
 
   const getTicketsForSprint = (sprintId: string) => {
-    const tickets = flatTickets.filter(t => t.sprintId === sprintId);
+    // Filter out completed tickets - they should only appear in "Tickets terminés" tab
+    const tickets = flatTickets.filter(t => t.sprintId === sprintId && t.state !== "termine");
     return applyFiltersAndSort(tickets);
   };
 
   const getBacklogTickets = () => {
     // Exclude epics from backlog pool - they should only appear in Epics tab
-    const tickets = flatTickets.filter(t => !t.sprintId && t.type !== "epic");
+    // Also exclude completed tickets - they should only appear in "Tickets terminés" tab
+    const tickets = flatTickets.filter(t => !t.sprintId && t.type !== "epic" && t.state !== "termine");
     return applyFiltersAndSort(tickets);
   };
 

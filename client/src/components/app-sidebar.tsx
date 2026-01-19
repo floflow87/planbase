@@ -216,7 +216,10 @@ export function AppSidebar() {
                     : user?.email || 'Utilisateur'}
                 </p>
                 <Badge variant="secondary" className="text-[10px] mt-0.5 bg-white/20 text-white border-0">
-                  {userProfile?.position || 'Membre'}
+                  {userProfile?.role === 'owner' ? 'Propriétaire' : 
+                   userProfile?.role === 'collaborator' ? 'Collaborateur' : 
+                   userProfile?.role === 'client_viewer' ? 'Lecteur' : 
+                   userProfile?.position || 'Membre'}
                 </Badge>
               </div>
               <Settings className="w-4 h-4 text-white flex-shrink-0" data-testid="icon-settings" />
