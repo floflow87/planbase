@@ -348,7 +348,7 @@ export function CdcWizard({
             Session CDC - {projectName}
           </DialogTitle>
           <DialogDescription>
-            Structurez le périmètre de votre projet en 4 étapes
+            Structurez le périmètre de votre projet en 5 étapes
           </DialogDescription>
         </DialogHeader>
 
@@ -414,7 +414,7 @@ export function CdcWizard({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddItem} disabled={!newItemForm.label.trim()} data-testid="button-add-scope-item">
+                <Button type="button" onClick={handleAddItem} disabled={!newItemForm.label.trim()} data-testid="button-add-scope-item">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
