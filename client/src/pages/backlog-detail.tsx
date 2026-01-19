@@ -152,6 +152,8 @@ export default function BacklogDetail() {
   const [versionFilter, setVersionFilter] = useState<string>("all");
   const [epicToDelete, setEpicToDelete] = useState<Epic | null>(null);
   const [epicSearchQuery, setEpicSearchQuery] = useState("");
+  const [showGenerateEpicsDialog, setShowGenerateEpicsDialog] = useState(false);
+  const [selectedRoadmapForGeneration, setSelectedRoadmapForGeneration] = useState<string | null>(null);
   
   // Multi-select state for bulk actions
   const [checkedTickets, setCheckedTickets] = useState<Set<string>>(new Set());
@@ -178,6 +180,44 @@ export default function BacklogDetail() {
   // Fetch projects for the edit backlog dialog
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+
+  // Fetch roadmaps for the project (for EPIC generation)
+  const { data: allRoadmaps = [] } = useQuery<{ id: string; name: string; projectId: string | null }[]>({
+    queryKey: ["/api/roadmaps"],
+    enabled: !!backlog?.projectId,
+  });
+
+  // Filter roadmaps by project
+  const projectRoadmapsForEpic = useMemo(() => {
+    if (!backlog?.projectId) return [];
+    return allRoadmaps.filter((r) => r.projectId === backlog.projectId);
+  }, [allRoadmaps, backlog?.projectId]);
+
+  // Fetch roadmap rubriques (groups) for EPIC linking
+  const { data: roadmapRubriquesForEpic = [] } = useQuery<{ id: string; title: string; roadmapName: string }[]>({
+    queryKey: ["/api/projects", backlog?.projectId, "roadmap-rubriques-for-epic"],
+    queryFn: async () => {
+      if (!backlog?.projectId || projectRoadmapsForEpic.length === 0) return [];
+      const allRubriques: { id: string; title: string; roadmapName: string }[] = [];
+      for (const roadmap of projectRoadmapsForEpic) {
+        try {
+          const res = await apiRequest(`/api/roadmaps/${roadmap.id}/items`, "GET");
+          const items = await res.json();
+          // Filter only rubriques (groups)
+          const rubriques = items.filter((item: any) => item.isGroup === true || item.type === "epic_group");
+          allRubriques.push(...rubriques.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            roadmapName: roadmap.name
+          })));
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      return allRubriques;
+    },
+    enabled: !!backlog?.projectId && projectRoadmapsForEpic.length > 0,
   });
 
   const sensors = useSensors(
@@ -263,10 +303,41 @@ export default function BacklogDetail() {
       if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      // Also invalidate roadmap queries for bidirectional link updates
+      if (backlog?.projectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", backlog.projectId, "roadmap-rubriques-for-epic"] });
+      }
+    },
     onSuccess: () => {
       toastSuccess({ title: "Epic créé" });
       setShowEpicDialog(false);
+    },
+  });
+
+  const generateEpicsFromRoadmapMutation = useMutation({
+    mutationFn: async (roadmapId: string) => {
+      const res = await apiRequest(`/api/backlogs/${id}/epics/generate-from-roadmap`, "POST", { roadmapId });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/roadmaps"] });
+      // Also invalidate the roadmap rubriques query for bidirectional link updates
+      if (backlog?.projectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", backlog.projectId, "roadmap-rubriques-for-epic"] });
+      }
+      if (data.epics?.length > 0) {
+        toastSuccess({ title: `${data.epics.length} Epic(s) créée(s) depuis la roadmap` });
+      } else {
+        toast({ title: "Aucune rubrique à générer", description: "Toutes les rubriques ont déjà des EPICs liées" });
+      }
+      setShowGenerateEpicsDialog(false);
+      setSelectedRoadmapForGeneration(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
 
@@ -289,7 +360,13 @@ export default function BacklogDetail() {
       if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      // Also invalidate roadmap queries to reflect bidirectional link changes
+      if (backlog?.projectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", backlog.projectId, "roadmap-rubriques-for-epic"] });
+      }
+    },
     onSuccess: () => {
       toastSuccess({ title: "Epic mis à jour" });
       setEditingEpic(null);
@@ -315,7 +392,13 @@ export default function BacklogDetail() {
       if (context?.previousBacklog) queryClient.setQueryData(["/api/backlogs", id], context.previousBacklog);
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
+      // Also invalidate roadmap queries since deleting epic clears the bidirectional link
+      if (backlog?.projectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", backlog.projectId, "roadmap-rubriques-for-epic"] });
+      }
+    },
     onSuccess: () => toastSuccess({ title: "Epic supprimé" }),
   });
 
@@ -2120,10 +2203,29 @@ export default function BacklogDetail() {
                   </div>
                 )}
               </div>
-              <Button onClick={() => { createEpicMutation.reset(); setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Epic
-              </Button>
+              <div className="flex items-center gap-2">
+                {projectRoadmapsForEpic.length > 0 && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (projectRoadmapsForEpic.length === 1) {
+                        generateEpicsFromRoadmapMutation.mutate(projectRoadmapsForEpic[0].id);
+                      } else {
+                        setShowGenerateEpicsDialog(true);
+                      }
+                    }}
+                    disabled={generateEpicsFromRoadmapMutation.isPending}
+                    data-testid="button-generate-epics"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {generateEpicsFromRoadmapMutation.isPending ? "Génération..." : "Générer"}
+                  </Button>
+                )}
+                <Button onClick={() => { createEpicMutation.reset(); setEditingEpic(null); setShowEpicDialog(true); }} data-testid="button-create-epic">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle Epic
+                </Button>
+              </div>
             </div>
 
             {/* Epics list */}
@@ -2323,6 +2425,7 @@ export default function BacklogDetail() {
         open={showEpicDialog}
         onClose={() => { setShowEpicDialog(false); setEditingEpic(null); }}
         epic={editingEpic}
+        roadmapRubriques={roadmapRubriquesForEpic}
         onCreate={(data) => createEpicMutation.mutate(data)}
         onUpdate={(data) => editingEpic && updateEpicMutation.mutate({ epicId: editingEpic.id, data })}
         isPending={createEpicMutation.isPending || updateEpicMutation.isPending}
@@ -2482,6 +2585,52 @@ export default function BacklogDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Generate EPICs from Roadmap Dialog */}
+      <Dialog open={showGenerateEpicsDialog} onOpenChange={(open) => { setShowGenerateEpicsDialog(open); if (!open) setSelectedRoadmapForGeneration(null); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Générer des EPICs depuis une Roadmap</DialogTitle>
+            <DialogDescription>
+              Sélectionnez la roadmap dont vous souhaitez importer les rubriques en tant qu'EPICs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Roadmap</Label>
+            <Select 
+              value={selectedRoadmapForGeneration || ""} 
+              onValueChange={setSelectedRoadmapForGeneration}
+            >
+              <SelectTrigger data-testid="select-roadmap-for-generation">
+                <SelectValue placeholder="Sélectionner une roadmap" />
+              </SelectTrigger>
+              <SelectContent>
+                {projectRoadmapsForEpic.map((roadmap) => (
+                  <SelectItem key={roadmap.id} value={roadmap.id}>
+                    {roadmap.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowGenerateEpicsDialog(false); setSelectedRoadmapForGeneration(null); }}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedRoadmapForGeneration) {
+                  generateEpicsFromRoadmapMutation.mutate(selectedRoadmapForGeneration);
+                }
+              }}
+              disabled={!selectedRoadmapForGeneration || generateEpicsFromRoadmapMutation.isPending}
+              data-testid="button-confirm-generate-epics"
+            >
+              {generateEpicsFromRoadmapMutation.isPending ? "Génération..." : "Générer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sprint Close Modal */}
       <Dialog open={showSprintCloseModal} onOpenChange={setShowSprintCloseModal}>
@@ -2831,6 +2980,7 @@ function EpicDialog({
   open, 
   onClose, 
   epic, 
+  roadmapRubriques = [],
   onCreate, 
   onUpdate, 
   isPending 
@@ -2838,7 +2988,8 @@ function EpicDialog({
   open: boolean; 
   onClose: () => void; 
   epic: Epic | null;
-  onCreate: (data: { title: string; description?: string; priority?: string; color?: string }) => void;
+  roadmapRubriques?: { id: string; title: string; roadmapName: string }[];
+  onCreate: (data: { title: string; description?: string; priority?: string; color?: string; roadmapItemId?: string | null }) => void;
   onUpdate: (data: Partial<Epic>) => void;
   isPending: boolean;
 }) {
@@ -2846,6 +2997,7 @@ function EpicDialog({
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
   const [color, setColor] = useState("#C4B5FD");
+  const [roadmapItemId, setRoadmapItemId] = useState<string | null>(null);
 
   // Colors: violet, bleu, vert, jaune, orange, rouge/bordeaux, turquoise, rose clair, marron, bleu marine
   const colors = ["#C4B5FD", "#93C5FD", "#86EFAC", "#FDE047", "#FDBA74", "#991B1B", "#5EEAD4", "#FBCFE8", "#A16207", "#1E3A5F"];
@@ -2856,20 +3008,22 @@ function EpicDialog({
       setDescription(epic.description || "");
       setPriority(epic.priority || "medium");
       setColor(epic.color || "#C4B5FD");
+      setRoadmapItemId((epic as any).roadmapItemId || null);
     } else {
       setTitle("");
       setDescription("");
       setPriority("medium");
       setColor("#C4B5FD");
+      setRoadmapItemId(null);
     }
   }, [epic]);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
     if (epic) {
-      onUpdate({ title, description: description || undefined, priority, color });
+      onUpdate({ title, description: description || undefined, priority, color, roadmapItemId: roadmapItemId || undefined });
     } else {
-      onCreate({ title, description: description || undefined, priority, color });
+      onCreate({ title, description: description || undefined, priority, color, roadmapItemId: roadmapItemId || undefined });
     }
   };
 
@@ -2913,6 +3067,24 @@ function EpicDialog({
               ))}
             </div>
           </div>
+          {roadmapRubriques.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-gray-700">Lier à la roadmap</Label>
+              <Select value={roadmapItemId || "none"} onValueChange={(v) => setRoadmapItemId(v === "none" ? null : v)}>
+                <SelectTrigger className="bg-white text-gray-900 border-gray-300" data-testid="select-epic-roadmap-item">
+                  <SelectValue placeholder="Sélectionner une rubrique" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="none" className="text-gray-900">Aucune</SelectItem>
+                  {roadmapRubriques.map((item) => (
+                    <SelectItem key={item.id} value={item.id} className="text-gray-900">
+                      {item.title} ({item.roadmapName})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <SheetFooter className="flex gap-2 pt-4">
           <Button variant="outline" onClick={onClose} className="text-gray-700" data-testid="button-cancel-epic">Annuler</Button>

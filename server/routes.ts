@@ -7459,7 +7459,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
       
+      // Get backlog to get projectId for validation
+      const [backlog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+      
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog non trouvé" });
+      }
+
       const [epic] = await db.insert(epics).values(data).returning();
+      
+      // Handle bidirectional roadmap link when roadmapItemId is provided
+      if (epic.roadmapItemId && backlog.projectId) {
+        // Validate the roadmap item belongs to the same account AND project
+        const [roadmapItem] = await db.select().from(roadmapItems)
+          .innerJoin(roadmaps, eq(roadmapItems.roadmapId, roadmaps.id))
+          .where(and(
+            eq(roadmapItems.id, epic.roadmapItemId), 
+            eq(roadmapItems.accountId, accountId),
+            eq(roadmaps.projectId, backlog.projectId)
+          ));
+        if (roadmapItem) {
+          // Clear epicId from any other epic that might be linked to this roadmap item
+          const [existingLinkedEpic] = await db.select().from(epics)
+            .where(and(eq(epics.roadmapItemId, epic.roadmapItemId), not(eq(epics.id, epic.id))));
+          if (existingLinkedEpic) {
+            await db.update(epics)
+              .set({ roadmapItemId: null })
+              .where(eq(epics.id, existingLinkedEpic.id));
+          }
+          await db.update(roadmapItems)
+            .set({ epicId: epic.id })
+            .where(eq(roadmapItems.id, epic.roadmapItemId));
+        }
+      }
       
       // Create activity for epic creation
       await storage.createActivity({
@@ -7473,6 +7506,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(epic);
     } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Generate EPICs from roadmap rubriques
+  app.post("/api/backlogs/:backlogId/epics/generate-from-roadmap", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      const { roadmapId } = req.body;
+
+      if (!roadmapId) {
+        return res.status(400).json({ error: "roadmapId est requis" });
+      }
+
+      // Get the backlog and validate it belongs to the account
+      const [backlog] = await db.select().from(backlogs)
+        .where(and(eq(backlogs.id, backlogId), eq(backlogs.accountId, accountId)));
+
+      if (!backlog) {
+        return res.status(404).json({ error: "Backlog non trouvé" });
+      }
+
+      // Validate roadmap belongs to the project and account
+      const [roadmap] = await db.select().from(roadmaps)
+        .where(and(
+          eq(roadmaps.id, roadmapId),
+          eq(roadmaps.accountId, accountId),
+          eq(roadmaps.projectId, backlog.projectId)
+        ));
+
+      if (!roadmap) {
+        return res.status(404).json({ error: "Roadmap non trouvée ou n'appartient pas à ce projet" });
+      }
+
+      // Get roadmap rubriques (groups) that don't already have linked EPICs
+      const roadmapItemsList = await db.select().from(roadmapItems)
+        .where(and(
+          eq(roadmapItems.roadmapId, roadmapId),
+          eq(roadmapItems.accountId, accountId),
+          eq(roadmapItems.isGroup, true),
+          isNull(roadmapItems.epicId)
+        ));
+
+      if (roadmapItemsList.length === 0) {
+        return res.status(200).json({ message: "Aucune rubrique à générer", epics: [] });
+      }
+
+      const createdEpics: any[] = [];
+
+      for (const item of roadmapItemsList) {
+        // Create EPIC from roadmap item
+        const [epic] = await db.insert(epics).values({
+          accountId,
+          backlogId,
+          title: item.title,
+          description: item.description,
+          priority: "medium",
+          state: "backlog",
+          roadmapItemId: item.id,
+          createdBy: userId,
+        }).returning();
+
+        createdEpics.push(epic);
+
+        // Update roadmap item to link back to epic
+        await db.update(roadmapItems)
+          .set({ epicId: epic.id })
+          .where(eq(roadmapItems.id, item.id));
+      }
+
+      // Create activity
+      await storage.createActivity({
+        accountId,
+        subjectType: "backlog",
+        subjectId: backlogId,
+        kind: "updated",
+        payload: { description: `${createdEpics.length} EPICs générées depuis la roadmap` },
+        createdBy: userId,
+      });
+
+      res.status(201).json({ message: `${createdEpics.length} EPICs créées`, epics: createdEpics });
+    } catch (error: any) {
+      console.error("Error generating EPICs from roadmap:", error);
       res.status(400).json({ error: error.message });
     }
   });
@@ -7496,6 +7614,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ ...data, updatedAt: new Date() })
         .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)))
         .returning();
+      
+      // Handle bidirectional roadmap link when roadmapItemId changes
+      if (data.roadmapItemId !== undefined && data.roadmapItemId !== existingEpic.roadmapItemId) {
+        // If old roadmap item existed, clear its epicId
+        if (existingEpic.roadmapItemId) {
+          await db.update(roadmapItems)
+            .set({ epicId: null })
+            .where(eq(roadmapItems.id, existingEpic.roadmapItemId));
+        }
+        // If new roadmap item is set, link it to this epic
+        if (data.roadmapItemId) {
+          // Get the backlog's projectId
+          const [epicBacklog] = await db.select().from(backlogs)
+            .where(and(eq(backlogs.id, existingEpic.backlogId), eq(backlogs.accountId, accountId)));
+          
+          if (epicBacklog?.projectId) {
+            // Validate the roadmap item belongs to the same account AND project
+            const [roadmapItem] = await db.select().from(roadmapItems)
+              .innerJoin(roadmaps, eq(roadmapItems.roadmapId, roadmaps.id))
+              .where(and(
+                eq(roadmapItems.id, data.roadmapItemId), 
+                eq(roadmapItems.accountId, accountId),
+                eq(roadmaps.projectId, epicBacklog.projectId)
+              ));
+            if (roadmapItem) {
+              // Clear roadmapItemId from any other epic that might be linked to this roadmap item
+              const [existingLinkedEpic] = await db.select().from(epics)
+                .where(and(eq(epics.roadmapItemId, data.roadmapItemId), not(eq(epics.id, epicId))));
+              if (existingLinkedEpic) {
+                await db.update(epics)
+                  .set({ roadmapItemId: null })
+                  .where(eq(epics.id, existingLinkedEpic.id));
+              }
+              await db.update(roadmapItems)
+                .set({ epicId: epicId })
+                .where(eq(roadmapItems.id, data.roadmapItemId));
+            }
+          }
+        }
+      }
       
       // Sync roadmap item status if EPIC has a linked roadmap item and state changed
       if (updated.roadmapItemId && data.state && data.state !== existingEpic.state) {
@@ -7535,6 +7693,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.update(userStories)
         .set({ epicId: null })
         .where(and(eq(userStories.epicId, epicId), eq(userStories.accountId, accountId)));
+      
+      // Clear the bidirectional roadmap link if the epic had one
+      await db.update(roadmapItems)
+        .set({ epicId: null })
+        .where(and(eq(roadmapItems.epicId, epicId), eq(roadmapItems.accountId, accountId)));
       
       // Then delete the epic
       const [deleted] = await db.delete(epics)

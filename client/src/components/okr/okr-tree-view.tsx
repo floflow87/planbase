@@ -84,7 +84,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedKRId, setSelectedKRId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [linkEntityType, setLinkEntityType] = useState<"task" | "epic" | "sprint" | "roadmap_item">("task");
+  const [linkEntityType, setLinkEntityType] = useState<"task" | "epic" | "sprint" | "roadmap_milestone" | "roadmap_rubrique">("task");
   const [linkEntityId, setLinkEntityId] = useState<string>("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
@@ -107,12 +107,32 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     queryKey: [`/api/projects/${projectId}/roadmaps`],
   });
 
-  // Then get items from the first roadmap (if any)
-  const firstRoadmapId = projectRoadmaps[0]?.id;
+  // Fetch items from ALL project roadmaps
   const { data: projectRoadmapItems = [] } = useQuery<any[]>({
-    queryKey: [`/api/roadmaps/${firstRoadmapId}/items`],
-    enabled: !!firstRoadmapId,
+    queryKey: ["/api/projects", projectId, "all-roadmap-items"],
+    queryFn: async () => {
+      if (projectRoadmaps.length === 0) return [];
+      const allItems: any[] = [];
+      for (const roadmap of projectRoadmaps) {
+        try {
+          const res = await apiRequest(`/api/roadmaps/${roadmap.id}/items`, "GET");
+          const items = await res.json();
+          allItems.push(...items.map((item: any) => ({
+            ...item,
+            roadmapName: roadmap.name
+          })));
+        } catch (e) {
+          // Ignore errors for roadmaps that may not have items
+        }
+      }
+      return allItems;
+    },
+    enabled: projectRoadmaps.length > 0,
   });
+
+  // Filter roadmap items into milestones and rubriques (groups)
+  const roadmapMilestones = projectRoadmapItems.filter((item: any) => item.type === "milestone");
+  const roadmapRubriques = projectRoadmapItems.filter((item: any) => item.isGroup === true || item.type === "epic_group");
 
   // Get tasks for this project (from /tasks page - generic tasks, project-scoped)
   const { data: projectTasks = [] } = useQuery<Task[]>({
@@ -1062,7 +1082,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Type d'élément</Label>
-              <Select value={linkEntityType} onValueChange={(v: "task" | "epic" | "sprint" | "roadmap_item") => { setLinkEntityType(v); setLinkEntityId(""); }}>
+              <Select value={linkEntityType} onValueChange={(v: "task" | "epic" | "sprint" | "roadmap_milestone" | "roadmap_rubrique") => { setLinkEntityType(v); setLinkEntityId(""); }}>
                 <SelectTrigger data-testid="select-link-entity-type">
                   <SelectValue placeholder="Sélectionner un type" />
                 </SelectTrigger>
@@ -1070,7 +1090,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                   <SelectItem value="task">Tâche</SelectItem>
                   <SelectItem value="epic">Epic</SelectItem>
                   <SelectItem value="sprint">Sprint</SelectItem>
-                  <SelectItem value="roadmap_item">Étape Roadmap</SelectItem>
+                  <SelectItem value="roadmap_milestone">Jalon Roadmap</SelectItem>
+                  <SelectItem value="roadmap_rubrique">Rubrique Roadmap</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1090,7 +1111,10 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                   {linkEntityType === "sprint" && projectSprints.map((sprint: any) => (
                     <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
                   ))}
-                  {linkEntityType === "roadmap_item" && projectRoadmapItems.map((item: any) => (
+                  {linkEntityType === "roadmap_milestone" && roadmapMilestones.map((item: any) => (
+                    <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
+                  ))}
+                  {linkEntityType === "roadmap_rubrique" && roadmapRubriques.map((item: any) => (
                     <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -1104,7 +1128,11 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
             <Button
               onClick={() => {
                 if (selectedKRId && linkEntityId) {
-                  createLinkMutation.mutate({ keyResultId: selectedKRId, entityType: linkEntityType, entityId: linkEntityId });
+                  // Convert roadmap_milestone and roadmap_rubrique back to roadmap_item for the API
+                  const apiEntityType = (linkEntityType === "roadmap_milestone" || linkEntityType === "roadmap_rubrique") 
+                    ? "roadmap_item" 
+                    : linkEntityType;
+                  createLinkMutation.mutate({ keyResultId: selectedKRId, entityType: apiEntityType, entityId: linkEntityId });
                 }
               }}
               disabled={!linkEntityId || createLinkMutation.isPending}
