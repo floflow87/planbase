@@ -2,6 +2,198 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { addDocumentTables, seedDocumentTemplates } from "./migrations/add-document-tables";
+import { resourceTemplates, accounts } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+
+// Default resource templates to seed for each account
+const DEFAULT_RESOURCE_TEMPLATES = [
+  // RESSOURCES HUMAINES (7)
+  {
+    name: "Développeur Full-Stack Senior",
+    type: "human",
+    profileType: "Développeur Full-Stack Senior",
+    mode: "internal",
+    dailyCostInternal: "550.00",
+    dailyRateBilled: "800.00",
+    defaultCapacity: 1.0,
+    isBillable: 1,
+    category: "development",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Développeur Full-Stack Junior",
+    type: "human",
+    profileType: "Développeur Full-Stack Junior",
+    mode: "internal",
+    dailyCostInternal: "300.00",
+    dailyRateBilled: "520.00",
+    defaultCapacity: 0.75,
+    isBillable: 1,
+    category: "development",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Designer UI/UX",
+    type: "human",
+    profileType: "Designer UI/UX",
+    mode: "internal",
+    dailyCostInternal: "420.00",
+    dailyRateBilled: "700.00",
+    defaultCapacity: 0.5,
+    isBillable: 1,
+    category: "design",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Product Manager",
+    type: "human",
+    profileType: "Product Manager",
+    mode: "internal",
+    dailyCostInternal: "550.00",
+    dailyRateBilled: "800.00",
+    defaultCapacity: 0.3,
+    isBillable: 0,
+    category: "management",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "DevOps Engineer",
+    type: "human",
+    profileType: "DevOps Engineer",
+    mode: "internal",
+    dailyCostInternal: "600.00",
+    dailyRateBilled: "850.00",
+    defaultCapacity: 0.2,
+    isBillable: 0,
+    category: "infrastructure",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "QA Engineer",
+    type: "human",
+    profileType: "QA Engineer",
+    mode: "internal",
+    dailyCostInternal: "380.00",
+    dailyRateBilled: "550.00",
+    defaultCapacity: 0.3,
+    isBillable: 0,
+    category: "quality",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Chef de projet",
+    type: "human",
+    profileType: "Chef de projet",
+    mode: "internal",
+    dailyCostInternal: "480.00",
+    dailyRateBilled: "700.00",
+    defaultCapacity: 0.35,
+    isBillable: 0,
+    category: "management",
+    isSystemTemplate: 1,
+  },
+  // RESSOURCES MATÉRIELLES (7)
+  {
+    name: "Hébergement (AWS / Vercel)",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "120.00",
+    isBillable: 0,
+    category: "infrastructure",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Supabase Pro",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "25.00",
+    isBillable: 0,
+    category: "infrastructure",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "OpenAI API",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "80.00",
+    isBillable: 0,
+    category: "services",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Figma Team",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "45.00",
+    isBillable: 0,
+    category: "tools",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "GitHub Team",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "20.00",
+    isBillable: 0,
+    category: "tools",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Licence Adobe",
+    type: "non_human",
+    costType: "monthly",
+    defaultAmount: "60.00",
+    isBillable: 0,
+    category: "tools",
+    isSystemTemplate: 1,
+  },
+  {
+    name: "Domain & SSL",
+    type: "non_human",
+    costType: "yearly",
+    defaultAmount: "25.00",
+    isBillable: 0,
+    category: "infrastructure",
+    isSystemTemplate: 1,
+  },
+];
+
+// Seed resource templates for all accounts
+async function seedResourceTemplates(database: typeof db) {
+  try {
+    // Get all accounts
+    const allAccounts = await database.select({ id: accounts.id }).from(accounts);
+    
+    for (const account of allAccounts) {
+      // Check if this account already has system templates
+      const existingTemplates = await database.select({ name: resourceTemplates.name })
+        .from(resourceTemplates)
+        .where(and(
+          eq(resourceTemplates.accountId, account.id),
+          eq(resourceTemplates.isSystemTemplate, 1)
+        ));
+      
+      const existingNames = new Set(existingTemplates.map(t => t.name));
+      
+      // Insert only templates that don't exist yet
+      const templatesToInsert = DEFAULT_RESOURCE_TEMPLATES
+        .filter(t => !existingNames.has(t.name))
+        .map(template => ({
+          ...template,
+          accountId: account.id,
+        }));
+      
+      if (templatesToInsert.length > 0) {
+        await database.insert(resourceTemplates).values(templatesToInsert);
+        console.log(`  📦 Seeded ${templatesToInsert.length} resource templates for account ${account.id}`);
+      }
+    }
+    
+    console.log("✅ Resource templates seeded successfully");
+  } catch (error) {
+    console.error("⚠️ Error seeding resource templates (may already exist):", error);
+  }
+}
 
 export async function runStartupMigrations() {
   console.log("🔄 Running startup migrations...");
@@ -1437,6 +1629,9 @@ export async function runStartupMigrations() {
       ALTER TABLE project_categories ADD COLUMN IF NOT EXISTS project_type text;
     `);
     console.log("✅ Project categories project_type column added");
+
+    // Seed default resource templates for each account
+    await seedResourceTemplates(db);
 
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
