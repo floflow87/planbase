@@ -1,0 +1,357 @@
+RESSOURCES HUMAINES (7)
+1️⃣ Développeur Full-Stack Senior
+
+🎯 Usage
+
+Développement cœur produit
+
+Architecture, features complexes, décisions techniques
+
+🧮 Modèle de coût
+
+Coût journalier interne : 450–650 €
+
+TJM facturable recommandé : 700–900 €
+
+⚙️ Champs template
+
+Type : Humain
+
+Rôle : Développeur Full-Stack Senior
+
+Facturable : ✅ (par défaut)
+
+Coût journalier : 550 €
+
+TJM cible : 800 €
+
+Capacité : 1 ETP
+
+Phase par défaut : T1 / T2
+
+🔁 Impact KPIs
+
+Impact fort sur coût & CA
+
+Levier principal de marge
+
+💡 Reco possibles
+
+“Augmenter le TJM Senior de +50 € → +X% marge”
+
+“Réduire la charge Senior au profit d’un Junior”
+
+2️⃣ Développeur Full-Stack Junior
+
+🎯 Usage
+
+Implémentation, maintenance, tickets simples
+
+Support delivery
+
+🧮 Modèle de coût
+
+Coût journalier : 250–350 €
+
+TJM recommandé : 450–600 €
+
+⚙️ Champs template
+
+Facturable : ✅
+
+Coût journalier : 300 €
+
+TJM cible : 520 €
+
+Capacité : 0.5 à 1
+
+Phase : T2 / T3
+
+🔁 Impact KPIs
+
+Optimisation du coût projet
+
+Réduction pression Senior
+
+💡 Reco
+
+“Remplacer X jours Senior par Junior → marge +Y%”
+
+3️⃣ Designer UI/UX
+
+🎯 Usage
+
+UX flows, UI, design system, maquettes
+
+🧮 Modèle de coût
+
+Coût journalier : 350–500 €
+
+TJM recommandé : 600–800 €
+
+⚙️ Template
+
+Facturable : ✅
+
+Coût journalier : 420 €
+
+TJM cible : 700 €
+
+Capacité : 0.3–0.6
+
+Phase : T1 (fort), T2 (léger)
+
+🔁 Impact
+
+Impact modéré sur coût
+
+Fort impact valeur perçue
+
+💡 Reco
+
+“Concentrer l’UX en T1 pour limiter les retours coûteux”
+
+4️⃣ Product Manager
+
+🎯 Usage
+
+Cadrage CDC, roadmap, priorisation, arbitrage
+
+🧮 Modèle
+
+Coût journalier : 450–650 €
+
+TJM recommandé : 700–900 €
+
+⚙️ Template
+
+Facturable : ⚠️ (souvent partiellement)
+
+Coût journalier : 550 €
+
+TJM cible : 800 €
+
+Capacité : 0.2–0.4
+
+Phase : T1 / T2
+
+🔁 Impact
+
+Réduction des dérives
+
+Améliore rentabilité indirectement
+
+💡 Reco
+
+“Sous-investissement PM → risque de dérive planning”
+
+5️⃣ DevOps Engineer
+
+🎯 Usage
+
+CI/CD, infra, sécurité, monitoring
+
+🧮 Modèle
+
+Coût journalier : 500–700 €
+
+TJM recommandé : 750–950 €
+
+⚙️ Template
+
+Facturable : ⚠️ (selon projet)
+
+Coût journalier : 600 €
+
+TJM cible : 850 €
+
+Capacité : 0.1–0.3
+
+Phase : T1 setup, puis ponctuel
+
+🔁 Impact
+
+Réduction incidents & dette technique
+
+💡 Reco
+
+“Investir 2j DevOps évite X jours de correctifs”
+
+6️⃣ QA Engineer
+
+🎯 Usage
+
+Tests, non-régression, validation releases
+
+🧮 Modèle
+
+Coût journalier : 300–450 €
+
+TJM recommandé : 500–650 €
+
+⚙️ Template
+
+Facturable : ❌ (souvent)
+
+Coût journalier : 380 €
+
+Capacité : 0.2–0.4
+
+Phase : T2 / T3
+
+🔁 Impact
+
+Réduction bugs post-livraison
+
+💡 Reco
+
+“Absence QA → risque correctifs non prévus”
+
+7️⃣ Chef de projet
+
+🎯 Usage
+
+Coordination, suivi, client, planning
+
+🧮 Modèle
+
+Coût journalier : 350–550 €
+
+TJM recommandé : 600–750 €
+
+⚙️ Template
+
+Facturable : ⚠️
+
+Coût journalier : 480 €
+
+TJM cible : 700 €
+
+Capacité : 0.2–0.5
+
+Phase : toute la durée
+
+🔁 Impact
+
+Améliore respect délais
+
+Peu visible mais clé
+
+🧰 RESSOURCES MATÉRIELLES (8)
+8️⃣ Hébergement (AWS / Vercel)
+
+🎯 Usage
+
+Infra prod / staging
+
+🧮 Modèle
+
+Mensuel : 50–300 €/mois
+
+⚙️ Template
+
+Type : Matériel
+
+Montant : 120 €
+
+Périodicité : Mensuel
+
+Facturable : ❌
+
+Phase : T1–LT
+
+💡 Reco
+
+“Infra sous-dimensionnée vs sur-coût inutile”
+
+9️⃣ Supabase Pro
+
+🎯 Backend, DB, Auth
+
+🧮
+
+25–50 €/mois
+
+⚙️
+
+Montant : 25 €
+
+Facturable : ❌
+
+Durée : projet
+
+🔟 OpenAI API
+
+🎯 IA, génération, analyse
+
+🧮
+
+Variable (ex : 30–200 €/mois)
+
+⚙️
+
+Montant : 80 €
+
+Facturable : ⚠️ (selon contrat)
+
+💡
+
+“Fonctionnalité IA → ajuster pricing”
+
+1️⃣1️⃣ Figma Team
+
+🎯 Design collaboratif
+
+🧮
+
+12–45 €/utilisateur/mois
+
+⚙️
+
+Montant : 45 €
+
+Facturable : ❌
+
+1️⃣2️⃣ GitHub Team
+
+🎯 Code, CI
+
+🧮
+
+~4–10 €/utilisateur/mois
+
+⚙️
+
+Montant : 20 €
+
+Facturable : ❌
+
+1️⃣3️⃣ Licence Adobe
+
+🎯 Design / marketing
+
+🧮
+
+~60 €/mois
+
+⚙️
+
+Montant : 60 €
+
+Facturable : ⚠️
+
+1️⃣4️⃣ Domain & SSL
+
+🎯 Nom de domaine, HTTPS
+
+🧮
+
+~15–30 €/an
+
+⚙️
+
+Montant : 25 €
+
+Facturable : ❌
+
+Durée : annuel

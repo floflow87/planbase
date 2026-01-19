@@ -34,6 +34,8 @@ interface OnboardingContextType {
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
+const ONBOARDING_VERSION = "v1";
+
 const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
   "dashboard",
@@ -131,42 +133,55 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         setIsOnboardingActive(false);
         setCurrentStep(null);
       } else if (!onboardingData.completed && !onboardingData.skipped) {
-        // User hasn't completed onboarding - check if they have a saved step
-        if (onboardingData.lastStep) {
-          // Resume from last step
-          setCurrentStep(onboardingData.lastStep as OnboardingStep);
-          setIsOnboardingActive(true);
+        // User hasn't completed onboarding - check version (null/undefined or matching version triggers onboarding)
+        const shouldActivate = !onboardingData.version || onboardingData.version === ONBOARDING_VERSION;
+        if (shouldActivate) {
+          if (onboardingData.lastStep) {
+            // Resume from last step
+            setCurrentStep(onboardingData.lastStep as OnboardingStep);
+            setIsOnboardingActive(true);
+          } else {
+            // First time - start onboarding
+            setCurrentStep("welcome");
+            setIsOnboardingActive(true);
+          }
         } else {
-          // First time - start onboarding
-          setCurrentStep("welcome");
-          setIsOnboardingActive(true);
+          // Version mismatch - don't show onboarding
+          setIsOnboardingActive(false);
+          setCurrentStep(null);
         }
       }
     }
   }, [isLoading, onboardingData, isResetting]);
 
-  const startOnboarding = useCallback(() => {
+  const startOnboarding = useCallback(async () => {
     // Set resetting flag to prevent useEffect from interfering
     setIsResetting(true);
     
-    // Reset onboarding in backend and start fresh
-    resetMutation.mutate(undefined, {
-      onSuccess: () => {
-        // Set state before navigation
+    try {
+      // Reset onboarding in backend
+      await resetMutation.mutateAsync(undefined);
+      
+      // Force refetch the onboarding data to ensure fresh state
+      await queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
+      const result = await queryClient.fetchQuery({ 
+        queryKey: ["/api/onboarding"],
+        staleTime: 0  // Force fresh fetch
+      });
+      
+      // Verify the reset was successful before activating
+      if (result && !result.completed && !result.skipped) {
         setCurrentStep("welcome");
         setIsOnboardingActive(true);
-        
-        // Clear resetting flag after a short delay to ensure state is settled
-        setTimeout(() => {
-          setIsResetting(false);
-        }, 100);
-        
         setLocation("/");
-      },
-      onError: () => {
-        setIsResetting(false);
-      },
-    });
+      }
+      
+      // Clear resetting flag only after data is confirmed fresh
+      setIsResetting(false);
+    } catch (error) {
+      console.error("Failed to restart onboarding:", error);
+      setIsResetting(false);
+    }
   }, [setLocation, resetMutation]);
 
   const nextStep = useCallback(() => {

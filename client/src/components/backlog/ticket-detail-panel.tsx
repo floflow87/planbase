@@ -157,8 +157,6 @@ export function TicketDetailPanel({
   const [createTaskTitle, setCreateTaskTitle] = useState("");
   const [projectSearchOpen, setProjectSearchOpen] = useState(false);
   
-  // Description expandable state
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   
   // Fetch comments for the ticket - only fetch when ticket is selected
   const ticketId = ticket?.id;
@@ -712,35 +710,26 @@ export function TicketDetailPanel({
           </div>
         )}
         
-        {/* Description - collapsible section */}
+        {/* Description - resizable textarea */}
         <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-            className="flex items-center gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
-            data-testid="button-toggle-description"
-          >
+          <Label className="text-xs text-muted-foreground flex items-center gap-2">
             <FileText className="h-3 w-3" />
-            <span className="font-medium">Description</span>
-            <ChevronDown className={cn("h-3 w-3 transition-transform ml-auto", isDescriptionExpanded && "rotate-180")} />
-          </button>
-          {isDescriptionExpanded && (
-            <>
-              {readOnly ? (
-                <div className="text-sm text-muted-foreground min-h-[60px] p-3 bg-muted/30 rounded-md whitespace-pre-wrap">
-                  {ticket.description || "Aucune description"}
-                </div>
-              ) : (
-                <Textarea
-                  value={editedDescription}
-                  onChange={(e) => setEditedDescription(e.target.value)}
-                  onBlur={handleSaveDescription}
-                  placeholder="Ajoutez une description..."
-                  className="min-h-[100px] resize-none text-xs"
-                  data-testid="textarea-description"
-                />
-              )}
-            </>
+            Description
+          </Label>
+          {readOnly ? (
+            <div className="text-sm text-muted-foreground min-h-[60px] max-h-[300px] overflow-y-auto p-3 bg-muted/30 rounded-md whitespace-pre-wrap resize-y">
+              {ticket.description || "Aucune description"}
+            </div>
+          ) : (
+            <Textarea
+              value={editedDescription}
+              onChange={(e) => setEditedDescription(e.target.value)}
+              onBlur={handleSaveDescription}
+              placeholder="Ajoutez une description..."
+              className="min-h-[80px] resize-y text-xs"
+              style={{ maxHeight: '400px' }}
+              data-testid="textarea-description"
+            />
           )}
         </div>
         

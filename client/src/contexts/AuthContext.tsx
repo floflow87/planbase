@@ -51,19 +51,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Fetch user role from /api/me
+  // Fetch user role from /api/me with proper auth headers
   const fetchUserRole = async () => {
     try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        // No session yet, will be retried after auth is ready
+        return;
+      }
+      
       const response = await fetch('/api/me', {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         credentials: 'include',
       });
       if (response.ok) {
         const userData = await response.json();
         if (userData.role) {
-          setUserProfile(prev => prev ? { ...prev, role: userData.role } : null);
+          // Merge role into existing profile without wiping other fields
+          setUserProfile(prev => {
+            if (prev) {
+              return { ...prev, role: userData.role };
+            }
+            // If no prev profile, create minimal one with just role
+            return { role: userData.role };
+          });
         }
       }
     } catch (error) {
@@ -78,9 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
-      // Fetch role after session is established
+      // Fetch role after session is established, with retry on 401
       if (session?.user) {
-        fetchUserRole();
+        fetchUserRole().catch(() => {
+          // Retry after a short delay if first attempt fails (e.g., 401)
+          setTimeout(() => fetchUserRole(), 1000);
+        });
       }
     });
 
@@ -92,9 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
-      // Fetch role after auth change
+      // Fetch role after auth change, with retry on 401
       if (session?.user) {
-        fetchUserRole();
+        fetchUserRole().catch(() => {
+          setTimeout(() => fetchUserRole(), 1000);
+        });
       }
     });
 
