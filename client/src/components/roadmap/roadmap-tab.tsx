@@ -418,6 +418,22 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     }
   };
 
+  const handleUpdateItemDates = async (itemId: string, startDate: Date, endDate: Date) => {
+    try {
+      await apiRequest(`/api/roadmap-items/${itemId}`, 'PATCH', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les dates.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoadingRoadmaps) {
     return (
       <Card>
@@ -693,6 +709,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 items={filteredItems} 
                 onItemClick={handleOpenEditItem}
                 onAddItem={handleOpenAddItem}
+                onUpdateItemDates={handleUpdateItemDates}
               />
             ) : (
               <OutputView 

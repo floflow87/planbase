@@ -425,7 +425,7 @@ export function TicketDetailPanel({
       setNewComment("");
       setEditingCommentId(null);
     }
-  }, [ticket?.id]);
+  }, [ticket?.id, ticket?.title, ticket?.description]);
   
   if (!ticket) return null;
   
