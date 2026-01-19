@@ -1033,8 +1033,8 @@ export default function BacklogDetail() {
   };
 
   const getTicketsForSprint = (sprintId: string) => {
-    // Filter out completed tickets - they should only appear in "Tickets terminés" tab
-    const tickets = flatTickets.filter(t => t.sprintId === sprintId && t.state !== "termine");
+    // Keep all tickets in sprint, including completed ones
+    const tickets = flatTickets.filter(t => t.sprintId === sprintId);
     return applyFiltersAndSort(tickets);
   };
 

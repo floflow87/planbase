@@ -84,6 +84,7 @@ import {
   ChevronsUpDown,
   Info,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import {
   Command,
@@ -368,6 +369,26 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
     },
   });
 
+  const generateFromTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/projects/${projectId}/resources/generate-from-templates`, "POST");
+    },
+    onSuccess: (result: { generatedCount: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
+      toast({ 
+        title: "Ressources générées", 
+        description: `${result.generatedCount} ressources ont été créées depuis les templates.`, 
+        variant: "success" 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   const resetForm = () => {
     setFormData(initialFormData);
     setEditingResource(null);
@@ -531,6 +552,18 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             <Plus className="h-4 w-4 mr-1" />
             Ressource matérielle
           </Button>
+          {resources.length === 0 && (
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => generateFromTemplatesMutation.mutate()}
+              disabled={generateFromTemplatesMutation.isPending}
+              data-testid="button-generate-from-templates"
+            >
+              <Sparkles className="h-4 w-4 mr-1" />
+              {generateFromTemplatesMutation.isPending ? "Génération..." : "Générer depuis templates"}
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Tooltip>

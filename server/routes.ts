@@ -1985,44 +1985,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[CDC Resources] Resolved project type: ${resolvedProjectType}`);
           
-          if (resolvedProjectType) {
-            // Check if resources already exist for this project (idempotency check)
-            const existingResources = await db.select({ id: projectResources.id })
-              .from(projectResources)
-              .where(and(
-                eq(projectResources.accountId, req.accountId!),
-                eq(projectResources.projectId, session.projectId)
-              ))
-              .limit(1);
-            
-            // Skip resource generation if resources already exist
-            if (existingResources.length === 0) {
-              // Fetch resource templates for this project type or global templates
-              const templates = await db.select().from(resourceTemplates)
+          // Check if resources already exist for this project (idempotency check)
+          const existingResources = await db.select({ id: projectResources.id })
+            .from(projectResources)
+            .where(and(
+              eq(projectResources.accountId, req.accountId!),
+              eq(projectResources.projectId, session.projectId)
+            ))
+            .limit(1);
+          
+          // Skip resource generation if resources already exist
+          if (existingResources.length === 0) {
+            // Fetch resource templates: specific projectType OR global (null)
+            let templates;
+            if (resolvedProjectType) {
+              templates = await db.select().from(resourceTemplates)
                 .where(and(
                   eq(resourceTemplates.accountId, req.accountId!),
                   sql`(${resourceTemplates.projectType} = ${resolvedProjectType} OR ${resourceTemplates.projectType} IS NULL)`
                 ));
-              
-              console.log(`[CDC Resources] Found ${templates.length} templates for projectType="${resolvedProjectType}" or global`);
-              
-              // Create project resources from templates
-              for (const template of templates) {
-                await db.insert(projectResources).values({
-                  accountId: req.accountId!,
-                  projectId: session.projectId,
-                  templateId: template.id,
-                  name: template.name,
-                  description: template.description,
-                  type: template.type,
-                  category: template.category,
-                  costType: template.costType,
-                  amount: template.defaultAmount,
-                  isBillable: template.isBillable,
-                  status: 'active',
-                });
-                generatedResourcesCount++;
-              }
+            } else {
+              // No project type - use only global templates (projectType IS NULL)
+              templates = await db.select().from(resourceTemplates)
+                .where(and(
+                  eq(resourceTemplates.accountId, req.accountId!),
+                  sql`${resourceTemplates.projectType} IS NULL`
+                ));
+            }
+            
+            console.log(`[CDC Resources] Found ${templates.length} templates for projectType="${resolvedProjectType}" or global`);
+            
+            // Create project resources from templates
+            for (const template of templates) {
+              await db.insert(projectResources).values({
+                accountId: req.accountId!,
+                projectId: session.projectId,
+                templateId: template.id,
+                name: template.name,
+                description: template.description,
+                type: template.type,
+                profileType: template.profileType,
+                mode: template.mode,
+                dailyCostInternal: template.dailyCostInternal,
+                dailyRateBilled: template.dailyRateBilled,
+                capacity: template.defaultCapacity,
+                category: template.category,
+                costType: template.costType,
+                amount: template.defaultAmount,
+                isBillable: template.isBillable,
+                status: 'active',
+              });
+              generatedResourcesCount++;
             }
           }
         } catch (resourceError) {
@@ -4879,7 +4892,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const item = await storage.updateRoadmapItem(req.params.id, req.body);
+      // Convert ISO dates to YYYY-MM-DD format for date columns
+      const updateData = { ...req.body };
+      if (updateData.startDate && typeof updateData.startDate === 'string') {
+        updateData.startDate = updateData.startDate.split('T')[0];
+      }
+      if (updateData.endDate && typeof updateData.endDate === 'string') {
+        updateData.endDate = updateData.endDate.split('T')[0];
+      }
+
+      const item = await storage.updateRoadmapItem(req.params.id, updateData);
       
       // Log activity - determine subject type based on item type
       const subjectType = item!.type === "milestone" ? "milestone" : (item!.type === "epic_group" || item!.isGroup) ? "rubrique" : "roadmap_item";
@@ -10001,6 +10023,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [resource] = await db.insert(projectResources).values(validated).returning();
       
       res.status(201).json(resource);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Generate all resources from templates for a project
+  app.post("/api/projects/:projectId/resources/generate-from-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { projectId } = req.params;
+      
+      // Verify project exists
+      const project = await storage.getProject(projectId);
+      if (!project || project.accountId !== accountId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Check if resources already exist
+      const existingResources = await db.select({ id: projectResources.id })
+        .from(projectResources)
+        .where(and(
+          eq(projectResources.accountId, accountId),
+          eq(projectResources.projectId, projectId)
+        ))
+        .limit(1);
+      
+      if (existingResources.length > 0) {
+        return res.status(400).json({ error: "Des ressources existent déjà pour ce projet" });
+      }
+      
+      // Resolve project type
+      let resolvedProjectType: string | null = project.projectTypeInferred || null;
+      if (!resolvedProjectType && project.category) {
+        const categoryRecord = await storage.getProjectCategoryByNormalizedName(accountId, project.category);
+        if (categoryRecord?.projectType) {
+          resolvedProjectType = categoryRecord.projectType;
+        }
+      }
+      
+      // Fetch templates
+      let templates;
+      if (resolvedProjectType) {
+        templates = await db.select().from(resourceTemplates)
+          .where(and(
+            eq(resourceTemplates.accountId, accountId),
+            sql`(${resourceTemplates.projectType} = ${resolvedProjectType} OR ${resourceTemplates.projectType} IS NULL)`
+          ));
+      } else {
+        templates = await db.select().from(resourceTemplates)
+          .where(and(
+            eq(resourceTemplates.accountId, accountId),
+            sql`${resourceTemplates.projectType} IS NULL`
+          ));
+      }
+      
+      // Create resources
+      let generatedCount = 0;
+      for (const template of templates) {
+        await db.insert(projectResources).values({
+          accountId,
+          projectId,
+          templateId: template.id,
+          name: template.name,
+          description: template.description,
+          type: template.type,
+          profileType: template.profileType,
+          mode: template.mode,
+          dailyCostInternal: template.dailyCostInternal,
+          dailyRateBilled: template.dailyRateBilled,
+          capacity: template.defaultCapacity,
+          category: template.category,
+          costType: template.costType,
+          amount: template.defaultAmount,
+          isBillable: template.isBillable,
+          status: 'active',
+        });
+        generatedCount++;
+      }
+      
+      res.status(201).json({ success: true, generatedCount });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
