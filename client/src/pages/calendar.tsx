@@ -58,6 +58,7 @@ export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  const [selectedAppointmentDate, setSelectedAppointmentDate] = useState<Date | undefined>(undefined);
   const [showTasks, setShowTasks] = useState(true);
   const { toast } = useToast();
 
@@ -450,12 +451,26 @@ export default function Calendar() {
                 const dayGoogleEvents = getGoogleEventsForDay(date);
                 const dayTasks = getTasksForDay(date);
 
+                const handleCellClick = (e: React.MouseEvent) => {
+                  // Don't trigger if clicking on an appointment/event/task
+                  if ((e.target as HTMLElement).closest('[data-testid^="appointment-"], [data-testid^="google-event-"], [data-testid^="task-"]')) {
+                    return;
+                  }
+                  // Set the date to 9:00 AM by default
+                  const selectedDate = new Date(date);
+                  selectedDate.setHours(9, 0, 0, 0);
+                  setSelectedAppointmentDate(selectedDate);
+                  setAppointmentDialogOpen(true);
+                };
+
                 return (
                   <div
                     key={index}
-                    className={`min-h-24 p-2 border-r border-b border-border last:border-r-0 ${
+                    onClick={handleCellClick}
+                    className={`min-h-24 p-2 border-r border-b border-border last:border-r-0 cursor-pointer hover-elevate ${
                       !isCurrentMonth ? "bg-muted/30" : "bg-card"
                     } ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}
+                    data-testid={`calendar-cell-${date.toISOString().split('T')[0]}`}
                   >
                     <div className={`text-sm font-medium mb-1 ${
                       isCurrentMonth ? "text-foreground" : "text-muted-foreground"
@@ -759,8 +774,11 @@ export default function Calendar() {
       {/* Appointment Panel */}
       <AppointmentPanel
         open={appointmentDialogOpen}
-        onClose={() => setAppointmentDialogOpen(false)}
-        selectedDate={currentDate}
+        onClose={() => {
+          setAppointmentDialogOpen(false);
+          setSelectedAppointmentDate(undefined);
+        }}
+        selectedDate={selectedAppointmentDate || currentDate}
       />
     </div>
   );

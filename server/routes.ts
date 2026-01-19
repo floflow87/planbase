@@ -1971,14 +1971,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Resolve the project type: first from project field, then from category lookup
           let resolvedProjectType: string | null = project.projectTypeInferred || null;
+          console.log(`[CDC Resources] Project ${project.name}: projectTypeInferred=${project.projectTypeInferred}, category=${project.category}`);
           
           // If no projectTypeInferred, try to get it from the project's category
           if (!resolvedProjectType && project.category) {
             const categoryRecord = await storage.getProjectCategoryByNormalizedName(req.accountId!, project.category);
+            console.log(`[CDC Resources] Category lookup for "${project.category}":`, categoryRecord ? `found with projectType=${categoryRecord.projectType}` : 'not found');
             if (categoryRecord?.projectType) {
               resolvedProjectType = categoryRecord.projectType;
             }
           }
+          
+          console.log(`[CDC Resources] Resolved project type: ${resolvedProjectType}`);
           
           if (resolvedProjectType) {
             // Check if resources already exist for this project (idempotency check)
@@ -1998,6 +2002,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   eq(resourceTemplates.accountId, req.accountId!),
                   sql`(${resourceTemplates.projectType} = ${resolvedProjectType} OR ${resourceTemplates.projectType} IS NULL)`
                 ));
+              
+              console.log(`[CDC Resources] Found ${templates.length} templates for projectType="${resolvedProjectType}" or global`);
               
               // Create project resources from templates
               for (const template of templates) {

@@ -1764,10 +1764,15 @@ function ProjectKanbanView({
 interface CategoryComboboxProps {
   value: string;
   onChange: (value: string) => void;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; projectType?: string | null }[];
+  coreProjectTypes?: string[];
 }
 
-function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps) {
+function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }: CategoryComboboxProps) {
+  // Check if a category has templates linked (is "Core")
+  const isCoreCategory = (cat: { projectType?: string | null }) => {
+    return cat.projectType && coreProjectTypes.includes(cat.projectType);
+  };
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
@@ -1853,7 +1858,12 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
                   <Check
                     className={value === cat.name ? "mr-2 h-4 w-4 opacity-100" : "mr-2 h-4 w-4 opacity-0"}
                   />
-                  {cat.name}
+                  <span className="flex-1">{cat.name}</span>
+                  {isCoreCategory(cat) && (
+                    <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                      Core
+                    </Badge>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -2082,8 +2092,13 @@ export default function Projects() {
     queryKey: ["/api/clients"],
   });
   
-  const { data: projectCategories = [] } = useQuery<{ id: string; name: string }[]>({
+  const { data: projectCategories = [] } = useQuery<{ id: string; name: string; projectType?: string | null }[]>({
     queryKey: ["/api/project-categories"],
+  });
+  
+  // Fetch core project types (project types that have resource templates)
+  const { data: coreProjectTypes = [] } = useQuery<string[]>({
+    queryKey: ['/api/resource-templates/project-types'],
   });
   
   // Get unique categories and recent ones (after projects is declared)
@@ -2108,9 +2123,15 @@ export default function Projects() {
       .sort()
       .map((name, index) => {
         const existing = projectCategories.find(c => c.name === name);
-        return existing || { id: `temp-${index}`, name };
+        return existing || { id: `temp-${index}`, name, projectType: null };
       });
   }, [projectCategories, uniqueCategories]);
+  
+  // Helper to check if a category is Core (has linked resource templates)
+  const isCoreCategory = (categoryName: string) => {
+    const cat = projectCategories.find(c => c.name === categoryName);
+    return cat?.projectType && coreProjectTypes.includes(cat.projectType);
+  };
 
   useEffect(() => {
     if (projects.length > 0 && !selectedProjectId) {
@@ -3283,9 +3304,16 @@ export default function Projects() {
                               {getProjectStageLabel(project.stage)}
                             </Badge>
                             {project.category && (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {project.category}
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {project.category}
+                                </Badge>
+                                {isCoreCategory(project.category) && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                                    Core
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                             {project.billingStatus && (
                               <Badge variant="outline" className="text-[10px]">
@@ -3481,9 +3509,16 @@ export default function Projects() {
                                 {getProjectStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
-                                <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
-                                  {project.category}
-                                </Badge>
+                                <>
+                                  <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
+                                    {project.category}
+                                  </Badge>
+                                  {isCoreCategory(project.category) && (
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                                      Core
+                                    </Badge>
+                                  )}
+                                </>
                               )}
                               <Badge 
                                 className={`${getBillingStatusColorClass(project.billingStatus)} text-xs`}
@@ -3695,9 +3730,16 @@ export default function Projects() {
                                         data-testid={`button-edit-category-${project.id}`}
                                       >
                                         {project.category ? (
-                                          <Badge variant="outline" className="cursor-pointer text-[10px]">
-                                            {project.category}
-                                          </Badge>
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant="outline" className="cursor-pointer text-[10px]">
+                                              {project.category}
+                                            </Badge>
+                                            {isCoreCategory(project.category) && (
+                                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                                                Core
+                                              </Badge>
+                                            )}
+                                          </div>
                                         ) : (
                                           <span className="text-[11px] text-muted-foreground">—</span>
                                         )}
@@ -4388,6 +4430,7 @@ export default function Projects() {
                   value={projectFormData.category || ""}
                   onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
                   categories={allCategories}
+                  coreProjectTypes={coreProjectTypes}
                 />
               </div>
             </div>
@@ -4601,6 +4644,7 @@ export default function Projects() {
                   value={projectFormData.category || ""}
                   onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
                   categories={allCategories}
+                  coreProjectTypes={coreProjectTypes}
                 />
               </div>
             </div>
