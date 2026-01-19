@@ -283,6 +283,15 @@ export function CdcWizard({
       queryClient.invalidateQueries({ queryKey: ['/api/roadmaps'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'baselines'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'okr'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/roadmaps`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/backlogs`] });
+      if (result.generatedBacklogId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/backlogs', result.generatedBacklogId] });
+      }
+      if (result.generatedRoadmapId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${result.generatedRoadmapId}/items`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${result.generatedRoadmapId}/dependencies`] });
+      }
       setCurrentStep(5);
     },
     onError: (error: any) => {
