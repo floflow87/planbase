@@ -1,0 +1,208 @@
+Tu dois générer un jeu de données de démonstration réaliste et cohérent pour PlanBase afin de tester l’app (UI + stats + recos + roadmap + OKR).
+
+Contraintes générales
+
+Les données doivent être cohérentes entre elles : liens projets↔clients↔backlogs↔sprints↔tickets↔epics↔roadmap↔OKR↔tâches.
+
+Les données doivent être multi-tenant safe : tout doit appartenir au compte courant.
+
+Ne pas “faker” des champs : tous les champs requis doivent être remplis (description, priorité, estimate points, critères d’acceptation, dates, responsables…).
+
+Les dates doivent être réalistes (ex: sprints sur 2 semaines, certains terminés, certains en cours, certains futurs).
+
+Les statuts doivent être variés pour alimenter les KPIs (To Do / In progress / Review / Done).
+
+Les tickets doivent être répartis entre sprints + backlog hors sprint.
+
+1) Clients
+
+Créer 15 clients (CRM) avec :
+
+nom, email, téléphone (fake mais réalistes)
+
+statut / tags (ex : “Prospect”, “Actif”, “VIP”)
+
+notes internes
+
+2) Projets
+
+Créer 10 projets (1 projet pour 10 clients parmi les 15).
+
+Chaque projet doit avoir :
+
+nom réaliste
+
+type de projet (utiliser catégories existantes : SaaS / Site web / E-commerce / Branding / Design system / etc.)
+
+date de début
+
+stage (prospection/signé/en cours/livré/terminé selon config)
+
+TJM cible et coût interne journalier (si existants dans config)
+
+budget (project.budget) et totalBilled (project.totalBilled) cohérents (ex : projet en cours → budget > billed)
+
+priorité du projet (low/normal/high/strategic si présent)
+
+au moins 2 collaborateurs liés au projet (responsable + assigné)
+
+3) Backlogs (Scrum)
+
+Créer 5 backlogs Scrum liés à 5 projets parmi les 10.
+
+Chaque backlog doit avoir :
+
+8 sprints
+
+parmi ces 8 sprints : 2 terminés, 1 en cours, les autres futurs
+
+chaque sprint doit avoir :
+
+nom
+
+date début / date fin + heures
+
+statut (terminé/en cours/futur) selon votre modèle
+
+capacité ou info utile si existante
+
+au moins 6 tickets (user stories) dans le sprint, plus des tickets hors sprint dans le backlog
+
+4) Epics + tickets + sous-tâches
+
+Pour chaque backlog :
+
+Créer 4 epics (ex : Onboarding, Paiement, Roadmap, CRM)
+
+Chaque epic doit contenir au moins 6 user stories
+
+Chaque user story doit avoir 3 à 6 tasks (sous tickets)
+
+Chaque User Story doit contenir tous les champs :
+
+title
+
+description complète
+
+priorité (low/medium/high/urgent selon config)
+
+complexité / estimate points (ex : 1,2,3,5,8,13)
+
+responsable
+
+assigné
+
+rapporteur
+
+état (à faire, en cours, review, terminé)
+
+date de création
+
+date d’échéance
+
+sprint (ou backlog si non sprinté)
+
+checklist = critères d’acceptation (au moins 3 items)
+
+commentaires (au moins 2 commentaires réalistes)
+
+Chaque Task (sous-ticket) doit aussi avoir :
+
+title + description
+
+estimate points ou charge si supporté
+
+statut varié
+
+responsable + assigné
+
+commentaires
+
+👉 Les tickets terminés doivent être suffisamment nombreux pour alimenter vélocité / burn / stats.
+
+5) Roadmap
+
+Pour chaque projet ayant un backlog :
+
+Créer une roadmap avec :
+
+phases T1/T2/T3/LT basées sur la date de début du projet (T1=+3 mois etc.)
+
+8 à 12 blocs roadmap
+
+3 jalons (milestones) au minimum
+
+Chaque bloc roadmap :
+
+titre, description
+
+dates début/fin cohérentes
+
+phase (T1/T2/T3/LT)
+
+liens : relier au moins 50% des blocs à une Epic ou une User Story
+
+Les jalons :
+
+titre, description, date cible, criticité (si existante)
+
+relier au moins 1 jalon à un bloc roadmap
+
+6) OKR
+
+Pour chaque projet ayant une roadmap :
+Créer 3 objectifs OKR :
+
+1 objectif Business
+
+1 objectif Produit
+
+1 objectif Marketing
+
+Chaque objectif doit avoir :
+
+titre macro (vision)
+
+phase cible (T1/T2/T3/LT)
+
+statut calculable (OK/risque/critique)
+
+au moins 3 Key Results
+
+Chaque Key Result doit avoir :
+
+title
+
+valeur cible (number)
+
+valeur actuelle (number)
+
+unité (% / € / users / tickets…)
+
+progression affichable
+
+liens : relier chaque KR à au moins 1 élément parmi :
+
+Epic
+
+Sprint
+
+Ticket
+
+Jalon roadmap
+
+Bloc roadmap
+
+7) Tâches liées aux OKR et aux projets
+
+Créer des tâches / actions (si module tasks global existe) :
+
+au moins 30 tâches réparties sur les projets
+
+dont au moins 15 tâches explicitement reliées à :
+
+un KR (OKR)
+
+un projet
+
+statut varié, échéances, responsables
