@@ -7,6 +7,8 @@ import {
   roadmaps,
   roadmapItems,
   projectScopeItems,
+  okrObjectives,
+  okrKeyResults,
   type ProjectScopeItem,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -260,4 +262,258 @@ function calculatePhaseEndDate(startDate: Date, items: ProjectScopeItem[]): Date
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + Math.ceil(totalDays) + 7);
   return endDate;
+}
+
+interface OkrTemplate {
+  type: 'business' | 'product' | 'marketing';
+  title: string;
+  description: string;
+  targetPhase: 'T1' | 'T2' | 'T3' | 'LT';
+  keyResults: {
+    title: string;
+    metricType: 'delivery' | 'time' | 'margin' | 'adoption' | 'volume';
+    targetValue: number;
+    unit: string;
+  }[];
+}
+
+const OKR_TEMPLATES_BY_PROJECT_TYPE: Record<string, OkrTemplate[]> = {
+  dev_saas: [
+    {
+      type: 'product',
+      title: 'Livrer le MVP fonctionnel',
+      description: 'Atteindre un produit minimum viable avec les fonctionnalités core',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Fonctionnalités core livrées', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Tests automatisés en place', metricType: 'delivery', targetValue: 80, unit: '%' },
+        { title: 'Documentation technique', metricType: 'delivery', targetValue: 100, unit: '%' },
+      ],
+    },
+    {
+      type: 'business',
+      title: 'Préparer le lancement commercial',
+      description: 'Mettre en place les éléments pour le go-to-market',
+      targetPhase: 'T2',
+      keyResults: [
+        { title: 'Beta testeurs actifs', metricType: 'volume', targetValue: 10, unit: 'utilisateurs' },
+        { title: 'Taux de satisfaction beta', metricType: 'adoption', targetValue: 80, unit: '%' },
+        { title: 'Bugs critiques résolus', metricType: 'delivery', targetValue: 100, unit: '%' },
+      ],
+    },
+  ],
+  design: [
+    {
+      type: 'product',
+      title: 'Livrer les livrables design validés',
+      description: 'Produire et faire valider tous les livrables graphiques',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Maquettes validées', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Design system documenté', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Temps de révision', metricType: 'time', targetValue: 3, unit: 'jours' },
+      ],
+    },
+    {
+      type: 'business',
+      title: 'Garantir la satisfaction client',
+      description: 'Assurer une expérience client fluide et professionnelle',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Taux de satisfaction client', metricType: 'adoption', targetValue: 90, unit: '%' },
+        { title: 'Respect du planning initial', metricType: 'time', targetValue: 100, unit: '%' },
+      ],
+    },
+  ],
+  conseil: [
+    {
+      type: 'business',
+      title: 'Livrer les recommandations stratégiques',
+      description: 'Fournir un livrable actionnable de qualité',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Livrables validés par le client', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Actions prioritaires identifiées', metricType: 'delivery', targetValue: 5, unit: 'actions' },
+        { title: 'Satisfaction client', metricType: 'adoption', targetValue: 90, unit: '%' },
+      ],
+    },
+    {
+      type: 'product',
+      title: 'Accompagner la mise en oeuvre',
+      description: 'Supporter le client dans l\'exécution des recommandations',
+      targetPhase: 'T2',
+      keyResults: [
+        { title: 'Sessions de suivi réalisées', metricType: 'volume', targetValue: 4, unit: 'sessions' },
+        { title: 'Recommandations mises en oeuvre', metricType: 'delivery', targetValue: 80, unit: '%' },
+      ],
+    },
+  ],
+  ecommerce: [
+    {
+      type: 'product',
+      title: 'Mettre en ligne la boutique',
+      description: 'Lancer le site e-commerce avec toutes les fonctionnalités',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Pages produits publiées', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Tunnel de paiement fonctionnel', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Performance PageSpeed', metricType: 'delivery', targetValue: 80, unit: 'score' },
+      ],
+    },
+    {
+      type: 'marketing',
+      title: 'Optimiser la conversion',
+      description: 'Améliorer les indicateurs de conversion du site',
+      targetPhase: 'T2',
+      keyResults: [
+        { title: 'Taux de conversion', metricType: 'adoption', targetValue: 3, unit: '%' },
+        { title: 'Panier moyen', metricType: 'margin', targetValue: 100, unit: '€' },
+        { title: 'Taux d\'abandon panier', metricType: 'adoption', targetValue: 30, unit: '%' },
+      ],
+    },
+  ],
+  site_vitrine: [
+    {
+      type: 'product',
+      title: 'Livrer le site vitrine',
+      description: 'Mettre en ligne le site avec tout le contenu',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Pages livrées', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'SEO optimisé', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Responsive mobile validé', metricType: 'delivery', targetValue: 100, unit: '%' },
+      ],
+    },
+    {
+      type: 'business',
+      title: 'Assurer la qualité projet',
+      description: 'Garantir le respect des engagements',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Respect du budget', metricType: 'margin', targetValue: 100, unit: '%' },
+        { title: 'Respect du planning', metricType: 'time', targetValue: 100, unit: '%' },
+        { title: 'Satisfaction client', metricType: 'adoption', targetValue: 90, unit: '%' },
+      ],
+    },
+  ],
+  integration: [
+    {
+      type: 'product',
+      title: 'Intégrer les systèmes',
+      description: 'Réaliser les intégrations techniques prévues',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'API connectées', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Tests d\'intégration passés', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Documentation technique', metricType: 'delivery', targetValue: 100, unit: '%' },
+      ],
+    },
+  ],
+  formation: [
+    {
+      type: 'product',
+      title: 'Dispenser la formation',
+      description: 'Réaliser les sessions de formation prévues',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Modules délivrés', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Participants formés', metricType: 'volume', targetValue: 10, unit: 'personnes' },
+        { title: 'Taux de satisfaction', metricType: 'adoption', targetValue: 85, unit: '%' },
+      ],
+    },
+  ],
+  cpo: [
+    {
+      type: 'product',
+      title: 'Définir la vision produit',
+      description: 'Établir une roadmap produit claire et priorisée',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Vision produit documentée', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Backlog priorisé', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'KPIs produit définis', metricType: 'delivery', targetValue: 5, unit: 'KPIs' },
+      ],
+    },
+    {
+      type: 'business',
+      title: 'Aligner les parties prenantes',
+      description: 'Assurer l\'adhésion des stakeholders à la vision',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Stakeholders alignés', metricType: 'adoption', targetValue: 100, unit: '%' },
+        { title: 'Décisions documentées', metricType: 'delivery', targetValue: 100, unit: '%' },
+      ],
+    },
+  ],
+  autre: [
+    {
+      type: 'business',
+      title: 'Livrer le projet avec succès',
+      description: 'Atteindre les objectifs définis dans le périmètre',
+      targetPhase: 'T1',
+      keyResults: [
+        { title: 'Livrables validés', metricType: 'delivery', targetValue: 100, unit: '%' },
+        { title: 'Respect du planning', metricType: 'time', targetValue: 100, unit: '%' },
+        { title: 'Satisfaction client', metricType: 'adoption', targetValue: 85, unit: '%' },
+      ],
+    },
+  ],
+};
+
+export async function generateOkrFromCdc(
+  accountId: string,
+  projectId: string,
+  projectType: string,
+  createdBy: string
+): Promise<number> {
+  const templates = OKR_TEMPLATES_BY_PROJECT_TYPE[projectType] || OKR_TEMPLATES_BY_PROJECT_TYPE['autre'];
+  
+  let objectivesCount = 0;
+  
+  for (let i = 0; i < templates.length; i++) {
+    const template = templates[i];
+    
+    const [objective] = await db.insert(okrObjectives).values({
+      accountId,
+      projectId,
+      title: template.title,
+      description: template.description,
+      type: template.type,
+      targetPhase: template.targetPhase,
+      status: 'on_track',
+      progress: 0,
+      position: i,
+      createdBy,
+    }).returning();
+    
+    objectivesCount++;
+    
+    for (let j = 0; j < template.keyResults.length; j++) {
+      const kr = template.keyResults[j];
+      
+      await db.insert(okrKeyResults).values({
+        accountId,
+        objectiveId: objective.id,
+        title: kr.title,
+        metricType: kr.metricType,
+        targetValue: kr.targetValue,
+        currentValue: 0,
+        unit: kr.unit,
+        status: 'on_track',
+        weight: 1,
+        position: j,
+      });
+    }
+  }
+  
+  await storage.createActivity({
+    accountId,
+    subjectType: "project",
+    subjectId: projectId,
+    kind: "updated",
+    payload: { description: `${objectivesCount} OKR générés depuis le CDC` },
+    createdBy,
+  });
+  
+  return objectivesCount;
 }

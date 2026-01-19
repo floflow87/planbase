@@ -1895,13 +1895,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Cannot complete session with no scope items" });
       }
 
-      // Generate backlog and roadmap from scope items
-      const { generateBacklogFromCdc, generateRoadmapFromCdc } = await import("./services/cdcGenerationService");
+      // Generate backlog, roadmap, and OKRs from scope items
+      const { generateBacklogFromCdc, generateRoadmapFromCdc, generateOkrFromCdc } = await import("./services/cdcGenerationService");
       
-      const { generateBacklog = true, generateRoadmap = true } = req.body;
+      const { generateBacklog = true, generateRoadmap = true, generateOkr = false } = req.body;
       
       let generatedBacklogId: string | undefined;
       let generatedRoadmapId: string | undefined;
+      let generatedOkrObjectivesCount: number = 0;
 
       if (generateBacklog) {
         generatedBacklogId = await generateBacklogFromCdc(
@@ -1917,6 +1918,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.accountId!,
           session.projectId,
           scopeItems,
+          req.userId!
+        );
+      }
+
+      if (generateOkr) {
+        generatedOkrObjectivesCount = await generateOkrFromCdc(
+          req.accountId!,
+          session.projectId,
+          project.projectType || 'autre',
           req.userId!
         );
       }
@@ -1972,6 +1982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         session: completedSession,
         generatedBacklogId,
         generatedRoadmapId,
+        generatedOkrObjectivesCount,
         baseline,
       });
     } catch (error: any) {

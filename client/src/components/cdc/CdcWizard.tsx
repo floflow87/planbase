@@ -112,9 +112,11 @@ export function CdcWizard({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
+  const [generateOkr, setGenerateOkr] = useState(false);
   const [generationResult, setGenerationResult] = useState<{
     backlogId?: string;
     roadmapId?: string;
+    okrObjectivesCount?: number;
     baseline?: ProjectBaseline;
   } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -265,6 +267,7 @@ export function CdcWizard({
       return apiRequest(`/api/cdc-sessions/${sessionId}/complete`, 'POST', {
         generateBacklog,
         generateRoadmap,
+        generateOkr,
       });
     },
     onSuccess: (result: any) => {
@@ -272,12 +275,14 @@ export function CdcWizard({
       setGenerationResult({
         backlogId: result.generatedBacklogId,
         roadmapId: result.generatedRoadmapId,
+        okrObjectivesCount: result.generatedOkrObjectivesCount,
         baseline: result.baseline,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
       queryClient.invalidateQueries({ queryKey: ['/api/backlogs'] });
       queryClient.invalidateQueries({ queryKey: ['/api/roadmaps'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'baselines'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'okr'] });
       setCurrentStep(5);
     },
     onError: (error: any) => {
@@ -620,6 +625,24 @@ export function CdcWizard({
                     </div>
                   </CardContent>
                 </Card>
+
+                <Card className={`cursor-pointer transition-all ${generateOkr ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/20' : ''}`}>
+                  <CardContent className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={generateOkr}
+                        onCheckedChange={setGenerateOkr}
+                        data-testid="switch-generate-okr"
+                      />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">Générer des OKR</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Crée des objectifs et résultats clés adaptés au type de projet
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <Card className="bg-muted/50">
@@ -750,6 +773,25 @@ export function CdcWizard({
                   </Card>
                 )}
 
+                {generationResult.okrObjectivesCount && generationResult.okrObjectivesCount > 0 && (
+                  <Card>
+                    <CardContent className="py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-violet-100 dark:bg-violet-950 flex items-center justify-center">
+                          <Target className="h-5 w-5 text-violet-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium">OKR générés</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {generationResult.okrObjectivesCount} objectif{generationResult.okrObjectivesCount > 1 ? 's' : ''} avec résultats clés
+                          </p>
+                        </div>
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500 ml-auto" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="bg-muted/50">
                   <CardContent className="py-4">
                     <div className="flex items-start gap-3">
@@ -801,7 +843,7 @@ export function CdcWizard({
           ) : currentStep === 4 ? (
             <Button
               onClick={handleComplete}
-              disabled={isGenerating || (!generateBacklog && !generateRoadmap)}
+              disabled={isGenerating || (!generateBacklog && !generateRoadmap && !generateOkr)}
               data-testid="button-wizard-complete"
             >
               {isGenerating ? (
