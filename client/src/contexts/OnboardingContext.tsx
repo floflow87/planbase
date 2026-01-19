@@ -164,7 +164,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       
       // Force refetch the onboarding data to ensure fresh state
       await queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
-      const result = await queryClient.fetchQuery({ 
+      const result = await queryClient.fetchQuery<UserOnboarding>({ 
         queryKey: ["/api/onboarding"],
         staleTime: 0  // Force fresh fetch
       });

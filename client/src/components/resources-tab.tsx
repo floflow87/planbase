@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -85,6 +86,7 @@ import {
   Info,
   AlertTriangle,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   Command,
@@ -257,10 +259,23 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
   const [isStartDateOpen, setIsStartDateOpen] = useState(false);
   const [isEndDateOpen, setIsEndDateOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const { data: resources = [], isLoading } = useQuery<ProjectResource[]>({
     queryKey: ["/api/projects", projectId, "resources"],
   });
+
+  // Clear selection when resources or filter change (removes references to deleted/hidden resources)
+  useEffect(() => {
+    const visibleResources = resources.filter(r => showSimulations || r.isSimulation !== 1);
+    const visibleIds = new Set(visibleResources.map(r => r.id));
+    setSelectedResources(prev => {
+      const filtered = new Set([...prev].filter(id => visibleIds.has(id)));
+      if (filtered.size !== prev.size) return filtered;
+      return prev;
+    });
+  }, [resources, showSimulations]);
 
   const summaryUrl = showSimulations 
     ? `/api/projects/${projectId}/resources/summary` 
@@ -388,6 +403,83 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => apiRequest(`/api/resources/${id}`, "DELETE")));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
+      toast({ title: "Ressources supprimées", description: `${selectedResources.size} ressources ont été supprimées.`, variant: "success" });
+      setSelectedResources(new Set());
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: Partial<{ isBillable: number; isSimulation: number }> }) => {
+      await Promise.all(ids.map(id => apiRequest(`/api/resources/${id}`, "PATCH", updates)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "resources"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].includes(`/api/projects/${projectId}/resources/summary`)
+      });
+      toast({ title: "Ressources modifiées", description: `${selectedResources.size} ressources ont été mises à jour.`, variant: "success" });
+      setSelectedResources(new Set());
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Selection helpers
+  const toggleResourceSelection = useCallback((id: string) => {
+    setSelectedResources(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleAllHumanResources = useCallback((humanResources: ProjectResource[]) => {
+    setSelectedResources(prev => {
+      const humanIds = humanResources.map(r => r.id);
+      const allSelected = humanIds.every(id => prev.has(id));
+      const newSet = new Set(prev);
+      if (allSelected) {
+        humanIds.forEach(id => newSet.delete(id));
+      } else {
+        humanIds.forEach(id => newSet.add(id));
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleAllNonHumanResources = useCallback((nonHumanResources: ProjectResource[]) => {
+    setSelectedResources(prev => {
+      const nonHumanIds = nonHumanResources.map(r => r.id);
+      const allSelected = nonHumanIds.every(id => prev.has(id));
+      const newSet = new Set(prev);
+      if (allSelected) {
+        nonHumanIds.forEach(id => newSet.delete(id));
+      } else {
+        nonHumanIds.forEach(id => newSet.add(id));
+      }
+      return newSet;
+    });
+  }, []);
 
   const resetForm = () => {
     setFormData(initialFormData);
@@ -542,6 +634,72 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
         </Card>
       </div>
 
+      {/* Bulk actions bar */}
+      {selectedResources.size > 0 && (
+        <div className="flex items-center justify-between bg-muted/50 border rounded-md px-4 py-2">
+          <span className="text-sm font-medium" data-testid="text-selected-count">
+            {selectedResources.size} ressource(s) sélectionnée(s)
+          </span>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedResources), updates: { isBillable: 1 } })}
+              disabled={bulkUpdateMutation.isPending}
+              data-testid="button-bulk-billable"
+            >
+              Facturable
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedResources), updates: { isBillable: 0 } })}
+              disabled={bulkUpdateMutation.isPending}
+              data-testid="button-bulk-not-billable"
+            >
+              Non facturable
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedResources), updates: { isSimulation: 1 } })}
+              disabled={bulkUpdateMutation.isPending}
+              data-testid="button-bulk-simulation"
+            >
+              <Calculator className="h-4 w-4 mr-1" />
+              Simulation
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => bulkUpdateMutation.mutate({ ids: Array.from(selectedResources), updates: { isSimulation: 0 } })}
+              disabled={bulkUpdateMutation.isPending}
+              data-testid="button-bulk-not-simulation"
+            >
+              Réel
+            </Button>
+            <Button 
+              size="sm" 
+              variant="destructive"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-bulk-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Supprimer
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => setSelectedResources(new Set())}
+              data-testid="button-clear-selection"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => openCreateDialog("human")} data-testid="button-add-human">
@@ -612,6 +770,13 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={humanResources.length > 0 && humanResources.every(r => selectedResources.has(r.id))}
+                          onCheckedChange={() => toggleAllHumanResources(humanResources)}
+                          data-testid="checkbox-select-all-human"
+                        />
+                      </TableHead>
                       <TableHead>Nom</TableHead>
                       <TableHead>Profil</TableHead>
                       <TableHead>Mode</TableHead>
@@ -625,6 +790,13 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                   <TableBody>
                     {humanResources.map((resource) => (
                       <TableRow key={resource.id} className={resource.isSimulation === 1 ? "opacity-60 bg-muted/30" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedResources.has(resource.id)}
+                            onCheckedChange={() => toggleResourceSelection(resource.id)}
+                            data-testid={`checkbox-resource-${resource.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             {resource.name}
@@ -739,6 +911,13 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={nonHumanResources.length > 0 && nonHumanResources.every(r => selectedResources.has(r.id))}
+                          onCheckedChange={() => toggleAllNonHumanResources(nonHumanResources)}
+                          data-testid="checkbox-select-all-nonhuman"
+                        />
+                      </TableHead>
                       <TableHead>Nom</TableHead>
                       <TableHead>Catégorie</TableHead>
                       <TableHead>Type de coût</TableHead>
@@ -750,6 +929,13 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
                   <TableBody>
                     {nonHumanResources.map((resource) => (
                       <TableRow key={resource.id} className={resource.isSimulation === 1 ? "opacity-60 bg-muted/30" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedResources.has(resource.id)}
+                            onCheckedChange={() => toggleResourceSelection(resource.id)}
+                            data-testid={`checkbox-resource-${resource.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             {resource.name}
@@ -1182,11 +1368,39 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => resourceToDelete && deleteMutation.mutate(resourceToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Supprimer
+            <AlertDialogAction asChild>
+              <Button 
+                variant="destructive" 
+                onClick={() => resourceToDelete && deleteMutation.mutate(resourceToDelete.id)}
+                data-testid="button-confirm-delete"
+              >
+                Supprimer
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer les ressources sélectionnées</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer {selectedResources.size} ressource(s) ?
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-bulk-delete">Annuler</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button 
+                variant="destructive" 
+                onClick={() => bulkDeleteMutation.mutate(Array.from(selectedResources))}
+                data-testid="button-confirm-bulk-delete"
+              >
+                Supprimer
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

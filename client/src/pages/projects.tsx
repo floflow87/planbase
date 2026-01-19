@@ -2979,34 +2979,61 @@ export default function Projects() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                {/* Billing status filter dropdown */}
-                <Select
-                  value={projectBillingFilters.length === 1 ? projectBillingFilters[0] : projectBillingFilters.length > 1 ? "multiple" : "all"}
-                  onValueChange={(value) => {
-                    if (value === "all") {
-                      setProjectBillingFilters([]);
-                    } else if (value !== "multiple") {
-                      setProjectBillingFilters([value]);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-[160px] h-9" data-testid="select-billing-filter">
-                    <Banknote className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <SelectValue placeholder="Règlement">
-                      {projectBillingFilters.length === 0 ? "Tous statuts" : 
-                       projectBillingFilters.length === 1 ? billingStatusOptions.find(o => o.value === projectBillingFilters[0])?.label : 
-                       `${projectBillingFilters.length} statuts`}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous statuts</SelectItem>
-                    {billingStatusOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Billing status filter dropdown with multi-select */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="default" className="w-[160px] justify-start" data-testid="select-billing-filter">
+                      <Banknote className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="truncate">
+                        {projectBillingFilters.length === 0 ? "Tous statuts" : 
+                         projectBillingFilters.length === 1 ? billingStatusOptions.find(o => o.value === projectBillingFilters[0])?.label : 
+                         `${projectBillingFilters.length} statuts`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-2" align="start">
+                    <div className="space-y-1">
+                      {billingStatusOptions.map((status) => {
+                        const toggleFilter = () => {
+                          setProjectBillingFilters(prev => 
+                            prev.includes(status.value)
+                              ? prev.filter(s => s !== status.value)
+                              : [...prev, status.value]
+                          );
+                        };
+                        return (
+                          <div 
+                            key={status.value}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer"
+                            onClick={toggleFilter}
+                            data-testid={`row-billing-filter-${status.value}`}
+                          >
+                            <Checkbox 
+                              checked={projectBillingFilters.includes(status.value)}
+                              onCheckedChange={toggleFilter}
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`checkbox-billing-filter-${status.value}`}
+                            />
+                            <span className="text-sm">{status.label}</span>
+                          </div>
+                        );
+                      })}
+                      {projectBillingFilters.length > 0 && (
+                        <div className="border-t pt-2 mt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full text-xs"
+                            onClick={() => setProjectBillingFilters([])}
+                            data-testid="button-clear-billing-filter"
+                          >
+                            Effacer le filtre
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 {/* Filters button with badge */}
                 <Button 
                   variant="outline" 

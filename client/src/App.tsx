@@ -352,12 +352,9 @@ function QuickCreateMenu() {
 
   const createNoteMutation = useMutation({
     mutationFn: async (data: z.infer<typeof noteSchema>) => {
-      return apiRequest("/api/notes", {
-        method: "POST",
-        body: JSON.stringify({ 
-          title: data.title,
-          content: [],
-        }),
+      return apiRequest("/api/notes", "POST", { 
+        title: data.title,
+        content: [],
       });
     },
     onSuccess: (newNote: any) => {
