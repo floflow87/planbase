@@ -1432,6 +1432,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Epics cdc_session_id column added");
 
+    // Add project_type column to project_categories for linking to resource templates
+    await db.execute(sql`
+      ALTER TABLE project_categories ADD COLUMN IF NOT EXISTS project_type text;
+    `);
+    console.log("✅ Project categories project_type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

@@ -213,6 +213,7 @@ export const projectCategories = pgTable("project_categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  projectType: text("project_type"), // Links to resource templates: 'dev_saas', 'design', 'conseil', 'ecommerce', 'site_vitrine', 'integration', 'formation', 'cpo', 'autre'
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

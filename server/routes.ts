@@ -86,6 +86,7 @@ import {
   insertProjectResourceSchema,
   resourceTemplates,
   projectResources,
+  projectCategories,
   okrObjectives,
   okrKeyResults,
   okrLinks,
@@ -1298,7 +1299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new project category (or return existing one if name already exists)
   app.post("/api/project-categories", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
-      const { name } = req.body;
+      const { name, projectType } = req.body;
       if (!name || !name.trim()) {
         return res.status(400).json({ error: "Category name is required" });
       }
@@ -1310,6 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const category = await storage.createProjectCategory({
           accountId: req.accountId!,
           name: trimmedName,
+          projectType: projectType || null,
         });
         res.json(category);
       } catch (dbError: any) {
@@ -1322,6 +1324,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         throw dbError;
       }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a project category (to set/update projectType)
+  app.patch("/api/project-categories/:categoryId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const accountId = req.accountId!;
+      
+      // Validate input with Zod
+      const updateSchema = z.object({
+        projectType: z.string().nullable().optional(),
+      });
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      
+      const updated = await storage.updateProjectCategory(categoryId, accountId, {
+        projectType: parsed.data.projectType ?? null,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      
+      res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1897,14 +1928,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Cannot complete session with no scope items" });
       }
 
-      // Generate backlog, roadmap, and OKRs from scope items
+      // Generate backlog, roadmap, OKRs, and resources from scope items
       const { generateBacklogFromCdc, generateRoadmapFromCdc, generateOkrFromCdc } = await import("./services/cdcGenerationService");
       
-      const { generateBacklog = true, generateRoadmap = true, generateOkr = false } = req.body;
+      const { generateBacklog = true, generateRoadmap = true, generateOkr = false, generateResources = true } = req.body;
       
       let generatedBacklogId: string | undefined;
       let generatedRoadmapId: string | undefined;
       let generatedOkrObjectivesCount: number = 0;
+      let generatedResourcesCount: number = 0;
 
       if (generateBacklog) {
         generatedBacklogId = await generateBacklogFromCdc(
@@ -1932,6 +1964,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
           project.projectType || 'autre',
           req.userId!
         );
+      }
+
+      // Generate project resources from templates based on project type
+      if (generateResources) {
+        try {
+          // Resolve the project type: first from project field, then from category lookup
+          let resolvedProjectType: string | null = project.projectTypeInferred || null;
+          
+          // If no projectTypeInferred, try to get it from the project's category
+          if (!resolvedProjectType && project.category) {
+            const categoryRecord = await storage.getProjectCategoryByNormalizedName(req.accountId!, project.category);
+            if (categoryRecord?.projectType) {
+              resolvedProjectType = categoryRecord.projectType;
+            }
+          }
+          
+          if (resolvedProjectType) {
+            // Check if resources already exist for this project (idempotency check)
+            const existingResources = await db.select({ id: projectResources.id })
+              .from(projectResources)
+              .where(and(
+                eq(projectResources.accountId, req.accountId!),
+                eq(projectResources.projectId, session.projectId)
+              ))
+              .limit(1);
+            
+            // Skip resource generation if resources already exist
+            if (existingResources.length === 0) {
+              // Fetch resource templates for this project type or global templates
+              const templates = await db.select().from(resourceTemplates)
+                .where(and(
+                  eq(resourceTemplates.accountId, req.accountId!),
+                  sql`(${resourceTemplates.projectType} = ${resolvedProjectType} OR ${resourceTemplates.projectType} IS NULL)`
+                ));
+              
+              // Create project resources from templates
+              for (const template of templates) {
+                await db.insert(projectResources).values({
+                  accountId: req.accountId!,
+                  projectId: session.projectId,
+                  templateId: template.id,
+                  name: template.name,
+                  description: template.description,
+                  type: template.type,
+                  category: template.category,
+                  costType: template.costType,
+                  amount: template.defaultAmount,
+                  isBillable: template.isBillable,
+                  status: 'active',
+                });
+                generatedResourcesCount++;
+              }
+            }
+          }
+        } catch (resourceError) {
+          console.error("Error generating resources:", resourceError);
+          // Don't fail the whole operation if resource generation fails
+        }
       }
 
       // Complete the session with generated references
@@ -1986,6 +2076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         generatedBacklogId,
         generatedRoadmapId,
         generatedOkrObjectivesCount,
+        generatedResourcesCount,
         baseline,
       });
     } catch (error: any) {
@@ -9743,6 +9834,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(filtered);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get distinct project types that have resource templates (for "Core" badge)
+  app.get("/api/resource-templates/project-types", requireAuth, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      
+      // Get all unique projectTypes from resource templates for this account
+      const templates = await db.select({
+        projectType: resourceTemplates.projectType
+      }).from(resourceTemplates)
+        .where(and(
+          eq(resourceTemplates.accountId, accountId),
+          not(sql`${resourceTemplates.projectType} IS NULL`)
+        ));
+      
+      // Extract unique project types
+      const projectTypes = [...new Set(templates.map(t => t.projectType).filter(Boolean))];
+      
+      res.json(projectTypes);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

@@ -121,6 +121,7 @@ export interface IStorage {
   getProjectCategoriesByAccountId(accountId: string): Promise<ProjectCategory[]>;
   getProjectCategoryByNormalizedName(accountId: string, name: string): Promise<ProjectCategory | undefined>;
   createProjectCategory(category: InsertProjectCategory): Promise<ProjectCategory>;
+  updateProjectCategory(id: string, accountId: string, updates: { projectType?: string | null }): Promise<ProjectCategory | undefined>;
 
   // Project Payments
   getPaymentsByProjectId(projectId: string): Promise<ProjectPayment[]>;
@@ -675,6 +676,18 @@ export class DatabaseStorage implements IStorage {
       .values(insertCategory)
       .returning();
     return category;
+  }
+
+  async updateProjectCategory(id: string, accountId: string, updates: { projectType?: string | null }): Promise<ProjectCategory | undefined> {
+    const [category] = await db
+      .update(projectCategories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(projectCategories.id, id),
+        eq(projectCategories.accountId, accountId)
+      ))
+      .returning();
+    return category || undefined;
   }
 
   // Project Payments

@@ -58,32 +58,72 @@ type TimeEntry = {
   updatedAt: string;
 };
 
+// Project types that can be linked to resource templates
+const PROJECT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'dev_saas', label: 'Développement SaaS' },
+  { value: 'design', label: 'Design & Graphisme' },
+  { value: 'conseil', label: 'Conseil & Accompagnement' },
+  { value: 'ecommerce', label: 'E-commerce' },
+  { value: 'site_vitrine', label: 'Site Vitrine' },
+  { value: 'integration', label: 'Intégration & API' },
+  { value: 'formation', label: 'Formation' },
+  { value: 'cpo', label: 'Product Management' },
+  { value: 'autre', label: 'Autre' },
+];
+
 interface CategoryComboboxProps {
   value: string;
   onChange: (value: string) => void;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; projectType?: string | null }[];
+  coreProjectTypes?: string[];
 }
 
-function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps) {
+function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [showProjectTypeSelector, setShowProjectTypeSelector] = useState(false);
+  const [selectedProjectType, setSelectedProjectType] = useState<string>("");
+  const [pendingCategoryName, setPendingCategoryName] = useState("");
 
-  const handleCreateCategory = async () => {
+  // Check if a category has templates linked (is "Core")
+  const isCoreCategory = (cat: { projectType?: string | null }) => {
+    return cat.projectType && coreProjectTypes.includes(cat.projectType);
+  };
+
+  const handleStartCreateCategory = () => {
     const trimmedValue = searchValue.trim();
     if (!trimmedValue) return;
+    setPendingCategoryName(trimmedValue);
+    setShowProjectTypeSelector(true);
+  };
+
+  const handleConfirmCreateCategory = async () => {
+    if (!pendingCategoryName) return;
 
     try {
-      // Create the category via API
-      await apiRequest('/api/project-categories', 'POST', { name: trimmedValue });
+      // Create the category via API with optional projectType
+      await apiRequest('/api/project-categories', 'POST', { 
+        name: pendingCategoryName,
+        projectType: selectedProjectType || null,
+      });
       // Invalidate the cache to refetch categories
       queryClient.invalidateQueries({ queryKey: ['/api/project-categories'] });
       // Update local state
-      onChange(trimmedValue);
+      onChange(pendingCategoryName);
       setOpen(false);
       setSearchValue("");
+      setShowProjectTypeSelector(false);
+      setSelectedProjectType("");
+      setPendingCategoryName("");
     } catch (error: any) {
       console.error('Error creating category:', error);
     }
+  };
+
+  const handleCancelCreate = () => {
+    setShowProjectTypeSelector(false);
+    setSelectedProjectType("");
+    setPendingCategoryName("");
   };
 
   // Filter categories based on search
@@ -120,6 +160,37 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
+        {showProjectTypeSelector ? (
+          <div className="p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium mb-1">Créer "{pendingCategoryName}"</p>
+              <p className="text-xs text-muted-foreground">Lier à un type de projet pour les ressources (optionnel)</p>
+            </div>
+            <Select value={selectedProjectType} onValueChange={setSelectedProjectType}>
+              <SelectTrigger className="w-full" data-testid="select-project-type">
+                <SelectValue placeholder="Sélectionner un type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                    {coreProjectTypes.includes(opt.value) && (
+                      <span className="ml-1 text-violet-600">*</span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleCancelCreate} className="flex-1" data-testid="button-cancel-create">
+                Annuler
+              </Button>
+              <Button size="sm" onClick={handleConfirmCreateCategory} className="flex-1" data-testid="button-confirm-create">
+                Créer
+              </Button>
+            </div>
+          </div>
+        ) : (
         <Command shouldFilter={false}>
           <CommandInput 
             placeholder="Rechercher ou créer..." 
@@ -132,7 +203,7 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
               {searchValue.trim() && (
                 <button
                   className="w-full text-sm py-2 px-4 hover-elevate active-elevate-2 rounded-sm text-left"
-                  onClick={handleCreateCategory}
+                  onClick={handleStartCreateCategory}
                   data-testid="button-create-category"
                 >
                   Créer "{searchValue.trim()}"
@@ -157,12 +228,19 @@ function CategoryCombobox({ value, onChange, categories }: CategoryComboboxProps
                       value === cat.name ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {cat.name}
+                  <span className="flex-1">{cat.name}</span>
+                  {isCoreCategory(cat) && (
+                    <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                      Core
+                    </Badge>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
           </CommandList>
         </Command>
+        )
+        }
       </PopoverContent>
     </Popover>
   );
@@ -2753,8 +2831,13 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
-  const { data: projectCategories = [] } = useQuery<{ id: string; name: string }[]>({
+  const { data: projectCategories = [] } = useQuery<{ id: string; name: string; projectType?: string | null }[]>({
     queryKey: ['/api/project-categories'],
+  });
+
+  // Fetch core project types (project types that have resource templates)
+  const { data: coreProjectTypes = [] } = useQuery<string[]>({
+    queryKey: ['/api/resource-templates/project-types'],
   });
 
   // Fetch all projects to get all existing categories
@@ -2773,7 +2856,7 @@ export default function ProjectDetail() {
       .sort()
       .map((name, index) => {
         const existing = projectCategories.find(c => c.name === name);
-        return existing || { id: `temp-${index}`, name };
+        return existing || { id: `temp-${index}`, name, projectType: null };
       });
   }, [projectCategories, allProjects]);
 
@@ -5731,6 +5814,7 @@ export default function ProjectDetail() {
                 value={projectFormData.category || ""}
                 onChange={(value) => setProjectFormData({ ...projectFormData, category: value })}
                 categories={allCategories}
+                coreProjectTypes={coreProjectTypes}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Sélectionnez une catégorie existante ou créez-en une nouvelle

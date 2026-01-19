@@ -113,10 +113,12 @@ export function CdcWizard({
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
   const [generateOkr, setGenerateOkr] = useState(true);
+  const [generateResources, setGenerateResources] = useState(true);
   const [generationResult, setGenerationResult] = useState<{
     backlogId?: string;
     roadmapId?: string;
     okrObjectivesCount?: number;
+    resourcesCount?: number;
     baseline?: ProjectBaseline;
   } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -268,6 +270,7 @@ export function CdcWizard({
         generateBacklog,
         generateRoadmap,
         generateOkr,
+        generateResources,
       });
     },
     onSuccess: (result: any) => {
@@ -276,6 +279,7 @@ export function CdcWizard({
         backlogId: result.generatedBacklogId,
         roadmapId: result.generatedRoadmapId,
         okrObjectivesCount: result.generatedOkrObjectivesCount,
+        resourcesCount: result.generatedResourcesCount,
         baseline: result.baseline,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'scope-items'] });
@@ -283,6 +287,7 @@ export function CdcWizard({
       queryClient.invalidateQueries({ queryKey: ['/api/roadmaps'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'baselines'] });
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'okr'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'resources'] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/roadmaps`] });
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/backlogs`] });
       if (result.generatedBacklogId) {
@@ -652,6 +657,24 @@ export function CdcWizard({
                     </div>
                   </CardContent>
                 </Card>
+
+                <Card className={`cursor-pointer transition-all ${generateResources ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/20' : ''}`}>
+                  <CardContent className="py-3">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={generateResources}
+                        onCheckedChange={setGenerateResources}
+                        data-testid="switch-generate-resources"
+                      />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">Générer les ressources</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Crée les ressources projet à partir des modèles du type de projet
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <Card className="bg-muted/50">
@@ -852,7 +875,7 @@ export function CdcWizard({
           ) : currentStep === 4 ? (
             <Button
               onClick={handleComplete}
-              disabled={isGenerating || (!generateBacklog && !generateRoadmap && !generateOkr)}
+              disabled={isGenerating || (!generateBacklog && !generateRoadmap && !generateOkr && !generateResources)}
               data-testid="button-wizard-complete"
             >
               {isGenerating ? (
