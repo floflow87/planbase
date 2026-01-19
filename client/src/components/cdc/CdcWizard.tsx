@@ -624,21 +624,21 @@ export function CdcWizard({
 
               <Card className="bg-muted/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
                     <CheckCheck className="h-4 w-4" />
                     Récapitulatif
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs">
                     <span>Nombre de rubriques</span>
                     <span className="font-medium">{scopeItems.length}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs">
                     <span>Temps total estimé</span>
                     <span className="font-medium">{totalDays.toFixed(1)} jours</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs">
                     <span>Prix estimé (TJM: {dailyRate}€)</span>
                     <span className="font-medium text-violet-600">{totalPrice.toFixed(0)} €</span>
                   </div>
@@ -653,8 +653,8 @@ export function CdcWizard({
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950">
                   <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-semibold">Session CDC terminée !</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-semibold">Session CDC terminée !</h3>
+                <p className="text-xs text-muted-foreground">
                   Le périmètre projet a été validé et la baseline de pilotage est créée.
                 </p>
               </div>
@@ -663,13 +663,13 @@ export function CdcWizard({
                 {generationResult.baseline && (
                   <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
                         <Target className="h-4 w-4 text-violet-600" />
                         Baseline de pilotage créée
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         La baseline capture vos estimations initiales comme référence pour le suivi du projet.
                       </p>
                       <div className="grid grid-cols-2 gap-3">
@@ -677,7 +677,7 @@ export function CdcWizard({
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <span className="text-xs text-muted-foreground">Total estimé</span>
-                            <p className="font-semibold">
+                            <p className="text-sm font-semibold">
                               {parseFloat(generationResult.baseline.totalEstimatedDays?.toString() || '0').toFixed(1)} jours
                             </p>
                           </div>
@@ -686,7 +686,7 @@ export function CdcWizard({
                           <Euro className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <span className="text-xs text-muted-foreground">Facturable</span>
-                            <p className="font-semibold">
+                            <p className="text-sm font-semibold">
                               {parseFloat(generationResult.baseline.billableEstimatedDays?.toString() || '0').toFixed(1)} jours
                             </p>
                           </div>
@@ -714,14 +714,14 @@ export function CdcWizard({
 
                 {generationResult.backlogId && (
                   <Card>
-                    <CardContent className="py-4">
+                    <CardContent className="py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-cyan-100 dark:bg-cyan-950 flex items-center justify-center">
                           <Layers className="h-5 w-5 text-cyan-600" />
                         </div>
                         <div>
-                          <h4 className="font-medium">Backlog généré</h4>
-                          <p className="text-sm text-muted-foreground">
+                          <h4 className="text-sm font-medium">Backlog généré</h4>
+                          <p className="text-xs text-muted-foreground">
                             Epics et User Stories créés à partir du périmètre
                           </p>
                         </div>
@@ -733,14 +733,14 @@ export function CdcWizard({
 
                 {generationResult.roadmapId && (
                   <Card>
-                    <CardContent className="py-4">
+                    <CardContent className="py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center">
                           <TrendingUp className="h-5 w-5 text-amber-600" />
                         </div>
                         <div>
-                          <h4 className="font-medium">Roadmap générée</h4>
-                          <p className="text-sm text-muted-foreground">
+                          <h4 className="text-sm font-medium">Roadmap générée</h4>
+                          <p className="text-xs text-muted-foreground">
                             Items planifiés selon les phases définies
                           </p>
                         </div>
