@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Mail, Building2, ArrowLeft } from "lucide-react";
 import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
@@ -132,6 +132,9 @@ export default function Signup() {
       // Store account and user data
       localStorage.setItem("demo_account_id", data.accountId);
       localStorage.setItem("demo_user_id", data.userId);
+
+      // Invalidate onboarding query to trigger fresh fetch for new user tour
+      queryClient.invalidateQueries({ queryKey: ["/api/onboarding"] });
 
       toast({
         title: "Bienvenue !",

@@ -5748,7 +5748,13 @@ function RecetteView({ backlogId, sprints }: { backlogId: string; sprints: Sprin
       )}
 
       {/* Sprint Tables */}
-      {recipesData?.sprints.map(sprint => {
+      {recipesData?.sprints
+        .filter(sprint => {
+          // When filter is "todo" or "done", hide sprints with no matching tickets
+          const filteredTickets = filterTickets(sprint.tickets);
+          return recipeFilter === "all" || filteredTickets.length > 0;
+        })
+        .map(sprint => {
         const filteredTickets = filterTickets(sprint.tickets);
         const isExpanded = expandedRecipeSprints.has(sprint.id);
         return (

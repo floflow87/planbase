@@ -719,23 +719,50 @@ function AppLayout() {
   const [location, setLocation] = useLocation();
   const isAuthPage = location === "/login" || location === "/signup";
   const isStandalone = useIsStandalone();
+  const { user } = useAuth();
   
-  // Tab system state with localStorage persistence
-  const [tabs, setTabs] = useState<Tab[]>(() => {
-    const saved = localStorage.getItem('headerTabs');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [{ id: '1', path: '/', title: 'Tableau de bord' }];
+  // Get account ID for multi-tenant tab storage
+  const accountId = user?.user_metadata?.account_id;
+  
+  // Default tabs state
+  const defaultTabs: Tab[] = [{ id: '1', path: '/', title: 'Tableau de bord' }];
+  
+  // Tab system state - initialize to default, load from localStorage when accountId is known
+  const [tabs, setTabs] = useState<Tab[]>(defaultTabs);
+  const [activeTabId, setActiveTabId] = useState<string>('1');
+  const [prevAccountId, setPrevAccountId] = useState<string | undefined>(undefined);
+  
+  // Load/reset tabs when account changes
+  useEffect(() => {
+    if (accountId && accountId !== prevAccountId) {
+      setPrevAccountId(accountId);
+      const tabsKey = `headerTabs_${accountId}`;
+      const activeKey = `activeTabId_${accountId}`;
+      
+      const savedTabs = localStorage.getItem(tabsKey);
+      if (savedTabs) {
+        try {
+          setTabs(JSON.parse(savedTabs));
+        } catch {
+          setTabs(defaultTabs);
+        }
+      } else {
+        setTabs(defaultTabs);
       }
+      
+      const savedActiveTab = localStorage.getItem(activeKey);
+      setActiveTabId(savedActiveTab || '1');
+    } else if (!accountId && prevAccountId) {
+      // User logged out - reset to default
+      setPrevAccountId(undefined);
+      setTabs(defaultTabs);
+      setActiveTabId('1');
     }
-    return [{ id: '1', path: '/', title: 'Tableau de bord' }];
-  });
-  const [activeTabId, setActiveTabId] = useState<string>(() => {
-    const saved = localStorage.getItem('activeTabId');
-    return saved || '1';
-  });
+  }, [accountId, prevAccountId]);
+  
+  // Helper to get storage keys (only valid when accountId exists)
+  const tabsStorageKey = accountId ? `headerTabs_${accountId}` : null;
+  const activeTabStorageKey = accountId ? `activeTabId_${accountId}` : null;
 
   const style = {
     "--sidebar-width": "15.375rem",
@@ -786,16 +813,20 @@ function AppLayout() {
             ? { ...tab, path: location, title }
             : tab
         );
-        localStorage.setItem('headerTabs', JSON.stringify(updatedTabs));
+        if (tabsStorageKey) {
+          localStorage.setItem(tabsStorageKey, JSON.stringify(updatedTabs));
+        }
         return updatedTabs;
       });
     }
-  }, [location, isAuthPage]);
+  }, [location, isAuthPage, tabsStorageKey]);
 
   // Save active tab ID to localStorage
   useEffect(() => {
-    localStorage.setItem('activeTabId', activeTabId);
-  }, [activeTabId]);
+    if (activeTabStorageKey) {
+      localStorage.setItem(activeTabStorageKey, activeTabId);
+    }
+  }, [activeTabId, activeTabStorageKey]);
 
   const handleTabClick = (tab: Tab) => {
     setActiveTabId(tab.id);
@@ -814,7 +845,9 @@ function AppLayout() {
     
     const newTabs = [...tabs, newTab];
     setTabs(newTabs);
-    localStorage.setItem('headerTabs', JSON.stringify(newTabs));
+    if (tabsStorageKey) {
+      localStorage.setItem(tabsStorageKey, JSON.stringify(newTabs));
+    }
     setActiveTabId(newTab.id);
     // Don't navigate - new tab starts at current location, user can then navigate elsewhere
   };
@@ -827,7 +860,9 @@ function AppLayout() {
     const tabIndex = tabs.findIndex(t => t.id === tabId);
     const newTabs = tabs.filter(t => t.id !== tabId);
     setTabs(newTabs);
-    localStorage.setItem('headerTabs', JSON.stringify(newTabs));
+    if (tabsStorageKey) {
+      localStorage.setItem(tabsStorageKey, JSON.stringify(newTabs));
+    }
     
     // If closing active tab, switch to adjacent tab
     if (activeTabId === tabId) {

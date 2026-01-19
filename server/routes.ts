@@ -2339,9 +2339,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const globalTJMSetting = await storage.getSetting('ACCOUNT', req.accountId!, 'billing.defaultTJM');
       const globalTJM = globalTJMSetting?.value ? parseFloat(String(globalTJMSetting.value)) : undefined;
       
+      // Exclure les projets abandonnés des analyses (on les garde uniquement dans "Par projet")
+      const nonAbandonedProjects = projects.filter(p => p.stage !== 'abandonne');
+      
       // Séparer les projets par type: client (facturable) vs interne (non facturable)
-      const clientProjects = projects.filter(p => p.businessType !== 'internal');
-      const internalProjects = projects.filter(p => p.businessType === 'internal');
+      const clientProjects = nonAbandonedProjects.filter(p => p.businessType !== 'internal');
+      const internalProjects = nonAbandonedProjects.filter(p => p.businessType === 'internal');
       
       // Séparer les projets clients en prospection (CA potentiel) des autres (CA réel)
       const prospectionProjects = clientProjects.filter(p => p.stage === 'prospection');
