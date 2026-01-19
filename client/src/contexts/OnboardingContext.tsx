@@ -107,6 +107,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Flag to track if we're in reset mode (to prevent useEffect from overriding state)
+  const [isResetting, setIsResetting] = useState(false);
+  
   // Mutation to reset onboarding
   const resetMutation = useMutation({
     mutationFn: async () => {
@@ -119,6 +122,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   // Initialize onboarding state from API data
   useEffect(() => {
+    // Skip this effect if we're in the middle of resetting
+    if (isResetting) return;
+    
     if (!isLoading && onboardingData) {
       // If onboarding is completed or skipped, don't show it
       if (onboardingData.completed || onboardingData.skipped) {
@@ -137,15 +143,28 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [isLoading, onboardingData]);
+  }, [isLoading, onboardingData, isResetting]);
 
   const startOnboarding = useCallback(() => {
+    // Set resetting flag to prevent useEffect from interfering
+    setIsResetting(true);
+    
     // Reset onboarding in backend and start fresh
     resetMutation.mutate(undefined, {
       onSuccess: () => {
+        // Set state before navigation
         setCurrentStep("welcome");
         setIsOnboardingActive(true);
+        
+        // Clear resetting flag after a short delay to ensure state is settled
+        setTimeout(() => {
+          setIsResetting(false);
+        }, 100);
+        
         setLocation("/");
+      },
+      onError: () => {
+        setIsResetting(false);
       },
     });
   }, [setLocation, resetMutation]);

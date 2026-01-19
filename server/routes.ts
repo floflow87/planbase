@@ -9092,18 +9092,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = upsertTicketRecipeSchema.parse(req.body);
       const { pushToTicket, ...recipeData } = data;
       
-      // Auto-apply logic when conclusion is "termine":
-      // - Set isFixedDone to true
-      // - Set status to "teste"
-      // - Update ticket state to "teste"
+      // Auto-apply logic based on conclusion:
+      // - "termine": Set isFixedDone to true, status to "teste", ticket state to "testing"
+      // - "a_fix": Set ticket state to "to_fix"
       let autoIsFixedDone = recipeData.isFixedDone;
       let autoStatus = recipeData.status;
       let shouldUpdateTicketState = false;
+      let newTicketState: string | null = null;
       
       if (recipeData.conclusion === "termine") {
         autoIsFixedDone = true;
         autoStatus = "teste";
         shouldUpdateTicketState = true;
+        newTicketState = "testing";
+      } else if (recipeData.conclusion === "a_fix") {
+        shouldUpdateTicketState = true;
+        newTicketState = "to_fix";
       }
       
       // Check if recipe exists
@@ -9149,11 +9153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }).returning();
       }
       
-      // Update ticket state to "testing" when conclusion is "termine"
-      if (shouldUpdateTicketState) {
+      // Update ticket state based on conclusion
+      // - "termine" -> "testing"
+      // - "a_fix" -> "to_fix"
+      if (shouldUpdateTicketState && newTicketState) {
         if (recipeData.ticketType === "user_story") {
           await db.update(userStories)
-            .set({ state: "testing", updatedAt: new Date() })
+            .set({ state: newTicketState, updatedAt: new Date() })
             .where(and(
               eq(userStories.id, recipeData.ticketId),
               eq(userStories.accountId, accountId)
@@ -9161,7 +9167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (recipeData.ticketType === "task" || recipeData.ticketType === "bug") {
           // Both tasks and bugs are stored in backlog_tasks table
           await db.update(backlogTasks)
-            .set({ state: "testing", updatedAt: new Date() })
+            .set({ state: newTicketState, updatedAt: new Date() })
             .where(and(
               eq(backlogTasks.id, recipeData.ticketId),
               eq(backlogTasks.accountId, accountId)
