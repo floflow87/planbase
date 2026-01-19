@@ -112,7 +112,7 @@ export function CdcWizard({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
-  const [generateOkr, setGenerateOkr] = useState(false);
+  const [generateOkr, setGenerateOkr] = useState(true);
   const [generationResult, setGenerationResult] = useState<{
     backlogId?: string;
     roadmapId?: string;

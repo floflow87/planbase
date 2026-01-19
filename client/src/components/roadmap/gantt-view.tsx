@@ -42,6 +42,7 @@ interface GanttViewProps {
   onBulkDelete?: (itemIds: string[]) => void;
   onBulkUpdate?: (itemIds: string[], data: BulkActionData) => void;
   onReorderItems?: (itemIds: string[]) => void;
+  hideTodayLine?: boolean;
 }
 
 interface RowDragState {
@@ -115,7 +116,7 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems, hideTodayLine = false }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -532,7 +533,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   }, [viewStartDate, columnWidth, zoom]);
 
   const todayPosition = getTodayPosition();
-  const showTodayLine = todayPosition >= 0 && todayPosition <= totalWidth;
+  const showTodayLine = !hideTodayLine && todayPosition >= 0 && todayPosition <= totalWidth;
 
   const dependencyArrows = useMemo(() => {
     if (!dependencies.length) return [];
