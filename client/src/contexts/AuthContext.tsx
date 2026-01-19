@@ -9,6 +9,7 @@ interface UserProfile {
   gender?: string;
   position?: string;
   avatarUrl?: string;
+  role?: 'owner' | 'collaborator' | 'client_viewer';
 }
 
 interface AuthContextType {
@@ -35,16 +36,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (metadata) {
       setAccountId(metadata.account_id || null);
-      setUserProfile({
+      // Initial profile from metadata (role will be fetched from API)
+      setUserProfile(prev => ({
         firstName: metadata.firstName,
         lastName: metadata.lastName,
         gender: metadata.gender,
         position: metadata.position,
         avatarUrl: metadata.avatarUrl,
-      });
+        role: prev?.role, // Keep existing role until API returns
+      }));
     } else {
       setAccountId(null);
       setUserProfile(null);
+    }
+  };
+
+  // Fetch user role from /api/me
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('/api/me', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.role) {
+          setUserProfile(prev => prev ? { ...prev, role: userData.role } : null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch user role:', error);
     }
   };
 
@@ -55,6 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
+      // Fetch role after session is established
+      if (session?.user) {
+        fetchUserRole();
+      }
     });
 
     // Listen for auth changes
@@ -65,6 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       extractUserData(session);
       setLoading(false);
+      // Fetch role after auth change
+      if (session?.user) {
+        fetchUserRole();
+      }
     });
 
     return () => subscription.unsubscribe();

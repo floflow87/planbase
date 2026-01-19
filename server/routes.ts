@@ -557,6 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedAt: null, 
           lastStep: null, 
           skipped: false, 
+          version: "v1", // Ensure version is set for overlay to activate
           updatedAt: new Date() 
         })
         .where(eq(userOnboarding.userId, userId));
