@@ -580,13 +580,13 @@ export function CdcWizard({
 
           {currentStep === 4 && (
             <div className="space-y-6 py-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Choisissez ce que vous souhaitez générer à partir du périmètre défini.
               </p>
 
               <div className="grid gap-4">
                 <Card className={`cursor-pointer transition-all ${generateBacklog ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/20' : ''}`}>
-                  <CardContent className="py-4">
+                  <CardContent className="py-3">
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={generateBacklog}
@@ -594,8 +594,8 @@ export function CdcWizard({
                         data-testid="switch-generate-backlog"
                       />
                       <div className="flex-1">
-                        <h4 className="font-medium">Générer un Backlog</h4>
-                        <p className="text-sm text-muted-foreground">
+                        <h4 className="text-sm font-medium">Générer un Backlog</h4>
+                        <p className="text-xs text-muted-foreground">
                           Crée automatiquement des Epics et User Stories à partir du périmètre
                         </p>
                       </div>
@@ -604,7 +604,7 @@ export function CdcWizard({
                 </Card>
 
                 <Card className={`cursor-pointer transition-all ${generateRoadmap ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/20' : ''}`}>
-                  <CardContent className="py-4">
+                  <CardContent className="py-3">
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={generateRoadmap}
@@ -612,8 +612,8 @@ export function CdcWizard({
                         data-testid="switch-generate-roadmap"
                       />
                       <div className="flex-1">
-                        <h4 className="font-medium">Générer une Roadmap</h4>
-                        <p className="text-sm text-muted-foreground">
+                        <h4 className="text-sm font-medium">Générer une Roadmap</h4>
+                        <p className="text-xs text-muted-foreground">
                           Crée automatiquement des items sur la roadmap selon les phases définies
                         </p>
                       </div>

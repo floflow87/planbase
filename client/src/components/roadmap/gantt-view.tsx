@@ -1279,7 +1279,7 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
                 />
               </svg>
             )}
-            <div className="sticky top-0 z-10 bg-muted/50 border-b" style={{ height: HEADER_HEIGHT }}>
+            <div className="sticky top-0 z-[5] bg-muted/50 border-b" style={{ height: HEADER_HEIGHT }}>
               {/* Month header row for day view */}
               {zoom === "day" && monthGroups.length > 0 && (
                 <div className="flex" style={{ height: HEADER_HEIGHT / 2 }}>

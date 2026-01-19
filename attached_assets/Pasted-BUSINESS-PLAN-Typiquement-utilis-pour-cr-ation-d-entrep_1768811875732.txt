@@ -1,0 +1,202 @@
+BUSINESS PLAN
+
+👉 Typiquement utilisé pour :
+
+création d’entreprise
+
+levée de fonds
+
+validation d’un modèle économique
+
+cadrage stratégique amont
+
+🎯 Objectif 1 — Valider un modèle économique viable
+
+Type : Business
+
+Poser les fondations d’un modèle rentable et soutenable.
+
+Key Results
+
+Marge cible ≥ 30%
+
+Seuil de rentabilité identifié et documenté
+
+Hypothèses de revenus validées (pricing, volume, récurrence)
+
+Structure de coûts stabilisée (écart < 10%)
+
+🔗 Connexions PlanBase
+CDC (Business) · Ressources · Rentabilité · Recos financières
+
+🎯 Objectif 2 — Sécuriser la trajectoire financière à 12–24 mois
+
+Type : Business / Finance
+
+Anticiper les besoins et éviter les angles morts.
+
+Key Results
+
+Runway ≥ 12 mois
+
+Plan de financement validé (fonds propres / CA / levée)
+
+Burn rate maîtrisé et documenté
+
+Aucun coût critique non anticipé
+
+🔗 Connexions
+Ressources · Projections · Alertes · Simulation
+
+🎯 Objectif 3 — Crédibiliser le projet auprès des parties prenantes
+
+Type : Business / Stratégie
+
+Rendre le projet lisible, compréhensible et défendable.
+
+Key Results
+
+Business plan validé par un tiers (investisseur, mentor, client)
+
+Vision & proposition de valeur claires et alignées
+
+Scénarios optimiste / réaliste / prudent définis
+
+🔗 Connexions
+Notes · Roadmap LT · OKR · Recos stratégiques
+
+🧠 TEMPLATE OKR — PRODUCT MANAGEMENT
+
+👉 Pour :
+
+structuration produit
+
+rôle CPO / PM
+
+refonte ou scaling d’un produit existant
+
+🎯 Objectif 1 — Aligner la vision produit avec les enjeux business
+
+Type : Produit / Business
+
+Faire du produit un levier de valeur, pas une liste de features.
+
+Key Results
+
+Vision produit formalisée et partagée
+
+Roadmap alignée avec les priorités business
+
+100% des Epics reliées à un objectif clair
+
+Aucun développement sans impact identifié
+
+🔗 Connexions
+CDC · Roadmap · Epics · OKR
+
+🎯 Objectif 2 — Structurer un delivery prévisible et pilotable
+
+Type : Produit / Delivery
+
+Passer d’un flux chaotique à un système maîtrisé.
+
+Key Results
+
+Backlog priorisé et estimé à 100%
+
+Vélocité stable sur 3 sprints consécutifs
+
+Écart estimation / réel ≤ 15%
+
+Aucun sprint sans objectif clair
+
+🔗 Connexions
+Backlog · Sprints · Stats · Burn rate
+
+🎯 Objectif 3 — Maximiser l’impact utilisateur des livraisons
+
+Type : Produit
+
+Livrer moins, mais mieux.
+
+Key Results
+
+≥ X feedbacks utilisateurs exploitables
+
+Adoption des features clés ≥ Y%
+
+Réduction du churn ou friction mesurée
+
+Chaque release évaluée post-livraison
+
+🔗 Connexions
+Recette · Tickets terminés · Notes · OKR
+
+🧭 TEMPLATE OKR — PILOTAGE DE PROJET
+
+👉 Pour :
+
+freelances
+
+agences
+
+missions complexes
+
+projets à risque ou à forte contrainte
+
+🎯 Objectif 1 — Tenir les délais sans sacrifier la qualité
+
+Type : Delivery
+
+Avancer au bon rythme, sans dérive silencieuse.
+
+Key Results
+
+100% des jalons livrés dans la phase prévue
+
+Aucun retard critique non anticipé
+
+Écart planning < 10%
+
+Projection toujours cohérente avec la roadmap
+
+🔗 Connexions
+Roadmap · Jalons · Projections · Recos
+
+🎯 Objectif 2 — Garantir la rentabilité du projet
+
+Type : Business
+
+Travailler mieux, pas plus.
+
+Key Results
+
+Marge projet ≥ seuil défini
+
+TJM réel ≥ TJM cible
+
+Temps non facturé < 10%
+
+Aucun coût hors CDC non validé
+
+🔗 Connexions
+Ressources · Temps · Rentabilité · Alertes
+
+🎯 Objectif 3 — Rendre chaque décision explicable et traçable
+
+Type : Pilotage
+
+Piloter, ce n’est pas subir.
+
+Key Results
+
+Toutes les alertes accompagnées d’une reco
+
+Chaque dépassement expliqué et documenté
+
+Décisions clés reliées à un impact chiffré
+
+Historique projet lisible a posteriori
+
+🔗 Connexions
+Recommandations · Notes · OKR · Historique

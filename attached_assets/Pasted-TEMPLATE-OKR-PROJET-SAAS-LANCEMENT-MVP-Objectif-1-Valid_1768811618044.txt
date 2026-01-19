@@ -1,0 +1,215 @@
+TEMPLATE OKR — PROJET SAAS (LANCEMENT / MVP)
+🎯 Objectif 1 — Valider la valeur produit sur le marché
+
+Type : Produit / Business
+
+KR
+
+Atteindre ≥ 30 utilisateurs actifs sur le MVP
+
+Obtenir un NPS ≥ 30
+
+Avoir ≥ 3 clients payants ou engagés
+
+Réduire le churn early à < 10%
+
+🔗 Liens typiques :
+Epics onboarding, usage core, feedback loop
+Jalons : MVP Live, 1er client
+
+🎯 Objectif 2 — Livrer un MVP stable et pilotable
+
+Type : Produit / Tech
+
+KR
+
+90% des fonctionnalités MVP livrées dans T1
+
+0 bug bloquant en production
+
+Temps moyen de résolution < 48h
+
+Couverture des features critiques à 100%
+
+🔗 Liens :
+Epics techniques, backlog MVP, jalons release
+
+🎯 Objectif 3 — Atteindre une trajectoire financière saine
+
+Type : Business
+
+KR
+
+Marge projet ≥ 20%
+
+TJM réel ≥ TJM cible
+
+Burn rate maîtrisé (≤ 1.0)
+
+Aucun dépassement non anticipé
+
+🔗 Liens :
+Ressources, CDC, recommandations financières
+
+🎨 2. TEMPLATE OKR — BRANDING / IDENTITÉ DE MARQUE
+🎯 Objectif 1 — Créer une identité claire, différenciante et cohérente
+
+Type : Produit / Marque
+
+KR
+
+Brand platform validée par le client
+
+100% des livrables alignés sur la charte
+
+0 itération majeure après validation finale
+
+Feedback client ≥ 8/10
+
+🔗 Liens :
+Epics branding, jalon “Brand validation”
+
+🎯 Objectif 2 — Livrer dans les délais sans dérive
+
+Type : Delivery
+
+KR
+
+100% des livrables livrés dans la phase prévue
+
+0 dépassement de charge > 10%
+
+Aucun jalon critique en retard
+
+🔗 Liens :
+Roadmap, CDC, suivi temps
+
+🎯 Objectif 3 — Protéger la rentabilité du projet
+
+Type : Business
+
+KR
+
+Marge ≥ 30%
+
+Temps non facturé < 10%
+
+Aucun scope creep non chiffré
+
+🎨 3. TEMPLATE OKR — DESIGN SYSTEM / DESIGN UI
+🎯 Objectif 1 — Poser un socle design scalable et maintenable
+
+Type : Produit
+
+KR
+
+100% des composants core documentés
+
+Adoption du design system sur ≥ 80% des écrans
+
+Temps de création d’écran réduit de 30%
+
+🔗 Liens :
+Epics DS, tickets composants, jalons versions
+
+🎯 Objectif 2 — Accélérer la production produit
+
+Type : Delivery / Tech
+
+KR
+
+Délai design → dev < 48h
+
+0 divergence critique design / implémentation
+
+90% des tickets UI issus du DS
+
+🎯 Objectif 3 — Assurer la viabilité économique
+
+Type : Business
+
+KR
+
+Temps design maîtrisé dans l’enveloppe CDC
+
+Aucun rework majeur hors périmètre
+
+Marge ≥ 25%
+
+🌐 4. TEMPLATE OKR — SITE INTERNET (VITRINE)
+🎯 Objectif 1 — Mettre en ligne un site clair et performant
+
+Type : Produit / Marketing
+
+KR
+
+Site live à la date prévue
+
+Lighthouse score ≥ 85
+
+Temps de chargement < 2,5s
+
+0 bug bloquant post mise en ligne
+
+🎯 Objectif 2 — Servir les objectifs business du client
+
+Type : Business
+
+KR
+
+≥ X leads générés le 1er mois
+
+Taux de conversion ≥ Y%
+
+Parcours clé validé par le client
+
+🎯 Objectif 3 — Maîtriser coûts et délais
+
+Type : Delivery
+
+KR
+
+Aucun dépassement CDC
+
+Temps réel / prévu ≤ 1.1
+
+Marge ≥ 30%
+
+🛒 5. TEMPLATE OKR — SITE E-COMMERCE
+🎯 Objectif 1 — Lancer une boutique prête à vendre
+
+Type : Business / Produit
+
+KR
+
+Catalogue complet en ligne
+
+Paiement fonctionnel à 100%
+
+Tunnel de commande validé
+
+0 friction bloquante
+
+🎯 Objectif 2 — Optimiser la performance commerciale
+
+Type : Marketing / Business
+
+KR
+
+Taux de conversion ≥ X%
+
+Panier moyen ≥ Y €
+
+1ère commande réelle passée
+
+🎯 Objectif 3 — Sécuriser la rentabilité du projet
+
+Type : Business
+
+KR
+
+Marge ≥ 25%
+
+Aucun coût outil non anticipé
+
+Temps non facturé < 10%

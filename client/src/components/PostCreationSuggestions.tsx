@@ -168,15 +168,24 @@ export function PostCreationSuggestions({
             <Sparkles className="h-5 w-5 text-primary" />
             <CardTitle className="text-base">Projet pré-configuré</CardTitle>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDismiss}
-            className="h-8 w-8"
-            data-testid="button-dismiss-suggestions"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDismiss}
+              className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
+              data-testid="link-dismiss-suggestions"
+            >
+              Ne plus afficher
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDismiss}
+              className="h-8 w-8"
+              data-testid="button-dismiss-suggestions"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
           <Badge variant="secondary" data-testid="badge-project-type">
@@ -239,15 +248,6 @@ export function PostCreationSuggestions({
           </button>
         </div>
 
-        <div className="pt-1 text-center">
-          <button
-            onClick={handleDismiss}
-            className="text-xs text-muted-foreground hover:text-foreground"
-            data-testid="link-dismiss-suggestions"
-          >
-            Ne plus afficher pour ce projet
-          </button>
-        </div>
       </CardContent>
     </Card>
   );
