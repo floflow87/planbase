@@ -57,14 +57,14 @@ export function HelpDrawer({ isOpen, onClose, moduleHelp }: HelpDrawerProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-[100] bg-black/50"
+        className="fixed inset-0 z-[1000] bg-black/50"
         onClick={onClose}
         data-testid="help-drawer-overlay"
       />
 
       <div
         className={cn(
-          "fixed top-0 right-0 bottom-0 z-[101] bg-card shadow-xl w-full max-w-md overflow-hidden flex flex-col",
+          "fixed top-0 right-0 bottom-0 z-[1001] bg-card shadow-xl w-full max-w-md overflow-hidden flex flex-col",
           "sm:w-96",
           !prefersReducedMotion && "animate-slide-in-right"
         )}

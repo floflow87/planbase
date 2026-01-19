@@ -190,77 +190,53 @@ export function PostCreationSuggestions({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Avant de planifier ce projet, commence par poser une base d'estimation fiable.
         </p>
 
-        <button
-          onClick={onOpenCdcWizard}
-          className="w-full flex items-center gap-3 p-4 rounded-md text-left transition-colors hover-elevate bg-primary/10 border border-primary/20"
-          data-testid="button-suggestion-cdc"
-        >
-          <div className="p-2 rounded-md bg-primary text-primary-foreground">
-            <FileText className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm">Lancer le CDC guidé</div>
-            <div className="text-xs text-muted-foreground">
-              Structure ton cahier des charges, estime l'effort et prépare le pilotage du projet.
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={onOpenCdcWizard}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
+            data-testid="button-suggestion-cdc"
+          >
+            <div className="p-3 rounded-full bg-white/20">
+              <FileText className="h-5 w-5 text-white" />
             </div>
-          </div>
-          <ChevronRight className="h-5 w-5 text-primary" />
-        </button>
+            <div>
+              <div className="font-medium text-sm text-white">CDC guidé</div>
+              <div className="text-xs text-white/80 mt-1">Structure et estime l'effort</div>
+            </div>
+          </button>
 
-        <div className="flex flex-col gap-2">
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=billing`)}
-            className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
             data-testid="button-suggestion-billing"
           >
-            <div className="p-2 rounded-md bg-muted">
-              <Calculator className="h-4 w-4" />
+            <div className="p-3 rounded-full bg-white/20">
+              <Calculator className="h-5 w-5 text-white" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Configurer la facturation</div>
-              <div className="text-xs text-muted-foreground">
-                Mode suggéré : {BILLING_MODE_LABELS[billingMode]} (modifiable plus tard)
-              </div>
+            <div>
+              <div className="font-medium text-sm text-white">Facturation</div>
+              <div className="text-xs text-white/80 mt-1">{BILLING_MODE_LABELS[billingMode]} (modifiable)</div>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 
           <button
             onClick={() => setLocation(`/projects/${project.id}?tab=time`)}
-            className="w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate bg-muted/50"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg text-center transition-all duration-200 bg-gradient-to-br from-violet-500 to-violet-700 text-white hover:from-violet-400 hover:to-violet-600 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
             data-testid="button-suggestion-hypotheses"
           >
-            <div className="p-2 rounded-md bg-muted">
-              <BarChart3 className="h-4 w-4" />
+            <div className="p-3 rounded-full bg-white/20">
+              <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Définir les hypothèses projet</div>
-              <div className="text-xs text-muted-foreground">
-                TJM cible, part facturable, niveau de risque
-              </div>
+            <div>
+              <div className="font-medium text-sm text-white">Hypothèses</div>
+              <div className="text-xs text-white/80 mt-1">TJM, part facturable, risque</div>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
-        </div>
-
-        <div className="bg-muted/30 rounded-md p-3 border border-border/50">
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="text-xs text-muted-foreground">
-              <p className="font-medium mb-1">Une fois le CDC validé, PlanBase générera automatiquement :</p>
-              <ul className="space-y-0.5 ml-2">
-                <li>• un backlog structuré</li>
-                <li>• une roadmap par phases (T1 → LT)</li>
-                <li>• une baseline de pilotage</li>
-                <li>• des alertes de trajectoire (temps, marge, dérive)</li>
-              </ul>
-            </div>
-          </div>
         </div>
 
         <div className="pt-1 text-center">
