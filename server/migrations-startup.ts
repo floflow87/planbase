@@ -1423,6 +1423,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Epics roadmap_item_id column added");
 
+    // Add cdc_session_id column to epics for linking EPICs to CDC sessions
+    await db.execute(sql`
+      ALTER TABLE epics ADD COLUMN IF NOT EXISTS cdc_session_id uuid REFERENCES cdc_sessions(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS epics_cdc_session_idx ON epics(cdc_session_id);
+    `);
+    console.log("✅ Epics cdc_session_id column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

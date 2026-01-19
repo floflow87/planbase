@@ -49,7 +49,8 @@ export async function generateBacklogFromCdc(
   accountId: string,
   projectId: string,
   scopeItems: ProjectScopeItem[],
-  createdBy: string
+  createdBy: string,
+  cdcSessionId?: string
 ): Promise<string> {
   const project = await storage.getProject(projectId);
   if (!project) {
@@ -84,6 +85,7 @@ export async function generateBacklogFromCdc(
     const [epic] = await db.insert(epics).values({
       accountId,
       backlogId: backlog.id,
+      cdcSessionId,
       title: epicTitle,
       description: `Fonctionnalités ${epicTitle.toLowerCase()} issues du CDC`,
       color: epicColor,

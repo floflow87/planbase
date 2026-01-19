@@ -1911,7 +1911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.accountId!,
           session.projectId,
           scopeItems,
-          req.userId!
+          req.userId!,
+          session.id // Pass CDC session ID to link EPICs to CDC
         );
       }
 
@@ -4764,6 +4765,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
+      console.log("📅 Roadmap item PATCH request:", req.params.id, "body:", JSON.stringify(req.body));
+      
       const existing = await storage.getRoadmapItem(req.params.id);
       if (!existing) {
         return res.status(404).json({ error: "Roadmap item not found" });
@@ -4795,6 +4798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(item);
     } catch (error: any) {
+      console.error("📅 Roadmap item PATCH error:", error.message, error.stack);
       res.status(400).json({ error: error.message });
     }
   });

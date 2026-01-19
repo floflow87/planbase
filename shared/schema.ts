@@ -1078,6 +1078,7 @@ export const epics = pgTable("epics", {
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
   roadmapItemId: uuid("roadmap_item_id"), // FK to roadmap_items for bidirectional sync
+  cdcSessionId: uuid("cdc_session_id").references(() => cdcSessions.id, { onDelete: "set null" }), // Link to CDC session
   title: text("title").notNull(),
   description: text("description"),
   priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
@@ -1094,6 +1095,7 @@ export const epics = pgTable("epics", {
   backlogIdx: index().on(table.backlogId),
   sprintIdx: index().on(table.sprintId),
   roadmapItemIdx: index().on(table.roadmapItemId),
+  cdcSessionIdx: index().on(table.cdcSessionId),
 }));
 
 // User Stories table
