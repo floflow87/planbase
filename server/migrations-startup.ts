@@ -1414,6 +1414,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ OKR links table created");
 
+    // Add roadmap_item_id column to epics for bidirectional sync with roadmap items
+    await db.execute(sql`
+      ALTER TABLE epics ADD COLUMN IF NOT EXISTS roadmap_item_id uuid;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS epics_roadmap_item_idx ON epics(roadmap_item_id);
+    `);
+    console.log("✅ Epics roadmap_item_id column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

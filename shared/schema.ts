@@ -1077,6 +1077,7 @@ export const epics = pgTable("epics", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   sprintId: uuid("sprint_id"), // FK to sprints for Jira-style sprint assignment
+  roadmapItemId: uuid("roadmap_item_id"), // FK to roadmap_items for bidirectional sync
   title: text("title").notNull(),
   description: text("description"),
   priority: text("priority").default("medium"), // 'low', 'medium', 'high', 'critical'
@@ -1092,6 +1093,7 @@ export const epics = pgTable("epics", {
   accountIdx: index().on(table.accountId),
   backlogIdx: index().on(table.backlogId),
   sprintIdx: index().on(table.sprintId),
+  roadmapItemIdx: index().on(table.roadmapItemId),
 }));
 
 // User Stories table

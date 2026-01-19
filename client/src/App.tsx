@@ -28,6 +28,7 @@ import Mindmaps from "@/pages/mindmaps";
 import MindmapDetail from "@/pages/mindmap-detail";
 import Roadmap from "@/pages/roadmap";
 import Product from "@/pages/product";
+import BacklogNew from "@/pages/backlog-new";
 import BacklogDetail from "@/pages/backlog-detail";
 import Marketing from "@/pages/marketing";
 import Finance from "@/pages/finance";
@@ -117,6 +118,9 @@ function Router() {
       </Route>
       <Route path="/roadmap">
         <ProtectedRoute><Roadmap /></ProtectedRoute>
+      </Route>
+      <Route path="/product/backlog/new">
+        <ProtectedRoute><BacklogNew /></ProtectedRoute>
       </Route>
       <Route path="/product/backlog/:id">
         <ProtectedRoute><BacklogDetail /></ProtectedRoute>

@@ -27,7 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Plus, ChevronDown, ChevronRight, Target, Key, TrendingUp, Package, Megaphone,
   AlertTriangle, CheckCircle, Clock, BarChart, DollarSign, Users, Trash2, Edit, Link2, ListPlus,
-  List, GitBranch
+  List, GitBranch, Wand2
 } from "lucide-react";
 import type { OkrObjective, OkrKeyResult, OkrLink, Task, Epic, Sprint, RoadmapItem, AppUser, Project, TaskColumn, Backlog } from "@shared/schema";
 import { okrObjectiveTypeOptions, okrTargetPhaseOptions, okrStatusOptions, okrMetricTypeOptions } from "@shared/schema";
@@ -77,6 +77,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showDeleteObjectiveDialog, setShowDeleteObjectiveDialog] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
   const [editingObjective, setEditingObjective] = useState<OkrObjective | null>(null);
   const [editingKR, setEditingKR] = useState<OkrKeyResult | null>(null);
@@ -274,6 +275,26 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
   });
 
+  const regenerateOkrMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest(`/api/projects/${projectId}/okr/regenerate`, "POST");
+      return res.json();
+    },
+    onSuccess: (data: { objectivesCount: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      toast({ 
+        title: "OKR régénérés", 
+        description: `${data.objectivesCount} objectif${data.objectivesCount > 1 ? 's' : ''} créé${data.objectivesCount > 1 ? 's' : ''}`, 
+        variant: "success" 
+      });
+      setShowRegenerateDialog(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      setShowRegenerateDialog(false);
+    },
+  });
+
   const updateTaskMutation = useMutation({
     mutationFn: async (data: Partial<Task> & { id: string }) => {
       const res = await apiRequest(`/api/tasks/${data.id}`, "PATCH", data);
@@ -371,6 +392,23 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-end gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowRegenerateDialog(true)}
+              disabled={regenerateOkrMutation.isPending}
+              data-testid="button-regenerate-okr"
+            >
+              <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+              Générer
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-white text-foreground border">
+            Régénérer les OKR depuis le type de projet
+          </TooltipContent>
+        </Tooltip>
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -922,6 +960,27 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               data-testid="button-confirm-delete-objective"
             >
               {deleteObjectiveMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
+        <AlertDialogContent data-testid="dialog-regenerate-okr-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Régénérer les OKR</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous vous apprêtez à réinitialiser les OKR selon les informations du projet. Les OKR existants seront supprimés et remplacés par de nouveaux OKR basés sur le type de projet. Êtes-vous sûr ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-regenerate-okr">Non</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => regenerateOkrMutation.mutate()}
+              disabled={regenerateOkrMutation.isPending}
+              data-testid="button-confirm-regenerate-okr"
+            >
+              {regenerateOkrMutation.isPending ? "Génération..." : "Oui, régénérer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

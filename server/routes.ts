@@ -89,6 +89,8 @@ import {
   okrObjectives,
   okrKeyResults,
   okrLinks,
+  roadmaps,
+  roadmapItems,
   insertOkrObjectiveSchema,
   updateOkrObjectiveSchema,
   insertOkrKeyResultSchema,
@@ -5977,6 +5979,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Regenerate OKR from project type
+  app.post("/api/projects/:projectId/okr/regenerate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const projectId = req.params.projectId;
+      
+      // Get project info
+      const project = await storage.getProject(projectId);
+      if (!project || project.accountId !== accountId) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      
+      // Delete existing OKRs for this project
+      const existingObjectives = await db.select().from(okrObjectives)
+        .where(and(eq(okrObjectives.projectId, projectId), eq(okrObjectives.accountId, accountId)));
+      
+      for (const obj of existingObjectives) {
+        // Get key results for this objective
+        const keyResultsList = await db.select().from(okrKeyResults)
+          .where(eq(okrKeyResults.objectiveId, obj.id));
+        
+        // Delete links for each key result first (in case cascade doesn't work)
+        for (const kr of keyResultsList) {
+          await db.delete(okrLinks).where(eq(okrLinks.keyResultId, kr.id));
+        }
+        
+        // Delete key results (they reference objectives)
+        await db.delete(okrKeyResults).where(eq(okrKeyResults.objectiveId, obj.id));
+      }
+      // Then delete objectives
+      await db.delete(okrObjectives)
+        .where(and(eq(okrObjectives.projectId, projectId), eq(okrObjectives.accountId, accountId)));
+      
+      // Generate new OKRs from project type
+      const { generateOkrFromCdc } = await import("./services/cdcGenerationService");
+      const objectivesCount = await generateOkrFromCdc(
+        accountId,
+        projectId,
+        project.projectType || 'autre',
+        userId
+      );
+      
+      res.json({ objectivesCount });
+    } catch (error: any) {
+      console.error("Error regenerating OKR:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Create OKR objective
   app.post("/api/projects/:projectId/okr/objectives", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
     try {
@@ -7230,6 +7282,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Generate EPICs from roadmap items if requested
+      const { generateEpics, roadmapId } = req.body;
+      if (generateEpics && roadmapId && data.projectId) {
+        // Validate roadmap belongs to the project and account
+        const [roadmap] = await db.select().from(roadmaps)
+          .where(and(
+            eq(roadmaps.id, roadmapId),
+            eq(roadmaps.accountId, accountId),
+            eq(roadmaps.projectId, data.projectId)
+          ));
+        
+        if (!roadmap) {
+          return res.status(400).json({ error: "Roadmap not found or does not belong to this project" });
+        }
+        
+        const roadmapItemsList = await db.select().from(roadmapItems)
+          .where(eq(roadmapItems.roadmapId, roadmapId))
+          .orderBy(asc(roadmapItems.orderIndex));
+        
+        let epicOrder = 0;
+        for (const item of roadmapItemsList) {
+          const [epic] = await db.insert(epics).values({
+            accountId,
+            backlogId: backlog.id,
+            roadmapItemId: item.id,
+            title: item.title,
+            description: item.description || '',
+            color: item.color || '#C4B5FD',
+            order: epicOrder++,
+            createdBy: userId,
+          }).returning();
+          
+          // Update roadmap item to link back to epic
+          await db.update(roadmapItems)
+            .set({ epicId: epic.id })
+            .where(eq(roadmapItems.id, item.id));
+        }
+        
+        // Create activity for EPIC generation
+        await storage.createActivity({
+          accountId,
+          subjectType: "backlog",
+          subjectId: backlog.id,
+          kind: "updated",
+          payload: { description: `${roadmapItemsList.length} EPICs générées depuis la roadmap` },
+          createdBy: userId,
+        });
+      }
+      
       res.status(201).json(backlog);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -7379,14 +7480,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const epicId = req.params.epicId;
       const data = updateEpicSchema.parse(req.body);
       
+      // Get the current epic state before update
+      const [existingEpic] = await db.select().from(epics)
+        .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)));
+      
+      if (!existingEpic) {
+        return res.status(404).json({ error: "Epic not found" });
+      }
+      
       const [updated] = await db.update(epics)
         .set({ ...data, updatedAt: new Date() })
         .where(and(eq(epics.id, epicId), eq(epics.accountId, accountId)))
         .returning();
       
-      if (!updated) {
-        return res.status(404).json({ error: "Epic not found" });
+      // Sync roadmap item status if EPIC has a linked roadmap item and state changed
+      if (updated.roadmapItemId && data.state && data.state !== existingEpic.state) {
+        let newRoadmapStatus: string | undefined;
+        
+        if (data.state === 'termine') {
+          // EPIC completed → mark roadmap item as done
+          newRoadmapStatus = 'done';
+        } else if (existingEpic.state === 'termine' && data.state !== 'termine') {
+          // EPIC was completed but now going back to another state
+          newRoadmapStatus = 'in_progress';
+        } else if (data.state === 'en_cours' || data.state === 'review') {
+          // EPIC in progress or review → mark roadmap item as in_progress
+          newRoadmapStatus = 'in_progress';
+        }
+        
+        if (newRoadmapStatus) {
+          await db.update(roadmapItems)
+            .set({ status: newRoadmapStatus, progress: newRoadmapStatus === 'done' ? 100 : undefined })
+            .where(eq(roadmapItems.id, updated.roadmapItemId));
+        }
       }
+      
       res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -7455,6 +7583,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...data,
         reporterId: req.body.reporterId || userId,
       }).returning();
+      
+      // If user story is linked to an EPIC that was completed, reset roadmap item status
+      if (data.epicId) {
+        const [epic] = await db.select().from(epics)
+          .where(and(eq(epics.id, data.epicId), eq(epics.accountId, accountId)));
+        
+        if (epic && epic.roadmapItemId && epic.state === 'termine') {
+          // Reset EPIC state and roadmap item status to in_progress
+          await db.update(epics)
+            .set({ state: 'en_cours', updatedAt: new Date() })
+            .where(eq(epics.id, epic.id));
+          
+          await db.update(roadmapItems)
+            .set({ status: 'in_progress' })
+            .where(eq(roadmapItems.id, epic.roadmapItemId));
+        }
+      }
       
       // Create activity for user story creation
       await storage.createActivity({
