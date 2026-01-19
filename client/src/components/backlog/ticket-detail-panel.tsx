@@ -157,6 +157,9 @@ export function TicketDetailPanel({
   const [createTaskTitle, setCreateTaskTitle] = useState("");
   const [projectSearchOpen, setProjectSearchOpen] = useState(false);
   
+  // Description expandable state
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  
   // Fetch comments for the ticket - only fetch when ticket is selected
   const ticketId = ticket?.id;
   const ticketType = ticket?.type;
@@ -709,21 +712,35 @@ export function TicketDetailPanel({
           </div>
         )}
         
-        {/* Description - moved under title */}
+        {/* Description - collapsible section */}
         <div className="space-y-2">
-          {readOnly ? (
-            <div className="text-sm text-muted-foreground min-h-[60px] p-3 bg-muted/30 rounded-md whitespace-pre-wrap">
-              {ticket.description || "Aucune description"}
-            </div>
-          ) : (
-            <Textarea
-              value={editedDescription}
-              onChange={(e) => setEditedDescription(e.target.value)}
-              onBlur={handleSaveDescription}
-              placeholder="Ajoutez une description..."
-              className="min-h-[100px] resize-none text-xs"
-              data-testid="textarea-description"
-            />
+          <button
+            type="button"
+            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+            className="flex items-center gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="button-toggle-description"
+          >
+            <FileText className="h-3 w-3" />
+            <span className="font-medium">Description</span>
+            <ChevronDown className={cn("h-3 w-3 transition-transform ml-auto", isDescriptionExpanded && "rotate-180")} />
+          </button>
+          {isDescriptionExpanded && (
+            <>
+              {readOnly ? (
+                <div className="text-sm text-muted-foreground min-h-[60px] p-3 bg-muted/30 rounded-md whitespace-pre-wrap">
+                  {ticket.description || "Aucune description"}
+                </div>
+              ) : (
+                <Textarea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  onBlur={handleSaveDescription}
+                  placeholder="Ajoutez une description..."
+                  className="min-h-[100px] resize-none text-xs"
+                  data-testid="textarea-description"
+                />
+              )}
+            </>
           )}
         </div>
         
@@ -1153,11 +1170,22 @@ export function TicketDetailPanel({
           {ticket && (ticket.type === "user_story" || ticket.type === "task") && (
             <>
               <Separator />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-2">
                   <FlaskConical className="h-3 w-3" />
                   Recette
                 </Label>
+                
+                {/* Résultat attendu - ticket description */}
+                {ticket.description && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Résultat attendu</span>
+                    <div className="text-xs p-2 bg-muted/30 rounded-md whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      {ticket.description}
+                    </div>
+                  </div>
+                )}
+                
                 {effectiveRecipeInfo ? (
                   <div className="flex items-center justify-between p-2 rounded bg-muted/50">
                     <div className="flex items-center gap-2">

@@ -185,6 +185,7 @@ export async function generateRoadmapFromCdc(
         color,
         progress: 0,
         orderIndex: currentRow++,
+        phase: phase, // Store the phase from the scope item
       }).returning();
 
       await db.update(projectScopeItems)
@@ -212,6 +213,7 @@ export async function generateRoadmapFromCdc(
         color,
         progress: 0,
         orderIndex: currentRow++,
+        phase: 'LT', // Default to long term for items without phase
       }).returning();
 
       await db.update(projectScopeItems)
