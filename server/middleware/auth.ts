@@ -208,3 +208,116 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 
   next();
 }
+
+// ============================================
+// RBAC Middlewares
+// ============================================
+
+import { permissionService } from "../services/permissionService";
+import type { RbacModule, RbacAction } from "@shared/schema";
+
+// Extend Express Request to include RBAC context
+declare global {
+  namespace Express {
+    interface Request {
+      memberId?: string;
+      orgRole?: "admin" | "member" | "guest";
+    }
+  }
+}
+
+/**
+ * Middleware to verify user is a member of the organization (account)
+ * Sets memberId and orgRole on the request
+ * Must be used AFTER requireAuth
+ */
+export async function requireOrgMember(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.userId || !req.accountId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const member = await permissionService.getMemberByUserAndOrg(req.userId, req.accountId);
+    
+    if (!member) {
+      // Auto-create member for legacy users (owner = admin, collaborator = member, client_viewer = guest)
+      const roleMapping: Record<string, "admin" | "member" | "guest"> = {
+        owner: "admin",
+        collaborator: "member",
+        client_viewer: "guest",
+      };
+      
+      const orgRole = roleMapping[req.userRole || "collaborator"] || "member";
+      
+      const newMember = await permissionService.createMember({
+        organizationId: req.accountId,
+        userId: req.userId,
+        role: orgRole,
+      });
+      
+      req.memberId = newMember.id;
+      req.orgRole = orgRole;
+    } else {
+      req.memberId = member.id;
+      req.orgRole = member.role as "admin" | "member" | "guest";
+    }
+
+    next();
+  } catch (error: any) {
+    console.error("requireOrgMember error:", error);
+    res.status(500).json({ error: "Failed to verify organization membership" });
+  }
+}
+
+/**
+ * Check if user has required permission for module/action
+ * Must be used AFTER requireAuth and requireOrgMember
+ */
+export function requirePermission(module: RbacModule, action: RbacAction, subviewKey?: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.memberId || !req.accountId) {
+        return res.status(401).json({ error: "Organization membership required" });
+      }
+
+      // Admin always has access
+      if (req.orgRole === "admin") {
+        return next();
+      }
+
+      const hasAccess = await permissionService.hasPermission(
+        req.memberId,
+        req.accountId,
+        module,
+        action,
+        subviewKey
+      );
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          error: "Insufficient permissions",
+          required: { module, action, subviewKey },
+        });
+      }
+
+      next();
+    } catch (error: any) {
+      console.error("requirePermission error:", error);
+      res.status(500).json({ error: "Failed to verify permissions" });
+    }
+  };
+}
+
+/**
+ * Check if user is an admin of the organization
+ * Must be used AFTER requireAuth and requireOrgMember
+ */
+export function requireOrgAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.orgRole !== "admin") {
+    return res.status(403).json({ 
+      error: "Admin privileges required",
+      yourRole: req.orgRole 
+    });
+  }
+  next();
+}

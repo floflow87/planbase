@@ -1633,6 +1633,60 @@ export async function runStartupMigrations() {
     // Seed default resource templates for each account
     await seedResourceTemplates(db);
 
+    // ============================================
+    // RBAC Tables
+    // ============================================
+    
+    // Create organization_members table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS organization_members (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+        role text NOT NULL DEFAULT 'member',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(organization_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+      CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+    `);
+    console.log("✅ Organization members table created");
+
+    // Create permissions table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS permissions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        member_id uuid NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+        module text NOT NULL,
+        action text NOT NULL,
+        allowed boolean NOT NULL DEFAULT false,
+        scope text NOT NULL DEFAULT 'module',
+        subview_key text,
+        version integer NOT NULL DEFAULT 1,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_permissions_member_module ON permissions(member_id, module, action);
+      CREATE INDEX IF NOT EXISTS idx_permissions_org ON permissions(organization_id, member_id);
+    `);
+    console.log("✅ Permissions table created");
+
+    // Create module_views table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS module_views (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        member_id uuid NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+        module text NOT NULL,
+        layout jsonb,
+        subviews_enabled jsonb,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(member_id, module)
+      );
+      CREATE INDEX IF NOT EXISTS idx_module_views_member ON module_views(member_id);
+    `);
+    console.log("✅ Module views table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

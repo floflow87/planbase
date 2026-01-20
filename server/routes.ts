@@ -99,7 +99,8 @@ import {
   insertOkrLinkSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
-import { requireAuth, requireRole, optionalAuth } from "./middleware/auth";
+import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin } from "./middleware/auth";
+import { permissionService } from "./services/permissionService";
 import { getDemoCredentials } from "./middleware/demo-helper";
 import { configService } from "./services/configService";
 import { supabaseAdmin } from "./lib/supabase";
@@ -10105,6 +10106,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json({ success: true, generatedCount });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // RBAC (Role-Based Access Control) API
+  // ============================================
+
+  // Get current user's permissions and role
+  app.get("/api/rbac/me", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { memberId, orgRole, accountId } = req;
+      if (!memberId || !accountId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      
+      res.json({
+        memberId,
+        role: orgRole,
+        permissions: matrix,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // List all members in the organization (admin only)
+  app.get("/api/rbac/members", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const members = await permissionService.getMembersByOrganization(accountId);
+      
+      // Enrich with user info
+      const enrichedMembers = await Promise.all(
+        members.map(async (member) => {
+          const user = await storage.getUser(member.userId);
+          return {
+            ...member,
+            user: user ? {
+              id: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              avatarUrl: user.avatarUrl,
+            } : null,
+          };
+        })
+      );
+      
+      res.json(enrichedMembers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a member's role (admin only)
+  app.patch("/api/rbac/members/:memberId/role", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { memberId } = req.params;
+      const { role } = req.body;
+
+      const VALID_ROLES = ['admin', 'member', 'guest'];
+      if (!role || !VALID_ROLES.includes(role)) {
+        return res.status(400).json({ error: `Invalid role: ${role}. Must be one of: ${VALID_ROLES.join(', ')}` });
+      }
+
+      const member = await permissionService.updateMemberRole(memberId, role, accountId);
+      if (!member) {
+        return res.status(404).json({ error: "Member not found" });
+      }
+
+      res.json(member);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get a member's full permission matrix (admin only)
+  app.get("/api/rbac/members/:memberId/permissions", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { memberId } = req.params;
+
+      const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      res.json(matrix);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a single permission (admin only)
+  app.patch("/api/rbac/members/:memberId/permissions", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { memberId } = req.params;
+      const { module, action, allowed, subviewKey } = req.body;
+
+      if (!module || !action || typeof allowed !== 'boolean') {
+        return res.status(400).json({ error: "Missing required fields: module, action, allowed" });
+      }
+
+      // Validate module and action enums
+      const VALID_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'];
+      const VALID_ACTIONS = ['read', 'create', 'update', 'delete'];
+      
+      if (!VALID_MODULES.includes(module)) {
+        return res.status(400).json({ error: `Invalid module: ${module}. Must be one of: ${VALID_MODULES.join(', ')}` });
+      }
+      if (!VALID_ACTIONS.includes(action)) {
+        return res.status(400).json({ error: `Invalid action: ${action}. Must be one of: ${VALID_ACTIONS.join(', ')}` });
+      }
+
+      const permission = await permissionService.setPermission({
+        organizationId: accountId,
+        memberId,
+        module,
+        action,
+        allowed,
+        scope: subviewKey ? 'subview' : 'module',
+        subviewKey,
+      });
+
+      res.json(permission);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk update permissions (admin only)
+  app.post("/api/rbac/members/:memberId/permissions/bulk", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { memberId } = req.params;
+      const { updates } = req.body;
+
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "updates must be an array" });
+      }
+
+      await permissionService.bulkUpdatePermissions(accountId, memberId, updates);
+      const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      
+      res.json(matrix);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Reset member permissions to role defaults (admin only)
+  app.post("/api/rbac/members/:memberId/permissions/reset", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { memberId } = req.params;
+
+      // Get the member to find their role
+      const members = await permissionService.getMembersByOrganization(accountId);
+      const member = members.find(m => m.id === memberId);
+      
+      if (!member) {
+        return res.status(404).json({ error: "Member not found" });
+      }
+
+      await permissionService.resetPermissionsToRoleDefaults(accountId, memberId, member.role as any);
+      const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      
+      res.json(matrix);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

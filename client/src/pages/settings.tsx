@@ -17,8 +17,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users
 } from "lucide-react";
+import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -926,7 +927,7 @@ export default function Settings() {
     <div className="h-full overflow-auto bg-background">
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3" data-testid="tabs-settings">
+          <TabsList className="grid w-full max-w-lg grid-cols-4" data-testid="tabs-settings">
             <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
               <UserCircle className="w-3.5 h-3.5 mr-1.5" />
               Informations
@@ -934,6 +935,10 @@ export default function Settings() {
             <TabsTrigger value="config" className="text-xs" data-testid="tab-config">
               <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
               Configuration
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="text-xs" data-testid="tab-permissions">
+              <Users className="w-3.5 h-3.5 mr-1.5" />
+              Permissions
             </TabsTrigger>
             <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
               <Puzzle className="w-3.5 h-3.5 mr-1.5" />
@@ -1482,6 +1487,10 @@ export default function Settings() {
                 />
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="permissions" className="space-y-6">
+            <PermissionsTab />
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">

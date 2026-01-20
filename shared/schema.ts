@@ -70,6 +70,82 @@ export const invitations = pgTable("invitations", {
 }));
 
 // ============================================
+// RBAC (Role-Based Access Control)
+// ============================================
+
+export const organizationMembers = pgTable("organization_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"), // 'admin', 'member', 'guest'
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgUserIdx: uniqueIndex().on(table.organizationId, table.userId),
+}));
+
+export const permissions = pgTable("permissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => organizationMembers.id, { onDelete: "cascade" }),
+  module: text("module").notNull(), // 'crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'
+  action: text("action").notNull(), // 'read', 'create', 'update', 'delete'
+  allowed: boolean("allowed").notNull().default(false),
+  scope: text("scope").notNull().default("module"), // 'module', 'subview'
+  subviewKey: text("subview_key"), // e.g., 'crm.clients', 'crm.opportunities', 'crm.kpis'
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  memberModuleActionIdx: index().on(table.memberId, table.module, table.action),
+  orgMemberIdx: index().on(table.organizationId, table.memberId),
+}));
+
+export const moduleViews = pgTable("module_views", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => organizationMembers.id, { onDelete: "cascade" }),
+  module: text("module").notNull(), // 'crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'
+  layout: jsonb("layout"), // Custom layout configuration
+  subviewsEnabled: jsonb("subviews_enabled"), // { 'crm.clients': true, 'crm.opportunities': false }
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  memberModuleIdx: uniqueIndex().on(table.memberId, table.module),
+}));
+
+export const insertOrganizationMemberSchema = createInsertSchema(organizationMembers).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSchema>;
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+
+export const insertPermissionSchema = createInsertSchema(permissions).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+export type Permission = typeof permissions.$inferSelect;
+
+export const insertModuleViewSchema = createInsertSchema(moduleViews).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertModuleView = z.infer<typeof insertModuleViewSchema>;
+export type ModuleView = typeof moduleViews.$inferSelect;
+
+// RBAC constants
+export const RBAC_ROLES = ['admin', 'member', 'guest'] as const;
+export type RbacRole = typeof RBAC_ROLES[number];
+
+export const RBAC_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'] as const;
+export type RbacModule = typeof RBAC_MODULES[number];
+
+export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete'] as const;
+export type RbacAction = typeof RBAC_ACTIONS[number];
+
+export const CRM_SUBVIEWS = ['crm.clients', 'crm.opportunities', 'crm.kpis'] as const;
+export type CrmSubview = typeof CRM_SUBVIEWS[number];
+
+// ============================================
 // CRM & PIPELINE
 // ============================================
 

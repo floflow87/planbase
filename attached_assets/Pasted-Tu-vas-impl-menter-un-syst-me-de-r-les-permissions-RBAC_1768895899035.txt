@@ -1,0 +1,257 @@
+Tu vas implémenter un système de rôles & permissions (RBAC) pour PlanBase, scalable et multi-tenant safe.
+
+Objectif Phase 1 (ce prompt)
+
+Mettre en place :
+
+DB schema RBAC (org members + permissions + vues invités)
+
+API endpoints sécurisés
+
+Middleware de permission côté backend
+
+Front : 2 onglets Settings (Membres / Permissions & Vues)
+
+Hook frontend pour charger permissions + guards UI de base (sans encore migrer toutes les pages)
+
+A) Rôles & Modules
+Rôles (3)
+
+admin : peut tout faire + gérer les membres + gérer permissions
+
+member : accès complet par défaut mais peut être restreint module par module
+
+guest : accès lecture uniquement, avec vue personnalisable (modules / sous-vues visibles)
+
+Modules
+
+CRM
+
+Projets
+
+Product
+
+Roadmap
+
+Tâches
+
+Notes
+
+Documents
+
+Rentabilité
+
+Actions
+
+read
+
+create
+
+update
+
+delete
+
+Sous-vues (uniquement CRM dans V1)
+
+crm.clients
+
+crm.opportunities
+
+crm.kpis
+
+B) Database (migrations)
+
+Créer les tables :
+
+1) organization_members
+
+id, organizationId, userId
+
+role: admin | member | guest (default member)
+
+createdAt
+
+2) permissions
+
+id, organizationId, memberId
+
+module: enum (crm/projects/product/roadmap/tasks/notes/documents/profitability)
+
+action: enum (read/create/update/delete)
+
+allowed boolean (default false)
+
+scope enum: module | subview (default module)
+
+subviewKey nullable (ex: crm.clients)
+
+version int default 1
+
+updatedAt
+
+3) module_views
+
+id, organizationId, memberId
+
+module enum
+
+layout JSONB nullable
+
+subviewsEnabled JSONB nullable
+
+updatedAt
+
+Defaults à la création d’un membre :
+
+admin : toutes permissions allowed=true
+
+member : toutes permissions allowed=true
+
+guest : read=false par défaut, puis admin peut activer module/subviews
+
+Important : Refus par défaut.
+
+C) Backend (services + middleware)
+1) Service permissionService.ts
+
+Fonctions :
+
+getMember(orgId, userId)
+
+getPermissionMatrix(memberId) → renvoie modules/actions + subviews CRM
+
+ensureDefaultsForMember(memberId, role) (idempotent)
+
+upsertPermissions(memberId, payload) (bulk)
+
+Cache optionnel in-memory 2-5 minutes par memberId (comme config registry).
+
+2) Middleware
+
+requireOrgMember : récupère orgId + member + role
+
+requirePermission(module, action, subviewKey?)
+
+Admin bypass permission checks (mais toujours tenant isolation)
+
+D) API endpoints (server/routes.ts)
+Members (admin-only)
+
+GET /api/org/members
+
+POST /api/org/members/invite (si pas de système email, créer un user fake ou placeholder)
+
+PATCH /api/org/members/:memberId (changer role)
+
+DELETE /api/org/members/:memberId
+
+Permissions
+
+GET /api/permissions/me (retourne role + matrix + subviews)
+
+GET /api/permissions/:memberId (admin-only)
+
+PUT /api/permissions/:memberId (admin-only, bulk upsert)
+
+Views
+
+GET /api/views/me?module=...
+
+PUT /api/views/me?module=...
+Règle : admin peut modifier tout, guest ne peut modifier que si permissions[module][read]=true (sinon forbid)
+
+E) Frontend
+1) Hook
+
+Créer client/src/hooks/usePermissions.ts
+
+utilise React Query
+
+appelle /api/permissions/me
+
+expose : role, can(module, action, subviewKey?), matrix
+
+2) Guards UI
+
+Créer composant :
+
+client/src/components/auth/Can.tsx
+Usage :
+
+<Can module="crm" action="create">
+  <Button>Créer un client</Button>
+</Can>
+
+
+Si pas autorisé → ne render pas.
+
+3) Settings UI (2 tabs)
+
+Dans settings.tsx :
+Ajouter 2 onglets :
+
+Onglet 1 — “Organisation”
+
+Liste membres (nom/email/role)
+
+Si admin :
+
+bouton inviter
+
+select role par membre
+
+bouton supprimer
+
+Onglet 2 — “Permissions”
+
+Matrice modules × actions (checkbox)
+
+Section CRM subviews : clients / opportunities / kpis (checkbox read)
+
+Section “Vue Invité”
+
+Modules visibles (checkbox read)
+
+Sous-vues CRM (checkbox read)
+
+bouton “Appliquer aux invités” (applique une config par défaut aux membres guest)
+
+UX
+
+Toast succès / erreur (utiliser toastSuccess/toastError existants)
+
+Sélecteurs background blanc (respect DS forms)
+
+F) Non-régression & sécurité
+
+Tout endpoint doit vérifier organizationId (multi-tenant)
+
+Member/guest ne peuvent jamais accéder aux endpoints admin
+
+Tests Vitest : au minimum
+
+admin can access members endpoints
+
+member forbidden
+
+guest forbidden
+
+permission check deny by default
+
+Pas de breaking change : si un user n’a pas de organization_members, auto-créer une entrée member au login (comme onboarding record).
+
+Livrables
+
+Migrations + schema updates
+
+permissionService + middleware
+
+endpoints
+
+settings UI (2 tabs)
+
+usePermissions + Can.tsx
+
+tests basiques
+
+logs clairs “✅ RBAC seeded defaults”
