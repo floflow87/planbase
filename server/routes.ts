@@ -10308,6 +10308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/rbac/members/:memberId/role", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
       const { memberId } = req.params;
       const { role } = req.body;
 
@@ -10316,10 +10317,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: `Invalid role: ${role}. Must be one of: ${VALID_ROLES.join(', ')}` });
       }
 
+      // Get current role before update for audit logging
+      const existingMembers = await permissionService.getOrganizationMembers(accountId);
+      const existingMember = existingMembers.find(m => m.id === memberId);
+      const oldRole = existingMember?.role || 'unknown';
+
       const member = await permissionService.updateMemberRole(memberId, role, accountId);
       if (!member) {
         return res.status(404).json({ error: "Member not found" });
       }
+
+      // Log role change
+      const { logMemberRoleChanged } = await import("./services/auditService");
+      await logMemberRoleChanged(accountId, actorMemberId, memberId, oldRole, role);
 
       res.json(member);
     } catch (error: any) {
@@ -10372,6 +10382,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subviewKey,
       });
 
+      // Log permission update
+      const actorMemberId = req.membership!.id;
+      const { logPermissionUpdated } = await import("./services/auditService");
+      await logPermissionUpdated(accountId, actorMemberId, memberId, { module, action, allowed, subviewKey });
+
       res.json(permission);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -10392,6 +10407,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await permissionService.bulkUpdatePermissions(accountId, memberId, updates);
       const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
       
+      // Log bulk permission update
+      const actorMemberId = req.membership!.id;
+      const { logAuditEvent } = await import("./services/auditService");
+      await logAuditEvent({
+        organizationId: accountId,
+        actorMemberId,
+        actionType: 'permission.updated',
+        resourceType: 'member',
+        resourceId: memberId,
+        meta: { bulk: true, updateCount: updates.length },
+      });
+      
       res.json(matrix);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -10402,6 +10429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rbac/members/:memberId/permissions/reset", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
       const { memberId } = req.params;
 
       // Get the member to find their role
@@ -10414,6 +10442,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await permissionService.resetPermissionsToRoleDefaults(accountId, memberId, member.role as any);
       const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      
+      // Log permission reset
+      const { logAuditEvent } = await import("./services/auditService");
+      await logAuditEvent({
+        organizationId: accountId,
+        actorMemberId,
+        actionType: 'permission.reset',
+        resourceType: 'member',
+        resourceId: memberId,
+        meta: { role: member.role },
+      });
       
       res.json(matrix);
     } catch (error: any) {
