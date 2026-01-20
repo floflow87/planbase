@@ -10326,6 +10326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: mapLegacyRole(inv.role),
         status: "invitation_en_attente",
         invitationId: inv.id,
+        invitationToken: inv.token,
         expiresAt: inv.expiresAt,
         createdAt: inv.createdAt,
         updatedAt: inv.updatedAt,

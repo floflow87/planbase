@@ -9,7 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock } from "lucide-react";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState } from "react";
 import {
   Sheet,
@@ -45,6 +50,8 @@ interface Member {
   organizationId: string;
   userId: string;
   role: RbacRole;
+  status?: string;
+  invitationToken?: string;
   createdAt: string;
   user: MemberUser | null;
 }
@@ -88,6 +95,24 @@ export function PermissionsTab() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<RbacRole>("member");
+  const [copiedInvitationId, setCopiedInvitationId] = useState<string | null>(null);
+
+  const copyInvitationLink = async (member: Member) => {
+    if (!member.invitationToken) return;
+    const baseUrl = window.location.origin;
+    const invitationLink = `${baseUrl}/accept-invitation?token=${member.invitationToken}`;
+    try {
+      await navigator.clipboard.writeText(invitationLink);
+      setCopiedInvitationId(member.id);
+      setTimeout(() => setCopiedInvitationId(null), 2000);
+    } catch (err) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier le lien",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: members, isLoading: membersLoading } = useQuery<Member[]>({
     queryKey: ["/api/rbac/members"],
@@ -314,6 +339,33 @@ export function PermissionsTab() {
                     <Badge className={ROLE_COLORS[member.role]} data-testid={`badge-role-${member.id}`}>
                       {ROLE_LABELS[member.role]}
                     </Badge>
+                    {isPending && member.invitationToken && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyInvitationLink(member);
+                            }}
+                            data-testid={`button-copy-invitation-${member.id}`}
+                          >
+                            {copiedInvitationId === member.id ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {copiedInvitationId === member.id 
+                            ? "Lien d'inscription copié" 
+                            : "Copier le lien d'inscription"
+                          }
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {!isPending && (
                       <Select
                         value={member.role}
