@@ -1,0 +1,132 @@
+Tu vas implémenter la Phase 5 de PlanBase : collaboration avancée, validation et décision, sans complexifier l’UX.
+
+Objectifs
+
+Ajouter un système de validation / approbation pour jalons, livrables et phases
+
+Ajouter des commentaires typés (interne vs client)
+
+Créer une timeline de décisions projet
+
+Ajouter une vue exécutive (read-only, synthèse)
+
+Préparer les données pour une future IA décisionnelle
+
+A) Validation / approbation
+DB
+
+Créer table approvals :
+
+organizationId
+
+resourceType
+
+resourceId
+
+status enum (draft,pending_approval,approved,rejected,changes_requested)
+
+requestedByMemberId
+
+decidedByMemberId nullable
+
+decidedAt nullable
+
+comment nullable
+
+createdAt
+
+API
+
+POST /api/approvals/request
+
+POST /api/approvals/decide
+
+GET /api/approvals?projectId=...
+
+Permissions :
+
+request : admin/member
+
+decide : guest/admin/member (selon role & pack)
+
+B) Commentaires structurés
+DB
+
+Ajouter champ type à table comments :
+enum (note,decision,question,client_feedback,blocking_issue)
+
+Rules
+
+Guest : uniquement client_feedback + question
+
+Member/Admin : tous
+
+decision déclenche un event “decision.created”
+
+C) Timeline de décisions
+
+Créer table decision_events ou utiliser audit_events avec type decision.
+
+API :
+
+GET /api/projects/:id/decisions
+
+UI :
+
+Onglet “Décisions” projet
+
+Timeline verticale (date, auteur, type, lien, commentaire)
+
+D) Vue exécutive
+
+Créer une page /project/:id/executive
+
+Contenu :
+
+KPIs clés (temps, marge, avancement)
+
+Prochain jalon + statut
+
+Validations en attente
+
+Dernières décisions
+
+Alertes critiques
+
+Read-only.
+
+E) UX
+
+Badges clairs (Validation en attente / Approuvé)
+
+Toasts succès/erreur
+
+DS respecté (dropdowns blancs, components existants)
+
+Aucun bouton affiché sans permission
+
+F) Tests
+
+Guest ne peut pas créer décision
+
+Guest peut approuver si autorisé
+
+Décision apparaît dans timeline
+
+Validation change statut du jalon
+
+Audit event créé
+
+Livrables
+
+Tables + migrations
+
+Endpoints + permissions
+
+UI validations + commentaires typés
+
+Timeline décisions
+
+Vue exécutive
+
+Doc docs/94-collaboration-validation.md

@@ -175,6 +175,110 @@ export const MODULE_SUBVIEWS: Record<RbacModule, readonly string[]> = {
 };
 
 // ============================================
+// SHARE LINKS (Secure read-only sharing)
+// ============================================
+
+export const SHARE_RESOURCE_TYPES = ['project', 'roadmap', 'backlog', 'note', 'document', 'profitability_project'] as const;
+export type ShareResourceType = typeof SHARE_RESOURCE_TYPES[number];
+
+export const shareLinks = pgTable("share_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  createdByMemberId: uuid("created_by_member_id").notNull().references(() => organizationMembers.id, { onDelete: "cascade" }),
+  resourceType: text("resource_type").notNull(), // 'project', 'roadmap', 'backlog', 'note', 'document', 'profitability_project'
+  resourceId: text("resource_id").notNull(), // UUID or int as string
+  tokenHash: text("token_hash").notNull(), // SHA-256 hash of token - never store raw
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+  accessCount: integer("access_count").notNull().default(0),
+  permissions: jsonb("permissions").notNull().default({ read: true }), // { read: true, subviews: ["roadmap.output"] }
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  tokenHashIdx: uniqueIndex().on(table.tokenHash),
+  orgResourceIdx: index().on(table.organizationId, table.resourceType, table.resourceId),
+}));
+
+export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({
+  id: true,
+  createdAt: true,
+  lastAccessedAt: true,
+  accessCount: true,
+  revokedAt: true,
+});
+export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+// ============================================
+// MEMBER PROJECT ACCESS (Guest project scoping)
+// ============================================
+
+export const MEMBER_ACCESS_LEVELS = ['read', 'comment'] as const;
+export type MemberAccessLevel = typeof MEMBER_ACCESS_LEVELS[number];
+
+export const memberProjectAccess = pgTable("member_project_access", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => organizationMembers.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull(), // References projects.id
+  accessLevel: text("access_level").notNull().default("read"), // 'read', 'comment'
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  memberProjectIdx: uniqueIndex().on(table.memberId, table.projectId),
+  orgMemberIdx: index().on(table.organizationId, table.memberId),
+}));
+
+export const insertMemberProjectAccessSchema = createInsertSchema(memberProjectAccess).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertMemberProjectAccess = z.infer<typeof insertMemberProjectAccessSchema>;
+export type MemberProjectAccess = typeof memberProjectAccess.$inferSelect;
+
+// ============================================
+// AUDIT EVENTS (Action logging)
+// ============================================
+
+export const AUDIT_ACTION_TYPES = [
+  'permission.updated',
+  'member.invited',
+  'member.role_changed',
+  'member.removed',
+  'share.created',
+  'share.revoked',
+  'share.accessed',
+  'document.deleted',
+  'project.deleted',
+  'project.created',
+  'billing.updated',
+  'pack.applied',
+  'project_access.granted',
+  'project_access.revoked',
+] as const;
+export type AuditActionType = typeof AUDIT_ACTION_TYPES[number];
+
+export const auditEvents = pgTable("audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  actorMemberId: uuid("actor_member_id").references(() => organizationMembers.id, { onDelete: "set null" }), // null for public share access
+  actionType: text("action_type").notNull(), // from AUDIT_ACTION_TYPES
+  resourceType: text("resource_type"), // 'project', 'document', 'member', 'share_link', etc.
+  resourceId: text("resource_id"), // UUID as string
+  meta: jsonb("meta").notNull().default({}), // Additional context: diff, counts, IP, userAgent, etc.
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgCreatedAtIdx: index().on(table.organizationId, table.createdAt),
+  actionTypeIdx: index().on(table.actionType),
+}));
+
+export const insertAuditEventSchema = createInsertSchema(auditEvents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAuditEvent = z.infer<typeof insertAuditEventSchema>;
+export type AuditEvent = typeof auditEvents.$inferSelect;
+
+// ============================================
 // CRM & PIPELINE
 // ============================================
 

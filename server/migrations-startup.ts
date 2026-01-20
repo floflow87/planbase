@@ -1687,6 +1687,63 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Module views table created");
 
+    // ============================================
+    // PHASE 4 - Share Links, Project Access, Audit
+    // ============================================
+
+    // Create share_links table for secure read-only sharing
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS share_links (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        created_by_member_id uuid NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+        resource_type text NOT NULL,
+        resource_id text NOT NULL,
+        token_hash text NOT NULL UNIQUE,
+        expires_at timestamptz,
+        revoked_at timestamptz,
+        last_accessed_at timestamptz,
+        access_count integer NOT NULL DEFAULT 0,
+        permissions jsonb NOT NULL DEFAULT '{"read": true}'::jsonb,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_share_links_token ON share_links(token_hash);
+      CREATE INDEX IF NOT EXISTS idx_share_links_org_resource ON share_links(organization_id, resource_type, resource_id);
+    `);
+    console.log("✅ Share links table created");
+
+    // Create member_project_access table for guest project scoping
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS member_project_access (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        member_id uuid NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+        project_id uuid NOT NULL,
+        access_level text NOT NULL DEFAULT 'read',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(member_id, project_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_member_project_access_org ON member_project_access(organization_id, member_id);
+    `);
+    console.log("✅ Member project access table created");
+
+    // Create audit_events table for action logging
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        actor_member_id uuid REFERENCES organization_members(id) ON DELETE SET NULL,
+        action_type text NOT NULL,
+        resource_type text,
+        resource_id text,
+        meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_events_org_created ON audit_events(organization_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action_type);
+    `);
+    console.log("✅ Audit events table created");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

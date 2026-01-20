@@ -10526,6 +10526,328 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // SHARE LINKS (Phase 4)
+  // ============================================
+
+  // Create a share link
+  app.post("/api/share-links", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const memberId = req.membership!.id;
+      const { resourceType, resourceId, expiresInDays, permissions: perms } = req.body;
+
+      if (!resourceType || !resourceId) {
+        return res.status(400).json({ error: "resourceType and resourceId are required" });
+      }
+
+      const { createShareLink } = await import("./services/shareLinkService");
+      const result = await createShareLink({
+        organizationId: accountId,
+        createdByMemberId: memberId,
+        resourceType,
+        resourceId,
+        expiresInDays,
+        permissions: perms,
+      });
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      res.json({
+        id: result.shareLink.id,
+        shareUrl: `${baseUrl}${result.shareUrl}`,
+        expiresAt: result.shareLink.expiresAt,
+        resourceType: result.shareLink.resourceType,
+        resourceId: result.shareLink.resourceId,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // List share links for a resource
+  app.get("/api/share-links", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { resourceType, resourceId } = req.query;
+
+      const { getShareLinksByResource, getAllShareLinks } = await import("./services/shareLinkService");
+      
+      let links;
+      if (resourceType && resourceId) {
+        links = await getShareLinksByResource(accountId, resourceType as string, resourceId as string);
+      } else {
+        links = await getAllShareLinks(accountId);
+      }
+
+      res.json(links.map(link => ({
+        id: link.id,
+        resourceType: link.resourceType,
+        resourceId: link.resourceId,
+        expiresAt: link.expiresAt,
+        revokedAt: link.revokedAt,
+        lastAccessedAt: link.lastAccessedAt,
+        accessCount: link.accessCount,
+        createdAt: link.createdAt,
+      })));
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Revoke a share link
+  app.post("/api/share-links/:id/revoke", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const memberId = req.membership!.id;
+      const shareLinkId = req.params.id;
+
+      const { revokeShareLink } = await import("./services/shareLinkService");
+      const revoked = await revokeShareLink(shareLinkId, accountId, memberId);
+
+      if (!revoked) {
+        return res.status(404).json({ error: "Share link not found" });
+      }
+
+      res.json({ success: true, revokedAt: revoked.revokedAt });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Public share access - validate token and get resource data
+  app.get("/api/share/:token", async (req, res) => {
+    try {
+      const token = req.params.token;
+      const { validateShareToken, recordShareAccess } = await import("./services/shareLinkService");
+      
+      const result = await validateShareToken(token);
+
+      if (!result.valid || !result.shareLink) {
+        const statusCode = result.error === "expired" ? 410 : 403;
+        return res.status(statusCode).json({ error: result.error || "Invalid share link" });
+      }
+
+      const shareLink = result.shareLink;
+
+      // Record access
+      await recordShareAccess(shareLink, {
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+
+      // Fetch resource data based on type
+      let resourceData: any = null;
+      
+      switch (shareLink.resourceType) {
+        case "project":
+          resourceData = await storage.getProject(shareLink.resourceId);
+          break;
+        case "note":
+          resourceData = await storage.getNote(shareLink.resourceId);
+          break;
+        case "document":
+          resourceData = await storage.getDocument(shareLink.resourceId);
+          break;
+        case "roadmap":
+          resourceData = await storage.getRoadmap(shareLink.resourceId);
+          if (resourceData) {
+            const items = await storage.getRoadmapItems(shareLink.resourceId);
+            resourceData = { ...resourceData, items };
+          }
+          break;
+        case "backlog":
+          resourceData = await storage.getBacklog(shareLink.resourceId);
+          if (resourceData) {
+            const sprints = await storage.getSprintsByBacklog(shareLink.resourceId);
+            resourceData = { ...resourceData, sprints };
+          }
+          break;
+        case "profitability_project":
+          resourceData = await storage.getProject(shareLink.resourceId);
+          break;
+      }
+
+      if (!resourceData) {
+        return res.status(404).json({ error: "Resource not found" });
+      }
+
+      res.json({
+        resourceType: shareLink.resourceType,
+        resourceId: shareLink.resourceId,
+        permissions: shareLink.permissions,
+        expiresAt: shareLink.expiresAt,
+        data: resourceData,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MEMBER PROJECT ACCESS (Guest scoping)
+  // ============================================
+
+  // Grant project access to a member
+  app.post("/api/member-project-access", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { memberId, projectId, accessLevel = "read" } = req.body;
+
+      if (!memberId || !projectId) {
+        return res.status(400).json({ error: "memberId and projectId are required" });
+      }
+
+      const { logProjectAccessGranted } = await import("./services/auditService");
+      
+      await db.execute(sql`
+        INSERT INTO member_project_access (organization_id, member_id, project_id, access_level)
+        VALUES (${accountId}, ${memberId}, ${projectId}, ${accessLevel})
+        ON CONFLICT (member_id, project_id) DO UPDATE SET access_level = ${accessLevel}
+      `);
+
+      await logProjectAccessGranted(accountId, actorMemberId, memberId, projectId, accessLevel);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get project access for a member
+  app.get("/api/member-project-access/:memberId", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const memberId = req.params.memberId;
+
+      const result = await db.execute(sql`
+        SELECT mpa.*, p.name as project_name
+        FROM member_project_access mpa
+        JOIN projects p ON p.id = mpa.project_id
+        WHERE mpa.organization_id = ${accountId} AND mpa.member_id = ${memberId}
+      `);
+
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Revoke project access
+  app.delete("/api/member-project-access/:memberId/:projectId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { memberId, projectId } = req.params;
+
+      const { logProjectAccessRevoked } = await import("./services/auditService");
+
+      await db.execute(sql`
+        DELETE FROM member_project_access
+        WHERE organization_id = ${accountId} AND member_id = ${memberId} AND project_id = ${projectId}
+      `);
+
+      await logProjectAccessRevoked(accountId, actorMemberId, memberId, projectId);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // AUDIT EVENTS
+  // ============================================
+
+  // Get audit events (admin only)
+  app.get("/api/audit", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { limit = "50", actionType, resourceType, since } = req.query;
+
+      const { getAuditEvents } = await import("./services/auditService");
+      
+      const events = await getAuditEvents(accountId, {
+        limit: parseInt(limit as string),
+        actionType: actionType as string | undefined,
+        resourceType: resourceType as string | undefined,
+        since: since ? new Date(since as string) : undefined,
+      });
+
+      res.json(events);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // PERMISSION PACKS
+  // ============================================
+
+  // Get available permission packs
+  app.get("/api/permission-packs", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { PERMISSION_PACKS } = await import("@shared/config/permissionPacks");
+      res.json(PERMISSION_PACKS);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Apply a permission pack to a member
+  app.post("/api/permission-packs/:packId/apply/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { packId, memberId } = req.params;
+
+      const { getPermissionPack } = await import("@shared/config/permissionPacks");
+      const { logPackApplied } = await import("./services/auditService");
+      const { RBAC_ACTIONS } = await import("@shared/schema");
+
+      const pack = getPermissionPack(packId);
+      if (!pack) {
+        return res.status(404).json({ error: "Permission pack not found" });
+      }
+
+      // Delete existing permissions for this member
+      await db.execute(sql`
+        DELETE FROM permissions WHERE organization_id = ${accountId} AND member_id = ${memberId}
+      `);
+
+      // Insert new permissions from pack
+      for (const entry of pack.permissions) {
+        for (const action of RBAC_ACTIONS) {
+          const allowed = entry.actions.includes(action);
+          await db.execute(sql`
+            INSERT INTO permissions (organization_id, member_id, module, action, allowed, scope)
+            VALUES (${accountId}, ${memberId}, ${entry.module}, ${action}, ${allowed}, 'module')
+          `);
+        }
+      }
+
+      // Update module views with default subviews from pack
+      for (const [module, subviews] of Object.entries(pack.defaultSubviews)) {
+        const subviewsEnabled: Record<string, boolean> = {};
+        for (const sv of subviews) {
+          subviewsEnabled[sv] = true;
+        }
+        
+        await db.execute(sql`
+          INSERT INTO module_views (organization_id, member_id, module, subviews_enabled)
+          VALUES (${accountId}, ${memberId}, ${module}, ${JSON.stringify(subviewsEnabled)}::jsonb)
+          ON CONFLICT (member_id, module) DO UPDATE SET subviews_enabled = ${JSON.stringify(subviewsEnabled)}::jsonb
+        `);
+      }
+
+      await logPackApplied(accountId, actorMemberId, memberId, packId);
+
+      res.json({ success: true, packId, memberId });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // SEED DATA (Development only)
   // ============================================
 
