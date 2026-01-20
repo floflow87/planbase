@@ -10312,11 +10312,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
 
+      // Map legacy roles to RBAC roles
+      const mapLegacyRole = (role: string): string => {
+        if (role === 'collaborator') return 'member';
+        if (role === 'client_viewer') return 'guest';
+        return role; // Already RBAC role (admin, member, guest)
+      };
+
       const pendingMembers = pendingInvitations.map((inv) => ({
         id: `invitation-${inv.id}`,
         organizationId: inv.accountId,
         userId: null,
-        role: inv.role,
+        role: mapLegacyRole(inv.role),
         status: "invitation_en_attente",
         invitationId: inv.id,
         expiresAt: inv.expiresAt,
@@ -10631,7 +10638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .values({
             accountId,
             email: email.toLowerCase().trim(),
-            role: role === 'admin' ? 'collaborator' : role === 'member' ? 'collaborator' : 'client_viewer',
+            role, // Keep the RBAC role (admin, member, guest)
             status: 'pending',
             token,
             expiresAt,
