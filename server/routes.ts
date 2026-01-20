@@ -10322,6 +10322,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingMember = existingMembers.find(m => m.id === memberId);
       const oldRole = existingMember?.role || 'unknown';
 
+      // PROTECTION: Prevent demoting account owner
+      if (existingMember && role !== 'admin') {
+        const targetUser = await storage.getUser(existingMember.userId);
+        if (targetUser && targetUser.role === 'owner') {
+          return res.status(403).json({ 
+            error: "Impossible de rétrograder le propriétaire du compte. Le propriétaire doit toujours être administrateur." 
+          });
+        }
+      }
+
       const member = await permissionService.updateMemberRole(memberId, role, accountId);
       if (!member) {
         return res.status(404).json({ error: "Member not found" });
@@ -10333,6 +10343,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(member);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Emergency recovery: Restore admin role for account owner
+  app.post("/api/rbac/recover-owner", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const accountId = req.accountId!;
+
+      // Verify the user is the account owner
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'owner') {
+        return res.status(403).json({ error: "Seul le propriétaire du compte peut utiliser cette fonction de récupération." });
+      }
+
+      // Find or create the member entry
+      let member = await permissionService.getMemberByUserAndOrg(userId, accountId);
+      
+      if (member) {
+        // Update to admin
+        member = await permissionService.updateMemberRole(member.id, 'admin', accountId);
+      } else {
+        // Create as admin
+        member = await permissionService.createMember({
+          organizationId: accountId,
+          userId: userId,
+          role: 'admin',
+        });
+      }
+
+      // Log recovery
+      const { logAuditEvent } = await import("./services/auditService");
+      await logAuditEvent({
+        organizationId: accountId,
+        actorMemberId: member?.id || null,
+        actionType: 'owner.recovery',
+        resourceType: 'member',
+        resourceId: member?.id || userId,
+        meta: { reason: 'Owner admin role recovery' },
+      });
+
+      res.json({ success: true, message: "Accès administrateur restauré.", member });
+    } catch (error: any) {
+      console.error("Owner recovery error:", error);
       res.status(500).json({ error: error.message });
     }
   });
