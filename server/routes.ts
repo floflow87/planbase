@@ -10616,11 +10616,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           meta: { email: email.toLowerCase().trim(), role, orgRole: role },
         });
 
+        // Get inviter info and organization name for the email
+        const inviter = await storage.getUser(req.userId!);
+        const account = await storage.getAccount(accountId);
+        const inviterName = inviter?.firstName && inviter?.lastName 
+          ? `${inviter.firstName} ${inviter.lastName}` 
+          : inviter?.email || 'Un membre';
+        const organizationName = account?.name || 'Planbase';
+
+        // Send invitation email via Resend
+        let emailSent = false;
+        try {
+          const { sendInvitationEmail } = await import("./services/emailService");
+          const emailResult = await sendInvitationEmail({
+            to: email.toLowerCase().trim(),
+            inviterName,
+            organizationName,
+            role,
+            token,
+            expiresAt,
+          });
+          emailSent = emailResult.success;
+          if (!emailResult.success) {
+            console.error('Failed to send invitation email:', emailResult.error);
+          }
+        } catch (emailError) {
+          console.error('Email service error:', emailError);
+        }
+
         res.json({ 
           success: true, 
           pending: true,
+          emailSent,
           invitation: newInvitation,
-          message: "Invitation envoyée. L'utilisateur pourra rejoindre l'organisation après avoir créé son compte."
+          message: emailSent 
+            ? "Invitation envoyée par email. L'utilisateur pourra rejoindre l'organisation après avoir créé son compte."
+            : "Invitation créée. L'email n'a pas pu être envoyé, partagez le lien manuellement."
         });
       }
     } catch (error: any) {
