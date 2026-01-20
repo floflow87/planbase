@@ -12,14 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
@@ -202,21 +202,21 @@ export function PermissionsTab() {
               <Users className="w-4 h-4" />
               <CardTitle className="text-sm">Membres de l'organisation</CardTitle>
             </div>
-            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-              <DialogTrigger asChild>
+            <Sheet open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+              <SheetTrigger asChild>
                 <Button size="sm" data-testid="button-add-member">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Ajouter
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Ajouter un membre</DialogTitle>
-                  <DialogDescription>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Ajouter un membre</SheetTitle>
+                  <SheetDescription>
                     Ajoutez un utilisateur existant à votre organisation par son email
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="space-y-4 py-6">
                   <div className="space-y-2">
                     <Label htmlFor="invite-email">Email</Label>
                     <Input
@@ -242,7 +242,7 @@ export function PermissionsTab() {
                     </Select>
                   </div>
                 </div>
-                <DialogFooter>
+                <SheetFooter className="flex-row gap-2">
                   <Button
                     variant="outline"
                     onClick={() => setInviteDialogOpen(false)}
@@ -258,9 +258,9 @@ export function PermissionsTab() {
                     {inviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Ajouter
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
           </div>
           <CardDescription className="text-xs">
             Gérez les rôles et permissions des membres de votre équipe

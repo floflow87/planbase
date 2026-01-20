@@ -10523,7 +10523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rbac/invite", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { email, role } = req.body;
 
       if (!email || typeof email !== 'string') {
