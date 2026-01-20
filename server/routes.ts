@@ -108,7 +108,7 @@ import { google } from "googleapis";
 import { db } from "./db";
 import { eq, and, asc, desc, not, sql, inArray } from "drizzle-orm";
 
-// Default view configurations for CRM and Notes modules
+// Default view configurations for all modules
 function getDefaultViewConfig(module: string): any {
   switch (module) {
     case 'crm':
@@ -124,6 +124,51 @@ function getDefaultViewConfig(module: string): any {
           },
         },
       };
+    case 'projects':
+      return {
+        subviewsEnabled: {
+          'projects.list': true,
+          'projects.details': true,
+          'projects.scope': false,
+          'projects.billing': false,
+        },
+      };
+    case 'product':
+      return {
+        subviewsEnabled: {
+          'product.backlog': false,
+          'product.epics': false,
+          'product.stats': false,
+          'product.retrospective': false,
+          'product.recipe': false,
+        },
+      };
+    case 'roadmap':
+      return {
+        subviewsEnabled: {
+          'roadmap.gantt': false,
+          'roadmap.output': false,
+          'roadmap.okr': false,
+          'roadmap.tree': false,
+        },
+      };
+    case 'profitability':
+      return {
+        subviewsEnabled: {
+          'profitability.overview': false,
+          'profitability.byProject': false,
+          'profitability.simulations': false,
+          'profitability.resources': false,
+        },
+      };
+    case 'documents':
+      return {
+        subviewsEnabled: {
+          'documents.list': false,
+          'documents.upload': false,
+          'documents.integrations': false,
+        },
+      };
     case 'notes':
       return {
         layout: {
@@ -133,6 +178,8 @@ function getDefaultViewConfig(module: string): any {
           },
         },
       };
+    case 'tasks':
+      return {};
     default:
       return {};
   }
@@ -10430,6 +10477,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the template from settings or return default
       const template = await permissionService.getGuestViewTemplate(req.accountId!, module);
       res.json(template || getDefaultViewConfig(module));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all guest view templates for all modules (admin only)
+  app.get("/api/views/template/guest/all", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { RBAC_MODULES } = await import("@shared/schema");
+      const results = [];
+      
+      for (const mod of RBAC_MODULES) {
+        const template = await permissionService.getGuestViewTemplate(req.accountId!, mod);
+        results.push({
+          module: mod,
+          config: template || getDefaultViewConfig(mod),
+        });
+      }
+      
+      res.json(results);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
