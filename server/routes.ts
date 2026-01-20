@@ -1008,7 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CLIENT COMMENTS - Protected Routes
   // ============================================
 
-  app.get("/api/clients/:clientId/comments", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/comments", requireAuth, requireOrgMember, requirePermission("crm", "read"), async (req, res) => {
     try {
       // First verify the client belongs to this account (security check)
       const client = await storage.getClient(req.accountId!, req.params.clientId);
@@ -1023,7 +1023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients/:clientId/comments", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/clients/:clientId/comments", requireAuth, requireOrgMember, requirePermission("crm", "create"), async (req, res) => {
     try {
       // First verify the client belongs to this account (security check)
       const client = await storage.getClient(req.accountId!, req.params.clientId);
@@ -1055,7 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clients/:clientId/comments/:commentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/clients/:clientId/comments/:commentId", requireAuth, requireOrgMember, requirePermission("crm", "delete"), async (req, res) => {
     try {
       // First verify the client belongs to this account (security check)
       const client = await storage.getClient(req.accountId!, req.params.clientId);
@@ -1198,7 +1198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:clientId/field-values", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/field-values", requireAuth, requireOrgMember, requirePermission("crm", "read"), async (req, res) => {
     try {
       const client = await storage.getClient(req.accountId!, req.params.clientId);
       if (!client) {
@@ -1211,7 +1211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients/:clientId/field-values", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/clients/:clientId/field-values", requireAuth, requireOrgMember, requirePermission("crm", "create"), async (req, res) => {
     try {
       const client = await storage.getClient(req.accountId!, req.params.clientId);
       if (!client) {
@@ -1331,7 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id/notes", requireAuth, async (req, res) => {
+  app.get("/api/projects/:id/notes", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -1348,7 +1348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id/documents", requireAuth, async (req, res) => {
+  app.get("/api/projects/:id/documents", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -1431,7 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all project categories for the authenticated account
-  app.get("/api/project-categories", requireAuth, async (req, res) => {
+  app.get("/api/project-categories", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const categories = await storage.getProjectCategoriesByAccountId(req.accountId!);
       res.json(categories);
@@ -1441,7 +1441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new project category (or return existing one if name already exists)
-  app.post("/api/project-categories", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/project-categories", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       const { name, projectType } = req.body;
       if (!name || !name.trim()) {
@@ -1474,7 +1474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a project category (to set/update projectType)
-  app.patch("/api/project-categories/:categoryId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/project-categories/:categoryId", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const { categoryId } = req.params;
       const accountId = req.accountId!;
@@ -1507,7 +1507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all payments for the account
-  app.get("/api/payments", requireAuth, async (req, res) => {
+  app.get("/api/payments", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const payments = await storage.getPaymentsByAccountId(req.accountId!);
       res.json(payments);
@@ -1590,7 +1590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a payment
-  app.patch("/api/payments/:paymentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/payments/:paymentId", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const payment = await storage.getPayment(req.params.paymentId);
       if (!payment) {
@@ -1628,7 +1628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a payment
-  app.delete("/api/payments/:paymentId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/payments/:paymentId", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const payment = await storage.getPayment(req.params.paymentId);
       if (!payment) {
@@ -1749,7 +1749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a scope item
-  app.patch("/api/scope-items/:itemId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/scope-items/:itemId", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const scopeItem = await storage.getScopeItem(req.params.itemId);
       if (!scopeItem) {
@@ -1767,7 +1767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a scope item
-  app.delete("/api/scope-items/:itemId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/scope-items/:itemId", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const scopeItem = await storage.getScopeItem(req.params.itemId);
       if (!scopeItem) {
@@ -1808,7 +1808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Complete a scope item (mark as terminated)
-  app.post("/api/scope-items/:itemId/complete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/scope-items/:itemId/complete", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const scopeItem = await storage.getScopeItem(req.params.itemId);
       if (!scopeItem) {
@@ -1828,7 +1828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reopen a scope item (remove completion)
-  app.post("/api/scope-items/:itemId/reopen", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/scope-items/:itemId/reopen", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const scopeItem = await storage.getScopeItem(req.params.itemId);
       if (!scopeItem) {
@@ -1894,7 +1894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific CDC session
-  app.get("/api/cdc-sessions/:sessionId", requireAuth, async (req, res) => {
+  app.get("/api/cdc-sessions/:sessionId", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -1961,7 +1961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a CDC session (step progression, status)
-  app.patch("/api/cdc-sessions/:sessionId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/cdc-sessions/:sessionId", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -1982,7 +1982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a CDC session
-  app.delete("/api/cdc-sessions/:sessionId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/cdc-sessions/:sessionId", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -2002,7 +2002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create scope item within a CDC session
-  app.post("/api/cdc-sessions/:sessionId/scope-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/cdc-sessions/:sessionId/scope-items", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -2034,7 +2034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get scope items for a CDC session
-  app.get("/api/cdc-sessions/:sessionId/scope-items", requireAuth, async (req, res) => {
+  app.get("/api/cdc-sessions/:sessionId/scope-items", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -2054,7 +2054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Complete CDC session and trigger generation
-  app.post("/api/cdc-sessions/:sessionId/complete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/cdc-sessions/:sessionId/complete", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const session = await storage.getCdcSession(req.params.sessionId);
       if (!session) {
@@ -2890,7 +2890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all user stories for a project (via backlogs linked to the project)
-  app.get("/api/projects/:projectId/user-stories", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/user-stories", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -3177,7 +3177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get global task columns (not tied to any project)
-  app.get("/api/task-columns/global", requireAuth, async (req, res) => {
+  app.get("/api/task-columns/global", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       const columns = await storage.getGlobalTaskColumnsByAccountId(req.accountId!);
       res.json(columns);
@@ -3298,7 +3298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all time entries for the authenticated account
-  app.get("/api/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
+  app.get("/api/time-entries", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const entries = await storage.getTimeEntriesByAccountId(req.accountId!);
       res.json(entries);
@@ -3308,7 +3308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get time entries for a specific project
-  app.get("/api/projects/:projectId/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
+  app.get("/api/projects/:projectId/time-entries", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       // Verify project exists and user has access
       const project = await storage.getProject(req.params.projectId);
@@ -3327,7 +3327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get active time entry for the current user
-  app.get("/api/time-entries/active", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
+  app.get("/api/time-entries/active", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const entry = await storage.getActiveTimeEntry(req.accountId!, req.userId!);
       res.json(entry || null);
@@ -3337,7 +3337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new time entry (start timer)
-  app.post("/api/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.overview"), async (req, res) => {
+  app.post("/api/time-entries", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       const { insertTimeEntrySchema } = await import("@shared/schema");
       
@@ -3374,7 +3374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a manual time entry (completed entry with specific duration)
-  app.post("/api/time-entries/manual", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.overview"), async (req, res) => {
+  app.post("/api/time-entries/manual", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       const { insertTimeEntrySchema } = await import("@shared/schema");
       
@@ -3444,7 +3444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a time entry (stop timer, update duration, assign project)
-  app.patch("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
+  app.patch("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3526,7 +3526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a time entry
-  app.delete("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("profitability", "delete", "profitability.overview"), async (req, res) => {
+  app.delete("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3544,7 +3544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pause a running time entry
-  app.patch("/api/time-entries/:id/pause", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
+  app.patch("/api/time-entries/:id/pause", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3580,7 +3580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Resume a paused time entry
-  app.patch("/api/time-entries/:id/resume", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
+  app.patch("/api/time-entries/:id/resume", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3876,7 +3876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DOCUMENT TEMPLATES - Protected Routes
   // ============================================
 
-  app.get("/api/document-templates", requireAuth, async (req, res) => {
+  app.get("/api/document-templates", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const templates = await storage.getDocumentTemplates(req.accountId!);
       res.json(templates);
@@ -3885,7 +3885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/document-templates/:id", requireAuth, async (req, res) => {
+  app.get("/api/document-templates/:id", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const template = await storage.getDocumentTemplate(req.params.id);
       if (!template) {
@@ -3902,7 +3902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/document-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/document-templates", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
     try {
       const data = insertDocumentTemplateSchema.parse({
         ...req.body,
@@ -3917,7 +3917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/document-templates/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/document-templates/:id", requireAuth, requireOrgMember, requirePermission("documents", "update"), async (req, res) => {
     try {
       const existing = await storage.getDocumentTemplate(req.params.id);
       if (!existing) {
@@ -3940,7 +3940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/document-templates/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/document-templates/:id", requireAuth, requireOrgMember, requirePermission("documents", "delete"), async (req, res) => {
     try {
       const existing = await storage.getDocumentTemplate(req.params.id);
       if (!existing) {
@@ -4314,7 +4314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ACTIVITIES - Protected Routes
   // ============================================
 
-  app.get("/api/activities", requireAuth, async (req, res) => {
+  app.get("/api/activities", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const activities = await storage.getActivitiesByAccountId(req.accountId!, limit);
@@ -4332,7 +4332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get activities for a specific client
-  app.get("/api/clients/:clientId/activities", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/activities", requireAuth, requireOrgMember, requirePermission("crm", "read"), async (req, res) => {
     try {
       const { clientId } = req.params;
       const activities = await storage.getActivitiesBySubject(req.accountId!, 'client', clientId);
@@ -4343,7 +4343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get activities for a specific project
-  app.get("/api/projects/:projectId/activities", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/activities", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const { projectId } = req.params;
       const activities = await storage.getActivitiesBySubject(req.accountId!, 'project', projectId);
@@ -4354,7 +4354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new activity
-  app.post("/api/activities", requireAuth, async (req, res) => {
+  app.post("/api/activities", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       const { subjectType, subjectId, kind, description, occurredAt, payload } = req.body;
       
@@ -4380,7 +4380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update an activity
-  app.patch("/api/activities/:id", requireAuth, async (req, res) => {
+  app.patch("/api/activities/:id", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const { id } = req.params;
       const existing = await storage.getActivity(id);
@@ -4407,7 +4407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete an activity
-  app.delete("/api/activities/:id", requireAuth, async (req, res) => {
+  app.delete("/api/activities/:id", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const { id } = req.params;
       const existing = await storage.getActivity(id);
@@ -4427,7 +4427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete all activities for a specific project (cleanup endpoint)
-  app.delete("/api/projects/:projectId/activities", requireAuth, async (req, res) => {
+  app.delete("/api/projects/:projectId/activities", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const { projectId } = req.params;
       const activities = await storage.getActivitiesBySubject("project", projectId);
@@ -5921,7 +5921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Calculate and update progress for a roadmap item based on linked entities
-  app.post("/api/roadmap-items/:id/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
+  app.post("/api/roadmap-items/:id/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -6029,7 +6029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recalculate progress for all items in a roadmap
-  app.post("/api/roadmaps/:roadmapId/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
+  app.post("/api/roadmaps/:roadmapId/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const roadmap = await storage.getRoadmap(req.params.roadmapId);
       if (!roadmap) {
@@ -6844,7 +6844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all mindmaps for the current account
-  app.get("/api/mindmaps", requireAuth, async (req, res) => {
+  app.get("/api/mindmaps", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const mindmaps = await storage.getMindmapsByAccountId(req.accountId!);
       res.json(mindmaps);
@@ -6854,7 +6854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get mindmaps by client
-  app.get("/api/clients/:clientId/mindmaps", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/mindmaps", requireAuth, requireOrgMember, requirePermission("crm", "read"), async (req, res) => {
     try {
       const mindmaps = await storage.getMindmapsByClientId(req.accountId!, req.params.clientId);
       res.json(mindmaps);
@@ -6864,7 +6864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get mindmaps by project
-  app.get("/api/projects/:projectId/mindmaps", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/mindmaps", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const mindmaps = await storage.getMindmapsByProjectId(req.accountId!, req.params.projectId);
       res.json(mindmaps);
@@ -6874,7 +6874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a single mindmap with all nodes and edges
-  app.get("/api/mindmaps/:id", requireAuth, async (req, res) => {
+  app.get("/api/mindmaps/:id", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const result = await storage.getMindmapWithDetails(req.accountId!, req.params.id);
       if (!result) {
@@ -6929,7 +6929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Create a new mindmap
-  app.post("/api/mindmaps", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/mindmaps", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const data = insertMindmapSchema.parse({
         ...req.body,
@@ -7009,7 +7009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a mindmap
-  app.patch("/api/mindmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/mindmaps/:id", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       const existing = await storage.getMindmap(req.accountId!, req.params.id);
       if (!existing) {
@@ -7024,7 +7024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a mindmap (cascades to nodes and edges)
-  app.delete("/api/mindmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/mindmaps/:id", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
     try {
       const existing = await storage.getMindmap(req.accountId!, req.params.id);
       if (!existing) {
@@ -7043,7 +7043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get nodes for a mindmap
-  app.get("/api/mindmaps/:mindmapId/nodes", requireAuth, async (req, res) => {
+  app.get("/api/mindmaps/:mindmapId/nodes", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       // Verify mindmap exists and belongs to account
       const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
@@ -7059,7 +7059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new node
-  app.post("/api/mindmaps/:mindmapId/nodes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/mindmaps/:mindmapId/nodes", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       // Verify mindmap exists and belongs to account
       const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
@@ -7083,7 +7083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a node
-  app.patch("/api/mindmap-nodes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/mindmap-nodes/:id", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       const existing = await storage.getMindmapNode(req.accountId!, req.params.id);
       if (!existing) {
@@ -7098,7 +7098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Batch update nodes (for drag & drop position updates)
-  app.patch("/api/mindmaps/:mindmapId/nodes/batch", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/mindmaps/:mindmapId/nodes/batch", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       // Verify mindmap exists
       const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
@@ -7127,7 +7127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a node
-  app.delete("/api/mindmap-nodes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/mindmap-nodes/:id", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
     try {
       const existing = await storage.getMindmapNode(req.accountId!, req.params.id);
       if (!existing) {
@@ -7146,7 +7146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get edges for a mindmap
-  app.get("/api/mindmaps/:mindmapId/edges", requireAuth, async (req, res) => {
+  app.get("/api/mindmaps/:mindmapId/edges", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       // Verify mindmap exists and belongs to account
       const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
@@ -7162,7 +7162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new edge
-  app.post("/api/mindmaps/:mindmapId/edges", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/mindmaps/:mindmapId/edges", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       // Verify mindmap exists and belongs to account
       const mindmap = await storage.getMindmap(req.accountId!, req.params.mindmapId);
@@ -7183,7 +7183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update an edge
-  app.patch("/api/mindmap-edges/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/mindmap-edges/:id", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       const existing = await storage.getMindmapEdge(req.accountId!, req.params.id);
       if (!existing) {
@@ -7198,7 +7198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete an edge
-  app.delete("/api/mindmap-edges/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/mindmap-edges/:id", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
     try {
       const existing = await storage.getMindmapEdge(req.accountId!, req.params.id);
       if (!existing) {
@@ -7260,7 +7260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Connect all draft edges to business entity links
-  app.post("/api/mindmaps/:mindmapId/connect-nodes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/mindmaps/:mindmapId/connect-nodes", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const mindmapId = req.params.mindmapId;
@@ -8869,7 +8869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get activities for a ticket (state changes)
-  app.get("/api/tickets/:ticketId/:ticketType/activities", requireAuth, async (req, res) => {
+  app.get("/api/tickets/:ticketId/:ticketType/activities", requireAuth, requireOrgMember, requirePermission("product", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const ticketId = req.params.ticketId;
@@ -8927,7 +8927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get comments for a ticket
-  app.get("/api/tickets/:ticketId/:ticketType/comments", requireAuth, async (req, res) => {
+  app.get("/api/tickets/:ticketId/:ticketType/comments", requireAuth, requireOrgMember, requirePermission("product", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const ticketId = req.params.ticketId;
@@ -8948,7 +8948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create comment on a ticket
-  app.post("/api/tickets/:ticketId/:ticketType/comments", requireAuth, async (req, res) => {
+  app.post("/api/tickets/:ticketId/:ticketType/comments", requireAuth, requireOrgMember, requirePermission("product", "create"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -8971,7 +8971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update comment
-  app.patch("/api/ticket-comments/:commentId", requireAuth, async (req, res) => {
+  app.patch("/api/ticket-comments/:commentId", requireAuth, requireOrgMember, requirePermission("product", "update"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const commentId = req.params.commentId;
@@ -8992,7 +8992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete comment
-  app.delete("/api/ticket-comments/:commentId", requireAuth, async (req, res) => {
+  app.delete("/api/ticket-comments/:commentId", requireAuth, requireOrgMember, requirePermission("product", "delete"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const commentId = req.params.commentId;
@@ -9015,7 +9015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get acceptance criteria for a ticket
-  app.get("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, async (req, res) => {
+  app.get("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, requireOrgMember, requirePermission("product", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const ticketId = req.params.ticketId;
@@ -9036,7 +9036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create acceptance criterion
-  app.post("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, async (req, res) => {
+  app.post("/api/tickets/:ticketId/:ticketType/acceptance-criteria", requireAuth, requireOrgMember, requirePermission("product", "create"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const ticketId = req.params.ticketId;
@@ -9070,7 +9070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update acceptance criterion
-  app.patch("/api/acceptance-criteria/:criterionId", requireAuth, async (req, res) => {
+  app.patch("/api/acceptance-criteria/:criterionId", requireAuth, requireOrgMember, requirePermission("product", "update"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const criterionId = req.params.criterionId;
@@ -9091,7 +9091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete acceptance criterion
-  app.delete("/api/acceptance-criteria/:criterionId", requireAuth, async (req, res) => {
+  app.delete("/api/acceptance-criteria/:criterionId", requireAuth, requireOrgMember, requirePermission("product", "delete"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const criterionId = req.params.criterionId;

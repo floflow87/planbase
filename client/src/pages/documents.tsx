@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Search, Filter, Home, ChevronRight, LayoutGrid, List, Upload, FolderPlus, FileText, File, Image, FileSpreadsheet, FileType, Link, Music, Archive, MoreVertical, FileEdit, Trash2, Copy, FolderInput, Download, PanelLeftClose, PanelLeft } from "lucide-react";
+import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import { useMemo } from "react";
 import { Folder, ChevronDown, ChevronRight as ChevronRightIcon, Building2, FolderOpen } from "lucide-react";
 
 export default function Documents() {
+  const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("documents");
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
     const saved = localStorage.getItem("documentsViewMode");
     return (saved === "grid" || saved === "list") ? saved : "grid";
@@ -551,7 +553,8 @@ export default function Documents() {
   );
 
   return (
-    <div className="flex-1 overflow-hidden bg-[#F8FAFC] dark:bg-background flex" data-testid="page-documents">
+    <PermissionGuard module="documents" fallbackPath="/">
+      <div className="flex-1 overflow-hidden bg-[#F8FAFC] dark:bg-background flex" data-testid="page-documents">
       {/* Left Sidebar - Folder Explorer (Collapsible) */}
       <div 
         className={`border-r border-border flex flex-col transition-all duration-300 ease-in-out ${
@@ -593,6 +596,7 @@ export default function Documents() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className={`max-w-7xl p-6 space-y-6 ${isTreeCollapsed ? 'ml-0' : 'mx-auto'}`}>
+          <ReadOnlyBanner module="documents" />
           {/* Breadcrumb & Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[12px]">
@@ -633,19 +637,23 @@ export default function Documents() {
                   <List className="w-4 h-4" />
                 </Button>
               </div>
-              <Button variant="outline" className="gap-2 text-[12px]" data-testid="button-importer">
-                <Upload className="w-4 h-4" />
-                Importer
-              </Button>
-              <Button 
-                variant="default" 
-                className="gap-2 text-[12px]" 
-                onClick={() => setLocation("/documents/templates")}
-                data-testid="button-nouveau-document"
-              >
-                <FileEdit className="w-4 h-4" />
-                Nouveau Document
-              </Button>
+              {canCreate && (
+                <Button variant="outline" className="gap-2 text-[12px]" data-testid="button-importer">
+                  <Upload className="w-4 h-4" />
+                  Importer
+                </Button>
+              )}
+              {canCreate && (
+                <Button 
+                  variant="default" 
+                  className="gap-2 text-[12px]" 
+                  onClick={() => setLocation("/documents/templates")}
+                  data-testid="button-nouveau-document"
+                >
+                  <FileEdit className="w-4 h-4" />
+                  Nouveau Document
+                </Button>
+              )}
             </div>
           </div>
 
@@ -735,15 +743,19 @@ export default function Documents() {
                             <FolderInput className="w-4 h-4 mr-2" />
                             Déplacer
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => handleDeleteClick(file.id, e)}
-                            className="text-destructive focus:text-destructive"
-                            data-testid={`menu-item-delete-${file.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => handleDeleteClick(file.id, e)}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`menu-item-delete-${file.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -912,15 +924,19 @@ export default function Documents() {
                                 <FolderInput className="w-4 h-4 mr-2" />
                                 Déplacer
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={(e) => handleDeleteClick(file.id, e)}
-                                className="text-destructive focus:text-destructive"
-                                data-testid={`menu-item-delete-list-${file.id}`}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Supprimer
-                              </DropdownMenuItem>
+                              {canDelete && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={(e) => handleDeleteClick(file.id, e)}
+                                    className="text-destructive focus:text-destructive"
+                                    data-testid={`menu-item-delete-list-${file.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -957,6 +973,7 @@ export default function Documents() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

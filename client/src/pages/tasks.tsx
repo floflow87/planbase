@@ -1,6 +1,7 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -679,6 +680,7 @@ export default function Tasks() {
   const accountId = localStorage.getItem("demo_account_id");
   const userId = localStorage.getItem("demo_user_id");
   const { toast } = useToast();
+  const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("tasks");
   
   // Main states - Load from localStorage if available (multi-select)
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(() => {
@@ -1574,9 +1576,11 @@ export default function Tasks() {
   };
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
-      <div className="p-6 space-y-6" data-testid="tasks-board">
-        {/* Header with project selector and buttons */}
+    <PermissionGuard module="tasks" fallbackPath="/">
+      <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
+        <div className="p-6 space-y-6" data-testid="tasks-board">
+          <ReadOnlyBanner module="tasks" />
+          {/* Header with project selector and buttons */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-4 flex-1 w-full sm:w-auto">
             {projects.length > 0 && (
@@ -1750,7 +1754,7 @@ export default function Tasks() {
                 <CalendarLucide className="w-4 h-4" />
               </Button>
             </div>
-            {!selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
+            {canCreate && !selectedProjectIds.includes("all") && selectedProjectIds.length === 1 && (
               <>
                 <Button
                   onClick={() => setIsCreateTaskDialogOpen(true)}
@@ -1769,7 +1773,7 @@ export default function Tasks() {
                 </Button>
               </>
             )}
-            {(selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) && (
+            {canCreate && (selectedProjectIds.includes("all") || selectedProjectIds.length !== 1) && (
               <Button
                 onClick={() => setIsCreateTaskDialogOpen(true)}
                 data-testid="button-new-task"
@@ -2438,7 +2442,8 @@ export default function Tasks() {
             />
           );
         })()}
+        </div>
       </div>
-    </div>
+    </PermissionGuard>
   );
 }

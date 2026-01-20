@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Plus, Kanban, LayoutGrid, Folder, ArrowRight, Calendar, MoreVertical, Pencil, Trash2, List, Grid3X3, Play, User, ListTodo, Clock, CheckCircle, Search, GripVertical } from "lucide-react";
+import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import {
   DndContext,
   DragEndEvent,
@@ -73,6 +74,7 @@ const DEFAULT_COLUMN_ORDER = ["name", "mode", "activeSprint", "tickets", "projec
 export default function Product() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("product");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedBacklog, setSelectedBacklog] = useState<Backlog | null>(null);
@@ -420,17 +422,19 @@ export default function Product() {
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Ouvrir
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-destructive cursor-pointer"
-                  onClick={() => {
-                    setSelectedBacklog(backlog);
-                    setShowDeleteDialog(true);
-                  }}
-                  data-testid={`list-menu-delete-backlog-${backlog.id}`}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </DropdownMenuItem>
+                {canDelete && (
+                  <DropdownMenuItem 
+                    className="text-destructive cursor-pointer"
+                    onClick={() => {
+                      setSelectedBacklog(backlog);
+                      setShowDeleteDialog(true);
+                    }}
+                    data-testid={`list-menu-delete-backlog-${backlog.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </td>
@@ -477,8 +481,10 @@ export default function Product() {
   ];
 
   return (
-    <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
+    <PermissionGuard module="product" fallbackPath="/">
+      <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background">
       <div className="p-6 space-y-6" data-testid="backlog-board">
+        <ReadOnlyBanner module="product" />
         {/* KPIs - Style CRM */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpis.map((kpi, index) => {
@@ -536,10 +542,12 @@ export default function Product() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog">
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Backlog
-          </Button>
+          {canCreate && (
+            <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau Backlog
+            </Button>
+          )}
         </div>
 
         {/* Content */}
@@ -560,7 +568,7 @@ export default function Product() {
                 ? `Aucun backlog ou sprint ne correspond à "${searchQuery}".`
                 : "Créez votre premier backlog pour commencer à organiser vos epics, user stories et tâches."}
             </p>
-            {!searchQuery.trim() && (
+            {!searchQuery.trim() && canCreate && (
               <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-first-backlog">
                 <Plus className="h-4 w-4 mr-2" />
                 Créer un backlog
@@ -596,17 +604,19 @@ export default function Product() {
                         <ArrowRight className="h-4 w-4 mr-2" />
                         Ouvrir
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-destructive cursor-pointer"
-                        onClick={() => {
-                          setSelectedBacklog(backlog);
-                          setShowDeleteDialog(true);
-                        }}
-                        data-testid={`menu-delete-backlog-${backlog.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Supprimer
-                      </DropdownMenuItem>
+                      {canDelete && (
+                        <DropdownMenuItem 
+                          className="text-destructive cursor-pointer"
+                          onClick={() => {
+                            setSelectedBacklog(backlog);
+                            setShowDeleteDialog(true);
+                          }}
+                          data-testid={`menu-delete-backlog-${backlog.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Supprimer
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardHeader>
@@ -819,6 +829,7 @@ export default function Product() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PermissionGuard>
   );
 }

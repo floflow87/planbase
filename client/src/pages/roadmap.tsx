@@ -4,6 +4,7 @@ import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target } from "lucide-react";
+import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +65,7 @@ export default function RoadmapPage() {
   const { toast } = useToast();
   const { accountId } = useAuth();
   const searchString = useSearch();
+  const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("roadmap");
   
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
     // First check URL params, then fallback to localStorage
@@ -802,8 +804,10 @@ export default function RoadmapPage() {
   }
 
   return (
+    <PermissionGuard module="roadmap" fallbackPath="/">
     <div className="h-full overflow-auto p-6 bg-[#F8FAFC] dark:bg-background" data-testid="roadmap-view">
       <div className="flex flex-col gap-3">
+        <ReadOnlyBanner module="roadmap" />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <Rocket className="h-6 w-6 text-primary" />
@@ -907,10 +911,12 @@ export default function RoadmapPage() {
                 <p className="text-sm text-muted-foreground mb-6 max-w-md">
                   Créez une roadmap pour planifier et suivre les livrables, jalons et initiatives de "{selectedProject?.name}".
                 </p>
-                <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-roadmap">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer une roadmap
-                </Button>
+                {canCreate && (
+                  <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-roadmap">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer une roadmap
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -953,10 +959,12 @@ export default function RoadmapPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => handleOpenRename(activeRoadmap)} data-testid="button-rename-roadmap">
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Renommer
-                        </DropdownMenuItem>
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={() => handleOpenRename(activeRoadmap)} data-testid="button-rename-roadmap">
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Renommer
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => {
                           navigator.clipboard.writeText(activeRoadmap.id);
                           toast({ title: "ID copié", variant: "success" });
@@ -964,11 +972,15 @@ export default function RoadmapPage() {
                           <Copy className="h-4 w-4 mr-2" />
                           Copier l'ID
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenDelete(activeRoadmap)} className="text-destructive" data-testid="button-delete-roadmap">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
+                        {canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleOpenDelete(activeRoadmap)} className="text-destructive" data-testid="button-delete-roadmap">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -1034,10 +1046,12 @@ export default function RoadmapPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nouvelle
-                  </Button>
+                  {canCreate && (
+                    <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Nouvelle
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -1788,5 +1802,6 @@ export default function RoadmapPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </PermissionGuard>
   );
 }

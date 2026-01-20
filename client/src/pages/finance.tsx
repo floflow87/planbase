@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1043,6 +1044,7 @@ function EmptyState() {
 }
 
 export default function Finance() {
+  const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("profitability");
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'profitable' | 'at_risk' | 'deficit'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'none' | 'desc' | 'asc'>('none');
@@ -1221,8 +1223,10 @@ export default function Finance() {
   const highPriorityCount = criticalRecommendations.length;
 
   return (
-    <div className="p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden h-full bg-[#F8FAFC] dark:bg-background" data-testid="page-finance">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <PermissionGuard module="profitability" fallbackPath="/">
+      <div className="p-4 md:p-6 space-y-6 overflow-y-auto overflow-x-hidden h-full bg-[#F8FAFC] dark:bg-background" data-testid="page-finance">
+        <ReadOnlyBanner module="profitability" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="overflow-x-auto w-full md:w-auto -mx-4 px-4 md:mx-0 md:px-0">
             <TabsList className="w-max">
@@ -1946,7 +1950,8 @@ export default function Finance() {
             </>
           )}
         </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+      </div>
+    </PermissionGuard>
   );
 }
