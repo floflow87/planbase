@@ -237,7 +237,7 @@ export async function requireOrgMember(req: Request, res: Response, next: NextFu
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const member = await permissionService.getMemberByUserAndOrg(req.userId, req.accountId);
+    let member = await permissionService.getMemberByUserAndOrg(req.userId, req.accountId);
     
     if (!member) {
       // Auto-create member for legacy users (owner = admin, collaborator = member, client_viewer = guest)
@@ -258,6 +258,15 @@ export async function requireOrgMember(req: Request, res: Response, next: NextFu
       req.memberId = newMember.id;
       req.orgRole = orgRole;
     } else {
+      // AUTO-FIX: If user is account owner but not admin in RBAC, correct it automatically
+      if (req.userRole === "owner" && member.role !== "admin") {
+        console.log(`🔧 AUTO-FIX: Restoring admin role for account owner ${req.userId}`);
+        const updatedMember = await permissionService.updateMemberRole(member.id, "admin", req.accountId);
+        if (updatedMember) {
+          member = updatedMember;
+        }
+      }
+      
       req.memberId = member.id;
       req.orgRole = member.role as "admin" | "member" | "guest";
     }
