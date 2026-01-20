@@ -10887,6 +10887,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // APPROVALS (Phase 5: Validation & Collaboration)
+  // ============================================
+
+  // Request approval for a resource
+  app.post("/api/approvals/request", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { resourceType, resourceId, projectId, comment } = req.body;
+
+      if (!resourceType || !resourceId) {
+        return res.status(400).json({ error: "resourceType and resourceId are required" });
+      }
+
+      const { requestApproval } = await import("./services/approvalService");
+      
+      const approval = await requestApproval({
+        organizationId: accountId,
+        projectId,
+        resourceType,
+        resourceId,
+        requestedByMemberId: actorMemberId,
+        comment,
+      });
+
+      res.json(approval);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Decide on an approval (approve/reject/request changes)
+  app.post("/api/approvals/decide", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const actorMemberId = req.membership!.id;
+      const { approvalId, decision, comment } = req.body;
+
+      if (!approvalId || !decision) {
+        return res.status(400).json({ error: "approvalId and decision are required" });
+      }
+
+      if (!['approved', 'rejected', 'changes_requested'].includes(decision)) {
+        return res.status(400).json({ error: "decision must be 'approved', 'rejected', or 'changes_requested'" });
+      }
+
+      const { decideApproval } = await import("./services/approvalService");
+      
+      const approval = await decideApproval({
+        approvalId,
+        decidedByMemberId: actorMemberId,
+        decision,
+        comment,
+      });
+
+      res.json(approval);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get approvals list (optionally filtered by project/status)
+  app.get("/api/approvals", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { projectId, resourceType, status, limit = "50" } = req.query;
+
+      const { getApprovals } = await import("./services/approvalService");
+      
+      const approvalsList = await getApprovals(accountId, {
+        projectId: projectId as string | undefined,
+        resourceType: resourceType as string | undefined,
+        status: status as any,
+        limit: parseInt(limit as string),
+      });
+
+      res.json(approvalsList);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get pending approvals for a specific project
+  app.get("/api/projects/:projectId/approvals", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { status } = req.query;
+
+      const { getApprovals } = await import("./services/approvalService");
+      
+      const approvalsList = await getApprovals(req.accountId!, {
+        projectId,
+        status: status as any,
+      });
+
+      res.json(approvalsList);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get decision timeline for a project
+  app.get("/api/projects/:projectId/decisions", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const accountId = req.accountId!;
+      
+      const { getAuditEvents } = await import("./services/auditService");
+      
+      // Get decision-related audit events
+      const decisionEvents = await db.execute(sql`
+        SELECT ae.*, om.display_name as actor_name, au.email as actor_email
+        FROM audit_events ae
+        LEFT JOIN organization_members om ON ae.actor_member_id = om.id
+        LEFT JOIN app_users au ON om.user_id = au.id
+        WHERE ae.organization_id = ${accountId}
+        AND (
+          ae.action_type = 'decision.created'
+          OR ae.action_type = 'approval.decided'
+          OR ae.action_type = 'approval.requested'
+        )
+        AND (ae.meta->>'projectId' = ${projectId} OR ae.resource_id = ${projectId})
+        ORDER BY ae.created_at DESC
+        LIMIT 100
+      `);
+
+      // Get decision-type comments
+      const decisionComments = await db.execute(sql`
+        SELECT tc.*, au.email as author_email
+        FROM ticket_comments tc
+        LEFT JOIN app_users au ON tc.author_id = au.id
+        WHERE tc.account_id = ${accountId}
+        AND tc.comment_type = 'decision'
+        ORDER BY tc.created_at DESC
+        LIMIT 50
+      `);
+
+      res.json({
+        events: decisionEvents.rows,
+        comments: decisionComments.rows,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get executive summary for a project (read-only view)
+  app.get("/api/projects/:projectId/executive", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const accountId = req.accountId!;
+      
+      // Get project data
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Get pending approvals
+      const { getPendingApprovalsForProject } = await import("./services/approvalService");
+      const pendingApprovals = await getPendingApprovalsForProject(projectId);
+
+      // Get next milestone
+      const nextMilestone = await db.execute(sql`
+        SELECT ri.* FROM roadmap_items ri
+        JOIN roadmaps r ON ri.roadmap_id = r.id
+        WHERE r.project_id = ${projectId}
+        AND ri.type = 'milestone'
+        AND ri.status != 'done'
+        ORDER BY ri.target_date ASC NULLS LAST, ri.order_index ASC
+        LIMIT 1
+      `);
+
+      // Get recent decisions
+      const recentDecisions = await db.execute(sql`
+        SELECT ae.*, om.display_name as actor_name
+        FROM audit_events ae
+        LEFT JOIN organization_members om ON ae.actor_member_id = om.id
+        WHERE ae.organization_id = ${accountId}
+        AND ae.action_type IN ('decision.created', 'approval.decided')
+        AND (ae.meta->>'projectId' = ${projectId} OR ae.resource_id = ${projectId})
+        ORDER BY ae.created_at DESC
+        LIMIT 5
+      `);
+
+      // Get blocking issues
+      const blockingIssues = await db.execute(sql`
+        SELECT tc.*, au.email as author_email
+        FROM ticket_comments tc
+        LEFT JOIN app_users au ON tc.author_id = au.id
+        WHERE tc.account_id = ${accountId}
+        AND tc.comment_type = 'blocking_issue'
+        ORDER BY tc.created_at DESC
+        LIMIT 10
+      `);
+
+      // Calculate KPIs
+      const timeEntries = await storage.getTimeEntriesByProject(projectId);
+      const totalHours = timeEntries.reduce((sum, te) => sum + (te.hours || 0), 0);
+      
+      res.json({
+        project,
+        kpis: {
+          totalHours,
+          budget: project.budget,
+          progress: project.progress || 0,
+          margin: project.projectedMargin || null,
+        },
+        nextMilestone: nextMilestone.rows[0] || null,
+        pendingApprovals,
+        recentDecisions: recentDecisions.rows,
+        blockingIssues: blockingIssues.rows,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // SEED DATA (Development only)
   // ============================================
 
