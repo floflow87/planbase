@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAppContext } from "@/hooks/useAppContext";
+import type { RbacModule } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
@@ -22,9 +24,23 @@ import { getModuleIdFromPath, getModuleHelp, MODULE_HELP } from "@/help/faqs";
 import defaultAvatar from "@/assets/default-avatar.png";
 import planbaseLogo from "@assets/planbase-logo.png";
 
+const URL_TO_MODULE: Record<string, RbacModule | null> = {
+  "/": null,
+  "/crm": "crm",
+  "/projects": "projects",
+  "/product": "product",
+  "/roadmap": "roadmap",
+  "/tasks": "tasks",
+  "/mindmaps": null,
+  "/notes": "notes",
+  "/documents": "documents",
+  "/finance": "profitability",
+};
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
+  const { hasModuleAccess, isAdmin, role } = useAppContext();
   const { state, setOpenMobile, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -43,15 +59,21 @@ export function AppSidebar() {
     setIsHelpOpen(true);
   };
 
-  // Sections restreintes pour le plan "starter"
   const starterRestrictedUrls = ["/roadmap", "/product", "/documents", "/finance", "/legal"];
-  const isStarterPlan = false; // TODO: Implement plan checking logic
+  const isStarterPlan = false;
   
   const isRestricted = (url: string) => {
     return isStarterPlan && starterRestrictedUrls.includes(url);
   };
 
-  const navItems = [
+  const canAccessModule = (url: string): boolean => {
+    if (isAdmin) return true;
+    const module = URL_TO_MODULE[url];
+    if (module === null) return true;
+    return hasModuleAccess(module);
+  };
+
+  const allNavItems = [
     { title: "Tableau de bord", url: "/", icon: Home },
     { title: "CRM", url: "/crm", icon: Users },
     { title: "Projets", url: "/projects", icon: FolderKanban },
@@ -63,6 +85,8 @@ export function AppSidebar() {
     { title: "Documents", url: "/documents", icon: FolderOpen },
     { title: "Rentabilité", url: "/finance", icon: DollarSign },
   ];
+
+  const navItems = allNavItems.filter(item => canAccessModule(item.url));
 
   const isActiveRoute = (itemUrl: string) => {
     if (itemUrl === "/") {
@@ -216,9 +240,9 @@ export function AppSidebar() {
                     : user?.email || 'Utilisateur'}
                 </p>
                 <Badge variant="secondary" className="text-[10px] mt-0.5 bg-white/20 text-white border-0">
-                  {userProfile?.role === 'owner' ? 'Propriétaire' : 
-                   userProfile?.role === 'collaborator' ? 'Collaborateur' : 
-                   userProfile?.role === 'client_viewer' ? 'Lecteur' : 
+                  {role === 'admin' ? 'Admin' : 
+                   role === 'member' ? 'Membre' : 
+                   role === 'guest' ? 'Invité' : 
                    userProfile?.position || 'Membre'}
                 </Badge>
               </div>
