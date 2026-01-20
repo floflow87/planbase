@@ -12,6 +12,7 @@ import { useState } from "react";
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
+import { GuestViewConfig } from "./GuestViewConfig";
 
 interface MemberUser {
   id: string;
@@ -293,6 +294,8 @@ export function PermissionsTab() {
           </CardContent>
         </Card>
       )}
+
+      <GuestViewConfig />
     </div>
   );
 }
