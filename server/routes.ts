@@ -10567,10 +10567,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({ success: true, member: newMember });
       } else {
-        // User doesn't exist - for now, return a message that user needs to sign up first
-        // In a full implementation, we could create a pending invitation
-        return res.status(400).json({ 
-          error: "Cet utilisateur n'existe pas encore. Demandez-lui de créer un compte d'abord." 
+        // User doesn't exist - create a pending invitation
+        const { invitations } = await import("@shared/schema");
+        const token = crypto.randomUUID();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+
+        // Check if there's already a pending invitation for this email
+        const existingInvitation = await db
+          .select()
+          .from(invitations)
+          .where(
+            and(
+              eq(invitations.accountId, accountId),
+              eq(invitations.email, email.toLowerCase().trim()),
+              eq(invitations.status, 'pending')
+            )
+          )
+          .limit(1);
+
+        if (existingInvitation.length > 0) {
+          return res.status(400).json({ 
+            error: "Une invitation est déjà en attente pour cet email." 
+          });
+        }
+
+        // Create the pending invitation
+        const [newInvitation] = await db
+          .insert(invitations)
+          .values({
+            accountId,
+            email: email.toLowerCase().trim(),
+            role: role === 'admin' ? 'collaborator' : role === 'member' ? 'collaborator' : 'client_viewer',
+            status: 'pending',
+            token,
+            expiresAt,
+          })
+          .returning();
+
+        // Log the invitation
+        const { logAuditEvent } = await import("./services/auditService");
+        await logAuditEvent({
+          organizationId: accountId,
+          actorMemberId,
+          actionType: 'invitation.created',
+          resourceType: 'invitation',
+          resourceId: newInvitation.id,
+          meta: { email: email.toLowerCase().trim(), role, orgRole: role },
+        });
+
+        res.json({ 
+          success: true, 
+          pending: true,
+          invitation: newInvitation,
+          message: "Invitation envoyée. L'utilisateur pourra rejoindre l'organisation après avoir créé son compte."
         });
       }
     } catch (error: any) {
