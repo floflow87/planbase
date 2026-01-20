@@ -942,25 +942,25 @@ export default function Settings() {
     <div className="h-full overflow-auto bg-background">
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5" data-testid="tabs-settings">
-            <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
-              <UserCircle className="w-3.5 h-3.5 mr-1.5" />
+          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5" data-testid="tabs-settings">
+            <TabsTrigger value="informations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-informations">
+              <UserCircle className="w-3.5 h-3.5" />
               Informations
             </TabsTrigger>
-            <TabsTrigger value="config" className="text-xs" data-testid="tab-config">
-              <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="config" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-config">
+              <SettingsIcon className="w-3.5 h-3.5" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="permissions" className="text-xs" data-testid="tab-permissions">
-              <Users className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="permissions" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-permissions">
+              <Users className="w-3.5 h-3.5" />
               Utilisateurs
             </TabsTrigger>
-            <TabsTrigger value="audit" className="text-xs" data-testid="tab-audit">
-              <Clock className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="audit" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-audit">
+              <Clock className="w-3.5 h-3.5" />
               Audit
             </TabsTrigger>
-            <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
-              <Puzzle className="w-3.5 h-3.5 mr-1.5" />
+            <TabsTrigger value="integrations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-integrations">
+              <Puzzle className="w-3.5 h-3.5" />
               Intégrations
             </TabsTrigger>
           </TabsList>
