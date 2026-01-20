@@ -145,6 +145,35 @@ export type RbacAction = typeof RBAC_ACTIONS[number];
 export const CRM_SUBVIEWS = ['crm.clients', 'crm.opportunities', 'crm.kpis'] as const;
 export type CrmSubview = typeof CRM_SUBVIEWS[number];
 
+export const PRODUCT_SUBVIEWS = ['product.backlog', 'product.epics', 'product.stats', 'product.retrospective', 'product.recipe'] as const;
+export type ProductSubview = typeof PRODUCT_SUBVIEWS[number];
+
+export const PROFITABILITY_SUBVIEWS = ['profitability.overview', 'profitability.byProject', 'profitability.simulations', 'profitability.resources'] as const;
+export type ProfitabilitySubview = typeof PROFITABILITY_SUBVIEWS[number];
+
+export const DOCUMENTS_SUBVIEWS = ['documents.list', 'documents.upload', 'documents.integrations'] as const;
+export type DocumentsSubview = typeof DOCUMENTS_SUBVIEWS[number];
+
+export const ROADMAP_SUBVIEWS = ['roadmap.gantt', 'roadmap.output', 'roadmap.okr', 'roadmap.tree'] as const;
+export type RoadmapSubview = typeof ROADMAP_SUBVIEWS[number];
+
+export const PROJECTS_SUBVIEWS = ['projects.list', 'projects.details', 'projects.scope', 'projects.billing'] as const;
+export type ProjectsSubview = typeof PROJECTS_SUBVIEWS[number];
+
+export const ALL_SUBVIEWS = [...CRM_SUBVIEWS, ...PRODUCT_SUBVIEWS, ...PROFITABILITY_SUBVIEWS, ...DOCUMENTS_SUBVIEWS, ...ROADMAP_SUBVIEWS, ...PROJECTS_SUBVIEWS] as const;
+export type Subview = typeof ALL_SUBVIEWS[number];
+
+export const MODULE_SUBVIEWS: Record<RbacModule, readonly string[]> = {
+  crm: CRM_SUBVIEWS,
+  product: PRODUCT_SUBVIEWS,
+  profitability: PROFITABILITY_SUBVIEWS,
+  documents: DOCUMENTS_SUBVIEWS,
+  roadmap: ROADMAP_SUBVIEWS,
+  projects: PROJECTS_SUBVIEWS,
+  tasks: [], // No subviews for tasks
+  notes: [], // No subviews for notes
+};
+
 // ============================================
 // CRM & PIPELINE
 // ============================================

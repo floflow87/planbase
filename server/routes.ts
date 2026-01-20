@@ -514,6 +514,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get comprehensive user context (org + membership + permissions + views)
+  app.get("/api/me/context", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      const accountId = req.accountId!;
+      
+      // Get user and account info
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const account = await storage.getAccount(accountId);
+      
+      // Get organization membership
+      const member = await permissionService.getMemberByUserAndOrg(userId, accountId);
+      
+      // Get permissions matrix
+      let permissionsMatrix: Record<string, Record<string, boolean>> = {};
+      let moduleViews: Record<string, any> = {};
+      
+      if (member) {
+        // Get full permissions matrix
+        permissionsMatrix = await permissionService.getFullPermissionMatrix(accountId, member.id);
+        
+        // Get module views for all modules
+        const { RBAC_MODULES } = await import("@shared/schema");
+        for (const mod of RBAC_MODULES) {
+          const view = await permissionService.getModuleView(member.id, mod);
+          if (view) {
+            moduleViews[mod] = {
+              layout: view.layout,
+              subviewsEnabled: view.subviewsEnabled,
+            };
+          }
+        }
+      }
+      
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatarUrl: user.avatarUrl,
+        },
+        organization: account ? {
+          id: account.id,
+          name: account.name,
+          plan: account.plan,
+        } : null,
+        membership: member ? {
+          id: member.id,
+          role: member.role,
+          status: member.status,
+        } : null,
+        permissions: permissionsMatrix,
+        moduleViews,
+      });
+    } catch (error: any) {
+      console.error("Error fetching user context:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // USER ONBOARDING
   // ============================================
@@ -1121,7 +1186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PROJECTS - Protected Routes
   // ============================================
 
-  app.get("/api/projects", requireAuth, async (req, res) => {
+  app.get("/api/projects", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const projects = await storage.getProjectsByAccountId(req.accountId!);
       res.json(projects);
@@ -1130,7 +1195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
       console.log("[DEBUG] Creating project - req.userId:", req.userId, "req.accountId:", req.accountId);
       console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
@@ -1193,7 +1258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id", requireAuth, async (req, res) => {
+  app.get("/api/projects/:id", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -1253,7 +1318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/projects/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/projects/:id", requireAuth, requireOrgMember, requirePermission("projects", "update"), async (req, res) => {
     try {
       const existing = await storage.getProject(req.params.id);
       if (!existing) {
@@ -1283,7 +1348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/projects/:id", requireAuth, requireOrgMember, requirePermission("projects", "delete"), async (req, res) => {
     try {
       const existing = await storage.getProject(req.params.id);
       if (!existing) {
@@ -1405,7 +1470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all payments for a project
-  app.get("/api/projects/:projectId/payments", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/payments", requireAuth, requireOrgMember, requirePermission("projects", "read", "projects.billing"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1434,7 +1499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new payment
-  app.post("/api/projects/:projectId/payments", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/payments", requireAuth, requireOrgMember, requirePermission("projects", "create", "projects.billing"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1563,7 +1628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all scope items for a project
-  app.get("/api/projects/:projectId/scope-items", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/scope-items", requireAuth, requireOrgMember, requirePermission("projects", "read", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1609,7 +1674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new scope item
-  app.post("/api/projects/:projectId/scope-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/scope-items", requireAuth, requireOrgMember, requirePermission("projects", "create", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1673,7 +1738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reorder scope items
-  app.post("/api/projects/:projectId/scope-items/reorder", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/scope-items/reorder", requireAuth, requireOrgMember, requirePermission("projects", "update", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1740,7 +1805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all CDC sessions for a project
-  app.get("/api/projects/:projectId/cdc-sessions", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/cdc-sessions", requireAuth, requireOrgMember, requirePermission("projects", "read", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1758,7 +1823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get active/current CDC session for a project (most recent non-completed)
-  app.get("/api/projects/:projectId/cdc-sessions/active", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/cdc-sessions/active", requireAuth, requireOrgMember, requirePermission("projects", "read", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -1804,7 +1869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new CDC session (or return existing active session)
-  app.post("/api/projects/:projectId/cdc-sessions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/cdc-sessions", requireAuth, requireOrgMember, requirePermission("projects", "create", "projects.scope"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2141,7 +2206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all baselines for a project
-  app.get("/api/projects/:projectId/baselines", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/baselines", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2159,7 +2224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get latest baseline for a project
-  app.get("/api/projects/:projectId/baselines/latest", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/baselines/latest", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2180,7 +2245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get project KPIs (estimated vs actual)
-  app.get("/api/projects/:projectId/kpis", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/kpis", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2271,7 +2336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get profitability analysis for a project
-  app.get("/api/projects/:projectId/profitability", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/profitability", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.byProject"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2375,7 +2440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get profitability summary for all projects in account
-  app.get("/api/profitability/summary", requireAuth, async (req, res) => {
+  app.get("/api/profitability/summary", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
     try {
       const projects = await storage.getProjectsByAccountId(req.accountId!);
       const { generateProfitabilityAnalysis } = await import("./services/profitabilityService");
@@ -2444,7 +2509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get project comparison and projections for decision-making
-  app.get("/api/projects/:projectId/comparison", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/comparison", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.byProject"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2619,7 +2684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recommendation actions for a specific project
-  app.get("/api/projects/:projectId/recommendation-actions", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/recommendation-actions", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.byProject"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -2676,7 +2741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all tasks for the authenticated account
-  app.get("/api/tasks", requireAuth, async (req, res) => {
+  app.get("/api/tasks", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       const tasks = await storage.getTasksByAccountId(req.accountId!);
       res.json(tasks);
@@ -2686,7 +2751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all tasks by project
-  app.get("/api/projects/:projectId/tasks", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/tasks", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       // First verify the project exists and user has access
       const project = await storage.getProject(req.params.projectId);
@@ -2705,7 +2770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all sprints for a project (via backlogs linked to the project)
-  app.get("/api/projects/:projectId/sprints", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/sprints", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -2743,7 +2808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all epics for a project (via backlogs linked to the project)
-  app.get("/api/projects/:projectId/epics", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/epics", requireAuth, requireOrgMember, requirePermission("product", "read", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -2813,7 +2878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new task
-  app.post("/api/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/tasks", requireAuth, requireOrgMember, requirePermission("tasks", "create"), async (req, res) => {
     try {
       console.log('POST /api/tasks - body:', JSON.stringify(req.body));
       console.log('POST /api/tasks - accountId:', req.accountId);
@@ -2861,7 +2926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk update task positions (for drag & drop) - MUST be before /:id routes
-  app.patch("/api/tasks/bulk-update-positions", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/tasks/bulk-update-positions", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const { z } = await import("zod");
       
@@ -2899,7 +2964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk update tasks project - MUST be before /:id routes
-  app.patch("/api/tasks/bulk-update-project", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/tasks/bulk-update-project", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const { z } = await import("zod");
       
@@ -2959,7 +3024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific task
-  app.get("/api/tasks/:id", requireAuth, async (req, res) => {
+  app.get("/api/tasks/:id", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       const task = await storage.getTask(req.params.id);
       if (!task) {
@@ -2975,7 +3040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a task
-  app.patch("/api/tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/tasks/:id", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const existing = await storage.getTask(req.params.id);
       if (!existing) {
@@ -2995,7 +3060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a task
-  app.delete("/api/tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/tasks/:id", requireAuth, requireOrgMember, requirePermission("tasks", "delete"), async (req, res) => {
     try {
       const existing = await storage.getTask(req.params.id);
       if (!existing) {
@@ -3013,7 +3078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Duplicate a task
-  app.post("/api/tasks/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/tasks/:id/duplicate", requireAuth, requireOrgMember, requirePermission("tasks", "create"), async (req, res) => {
     try {
       const existing = await storage.getTask(req.params.id);
       if (!existing) {
@@ -3031,7 +3096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Move task to a different column
-  app.patch("/api/tasks/:id/move", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/tasks/:id/move", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const existing = await storage.getTask(req.params.id);
       if (!existing) {
@@ -3055,7 +3120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all task columns for a project
   // Get all task columns for the authenticated account
-  app.get("/api/task-columns", requireAuth, async (req, res) => {
+  app.get("/api/task-columns", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       const columns = await storage.getTaskColumnsByAccountId(req.accountId!);
       res.json(columns);
@@ -3074,7 +3139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:projectId/task-columns", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/task-columns", requireAuth, requireOrgMember, requirePermission("tasks", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -3092,7 +3157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new task column
-  app.post("/api/task-columns", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/task-columns", requireAuth, requireOrgMember, requirePermission("tasks", "create"), async (req, res) => {
     try {
       const { insertTaskColumnSchema } = await import("@shared/schema");
       
@@ -3117,7 +3182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a task column
-  app.patch("/api/task-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/task-columns/:id", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const existing = await storage.getTaskColumn(req.params.id);
       if (!existing) {
@@ -3140,7 +3205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a task column
-  app.delete("/api/task-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/task-columns/:id", requireAuth, requireOrgMember, requirePermission("tasks", "delete"), async (req, res) => {
     try {
       const existing = await storage.getTaskColumn(req.params.id);
       if (!existing) {
@@ -3163,7 +3228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reorder task columns
-  app.patch("/api/projects/:projectId/task-columns/reorder", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/projects/:projectId/task-columns/reorder", requireAuth, requireOrgMember, requirePermission("tasks", "update"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -3186,7 +3251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all time entries for the authenticated account
-  app.get("/api/time-entries", requireAuth, async (req, res) => {
+  app.get("/api/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
     try {
       const entries = await storage.getTimeEntriesByAccountId(req.accountId!);
       res.json(entries);
@@ -3196,7 +3261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get time entries for a specific project
-  app.get("/api/projects/:projectId/time-entries", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
     try {
       // Verify project exists and user has access
       const project = await storage.getProject(req.params.projectId);
@@ -3215,7 +3280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get active time entry for the current user
-  app.get("/api/time-entries/active", requireAuth, async (req, res) => {
+  app.get("/api/time-entries/active", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.overview"), async (req, res) => {
     try {
       const entry = await storage.getActiveTimeEntry(req.accountId!, req.userId!);
       res.json(entry || null);
@@ -3225,7 +3290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new time entry (start timer)
-  app.post("/api/time-entries", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/time-entries", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.overview"), async (req, res) => {
     try {
       const { insertTimeEntrySchema } = await import("@shared/schema");
       
@@ -3262,7 +3327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a manual time entry (completed entry with specific duration)
-  app.post("/api/time-entries/manual", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/time-entries/manual", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.overview"), async (req, res) => {
     try {
       const { insertTimeEntrySchema } = await import("@shared/schema");
       
@@ -3332,7 +3397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a time entry (stop timer, update duration, assign project)
-  app.patch("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3414,7 +3479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a time entry
-  app.delete("/api/time-entries/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/time-entries/:id", requireAuth, requireOrgMember, requirePermission("profitability", "delete", "profitability.overview"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3432,7 +3497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pause a running time entry
-  app.patch("/api/time-entries/:id/pause", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/time-entries/:id/pause", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -3468,7 +3533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Resume a paused time entry
-  app.patch("/api/time-entries/:id/resume", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/time-entries/:id/resume", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.overview"), async (req, res) => {
     try {
       const existing = await storage.getTimeEntry(req.accountId!, req.params.id);
       if (!existing) {
@@ -4615,7 +4680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ROADMAPS - Protected Routes
   // ============================================
 
-  app.get("/api/roadmaps", requireAuth, async (req, res) => {
+  app.get("/api/roadmaps", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const roadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
       res.json(roadmaps);
@@ -4624,7 +4689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roadmaps", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmaps", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
       const data = insertRoadmapSchema.parse({
         ...req.body,
@@ -4653,7 +4718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/roadmaps/:id", requireAuth, async (req, res) => {
+  app.get("/api/roadmaps/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const roadmap = await storage.getRoadmap(req.params.id);
       if (!roadmap) {
@@ -4668,7 +4733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/roadmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/roadmaps/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       const existing = await storage.getRoadmap(req.params.id);
       if (!existing) {
@@ -4700,7 +4765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/roadmaps/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/roadmaps/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "delete"), async (req, res) => {
     try {
       const existing = await storage.getRoadmap(req.params.id);
       if (!existing) {
@@ -4737,7 +4802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ROADMAP ITEMS - Protected Routes
   // ============================================
 
-  app.get("/api/roadmaps/:roadmapId/items", requireAuth, async (req, res) => {
+  app.get("/api/roadmaps/:roadmapId/items", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       // Verify the roadmap exists and belongs to user's account
       const roadmap = await storage.getRoadmap(req.params.roadmapId);
@@ -4767,7 +4832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/roadmap-items", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmap-items", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
       console.log("📌 Creating roadmap item, body:", JSON.stringify(req.body));
       const data = insertRoadmapItemSchema.parse({
@@ -4804,7 +4869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Bulk update roadmap items with schema validation
   // IMPORTANT: This route MUST be defined BEFORE /api/roadmap-items/:id to avoid Express matching "bulk" as an :id
-  app.patch("/api/roadmap-items/bulk", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/roadmap-items/bulk", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       const { itemIds, data } = req.body;
       
@@ -4908,7 +4973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/roadmap-items/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       console.log("📅 Roadmap item PATCH request:", req.params.id, "body:", JSON.stringify(req.body));
       
@@ -4957,7 +5022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/roadmap-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/roadmap-items/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "delete"), async (req, res) => {
     try {
       const existing = await storage.getRoadmapItem(req.params.id);
       if (!existing) {
@@ -4999,7 +5064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk delete roadmap items - using POST instead of DELETE for reliable body parsing
-  app.post("/api/roadmap-items/bulk-delete", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmap-items/bulk-delete", requireAuth, requireOrgMember, requirePermission("roadmap", "delete"), async (req, res) => {
     try {
       const { itemIds } = req.body;
       
@@ -5684,7 +5749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get links for a roadmap item
-  app.get("/api/roadmap-items/:id/links", requireAuth, async (req, res) => {
+  app.get("/api/roadmap-items/:id/links", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -5702,7 +5767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a link for a roadmap item
-  app.post("/api/roadmap-items/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmap-items/:id/links", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -5724,7 +5789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a link
-  app.delete("/api/roadmap-item-links/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/roadmap-item-links/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "delete"), async (req, res) => {
     try {
       const success = await storage.deleteRoadmapItemLink(req.params.id);
       res.json({ success });
@@ -5738,7 +5803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get dependencies for a roadmap item
-  app.get("/api/roadmap-items/:id/dependencies", requireAuth, async (req, res) => {
+  app.get("/api/roadmap-items/:id/dependencies", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -5756,7 +5821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all dependencies for a roadmap
-  app.get("/api/roadmaps/:roadmapId/dependencies", requireAuth, async (req, res) => {
+  app.get("/api/roadmaps/:roadmapId/dependencies", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const roadmap = await storage.getRoadmap(req.params.roadmapId);
       if (!roadmap) {
@@ -5773,7 +5838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a dependency
-  app.post("/api/roadmap-items/:id/dependencies", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmap-items/:id/dependencies", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -5795,7 +5860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a dependency
-  app.delete("/api/roadmap-dependencies/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/roadmap-dependencies/:id", requireAuth, requireOrgMember, requirePermission("roadmap", "delete"), async (req, res) => {
     try {
       const success = await storage.deleteRoadmapDependency(req.params.id);
       res.json({ success });
@@ -5809,7 +5874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Calculate and update progress for a roadmap item based on linked entities
-  app.post("/api/roadmap-items/:id/calculate-progress", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmap-items/:id/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       const item = await storage.getRoadmapItem(req.params.id);
       if (!item) {
@@ -5917,7 +5982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recalculate progress for all items in a roadmap
-  app.post("/api/roadmaps/:roadmapId/calculate-progress", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/roadmaps/:roadmapId/calculate-progress", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       const roadmap = await storage.getRoadmap(req.params.roadmapId);
       if (!roadmap) {
@@ -7285,7 +7350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List all backlogs for the account with summary data
-  app.get("/api/backlogs", requireAuth, async (req, res) => {
+  app.get("/api/backlogs", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogsList = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
@@ -7367,7 +7432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all backlogs with their items (for note linking)
-  app.get("/api/backlogs-with-items", requireAuth, async (req, res) => {
+  app.get("/api/backlogs-with-items", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogsList = await db.select().from(backlogs).where(eq(backlogs.accountId, accountId)).orderBy(desc(backlogs.createdAt));
@@ -7397,7 +7462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new backlog
-  app.post("/api/backlogs", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -7496,7 +7561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single backlog with all related data
-  app.get("/api/backlogs/:backlogId", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -7541,7 +7606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update backlog
-  app.patch("/api/backlogs/:backlogId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/backlogs/:backlogId", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -7562,7 +7627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete backlog
-  app.delete("/api/backlogs/:backlogId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/backlogs/:backlogId", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -7585,7 +7650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List epics for a backlog
-  app.get("/api/backlogs/:backlogId/epics", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/epics", requireAuth, requireOrgMember, requirePermission("product", "read", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -7600,7 +7665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create epic
-  app.post("/api/backlogs/:backlogId/epics", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/epics", requireAuth, requireOrgMember, requirePermission("product", "create", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -7665,7 +7730,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate EPICs from roadmap rubriques
-  app.post("/api/backlogs/:backlogId/epics/generate-from-roadmap", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/epics/generate-from-roadmap", requireAuth, requireOrgMember, requirePermission("product", "create", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -7750,7 +7815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update epic
-  app.patch("/api/epics/:epicId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/epics/:epicId", requireAuth, requireOrgMember, requirePermission("product", "update", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const epicId = req.params.epicId;
@@ -7838,7 +7903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete epic - orphan tickets instead of deleting them
-  app.delete("/api/epics/:epicId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/epics/:epicId", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.epics"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const epicId = req.params.epicId;
@@ -7872,7 +7937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List user stories for a backlog
-  app.get("/api/backlogs/:backlogId/user-stories", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/user-stories", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -7887,7 +7952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create user story
-  app.post("/api/backlogs/:backlogId/user-stories", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/user-stories", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -7939,7 +8004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user story
-  app.patch("/api/user-stories/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/user-stories/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -7986,7 +8051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete user story
-  app.delete("/api/user-stories/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/user-stories/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8009,7 +8074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all tasks for a backlog
-  app.get("/api/backlogs/:backlogId/tasks", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/tasks", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -8033,7 +8098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create standalone task for backlog (without user story)
-  app.post("/api/backlogs/:backlogId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/tasks", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -8077,7 +8142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create task under user story
-  app.post("/api/user-stories/:userStoryId/tasks", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/user-stories/:userStoryId/tasks", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -8121,7 +8186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update backlog task
-  app.patch("/api/backlog-tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/backlog-tasks/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -8165,7 +8230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete backlog task
-  app.delete("/api/backlog-tasks/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/backlog-tasks/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8188,7 +8253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get checklist items for a user story
-  app.get("/api/user-stories/:userStoryId/checklist", requireAuth, async (req, res) => {
+  app.get("/api/user-stories/:userStoryId/checklist", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userStoryId = req.params.userStoryId;
@@ -8211,7 +8276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add checklist item
-  app.post("/api/user-stories/:userStoryId/checklist", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/user-stories/:userStoryId/checklist", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userStoryId = req.params.userStoryId;
@@ -8238,7 +8303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update checklist item
-  app.patch("/api/checklist-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/checklist-items/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8259,7 +8324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete checklist item
-  app.delete("/api/checklist-items/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/checklist-items/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8282,7 +8347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List sprints for a backlog
-  app.get("/api/backlogs/:backlogId/sprints", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/sprints", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -8297,7 +8362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create sprint
-  app.post("/api/backlogs/:backlogId/sprints", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/sprints", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -8327,7 +8392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update sprint
-  app.patch("/api/sprints/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/sprints/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8358,7 +8423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Start sprint
-  app.patch("/api/sprints/:id/start", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/sprints/:id/start", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8378,7 +8443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Close sprint with ticket reassignment
-  app.patch("/api/sprints/:id/close", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/sprints/:id/close", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8466,7 +8531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete sprint with optional ticket reassignment
-  app.delete("/api/sprints/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/sprints/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8534,7 +8599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Move sprint position (up or down)
-  app.patch("/api/sprints/:id/move", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/sprints/:id/move", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8620,7 +8685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List columns for a backlog
-  app.get("/api/backlogs/:backlogId/columns", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/columns", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -8635,7 +8700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create column
-  app.post("/api/backlogs/:backlogId/columns", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/columns", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -8654,7 +8719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update column
-  app.patch("/api/backlog-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/backlog-columns/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8675,7 +8740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete column
-  app.delete("/api/backlog-columns/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/backlog-columns/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const id = req.params.id;
@@ -8704,7 +8769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Import tasks from a linked project
-  app.post("/api/backlogs/:backlogId/import-from-project", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/backlogs/:backlogId/import-from-project", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9002,7 +9067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get recipes for selected sprints with tickets data
-  app.get("/api/backlogs/:backlogId/recipes", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/recipes", requireAuth, requireOrgMember, requirePermission("product", "read", "product.recipe"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -9100,7 +9165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recipe for a specific ticket
-  app.get("/api/tickets/:ticketId/recipe", requireAuth, async (req, res) => {
+  app.get("/api/tickets/:ticketId/recipe", requireAuth, requireOrgMember, requirePermission("product", "read", "product.recipe"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const ticketId = req.params.ticketId;
@@ -9137,7 +9202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upsert recipe for a ticket
-  app.post("/api/backlogs/:backlogId/recipes/upsert", requireAuth, async (req, res) => {
+  app.post("/api/backlogs/:backlogId/recipes/upsert", requireAuth, requireOrgMember, requirePermission("product", "create", "product.recipe"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9281,7 +9346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // List all retros for a backlog
-  app.get("/api/backlogs/:backlogId/retros", requireAuth, async (req, res) => {
+  app.get("/api/backlogs/:backlogId/retros", requireAuth, requireOrgMember, requirePermission("product", "read", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const backlogId = req.params.backlogId;
@@ -9324,7 +9389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new retro for a sprint
-  app.post("/api/backlogs/:backlogId/retros", requireAuth, async (req, res) => {
+  app.post("/api/backlogs/:backlogId/retros", requireAuth, requireOrgMember, requirePermission("product", "create", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9352,7 +9417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single retro
-  app.get("/api/retros/:retroId", requireAuth, async (req, res) => {
+  app.get("/api/retros/:retroId", requireAuth, requireOrgMember, requirePermission("product", "read", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const retroId = req.params.retroId;
@@ -9379,7 +9444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update retro (status, etc.)
-  app.patch("/api/retros/:retroId", requireAuth, async (req, res) => {
+  app.patch("/api/retros/:retroId", requireAuth, requireOrgMember, requirePermission("product", "update", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const retroId = req.params.retroId;
@@ -9400,7 +9465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete retro
-  app.delete("/api/retros/:retroId", requireAuth, async (req, res) => {
+  app.delete("/api/retros/:retroId", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const retroId = req.params.retroId;
@@ -9419,7 +9484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get retro cards
-  app.get("/api/retros/:retroId/cards", requireAuth, async (req, res) => {
+  app.get("/api/retros/:retroId/cards", requireAuth, requireOrgMember, requirePermission("product", "read", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const retroId = req.params.retroId;
@@ -9435,7 +9500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create retro card
-  app.post("/api/retros/:retroId/cards", requireAuth, async (req, res) => {
+  app.post("/api/retros/:retroId/cards", requireAuth, requireOrgMember, requirePermission("product", "create", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9462,7 +9527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update retro card (for drag-drop column change)
-  app.patch("/api/retro-cards/:cardId", requireAuth, async (req, res) => {
+  app.patch("/api/retro-cards/:cardId", requireAuth, requireOrgMember, requirePermission("product", "update", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const cardId = req.params.cardId;
@@ -9487,7 +9552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete retro card
-  app.delete("/api/retro-cards/:cardId", requireAuth, async (req, res) => {
+  app.delete("/api/retro-cards/:cardId", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.retrospective"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const cardId = req.params.cardId;
@@ -9633,7 +9698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all resources for a project
-  app.get("/api/projects/:projectId/resources", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/resources", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { projectId } = req.params;
@@ -9667,7 +9732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new project resource
-  app.post("/api/projects/:projectId/resources", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/resources", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9694,7 +9759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a project resource
-  app.patch("/api/resources/:resourceId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/resources/:resourceId", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { resourceId } = req.params;
@@ -9722,7 +9787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a project resource
-  app.delete("/api/resources/:resourceId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/resources/:resourceId", requireAuth, requireOrgMember, requirePermission("profitability", "delete", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { resourceId } = req.params;
@@ -9746,7 +9811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get resource cost summary for a project
-  app.get("/api/projects/:projectId/resources/summary", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/resources/summary", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { projectId } = req.params;
@@ -9884,7 +9949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get all resource templates for account
-  app.get("/api/resource-templates", requireAuth, async (req, res) => {
+  app.get("/api/resource-templates", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { type, projectType } = req.query;
@@ -9909,7 +9974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get distinct project types that have resource templates (for "Core" badge)
-  app.get("/api/resource-templates/project-types", requireAuth, async (req, res) => {
+  app.get("/api/resource-templates/project-types", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       
@@ -9932,7 +9997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a resource template
-  app.post("/api/resource-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/resource-templates", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       
@@ -9949,7 +10014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a resource template
-  app.patch("/api/resource-templates/:templateId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/resource-templates/:templateId", requireAuth, requireOrgMember, requirePermission("profitability", "update", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { templateId } = req.params;
@@ -9977,7 +10042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a resource template
-  app.delete("/api/resource-templates/:templateId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/resource-templates/:templateId", requireAuth, requireOrgMember, requirePermission("profitability", "delete", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { templateId } = req.params;
@@ -10006,7 +10071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create resource from template
-  app.post("/api/projects/:projectId/resources/from-template", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/resources/from-template", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -10060,7 +10125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate all resources from templates for a project
-  app.post("/api/projects/:projectId/resources/generate-from-templates", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/resources/generate-from-templates", requireAuth, requireOrgMember, requirePermission("profitability", "create", "profitability.resources"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { projectId } = req.params;

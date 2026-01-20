@@ -1,0 +1,321 @@
+Tu vas implémenter la Phase 4 du RBAC PlanBase : permettre le partage sécurisé (liens lecture seule), un portail client light, un journal d’audit, et des permission packs pour simplifier la gestion des droits. Le tout doit rester multi-tenant safe, scalable, et cohérent avec le Design System.
+
+Objectifs Phase 4
+
+Partage sécurisé par lien (sans compte) : lecture seule, expirations, révocation, scopes fins
+
+Portail client light (optionnel) : accès Guest avec une vue “Client” packagée, très restreinte
+
+Audit trail (qui a fait quoi) sur les actions sensibles
+
+Permission Packs : presets par rôle / profil pour éviter les configurations manuelles interminables
+
+UX : partage simple depuis les pages, liens copiables, panneaux clairs, toasts clean
+
+A) Fonctionnalité 1 — Share links (lecture seule, sans compte)
+1) Scopes à supporter (V1)
+
+Créer des liens partageables lecture seule pour :
+
+Projet (fiche projet)
+
+Roadmap d’un projet (output + gantt)
+
+Backlog (sprint list + stats)
+
+Note (lecture seule)
+
+Document (download/view)
+
+Profitability (vue “overview” d’un projet uniquement, pas global)
+
+IMPORTANT : les liens de partage doivent être read-only, et ne doivent jamais permettre de voir d’autres données que l’élément ciblé.
+
+2) Règles de sécurité
+
+Un share link est lié à :
+
+organizationId
+
+resourceType
+
+resourceId
+
+Lecture via share token ne donne aucun accès aux autres endpoints classiques (pas de session).
+
+Un token peut expirer + être révoqué.
+
+3) DB schema
+
+Créer table share_links :
+
+id (uuid)
+
+organizationId
+
+createdByMemberId
+
+resourceType enum: project | roadmap | backlog | note | document | profitability_project
+
+resourceId (uuid/int selon schema)
+
+tokenHash (string) — ne jamais stocker le token en clair
+
+expiresAt nullable
+
+revokedAt nullable
+
+lastAccessedAt nullable
+
+accessCount int default 0
+
+permissions JSONB (ex: { read:true, subviews:["roadmap.output"] }) — pour futur
+
+createdAt
+
+Créer table share_link_events (optionnel, sinon audit_event suffit) :
+
+shareLinkId
+
+eventType: created | accessed | revoked
+
+ip/userAgent (si dispo)
+
+createdAt
+
+4) API Endpoints
+Admin/Member (auth required)
+
+POST /api/share-links (create)
+
+payload : resourceType, resourceId, expiresInDays (optional), options (optional)
+
+return : shareUrl (full path), expiresAt
+
+GET /api/share-links?resourceType=...&resourceId=... (list)
+
+POST /api/share-links/:id/revoke
+
+Public (no auth)
+
+GET /share/:token (route public)
+
+backend resolves tokenHash -> resource
+
+verifies not revoked, not expired
+
+increments accessCount + lastAccessedAt
+
+returns a “share session” payload minimal (resource + allowed subviews)
+
+GET /api/share/:token/resource (si besoin de séparer routing + data)
+
+⚠️ Important : ne jamais exposer organizationId ni permissions internes.
+
+5) Frontend “Share Page”
+
+Créer des pages publiques :
+
+/share/:token : UI lecture seule, layout minimal, branding PlanBase
+
+Selon resourceType afficher un composant read-only :
+
+project summary (title, stage, milestones next, time vs baseline)
+
+roadmap output/gantt read-only
+
+backlog list + stats read-only
+
+note content read-only
+
+document view/download (si possible)
+
+profitability project overview read-only
+
+Ajouter un bandeau :
+
+“Lien partagé — lecture seule”
+
+bouton : “Ouvrir PlanBase” (si user a un compte)
+
+mention expiration
+
+B) Fonctionnalité 2 — Portail Client light (Guest pack)
+
+Objectif : permettre à un admin d’inviter un client en Guest avec un pack “Client”.
+
+1) Nouveau “profil” invité
+
+Ajouter dans UI Settings “Invité (Client)” qui applique un preset de permissions et de views.
+
+Presets :
+
+CRM : ❌ (par défaut)
+
+Projects : read (mais seulement projets autorisés/partagés)
+
+Roadmap : read output seulement (optionnel gantt)
+
+Notes : read (optionnel) mais uniquement notes taggées “client-visible”
+
+Documents : read (download) sur dossier “Client”
+
+Profitability : ❌ par défaut (ou read ultra limité si tu assumes)
+
+Product : ❌
+
+2) Scoping “projets autorisés”
+
+Créer table member_project_access :
+
+organizationId
+
+memberId
+
+projectId
+
+accessLevel enum: read | comment (V1 = read)
+
+createdAt
+
+Règle :
+
+Guest pack client ne voit que les projets explicitement partagés via cette table.
+
+Ajouter UI côté projet :
+
+“Partager ce projet à un invité” -> sélection des guests -> ajoute member_project_access
+
+C) Fonctionnalité 3 — Audit trail
+
+Créer table audit_events :
+
+id
+
+organizationId
+
+actorMemberId nullable (public share = null)
+
+actionType enum :
+
+permission.updated
+
+member.invited
+
+member.role_changed
+
+member.removed
+
+share.created
+
+share.revoked
+
+share.accessed
+
+document.deleted
+
+project.deleted
+
+billing.updated
+
+etc. (extensible)
+
+resourceType, resourceId (optional)
+
+meta JSONB (diff, counts, etc.)
+
+createdAt
+
+Ajouter :
+
+API GET /api/audit?limit=50 (admin-only)
+
+UI Settings tab “Audit” (ou section) affichant timeline simple
+
+D) Fonctionnalité 4 — Permission Packs (quality of life)
+
+Objectif : ne pas faire configurer 8×4 cases à la main à chaque membre.
+
+1) Packs par défaut
+
+Créer un registre de packs (code-based dans shared/config/permissionPacks.ts + DB override possible plus tard) :
+
+Pack “Admin”
+
+Pack “Member (standard)”
+
+Pack “Guest (read minimal)”
+
+Pack “Client Portal” (guest client)
+
+Pack “Collaborateur projet” (read+update sur Projects/Tasks/Notes, pas Profitability)
+
+2) UX
+
+Dans Settings > Organisation :
+
+un dropdown “Appliquer un pack” sur un membre
+
+confirm modal “Remplacer les permissions actuelles ?”
+
+action admin-only
+
+E) UX & Design (important)
+
+Bouton “Partager” dans header des pages :
+
+Projet / Roadmap / Backlog / Note / Document / Profitability (projet)
+
+Ouvre un Drawer :
+
+“Créer un lien”
+
+options : expiration (7j/30j/custom), copie
+
+liste des liens existants + bouton révoquer
+
+montre accessCount + lastAccessedAt
+
+Toasts non tronqués + icônes claires
+
+DS : dropdowns blancs, components patterns
+
+F) Tests
+
+Vitest backend :
+
+token expired -> 410/403
+
+token revoked -> 403
+
+token valid -> 200 + increments accessCount
+
+cross-tenant : un token ne peut jamais accéder à autre org
+
+guest project access : guest ne voit que projets autorisés via member_project_access
+
+audit events created on share/create/revoke and permission updates
+
+Front minimal tests :
+
+Drawer share creates link
+
+Public share page renders read-only
+
+Livrables
+
+tables: share_links, audit_events, member_project_access
+
+endpoints share links + public route
+
+UI drawers share
+
+pages publiques /share/:token
+
+portail client pack + project access scoping
+
+audit UI
+
+permission packs + apply pack UI
+
+docs: docs/93-rbac-phase-4-sharing-audit.md
