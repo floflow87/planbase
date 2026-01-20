@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAppContext } from "@/hooks/useAppContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { RbacModule } from "@shared/schema";
 import {
   Sidebar,
@@ -40,7 +40,7 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
 export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
-  const { hasModuleAccess, isAdmin, role } = useAppContext();
+  const { isAdmin, role, can } = usePermissions();
   const { state, setOpenMobile, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -70,7 +70,7 @@ export function AppSidebar() {
     if (isAdmin) return true;
     const module = URL_TO_MODULE[url];
     if (module === null) return true;
-    return hasModuleAccess(module);
+    return can(module, "read");
   };
 
   const allNavItems = [
