@@ -50,12 +50,7 @@ export default function ProjectExecutive() {
   const { projectId } = useParams<{ projectId: string }>();
 
   const { data, isLoading, error } = useQuery<ExecutiveData>({
-    queryKey: ['/api/projects', projectId, 'executive'],
-    queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/executive`);
-      if (!res.ok) throw new Error("Failed to fetch executive data");
-      return res.json();
-    },
+    queryKey: [`/api/projects/${projectId}/executive`],
   });
 
   if (error) {
@@ -82,7 +77,7 @@ export default function ProjectExecutive() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <Link href={`/project/${projectId}`}>
+          <Link href={`/projects/${projectId}`}>
             <Button variant="ghost" size="icon" data-testid="button-back">
               <ArrowLeft className="w-5 h-5" />
             </Button>

@@ -39,12 +39,7 @@ export default function ProjectDecisions() {
   const { projectId } = useParams<{ projectId: string }>();
 
   const { data, isLoading, error } = useQuery<DecisionsData>({
-    queryKey: ['/api/projects', projectId, 'decisions'],
-    queryFn: async () => {
-      const res = await fetch(`/api/projects/${projectId}/decisions`);
-      if (!res.ok) throw new Error("Failed to fetch decisions");
-      return res.json();
-    },
+    queryKey: [`/api/projects/${projectId}/decisions`],
   });
 
   const allItems = [
@@ -64,7 +59,7 @@ export default function ProjectDecisions() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
-          <Link href={`/project/${projectId}`}>
+          <Link href={`/projects/${projectId}`}>
             <Button variant="ghost" size="icon" data-testid="button-back">
               <ArrowLeft className="w-5 h-5" />
             </Button>

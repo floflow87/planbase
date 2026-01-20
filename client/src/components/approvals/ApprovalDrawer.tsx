@@ -31,12 +31,7 @@ export function ApprovalDrawer({
   const [comment, setComment] = useState("");
 
   const { data: approvals, isLoading } = useQuery<Approval[]>({
-    queryKey: ['/api/approvals', { resourceType, resourceId }],
-    queryFn: async () => {
-      const res = await fetch(`/api/approvals?resourceType=${resourceType}&resourceId=${resourceId}`);
-      if (!res.ok) throw new Error("Failed to fetch approvals");
-      return res.json();
-    },
+    queryKey: [`/api/approvals?resourceType=${resourceType}&resourceId=${resourceId}`],
     enabled: open,
   });
 
