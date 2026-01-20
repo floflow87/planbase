@@ -3919,7 +3919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DOCUMENTS - Protected Routes
   // ============================================
 
-  app.get("/api/documents", requireAuth, async (req, res) => {
+  app.get("/api/documents", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const documents = await storage.getDocumentsByAccountId(req.accountId!);
       res.json(documents);
@@ -3928,7 +3928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/documents", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/documents", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
     try {
       const data = insertDocumentSchema.parse({
         ...req.body,
@@ -3953,7 +3953,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/documents/:id", requireAuth, async (req, res) => {
+  app.get("/api/documents/:id", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);
       if (!document) {
@@ -3968,7 +3968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/documents/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/documents/:id", requireAuth, requireOrgMember, requirePermission("documents", "update"), async (req, res) => {
     try {
       const existing = await storage.getDocument(req.params.id);
       if (!existing) {
@@ -3986,7 +3986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/documents/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/documents/:id", requireAuth, requireOrgMember, requirePermission("documents", "delete"), async (req, res) => {
     try {
       const existing = await storage.getDocument(req.params.id);
       if (!existing) {
@@ -4003,7 +4003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/documents/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/documents/:id/duplicate", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
     try {
       const existing = await storage.getDocument(req.params.id);
       if (!existing) {
@@ -4020,7 +4020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/documents/:id/export-pdf", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/documents/:id/export-pdf", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);
       if (!document) {
@@ -4064,7 +4064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document Links
-  app.get("/api/document-links", requireAuth, async (req, res) => {
+  app.get("/api/document-links", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const links = await storage.getDocumentLinksByAccountId(req.accountId!);
       res.json(links);
@@ -4073,7 +4073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/documents/:id/links", requireAuth, async (req, res) => {
+  app.get("/api/documents/:id/links", requireAuth, requireOrgMember, requirePermission("documents", "read"), async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);
       if (!document) {
@@ -4090,7 +4090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/documents/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/documents/:id/links", requireAuth, requireOrgMember, requirePermission("documents", "create"), async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);
       if (!document) {
@@ -4133,7 +4133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/documents/:id/links/:targetType/:targetId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/documents/:id/links/:targetType/:targetId", requireAuth, requireOrgMember, requirePermission("documents", "delete"), async (req, res) => {
     try {
       const document = await storage.getDocument(req.params.id);
       if (!document) {
@@ -4163,7 +4163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // FOLDERS & FILES - Protected Routes
   // ============================================
 
-  app.get("/api/folders", requireAuth, async (req, res) => {
+  app.get("/api/folders", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
       const folders = await storage.getFoldersByAccountId(req.accountId!);
       res.json(folders);
@@ -4172,7 +4172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/folders", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/folders", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
     try {
       const data = insertFolderSchema.parse({
         ...req.body,
@@ -4186,7 +4186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/files", requireAuth, async (req, res) => {
+  app.get("/api/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
       const files = await storage.getFilesByAccountId(req.accountId!);
       res.json(files);
@@ -4195,7 +4195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/folders/:folderId/files", requireAuth, async (req, res) => {
+  app.get("/api/folders/:folderId/files", requireAuth, requireOrgMember, requirePermission("documents", "read", "documents.files"), async (req, res) => {
     try {
       const files = await storage.getFilesByFolderId(req.params.folderId);
       res.json(files);
@@ -4204,7 +4204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/files", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/files", requireAuth, requireOrgMember, requirePermission("documents", "create", "documents.files"), async (req, res) => {
     try {
       const data = insertFileSchema.parse({
         ...req.body,
@@ -4229,7 +4229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/files/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/files/:id", requireAuth, requireOrgMember, requirePermission("documents", "update", "documents.files"), async (req, res) => {
     try {
       const existing = await storage.getFile(req.params.id);
       if (!existing) {
@@ -4246,7 +4246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/files/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/files/:id", requireAuth, requireOrgMember, requirePermission("documents", "delete", "documents.files"), async (req, res) => {
     try {
       const existing = await storage.getFile(req.params.id);
       if (!existing) {
