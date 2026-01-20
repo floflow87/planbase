@@ -481,4 +481,61 @@ export const permissionService = {
       await this.setModuleView(organizationId, guest.id, module, config);
     }
   },
+
+  async getMemberViewTemplate(organizationId: string, module: string): Promise<any | null> {
+    const [view] = await db
+      .select()
+      .from(moduleViews)
+      .where(
+        and(
+          eq(moduleViews.organizationId, organizationId),
+          eq(moduleViews.memberId, "member-template"),
+          eq(moduleViews.module, module)
+        )
+      );
+    return view?.config || null;
+  },
+
+  async setMemberViewTemplate(organizationId: string, module: string, config: any): Promise<void> {
+    const existing = await db
+      .select()
+      .from(moduleViews)
+      .where(
+        and(
+          eq(moduleViews.organizationId, organizationId),
+          eq(moduleViews.memberId, "member-template"),
+          eq(moduleViews.module, module)
+        )
+      );
+
+    if (existing.length > 0) {
+      await db
+        .update(moduleViews)
+        .set({ config, updatedAt: new Date() })
+        .where(eq(moduleViews.id, existing[0].id));
+    } else {
+      await db.insert(moduleViews).values({
+        organizationId,
+        memberId: "member-template",
+        module,
+        config,
+      });
+    }
+  },
+
+  async applyMemberViewTemplateToAll(organizationId: string, module: string, config: any): Promise<void> {
+    const memberMembers = await db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.role, "member")
+        )
+      );
+
+    for (const member of memberMembers) {
+      await this.setModuleView(organizationId, member.id, module, config);
+    }
+  },
 };

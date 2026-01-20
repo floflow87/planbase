@@ -10764,6 +10764,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get member view template (admin only)
+  app.get("/api/views/template/member", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { module } = req.query;
+      
+      if (!module || typeof module !== 'string') {
+        return res.status(400).json({ error: "Module parameter is required" });
+      }
+
+      const template = await permissionService.getMemberViewTemplate(req.accountId!, module);
+      res.json(template || getDefaultViewConfig(module));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all member view templates for all modules (admin only)
+  app.get("/api/views/template/member/all", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { RBAC_MODULES } = await import("@shared/schema");
+      const results = [];
+      
+      for (const mod of RBAC_MODULES) {
+        const template = await permissionService.getMemberViewTemplate(req.accountId!, mod);
+        results.push({
+          module: mod,
+          config: template || getDefaultViewConfig(mod),
+        });
+      }
+      
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save member view template (admin only) - applies to all members
+  app.post("/api/views/template/member", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { module, config, applyToAll } = req.body;
+
+      if (!module || !config) {
+        return res.status(400).json({ error: "Module and config are required" });
+      }
+
+      await permissionService.setMemberViewTemplate(req.accountId!, module, config);
+
+      if (applyToAll) {
+        await permissionService.applyMemberViewTemplateToAll(req.accountId!, module, config);
+      }
+
+      res.json({ success: true, message: applyToAll ? "Template applied to all members" : "Template saved" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // SHARE LINKS (Phase 4)
   // ============================================

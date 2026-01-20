@@ -23,7 +23,7 @@ import {
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
-import { GuestViewConfig } from "./GuestViewConfig";
+import { RoleViewConfig } from "./RoleViewConfig";
 import { PermissionPacksUI } from "./PermissionPacksUI";
 import {
   Accordion,
@@ -423,7 +423,7 @@ export function PermissionsTab() {
         </Card>
       )}
 
-      <GuestViewConfig />
+      <RoleViewConfig />
     </div>
   );
 }
