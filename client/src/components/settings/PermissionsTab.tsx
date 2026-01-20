@@ -7,8 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shield, Users, RotateCcw, Loader2, PackagePlus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus } from "lucide-react";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
@@ -74,6 +85,9 @@ export function PermissionsTab() {
   const { toast } = useToast();
   const { isAdmin } = usePermissions();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<RbacRole>("member");
 
   const { data: members, isLoading: membersLoading } = useQuery<Member[]>({
     queryKey: ["/api/rbac/members"],
@@ -137,6 +151,44 @@ export function PermissionsTab() {
     },
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: async ({ email, role }: { email: string; role: RbacRole }) => {
+      const response = await fetch("/api/rbac/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role }),
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Impossible d'ajouter le membre");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      toast({ title: "Membre ajouté", description: "Le membre a été ajouté à votre organisation." });
+      setInviteDialogOpen(false);
+      setInviteEmail("");
+      setInviteRole("member");
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Erreur", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleInvite = () => {
+    if (!inviteEmail.trim()) {
+      toast({ title: "Erreur", description: "Veuillez saisir un email.", variant: "destructive" });
+      return;
+    }
+    inviteMutation.mutate({ email: inviteEmail.trim(), role: inviteRole });
+  };
+
   if (!isAdmin) {
     return (
       <Card>
@@ -160,9 +212,70 @@ export function PermissionsTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <CardTitle className="text-sm">Membres de l'organisation</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <CardTitle className="text-sm">Membres de l'organisation</CardTitle>
+            </div>
+            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" data-testid="button-add-member">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Ajouter
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ajouter un membre</DialogTitle>
+                  <DialogDescription>
+                    Ajoutez un utilisateur existant à votre organisation par son email
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-email">Email</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      placeholder="email@exemple.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      data-testid="input-invite-email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-role">Rôle</Label>
+                    <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as RbacRole)}>
+                      <SelectTrigger id="invite-role" data-testid="select-invite-role">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrateur</SelectItem>
+                        <SelectItem value="member">Membre</SelectItem>
+                        <SelectItem value="guest">Invité</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setInviteDialogOpen(false)}
+                    data-testid="button-cancel-invite"
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={handleInvite}
+                    disabled={inviteMutation.isPending}
+                    data-testid="button-confirm-add-member"
+                  >
+                    {inviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Ajouter
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
           <CardDescription className="text-xs">
             Gérez les rôles et permissions des membres de votre équipe

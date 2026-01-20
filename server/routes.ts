@@ -10461,6 +10461,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // MEMBER INVITATION - Invite new members to organization
+  // ============================================
+
+  // Invite a new member to the organization (admin only)
+  app.post("/api/rbac/invite", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { email, role } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const validRoles = ['admin', 'member', 'guest'];
+      if (!role || !validRoles.includes(role)) {
+        return res.status(400).json({ error: "Invalid role. Must be 'admin', 'member', or 'guest'" });
+      }
+
+      // Check if user already exists in the system
+      const existingUser = await storage.getUserByEmail(email.toLowerCase().trim());
+      
+      if (existingUser) {
+        // Check if user is already a member of this organization
+        const members = await permissionService.getMembersByOrganization(accountId);
+        const existingMember = members.find(m => m.userId === existingUser.id);
+        
+        if (existingMember) {
+          return res.status(400).json({ error: "Cet utilisateur est déjà membre de votre organisation" });
+        }
+
+        // Add user as a member of this organization
+        const newMember = await permissionService.createMember({
+          organizationId: accountId,
+          userId: existingUser.id,
+          role,
+        });
+
+        // Log the invitation
+        const { logAuditEvent } = await import("./services/auditService");
+        await logAuditEvent({
+          organizationId: accountId,
+          actorMemberId,
+          actionType: 'member.invited',
+          resourceType: 'member',
+          resourceId: newMember.id,
+          meta: { email, role, userId: existingUser.id },
+        });
+
+        res.json({ success: true, member: newMember });
+      } else {
+        // User doesn't exist - for now, return a message that user needs to sign up first
+        // In a full implementation, we could create a pending invitation
+        return res.status(400).json({ 
+          error: "Cet utilisateur n'existe pas encore. Demandez-lui de créer un compte d'abord." 
+        });
+      }
+    } catch (error: any) {
+      console.error("Invite member error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // MODULE VIEWS - Custom view configurations for guests
   // ============================================
 
