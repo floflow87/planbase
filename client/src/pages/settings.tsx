@@ -951,9 +951,9 @@ export default function Settings() {
               <SettingsIcon className="w-3.5 h-3.5 mr-1.5" />
               Configuration
             </TabsTrigger>
-            <TabsTrigger value="permissions" className="text-xs min-w-[160px]" data-testid="tab-permissions">
+            <TabsTrigger value="permissions" className="text-xs" data-testid="tab-permissions">
               <Users className="w-3.5 h-3.5 mr-1.5" />
-              Membres et permissions
+              Utilisateurs
             </TabsTrigger>
             <TabsTrigger value="audit" className="text-xs" data-testid="tab-audit">
               <Clock className="w-3.5 h-3.5 mr-1.5" />
