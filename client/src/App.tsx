@@ -37,6 +37,8 @@ import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import SharePublicPage from "@/pages/share-public";
+import ProjectDecisions from "@/pages/project-decisions";
+import ProjectExecutive from "@/pages/project-executive";
 import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -80,6 +82,12 @@ function Router() {
       </Route>
       <Route path="/crm">
         <ProtectedRoute><CRM /></ProtectedRoute>
+      </Route>
+      <Route path="/projects/:projectId/decisions">
+        <ProtectedRoute><ProjectDecisions /></ProtectedRoute>
+      </Route>
+      <Route path="/projects/:projectId/executive">
+        <ProtectedRoute><ProjectExecutive /></ProtectedRoute>
       </Route>
       <Route path="/projects/:id">
         <ProtectedRoute><ProjectDetail /></ProtectedRoute>
