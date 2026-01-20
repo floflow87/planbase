@@ -279,8 +279,8 @@ export function PermissionsTab() {
                   key={member.id}
                   className={`flex items-center justify-between p-3 rounded-md border cursor-pointer hover-elevate transition-colors ${
                     selectedMemberId === member.id ? "border-primary bg-primary/5" : ""
-                  } ${isPending ? "opacity-75" : ""}`}
-                  onClick={() => !isPending && setSelectedMemberId(member.id)}
+                  }`}
+                  onClick={() => setSelectedMemberId(member.id)}
                   data-testid={`member-row-${member.id}`}
                 >
                   <div className="flex items-center gap-3">
@@ -347,99 +347,128 @@ export function PermissionsTab() {
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4" />
                 <CardTitle className="text-sm">
-                  Permissions de {selectedMember.user?.firstName} {selectedMember.user?.lastName}
+                  {selectedMember.status === "invitation_en_attente" 
+                    ? `Permissions prévues pour ${selectedMember.user?.email}`
+                    : `Permissions de ${selectedMember.user?.firstName} ${selectedMember.user?.lastName}`
+                  }
                 </CardTitle>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => resetPermissionsMutation.mutate(selectedMember.id)}
-                disabled={resetPermissionsMutation.isPending}
-                data-testid="button-reset-permissions"
-              >
-                {resetPermissionsMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                )}
-                Réinitialiser
-              </Button>
+              {selectedMember.status !== "invitation_en_attente" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => resetPermissionsMutation.mutate(selectedMember.id)}
+                  disabled={resetPermissionsMutation.isPending}
+                  data-testid="button-reset-permissions"
+                >
+                  {resetPermissionsMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                  )}
+                  Réinitialiser
+                </Button>
+              )}
             </div>
             <CardDescription className="text-xs">
-              Personnalisez les permissions pour chaque module
+              {selectedMember.status === "invitation_en_attente"
+                ? "Les permissions seront configurables une fois l'invitation acceptée"
+                : "Personnalisez les permissions pour chaque module"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {selectedMember.role !== "admin" && (
-              <Accordion type="single" collapsible>
-                <AccordionItem value="packs" className="border rounded-lg">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className="flex items-center gap-2 text-sm">
-                      <PackagePlus className="h-4 w-4" />
-                      Appliquer un pack de permissions
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4">
-                    <PermissionPacksUI
-                      memberId={selectedMember.id}
-                      memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
-                      currentRole={selectedMember.role}
-                      onPackApplied={() => {
-                        queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
-                      }}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-            
-            {permissionsLoading ? (
-              <LoadingState size="sm" />
+            {selectedMember.status === "invitation_en_attente" ? (
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
+                <div className="flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Invitation en attente
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Cette personne recevra le rôle <strong>{ROLE_LABELS[selectedMember.role]}</strong> avec les permissions par défaut associées une fois l'invitation acceptée.
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Vous pourrez personnaliser ses permissions après son inscription.
+                    </p>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <div className="border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-2 font-medium text-xs">Module</th>
-                      {RBAC_ACTIONS.map((action) => (
-                        <th key={action} className="text-center p-2 font-medium text-xs">
-                          {ACTION_LABELS[action]}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {RBAC_MODULES.map((module) => (
-                      <tr key={module} className="border-t">
-                        <td className="p-2 font-medium text-xs">{MODULE_LABELS[module]}</td>
-                        {RBAC_ACTIONS.map((action) => (
-                          <td key={action} className="text-center p-2">
-                            <Checkbox
-                              checked={memberPermissions?.[module]?.[action] ?? false}
-                              onCheckedChange={(checked) => {
-                                updatePermissionMutation.mutate({
-                                  memberId: selectedMember.id,
-                                  module,
-                                  action,
-                                  allowed: !!checked,
-                                });
-                              }}
-                              disabled={selectedMember.role === "admin" || updatePermissionMutation.isPending}
-                              data-testid={`permission-${module}-${action}`}
-                            />
-                          </td>
+              <>
+                {selectedMember.role !== "admin" && (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="packs" className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2 text-sm">
+                          <PackagePlus className="h-4 w-4" />
+                          Appliquer un pack de permissions
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <PermissionPacksUI
+                          memberId={selectedMember.id}
+                          memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
+                          currentRole={selectedMember.role}
+                          onPackApplied={() => {
+                            queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
+                          }}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
+                
+                {permissionsLoading ? (
+                  <LoadingState size="sm" />
+                ) : (
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-2 font-medium text-xs">Module</th>
+                          {RBAC_ACTIONS.map((action) => (
+                            <th key={action} className="text-center p-2 font-medium text-xs">
+                              {ACTION_LABELS[action]}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {RBAC_MODULES.map((module) => (
+                          <tr key={module} className="border-t">
+                            <td className="p-2 font-medium text-xs">{MODULE_LABELS[module]}</td>
+                            {RBAC_ACTIONS.map((action) => (
+                              <td key={action} className="text-center p-2">
+                                <Checkbox
+                                  checked={memberPermissions?.[module]?.[action] ?? false}
+                                  onCheckedChange={(checked) => {
+                                    updatePermissionMutation.mutate({
+                                      memberId: selectedMember.id,
+                                      module,
+                                      action,
+                                      allowed: !!checked,
+                                    });
+                                  }}
+                                  disabled={selectedMember.role === "admin" || updatePermissionMutation.isPending}
+                                  data-testid={`permission-${module}-${action}`}
+                                />
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {selectedMember.role === "admin" && (
-                  <div className="p-3 bg-muted/50 text-xs text-muted-foreground flex items-center gap-2">
-                    <Shield className="w-3 h-3" />
-                    Les administrateurs ont toutes les permissions par défaut
+                      </tbody>
+                    </table>
+                    {selectedMember.role === "admin" && (
+                      <div className="p-3 bg-muted/50 text-xs text-muted-foreground flex items-center gap-2">
+                        <Shield className="w-3 h-3" />
+                        Les administrateurs ont toutes les permissions par défaut
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
