@@ -97,6 +97,8 @@ import {
   insertOkrKeyResultSchema,
   updateOkrKeyResultSchema,
   insertOkrLinkSchema,
+  auditEvents,
+  invitations,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
@@ -10275,7 +10277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // List all members in the organization (admin only)
+  // List all members in the organization (admin only) - includes pending invitations
   app.get("/api/rbac/members", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
@@ -10287,6 +10289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const user = await storage.getUser(member.userId);
           return {
             ...member,
+            status: "actif",
             user: user ? {
               id: user.id,
               email: user.email,
@@ -10297,8 +10300,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
+
+      // Get pending invitations and add them to the list
+      const pendingInvitations = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.accountId, accountId),
+            eq(invitations.status, "pending")
+          )
+        );
+
+      const pendingMembers = pendingInvitations.map((inv) => ({
+        id: `invitation-${inv.id}`,
+        organizationId: inv.accountId,
+        userId: null,
+        role: inv.role,
+        status: "invitation_en_attente",
+        invitationId: inv.id,
+        expiresAt: inv.expiresAt,
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+        user: {
+          id: null,
+          email: inv.email,
+          firstName: null,
+          lastName: null,
+          avatarUrl: null,
+        },
+      }));
       
-      res.json(enrichedMembers);
+      res.json([...enrichedMembers, ...pendingMembers]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -10816,6 +10849,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true, message: applyToAll ? "Template applied to all members" : "Template saved" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // AUDIT LOGS
+  // ============================================
+
+  // Get audit events (admin only)
+  app.get("/api/audit", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { actionType, limit: limitParam } = req.query;
+      const limitNum = Math.min(parseInt(limitParam as string) || 50, 500);
+
+      let query = db
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.organizationId, accountId))
+        .orderBy(desc(auditEvents.createdAt))
+        .limit(limitNum);
+
+      if (actionType && typeof actionType === 'string') {
+        query = db
+          .select()
+          .from(auditEvents)
+          .where(
+            and(
+              eq(auditEvents.organizationId, accountId),
+              eq(auditEvents.actionType, actionType)
+            )
+          )
+          .orderBy(desc(auditEvents.createdAt))
+          .limit(limitNum);
+      }
+
+      const events = await query;
+      res.json(events);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -268,52 +268,74 @@ export function PermissionsTab() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {members?.map((member) => (
-              <div
-                key={member.id}
-                className={`flex items-center justify-between p-3 rounded-md border cursor-pointer hover-elevate transition-colors ${
-                  selectedMemberId === member.id ? "border-primary bg-primary/5" : ""
-                }`}
-                onClick={() => setSelectedMemberId(member.id)}
-                data-testid={`member-row-${member.id}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={member.user?.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xs">
-                      {member.user?.firstName?.[0]}{member.user?.lastName?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">
-                      {member.user?.firstName} {member.user?.lastName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{member.user?.email}</p>
+            {members?.map((member) => {
+              const isPending = member.status === "invitation_en_attente";
+              const displayName = member.user?.firstName && member.user?.lastName 
+                ? `${member.user.firstName} ${member.user.lastName}` 
+                : member.user?.email || "Utilisateur";
+              
+              return (
+                <div
+                  key={member.id}
+                  className={`flex items-center justify-between p-3 rounded-md border cursor-pointer hover-elevate transition-colors ${
+                    selectedMemberId === member.id ? "border-primary bg-primary/5" : ""
+                  } ${isPending ? "opacity-75" : ""}`}
+                  onClick={() => !isPending && setSelectedMemberId(member.id)}
+                  data-testid={`member-row-${member.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={member.user?.avatarUrl || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {member.user?.firstName?.[0] || member.user?.email?.[0]?.toUpperCase()}
+                        {member.user?.lastName?.[0] || ""}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">
+                          {isPending ? member.user?.email : displayName}
+                        </p>
+                        {isPending && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 bg-amber-50">
+                            Invitation en attente
+                          </Badge>
+                        )}
+                        {!isPending && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-300 bg-green-50">
+                            Actif
+                          </Badge>
+                        )}
+                      </div>
+                      {!isPending && <p className="text-xs text-muted-foreground">{member.user?.email}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={ROLE_COLORS[member.role]} data-testid={`badge-role-${member.id}`}>
+                      {ROLE_LABELS[member.role]}
+                    </Badge>
+                    {!isPending && (
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => {
+                          updateRoleMutation.mutate({ memberId: member.id, role: value as RbacRole });
+                        }}
+                        disabled={updateRoleMutation.isPending}
+                      >
+                        <SelectTrigger className="w-[130px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Administrateur</SelectItem>
+                          <SelectItem value="member">Membre</SelectItem>
+                          <SelectItem value="guest">Invité</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={ROLE_COLORS[member.role]} data-testid={`badge-role-${member.id}`}>
-                    {ROLE_LABELS[member.role]}
-                  </Badge>
-                  <Select
-                    value={member.role}
-                    onValueChange={(value) => {
-                      updateRoleMutation.mutate({ memberId: member.id, role: value as RbacRole });
-                    }}
-                    disabled={updateRoleMutation.isPending}
-                  >
-                    <SelectTrigger className="w-[130px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrateur</SelectItem>
-                      <SelectItem value="member">Membre</SelectItem>
-                      <SelectItem value="guest">Invité</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
