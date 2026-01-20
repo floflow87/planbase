@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -622,7 +623,7 @@ const PROFILE_ICONS: Record<string, typeof Briefcase> = {
   Terminal,
 };
 
-function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProfileType }) {
+function ProfileTypeCard({ currentProfileType, embedded = false }: { currentProfileType?: UserProfileType; embedded?: boolean }) {
   const { toast } = useToast();
   const [selectedProfile, setSelectedProfile] = useState<UserProfileType | undefined>(currentProfileType);
 
@@ -672,6 +673,74 @@ function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProf
     window.location.href = '/';
   };
 
+  const content = (
+    <>
+      <p className="text-xs text-muted-foreground mb-3">
+        Choisissez le profil qui correspond à votre façon de travailler.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {USER_PROFILES.map((profile) => {
+          const IconComponent = PROFILE_ICONS[profile.icon] || Briefcase;
+          const isSelected = selectedProfile === profile.id;
+          
+          return (
+            <div
+              key={profile.id}
+              className={`cursor-pointer transition-all border rounded-lg p-3 hover-elevate ${
+                isSelected 
+                  ? "ring-2 ring-primary bg-primary/5 border-primary" 
+                  : "hover:bg-accent/50"
+              }`}
+              onClick={() => handleProfileChange(profile.id)}
+              data-testid={`settings-profile-option-${profile.id}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${isSelected ? "bg-primary/10" : "bg-muted"}`}>
+                  <IconComponent className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-xs">{profile.label}</h3>
+                    {isSelected && <Check className="w-3 h-3 text-primary" />}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{profile.description}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+        <div className="text-xs text-muted-foreground">
+          Réinitialiser le dashboard avec la configuration de votre profil
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleResetDashboard}
+          disabled={!selectedProfile || saveProfileMutation.isPending}
+          data-testid="button-reset-dashboard"
+          className="text-xs"
+        >
+          <RotateCcw className="w-3 h-3 mr-1" />
+          Réinitialiser
+        </Button>
+      </div>
+      
+      {saveProfileMutation.isPending && (
+        <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Mise à jour...
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -684,62 +753,7 @@ function ProfileTypeCard({ currentProfileType }: { currentProfileType?: UserProf
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {USER_PROFILES.map((profile) => {
-            const IconComponent = PROFILE_ICONS[profile.icon] || Briefcase;
-            const isSelected = selectedProfile === profile.id;
-            
-            return (
-              <div
-                key={profile.id}
-                className={`cursor-pointer transition-all border rounded-lg p-3 hover-elevate ${
-                  isSelected 
-                    ? "ring-2 ring-primary bg-primary/5 border-primary" 
-                    : "hover:bg-accent/50"
-                }`}
-                onClick={() => handleProfileChange(profile.id)}
-                data-testid={`settings-profile-option-${profile.id}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${isSelected ? "bg-primary/10" : "bg-muted"}`}>
-                    <IconComponent className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-xs">{profile.label}</h3>
-                      {isSelected && <Check className="w-3 h-3 text-primary" />}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{profile.description}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
-          <div className="text-xs text-muted-foreground">
-            Réinitialiser le dashboard avec la configuration de votre profil
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResetDashboard}
-            disabled={!selectedProfile || saveProfileMutation.isPending}
-            data-testid="button-reset-dashboard"
-            className="text-xs"
-          >
-            <RotateCcw className="w-3 h-3 mr-1" />
-            Réinitialiser
-          </Button>
-        </div>
-        
-        {saveProfileMutation.isPending && (
-          <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            Mise à jour...
-          </div>
-        )}
+        {content}
       </CardContent>
     </Card>
   );
@@ -951,475 +965,471 @@ export default function Settings() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="informations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
-                      <UserCircle className="w-4 h-4" />
-                      Informations personnelles
-                    </CardTitle>
+          <TabsContent value="informations" className="space-y-4">
+            <Accordion type="multiple" defaultValue={["account", "personal", "profile", "password", "tour"]} className="space-y-3">
+              <AccordionItem value="account" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4" />
+                      <span className="text-sm font-semibold">Informations du compte</span>
+                    </div>
+                    {userProfile?.account?.plan && (
+                      <Badge 
+                        className="bg-green-600 hover:bg-green-700 text-white font-semibold mr-2" 
+                        data-testid="badge-plan"
+                      >
+                        {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
+                      </Badge>
+                    )}
                   </div>
-                  {userProfile?.account?.plan && (
-                    <Badge 
-                      className="bg-green-600 hover:bg-green-700 text-white font-semibold" 
-                      data-testid="badge-plan"
-                    >
-                      {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
-                    </Badge>
-                  )}
-                </div>
-                <CardDescription className="text-xs">
-                  Ces informations seront visibles par les autres membres de votre équipe
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs">
-                              <User className="w-3.5 h-3.5" />
-                              Prénom *
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Jean"
-                                data-testid="input-first-name"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs">
-                              <User className="w-3.5 h-3.5" />
-                              Nom *
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Dupont"
-                                data-testid="input-last-name"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-xs">
-                          <Mail className="w-3.5 h-3.5" />
-                          Email *
-                        </Label>
-                        <Input
-                          type="email"
-                          value={userProfile?.email || ""}
-                          disabled
-                          className="bg-muted"
-                          data-testid="input-email"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          L'email ne peut pas être modifié depuis cette page
-                        </p>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-xs text-muted-foreground mb-4">Informations de votre organisation</p>
+                  {accountLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg border">
+                        <div>
+                          <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                            <Hash className="w-3 h-3" />
+                            ID du compte
+                          </Label>
+                          <p className="font-mono text-sm" data-testid="text-account-id">
+                            {account?.id || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                            <Shield className="w-3 h-3" />
+                            Rôle
+                          </Label>
+                          <Badge 
+                            variant={isOwner ? "default" : "secondary"} 
+                            data-testid="badge-role"
+                          >
+                            {isOwner ? "Propriétaire" : "Collaborateur"}
+                          </Badge>
+                        </div>
                       </div>
 
-                      <FormField
-                        control={form.control}
-                        name="gender"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Civilité</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                              data-testid="select-gender"
+                      <Form {...accountForm}>
+                        <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={accountForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="flex items-center gap-2 text-xs">
+                                    <Building2 className="w-3.5 h-3.5" />
+                                    Nom du compte *
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Mon entreprise"
+                                      data-testid="input-account-name"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={accountForm.control}
+                              name="siret"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="flex items-center gap-2 text-xs">
+                                    <Building2 className="w-3.5 h-3.5" />
+                                    SIRET
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="123 456 789 00012"
+                                      data-testid="input-account-siret"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <p className="text-xs text-muted-foreground">
+                                    Numéro SIRET de votre entreprise (14 chiffres)
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="flex justify-end gap-3 pt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => accountForm.reset()}
+                              data-testid="button-cancel-account-info"
+                              className="text-[12px]"
                             >
+                              Annuler
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={updateAccountMutation.isPending}
+                              data-testid="button-save-account-info"
+                              className="text-[12px]"
+                            >
+                              {updateAccountMutation.isPending && (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              )}
+                              Enregistrer
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="personal" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <UserCircle className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Informations personnelles</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-xs text-muted-foreground mb-3">Ces informations seront visibles par les autres membres de votre équipe</p>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <FormField
+                          control={form.control}
+                          name="firstName"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="flex items-center gap-2 text-xs">
+                                <User className="w-3.5 h-3.5" />
+                                Prénom *
+                              </FormLabel>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Sélectionner" />
-                                </SelectTrigger>
+                                <Input
+                                  placeholder="Jean"
+                                  data-testid="input-first-name"
+                                  {...field}
+                                />
                               </FormControl>
-                              <SelectContent className="bg-background">
-                                <SelectItem value="male">Homme</SelectItem>
-                                <SelectItem value="female">Femme</SelectItem>
-                                <SelectItem value="other">Autre</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                            <div className="h-5" />
-                          </FormItem>
-                        )}
-                      />
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="position"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs">
-                              <Briefcase className="w-3.5 h-3.5" />
-                              Poste
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Développeur Full-Stack"
-                                data-testid="input-position"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="lastName"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="flex items-center gap-2 text-xs">
+                                <User className="w-3.5 h-3.5" />
+                                Nom *
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Dupont"
+                                  data-testid="input-last-name"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs">
-                              <Phone className="w-3.5 h-3.5" />
-                              Téléphone
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="tel"
-                                placeholder="+33 6 12 34 56 78"
-                                data-testid="input-phone"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <div className="space-y-1">
+                          <Label className="flex items-center gap-2 text-xs">
+                            <Mail className="w-3.5 h-3.5" />
+                            Email *
+                          </Label>
+                          <Input
+                            type="email"
+                            value={userProfile?.email || ""}
+                            disabled
+                            className="bg-muted"
+                            data-testid="input-email"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            L'email ne peut pas être modifié depuis cette page
+                          </p>
+                        </div>
 
-                      <FormField
-                        control={form.control}
-                        name="company"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs">
-                              <Building2 className="w-3.5 h-3.5" />
-                              Nom de société
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Ma Société"
-                                data-testid="input-company"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="gender"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="text-xs">Civilité</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                data-testid="select-gender"
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionner" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-background">
+                                  <SelectItem value="male">Homme</SelectItem>
+                                  <SelectItem value="female">Femme</SelectItem>
+                                  <SelectItem value="other">Autre</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    </div>
+                        <FormField
+                          control={form.control}
+                          name="position"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="flex items-center gap-2 text-xs">
+                                <Briefcase className="w-3.5 h-3.5" />
+                                Poste
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Développeur Full-Stack"
+                                  data-testid="input-position"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => form.reset()}
-                        data-testid="button-cancel"
-                        className="text-[12px]"
-                      >
-                        Annuler
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={updateProfileMutation.isPending}
-                        data-testid="button-save-profile"
-                        className="text-[12px]"
-                      >
-                        {updateProfileMutation.isPending && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        )}
-                        Enregistrer
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
+                        <FormField
+                          control={form.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="flex items-center gap-2 text-xs">
+                                <Phone className="w-3.5 h-3.5" />
+                                Téléphone
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="tel"
+                                  placeholder="+33 6 12 34 56 78"
+                                  data-testid="input-phone"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-            <ProfileTypeCard 
-              currentProfileType={(userProfile?.profile as { type?: UserProfileType } | null)?.type}
-            />
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
-                  <Building2 className="w-4 h-4" />
-                  Informations du compte
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Informations de votre organisation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {accountLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border">
-                      <div>
-                        <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <Hash className="w-3 h-3" />
-                          ID du compte
-                        </Label>
-                        <p className="font-mono text-sm" data-testid="text-account-id">
-                          {account?.id || "—"}
-                        </p>
+                        <FormField
+                          control={form.control}
+                          name="company"
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="flex items-center gap-2 text-xs">
+                                <Building2 className="w-3.5 h-3.5" />
+                                Nom de société
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Ma Société"
+                                  data-testid="input-company"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                      <div>
-                        <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                          <Shield className="w-3 h-3" />
-                          Rôle
-                        </Label>
-                        <Badge 
-                          variant={isOwner ? "default" : "secondary"} 
-                          data-testid="badge-role"
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => form.reset()}
+                          data-testid="button-cancel"
+                          className="text-[12px]"
                         >
-                          {isOwner ? "Propriétaire" : "Collaborateur"}
-                        </Badge>
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={updateProfileMutation.isPending}
+                          data-testid="button-save-profile"
+                          className="text-[12px]"
+                        >
+                          {updateProfileMutation.isPending && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          Enregistrer
+                        </Button>
                       </div>
-                    </div>
+                    </form>
+                  </Form>
+                </AccordionContent>
+              </AccordionItem>
 
-                    <Form {...accountForm}>
-                      <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <FormField
-                            control={accountForm.control}
-                            name="name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="flex items-center gap-2 text-xs">
-                                  <Building2 className="w-3.5 h-3.5" />
-                                  Nom du compte *
-                                </FormLabel>
-                                <FormControl>
+              <AccordionItem value="profile" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Type de profil</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ProfileTypeCard 
+                    currentProfileType={(userProfile?.profile as { type?: UserProfileType } | null)?.type}
+                    embedded={true}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="password" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Modifier le mot de passe</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-xs text-muted-foreground mb-3">Changez votre mot de passe pour sécuriser votre compte</p>
+                  <Form {...passwordForm}>
+                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={passwordForm.control}
+                          name="newPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Nouveau mot de passe *</FormLabel>
+                              <FormControl>
+                                <div className="relative">
                                   <Input
-                                    placeholder="Mon entreprise"
-                                    data-testid="input-account-name"
+                                    type={showNewPassword ? "text" : "password"}
+                                    placeholder="Minimum 8 caractères"
+                                    data-testid="input-new-password"
                                     {...field}
                                   />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                                    data-testid="button-toggle-new-password"
+                                  >
+                                    {showNewPassword ? (
+                                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <Eye className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </button>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                          <FormField
-                            control={accountForm.control}
-                            name="siret"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="flex items-center gap-2 text-xs">
-                                  <Building2 className="w-3.5 h-3.5" />
-                                  SIRET
-                                </FormLabel>
-                                <FormControl>
+                        <FormField
+                          control={passwordForm.control}
+                          name="confirmPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Confirmer le mot de passe *</FormLabel>
+                              <FormControl>
+                                <div className="relative">
                                   <Input
-                                    placeholder="123 456 789 00012"
-                                    data-testid="input-account-siret"
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Retapez le mot de passe"
+                                    data-testid="input-confirm-password"
                                     {...field}
                                   />
-                                </FormControl>
-                                <p className="text-xs text-muted-foreground">
-                                  Numéro SIRET de votre entreprise (14 chiffres)
-                                </p>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                                    data-testid="button-toggle-confirm-password"
+                                  >
+                                    {showConfirmPassword ? (
+                                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <Eye className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </button>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
-                        <div className="flex justify-end gap-3 pt-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => accountForm.reset()}
-                            data-testid="button-cancel-account-info"
-                            className="text-[12px]"
-                          >
-                            Annuler
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={updateAccountMutation.isPending}
-                            data-testid="button-save-account-info"
-                            className="text-[12px]"
-                          >
-                            {updateAccountMutation.isPending && (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            )}
-                            Enregistrer
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => passwordForm.reset()}
+                          data-testid="button-cancel-password"
+                          className="text-[12px]"
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={updatePasswordMutation.isPending}
+                          data-testid="button-save-password"
+                          className="text-[12px]"
+                        >
+                          {updatePasswordMutation.isPending && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          Mettre à jour le mot de passe
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="tour" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Visite guidée</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight flex items-center gap-2 text-sm">
-                  <Lock className="w-4 h-4" />
-                  Modifier le mot de passe
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Changez votre mot de passe pour sécuriser votre compte
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...passwordForm}>
-                  <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={passwordForm.control}
-                        name="newPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Nouveau mot de passe *</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type={showNewPassword ? "text" : "password"}
-                                  placeholder="Minimum 8 caractères"
-                                  data-testid="input-new-password"
-                                  {...field}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowNewPassword(!showNewPassword)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                                  data-testid="button-toggle-new-password"
-                                >
-                                  {showNewPassword ? (
-                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                  ) : (
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                </button>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={passwordForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Confirmer le mot de passe *</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type={showConfirmPassword ? "text" : "password"}
-                                  placeholder="Retapez le mot de passe"
-                                  data-testid="input-confirm-password"
-                                  {...field}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                                  data-testid="button-toggle-confirm-password"
-                                >
-                                  {showConfirmPassword ? (
-                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                  ) : (
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                </button>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => passwordForm.reset()}
-                        data-testid="button-cancel-password"
-                        className="text-[12px]"
-                      >
-                        Annuler
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={updatePasswordMutation.isPending}
-                        data-testid="button-save-password"
-                        className="text-[12px]"
-                      >
-                        {updatePasswordMutation.isPending && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        )}
-                        Mettre à jour le mot de passe
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-cyan-100 dark:bg-cyan-900/30">
-                    <HelpCircle className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => startOnboarding()}
+                      className="text-[12px]"
+                      data-testid="button-restart-onboarding"
+                    >
+                      <HelpCircle className="w-4 h-4 mr-2" />
+                      Relancer la visite guidée
+                    </Button>
                   </div>
-                  <div>
-                    <CardTitle className="text-sm">Visite guidée</CardTitle>
-                    <CardDescription className="text-xs">
-                      Redécouvrez les fonctionnalités de Planbase
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => startOnboarding()}
-                    className="text-[12px]"
-                    data-testid="button-restart-onboarding"
-                  >
-                    <HelpCircle className="w-4 h-4 mr-2" />
-                    Relancer la visite guidée
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </TabsContent>
 
           <TabsContent value="config">
