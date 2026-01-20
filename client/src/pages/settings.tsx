@@ -20,6 +20,7 @@ import {
   DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users
 } from "lucide-react";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
+import { AuditTab } from "@/components/settings/AuditTab";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -927,7 +928,7 @@ export default function Settings() {
     <div className="h-full overflow-auto bg-background">
       <div className="p-6">
         <Tabs defaultValue="informations" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4" data-testid="tabs-settings">
+          <TabsList className="grid w-full max-w-2xl grid-cols-5" data-testid="tabs-settings">
             <TabsTrigger value="informations" className="text-xs" data-testid="tab-informations">
               <UserCircle className="w-3.5 h-3.5 mr-1.5" />
               Informations
@@ -939,6 +940,10 @@ export default function Settings() {
             <TabsTrigger value="permissions" className="text-xs" data-testid="tab-permissions">
               <Users className="w-3.5 h-3.5 mr-1.5" />
               Permissions
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="text-xs" data-testid="tab-audit">
+              <Clock className="w-3.5 h-3.5 mr-1.5" />
+              Audit
             </TabsTrigger>
             <TabsTrigger value="integrations" className="text-xs" data-testid="tab-integrations">
               <Puzzle className="w-3.5 h-3.5 mr-1.5" />
@@ -1491,6 +1496,10 @@ export default function Settings() {
 
           <TabsContent value="permissions" className="space-y-6">
             <PermissionsTab />
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-6">
+            <AuditTab />
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">

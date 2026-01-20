@@ -36,6 +36,7 @@ import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
+import SharePublicPage from "@/pages/share-public";
 import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -146,6 +147,7 @@ function Router() {
       <Route path="/settings">
         <ProtectedRoute><Settings /></ProtectedRoute>
       </Route>
+      <Route path="/share/:token" component={SharePublicPage} />
       <Route component={NotFound} />
     </Switch>
   );

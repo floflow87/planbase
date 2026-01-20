@@ -7,12 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shield, Users, RotateCcw, Loader2 } from "lucide-react";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus } from "lucide-react";
 import { useState } from "react";
 import { RBAC_MODULES, RBAC_ACTIONS, type RbacModule, type RbacAction, type RbacRole } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { GuestViewConfig } from "./GuestViewConfig";
+import { PermissionPacksUI } from "./PermissionPacksUI";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface MemberUser {
   id: string;
@@ -242,7 +249,30 @@ export function PermissionsTab() {
               Personnalisez les permissions pour chaque module
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {selectedMember.role !== "admin" && (
+              <Accordion type="single" collapsible>
+                <AccordionItem value="packs" className="border rounded-lg">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex items-center gap-2 text-sm">
+                      <PackagePlus className="h-4 w-4" />
+                      Appliquer un pack de permissions
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <PermissionPacksUI
+                      memberId={selectedMember.id}
+                      memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
+                      currentRole={selectedMember.role}
+                      onPackApplied={() => {
+                        queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
+                      }}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+            
             {permissionsLoading ? (
               <LoadingState size="sm" />
             ) : (
