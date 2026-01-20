@@ -1744,6 +1744,37 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Audit events table created");
 
+    // ============================================
+    // Phase 5: Approvals table for validation/collaboration
+    // ============================================
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS approvals (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+        resource_type text NOT NULL,
+        resource_id uuid NOT NULL,
+        status text NOT NULL DEFAULT 'draft',
+        requested_by_member_id uuid NOT NULL REFERENCES organization_members(id) ON DELETE CASCADE,
+        decided_by_member_id uuid REFERENCES organization_members(id) ON DELETE SET NULL,
+        decided_at timestamptz,
+        comment text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_approvals_org_project ON approvals(organization_id, project_id);
+      CREATE INDEX IF NOT EXISTS idx_approvals_resource ON approvals(resource_type, resource_id);
+      CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(organization_id, status);
+    `);
+    console.log("✅ Approvals table created");
+
+    // Add comment_type column to ticket_comments for structured comments
+    await db.execute(sql`
+      ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS comment_type text NOT NULL DEFAULT 'note';
+      CREATE INDEX IF NOT EXISTS idx_ticket_comments_type ON ticket_comments(account_id, comment_type);
+    `);
+    console.log("✅ Ticket comments comment_type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

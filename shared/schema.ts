@@ -254,6 +254,11 @@ export const AUDIT_ACTION_TYPES = [
   'pack.applied',
   'project_access.granted',
   'project_access.revoked',
+  // Phase 5: Collaboration & Validation
+  'decision.created',
+  'approval.requested',
+  'approval.decided',
+  'comment.created',
 ] as const;
 export type AuditActionType = typeof AUDIT_ACTION_TYPES[number];
 
@@ -277,6 +282,45 @@ export const insertAuditEventSchema = createInsertSchema(auditEvents).omit({
 });
 export type InsertAuditEvent = z.infer<typeof insertAuditEventSchema>;
 export type AuditEvent = typeof auditEvents.$inferSelect;
+
+// ============================================
+// APPROVALS (Phase 5: Validation & Collaboration)
+// ============================================
+
+export const APPROVAL_STATUSES = ['draft', 'pending_approval', 'approved', 'rejected', 'changes_requested'] as const;
+export type ApprovalStatus = typeof APPROVAL_STATUSES[number];
+
+export const APPROVAL_RESOURCE_TYPES = ['milestone', 'deliverable', 'phase', 'roadmap_item', 'epic', 'user_story'] as const;
+export type ApprovalResourceType = typeof APPROVAL_RESOURCE_TYPES[number];
+
+export const approvals = pgTable("approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  resourceType: text("resource_type").notNull(), // from APPROVAL_RESOURCE_TYPES
+  resourceId: uuid("resource_id").notNull(),
+  status: text("status").notNull().default("draft"), // from APPROVAL_STATUSES
+  requestedByMemberId: uuid("requested_by_member_id").notNull().references(() => organizationMembers.id, { onDelete: "cascade" }),
+  decidedByMemberId: uuid("decided_by_member_id").references(() => organizationMembers.id, { onDelete: "set null" }),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgProjectIdx: index().on(table.organizationId, table.projectId),
+  resourceIdx: index().on(table.resourceType, table.resourceId),
+  statusIdx: index().on(table.organizationId, table.status),
+}));
+
+export const insertApprovalSchema = createInsertSchema(approvals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  decidedAt: true,
+  decidedByMemberId: true,
+});
+export type InsertApproval = z.infer<typeof insertApprovalSchema>;
+export type Approval = typeof approvals.$inferSelect;
 
 // ============================================
 // CRM & PIPELINE
@@ -1464,6 +1508,13 @@ export const retroColumnOptions = [
 
 export type RetroColumn = typeof retroColumnOptions[number]["value"];
 
+// Comment types for structured comments (Phase 5)
+export const COMMENT_TYPES = ['note', 'decision', 'question', 'client_feedback', 'blocking_issue'] as const;
+export type CommentType = typeof COMMENT_TYPES[number];
+
+// Guest-allowed comment types
+export const GUEST_COMMENT_TYPES = ['question', 'client_feedback'] as const;
+
 // Ticket Comments table
 export const ticketComments = pgTable("ticket_comments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1471,12 +1522,14 @@ export const ticketComments = pgTable("ticket_comments", {
   ticketId: uuid("ticket_id").notNull(), // Generic reference to epic, user_story, or backlog_task
   ticketType: text("ticket_type").notNull(), // 'epic', 'user_story', 'task'
   content: text("content").notNull(),
+  commentType: text("comment_type").notNull().default("note"), // from COMMENT_TYPES
   authorId: uuid("author_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountIdx: index().on(table.accountId),
   ticketIdx: index().on(table.ticketId, table.ticketType),
+  commentTypeIdx: index().on(table.accountId, table.commentType),
 }));
 
 // Ticket Acceptance Criteria table (Critères d'acceptation)
