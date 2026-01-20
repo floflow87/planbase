@@ -377,4 +377,108 @@ export const permissionService = {
   // Cache management
   clearCache: clearOrganizationCache,
   clearMemberCache,
+
+  // ============================================
+  // Module Views (Guest View Configurations)
+  // ============================================
+
+  async getModuleView(organizationId: string, memberId: string, module: string): Promise<ModuleView | null> {
+    const [view] = await db
+      .select()
+      .from(moduleViews)
+      .where(
+        and(
+          eq(moduleViews.organizationId, organizationId),
+          eq(moduleViews.memberId, memberId),
+          eq(moduleViews.module, module)
+        )
+      );
+    return view || null;
+  },
+
+  async setModuleView(organizationId: string, memberId: string, module: string, config: any): Promise<ModuleView> {
+    const existing = await this.getModuleView(organizationId, memberId, module);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(moduleViews)
+        .set({ config, updatedAt: new Date() })
+        .where(eq(moduleViews.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(moduleViews)
+        .values({
+          organizationId,
+          memberId,
+          module,
+          config,
+        })
+        .returning();
+      return created;
+    }
+  },
+
+  async getGuestViewTemplate(organizationId: string, module: string): Promise<any | null> {
+    // Guest view templates are stored with a special "template" memberId
+    const [view] = await db
+      .select()
+      .from(moduleViews)
+      .where(
+        and(
+          eq(moduleViews.organizationId, organizationId),
+          eq(moduleViews.memberId, "template"),
+          eq(moduleViews.module, module)
+        )
+      );
+    return view?.config || null;
+  },
+
+  async setGuestViewTemplate(organizationId: string, module: string, config: any): Promise<void> {
+    const existing = await db
+      .select()
+      .from(moduleViews)
+      .where(
+        and(
+          eq(moduleViews.organizationId, organizationId),
+          eq(moduleViews.memberId, "template"),
+          eq(moduleViews.module, module)
+        )
+      );
+
+    if (existing.length > 0) {
+      await db
+        .update(moduleViews)
+        .set({ config, updatedAt: new Date() })
+        .where(eq(moduleViews.id, existing[0].id));
+    } else {
+      await db
+        .insert(moduleViews)
+        .values({
+          organizationId,
+          memberId: "template",
+          module,
+          config,
+        });
+    }
+  },
+
+  async applyGuestViewTemplateToAll(organizationId: string, module: string, config: any): Promise<void> {
+    // Get all guest members
+    const guestMembers = await db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.role, "guest")
+        )
+      );
+
+    // Apply the template to each guest
+    for (const guest of guestMembers) {
+      await this.setModuleView(organizationId, guest.id, module, config);
+    }
+  },
 };

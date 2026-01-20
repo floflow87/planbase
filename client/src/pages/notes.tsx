@@ -19,6 +19,8 @@ import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Note, AppUser, Project, NoteLink } from "@shared/schema";
+import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -127,6 +129,7 @@ export default function Notes() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { can: canDo } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
@@ -762,8 +765,12 @@ export default function Notes() {
   });
 
   return (
+    <PermissionGuard module="notes" action="read">
     <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
       <div className="p-6 space-y-6" data-testid="notes-list">
+        <div className="flex items-center justify-between">
+          <ReadOnlyBadge module="notes" />
+        </div>
         {/* Filters & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           {/* Mobile: Single row with search, new button, and filter */}
@@ -778,11 +785,13 @@ export default function Notes() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Link href="/notes/new">
-              <Button size="icon" data-testid="button-nouvelle-note-mobile">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </Link>
+            <Can module="notes" action="create">
+              <Link href="/notes/new">
+                <Button size="icon" data-testid="button-nouvelle-note-mobile">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </Link>
+            </Can>
             <select
               className="border border-border rounded-md px-2 h-9 text-sm bg-card"
               value={statusFilter}
@@ -851,16 +860,20 @@ export default function Notes() {
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                     Publier
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleBulkDelete}
-                    disabled={bulkDeleteMutation.isPending}
-                    className="text-destructive"
-                    data-testid="dropdown-bulk-delete"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Supprimer
-                  </DropdownMenuItem>
+                  {canDo("notes", "delete") && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={handleBulkDelete}
+                        disabled={bulkDeleteMutation.isPending}
+                        className="text-destructive"
+                        data-testid="dropdown-bulk-delete"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -872,12 +885,14 @@ export default function Notes() {
             >
               <Settings2 className="w-4 h-4" />
             </Button>
-            <Link href="/notes/new">
-              <Button className="gap-2 text-[12px]" data-testid="button-nouvelle-note">
-                <Plus className="w-4 h-4" />
-                Nouvelle note
-              </Button>
-            </Link>
+            <Can module="notes" action="create">
+              <Link href="/notes/new">
+                <Button className="gap-2 text-[12px]" data-testid="button-nouvelle-note">
+                  <Plus className="w-4 h-4" />
+                  Nouvelle note
+                </Button>
+              </Link>
+            </Can>
           </div>
         </div>
 
@@ -980,15 +995,19 @@ export default function Notes() {
                                 <Copy className="w-4 h-4 mr-2" />
                                 Dupliquer
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteNote(note.id)}
-                                className="text-destructive"
-                                data-testid={`button-delete-note-mobile-${note.id}`}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Supprimer
-                              </DropdownMenuItem>
+                              {canDo("notes", "delete") && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteNote(note.id)}
+                                    className="text-destructive"
+                                    data-testid={`button-delete-note-mobile-${note.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1399,18 +1418,22 @@ export default function Notes() {
                             <Copy className="w-4 h-4 mr-2" />
                             Dupliquer
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteNote(note.id);
-                            }}
-                            className="text-destructive"
-                            data-testid={`dropdown-delete-note-${note.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
+                          {canDo("notes", "delete") && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNote(note.id);
+                                }}
+                                className="text-destructive"
+                                data-testid={`dropdown-delete-note-${note.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -1677,5 +1700,6 @@ export default function Notes() {
         </SheetContent>
       </Sheet>
     </div>
+    </PermissionGuard>
   );
 }

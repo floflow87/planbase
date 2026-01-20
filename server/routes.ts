@@ -99,7 +99,7 @@ import {
   insertOkrLinkSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
-import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin } from "./middleware/auth";
+import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
 import { permissionService } from "./services/permissionService";
 import { getDemoCredentials } from "./middleware/demo-helper";
 import { configService } from "./services/configService";
@@ -107,6 +107,36 @@ import { supabaseAdmin } from "./lib/supabase";
 import { google } from "googleapis";
 import { db } from "./db";
 import { eq, and, asc, desc, not, sql, inArray } from "drizzle-orm";
+
+// Default view configurations for CRM and Notes modules
+function getDefaultViewConfig(module: string): any {
+  switch (module) {
+    case 'crm':
+      return {
+        subviewsEnabled: {
+          'crm.clients': true,
+          'crm.opportunities': false,
+          'crm.kpis': false,
+        },
+        layout: {
+          clientsTable: {
+            visibleColumns: ['name', 'stage', 'lastContactAt', 'owner'],
+          },
+        },
+      };
+    case 'notes':
+      return {
+        layout: {
+          notesList: {
+            mode: 'list',
+            visibleFields: ['title', 'project', 'updatedAt'],
+          },
+        },
+      };
+    default:
+      return {};
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -663,7 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CLIENTS (CRM) - Protected Routes
   // ============================================
 
-  app.get("/api/clients", requireAuth, async (req, res) => {
+  app.get("/api/clients", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const clients = await storage.getClientsByAccountId(req.accountId!);
       res.json(clients);
@@ -672,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/clients", requireAuth, requireOrgMember, requirePermission("crm", "create", "crm.clients"), async (req, res) => {
     try {
       console.log("[DEBUG] Creating client - req.userId:", req.userId, "req.accountId:", req.accountId);
       console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
@@ -703,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:id", requireAuth, async (req, res) => {
+  app.get("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const client = await storage.getClient(req.accountId!, req.params.id);
       if (!client) {
@@ -715,7 +745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.clients"), async (req, res) => {
     try {
       const client = await storage.updateClient(req.accountId!, req.params.id, req.body);
       if (!client) {
@@ -727,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clients/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/clients/:id", requireAuth, requireOrgMember, requirePermission("crm", "delete", "crm.clients"), async (req, res) => {
     try {
       const success = await storage.deleteClient(req.accountId!, req.params.id);
       if (!success) {
@@ -740,7 +770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get clients by account ID (for frontend queries)
-  app.get("/api/accounts/:accountId/clients", requireAuth, async (req, res) => {
+  app.get("/api/accounts/:accountId/clients", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       // Verify user has access to this account
       if (req.params.accountId !== req.accountId) {
@@ -754,7 +784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI suggestion for client next actions
-  app.post("/api/clients/:id/suggest-actions", requireAuth, async (req, res) => {
+  app.post("/api/clients/:id/suggest-actions", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const client = await storage.getClient(req.accountId!, req.params.id);
       if (!client) {
@@ -774,7 +804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CONTACTS - Protected Routes
   // ============================================
 
-  app.get("/api/contacts", requireAuth, async (req, res) => {
+  app.get("/api/contacts", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const contacts = await storage.getContactsByAccountId(req.accountId!);
       res.json(contacts);
@@ -783,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:clientId/contacts", requireAuth, async (req, res) => {
+  app.get("/api/clients/:clientId/contacts", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       // First verify the client belongs to this account (security check)
       const client = await storage.getClient(req.accountId!, req.params.clientId);
@@ -798,7 +828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/contacts", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/contacts", requireAuth, requireOrgMember, requirePermission("crm", "create", "crm.clients"), async (req, res) => {
     try {
       const data = insertContactSchema.parse({
         ...req.body,
@@ -812,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/contacts/:id", requireAuth, async (req, res) => {
+  app.get("/api/contacts/:id", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       const contact = await storage.getContact(req.accountId!, req.params.id);
       if (!contact) {
@@ -824,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/contacts/:id", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.clients"), async (req, res) => {
     try {
       const contact = await storage.updateContact(req.accountId!, req.params.id, req.body);
       if (!contact) {
@@ -836,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/contacts/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/contacts/:id", requireAuth, requireOrgMember, requirePermission("crm", "delete", "crm.clients"), async (req, res) => {
     try {
       const success = await storage.deleteContact(req.accountId!, req.params.id);
       if (!success) {
@@ -849,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get contacts by account ID (for frontend queries)
-  app.get("/api/accounts/:accountId/contacts", requireAuth, async (req, res) => {
+  app.get("/api/accounts/:accountId/contacts", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.clients"), async (req, res) => {
     try {
       // Verify user has access to this account
       if (req.params.accountId !== req.accountId) {
@@ -3473,7 +3503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOTES - Protected Routes
   // ============================================
 
-  app.get("/api/notes", requireAuth, async (req, res) => {
+  app.get("/api/notes", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const notes = await storage.getNotesByAccountId(req.accountId!);
       res.json(notes);
@@ -3482,7 +3512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/notes", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const data = insertNoteSchema.parse({
         ...req.body,
@@ -3507,7 +3537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notes/:id", requireAuth, async (req, res) => {
+  app.get("/api/notes/:id", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -3522,7 +3552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/notes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/notes/:id", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       const existing = await storage.getNote(req.params.id);
       if (!existing) {
@@ -3552,7 +3582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes/:id/duplicate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/notes/:id/duplicate", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
     try {
       const existing = await storage.getNote(req.params.id);
       if (!existing) {
@@ -3580,7 +3610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/notes/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/notes/:id", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
     try {
       const existing = await storage.getNote(req.params.id);
       if (!existing) {
@@ -3598,7 +3628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Note Links
-  app.get("/api/note-links", requireAuth, async (req, res) => {
+  app.get("/api/note-links", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const links = await storage.getNoteLinksByAccountId(req.accountId!);
       res.json(links);
@@ -3607,7 +3637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/notes/:id/links", requireAuth, async (req, res) => {
+  app.get("/api/notes/:id/links", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -3624,7 +3654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes/:id/links", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/notes/:id/links", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -3665,7 +3695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/notes/:id/links/:targetType/:targetId", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/notes/:id/links/:targetType/:targetId", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -3692,7 +3722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI operations on notes (Protected)
-  app.post("/api/notes/:id/summarize", requireAuth, async (req, res) => {
+  app.post("/api/notes/:id/summarize", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -3711,7 +3741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes/:id/extract-actions", requireAuth, async (req, res) => {
+  app.post("/api/notes/:id/extract-actions", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {
       const note = await storage.getNote(req.params.id);
       if (!note) {
@@ -4372,7 +4402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DEALS (Sales Pipeline) - Protected Routes
   // ============================================
 
-  app.get("/api/deals", requireAuth, async (req, res) => {
+  app.get("/api/deals", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.opportunities"), async (req, res) => {
     try {
       const deals = await storage.getDealsByAccountId(req.accountId!);
       res.json(deals);
@@ -4381,7 +4411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/deals", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/deals", requireAuth, requireOrgMember, requirePermission("crm", "create", "crm.opportunities"), async (req, res) => {
     try {
       const data = insertDealSchema.parse({
         ...req.body,
@@ -4395,7 +4425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/deals/:id", requireAuth, async (req, res) => {
+  app.get("/api/deals/:id", requireAuth, requireOrgMember, requirePermission("crm", "read", "crm.opportunities"), async (req, res) => {
     try {
       const deal = await storage.getDeal(req.params.id);
       if (!deal) {
@@ -4410,7 +4440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/deals/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.patch("/api/deals/:id", requireAuth, requireOrgMember, requirePermission("crm", "update", "crm.opportunities"), async (req, res) => {
     try {
       const existing = await storage.getDeal(req.params.id);
       if (!existing) {
@@ -4427,7 +4457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/deals/:id", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.delete("/api/deals/:id", requireAuth, requireOrgMember, requirePermission("crm", "delete", "crm.opportunities"), async (req, res) => {
     try {
       const existing = await storage.getDeal(req.params.id);
       if (!existing) {
@@ -10274,6 +10304,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
       
       res.json(matrix);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MODULE VIEWS - Custom view configurations for guests
+  // ============================================
+
+  // Get current user's view configuration for a specific module
+  app.get("/api/views/me", requireAuth, requireOrgMember, async (req, res) => {
+    try {
+      const { module } = req.query;
+      
+      if (!module || typeof module !== 'string') {
+        return res.status(400).json({ error: "Module parameter is required" });
+      }
+
+      const view = await permissionService.getModuleView(req.accountId!, req.memberId!, module);
+      
+      // Return default config if no custom view exists
+      if (!view) {
+        const defaultConfig = getDefaultViewConfig(module);
+        return res.json(defaultConfig);
+      }
+
+      res.json(view.config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update view configuration (admin only, for configuring guest views)
+  app.patch("/api/views/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { memberId } = req.params;
+      const { module, config } = req.body;
+
+      if (!module || !config) {
+        return res.status(400).json({ error: "Module and config are required" });
+      }
+
+      const view = await permissionService.setModuleView(req.accountId!, memberId, module, config);
+      res.json(view);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get guest view template (admin only)
+  app.get("/api/views/template/guest", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { module } = req.query;
+      
+      if (!module || typeof module !== 'string') {
+        return res.status(400).json({ error: "Module parameter is required" });
+      }
+
+      // Get the template from settings or return default
+      const template = await permissionService.getGuestViewTemplate(req.accountId!, module);
+      res.json(template || getDefaultViewConfig(module));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save guest view template (admin only) - applies to all guests
+  app.post("/api/views/template/guest", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const { module, config, applyToAll } = req.body;
+
+      if (!module || !config) {
+        return res.status(400).json({ error: "Module and config are required" });
+      }
+
+      // Save the template
+      await permissionService.setGuestViewTemplate(req.accountId!, module, config);
+
+      // If applyToAll, propagate to all existing guests
+      if (applyToAll) {
+        await permissionService.applyGuestViewTemplateToAll(req.accountId!, module, config);
+      }
+
+      res.json({ success: true, message: applyToAll ? "Template applied to all guests" : "Template saved" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

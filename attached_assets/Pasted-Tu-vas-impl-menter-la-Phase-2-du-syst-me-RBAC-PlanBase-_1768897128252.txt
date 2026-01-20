@@ -1,0 +1,229 @@
+Tu vas implémenter la Phase 2 du système RBAC PlanBase : application réelle des permissions sur l’UI + API, et mise en place d’une vue Invité (guest) lecture personnalisable sur les pages CRM + Notes (V1).
+
+Objectifs Phase 2
+
+Enforcer les permissions côté backend (CRM + Notes) : read/create/update/delete
+
+Enforcer les permissions côté frontend (CRM + Notes) : masquer actions + protéger routes + états read-only
+
+Implémenter les sous-vues CRM (clients / opportunités / KPIs) contrôlées par permissions crm.clients, crm.opportunities, crm.kpis
+
+Implémenter Guest view personnalisable (lecture) pour CRM + Notes :
+
+modules visibles
+
+sous-vues visibles
+
+colonnes visibles + layout table (simple JSON)
+
+filtres persistés (optionnel)
+
+Garantir une UX impeccable : toasts non tronqués, dropdowns blancs, aucune régression.
+
+A) Règles fonctionnelles (IMPORTANT)
+Règles de base
+
+Admin : accès total + peut configurer les invités + gérer les membres
+
+Member : accès selon matrice (par défaut full)
+
+Guest :
+
+lecture uniquement
+
+l’accès lecture est module par module
+
+sous-vues CRM contrôlées par permissions
+
+UI doit être “clean” et ne pas afficher des actions inutiles
+
+Refus par défaut
+
+Si can(module, action) est false → action interdite (UI + API).
+
+B) Backend enforcement
+1) Middleware appliqué aux routes CRM & Notes
+
+Pour chaque endpoint CRM et Notes existant :
+
+ajouter requirePermission("crm", "read") etc.
+
+pour CRM sous-vues :
+
+Clients list/detail → requirePermission("crm","read","crm.clients")
+
+Opportunités → requirePermission("crm","read","crm.opportunities")
+
+KPIs → requirePermission("crm","read","crm.kpis")
+
+2) CRUD strict
+
+Create client → require crm.create + crm.clients read
+
+Update client → crm.update
+
+Delete client → crm.delete
+
+Notes :
+
+list/read → notes.read
+
+create → notes.create
+
+update → notes.update
+
+delete → notes.delete
+
+3) Erreurs standardisées
+
+si forbidden → 403 avec message FORBIDDEN_PERMISSION
+
+frontend doit afficher toastError :
+
+“Accès restreint : vous n’avez pas la permission.”
+
+C) Frontend enforcement (CRM + Notes)
+1) Protection routes
+
+Ajouter un guard route-level :
+
+si page CRM et !can("crm","read") → afficher ErrorState + CTA “Retour”
+
+idem Notes
+
+2) Masquage actions & read-only mode
+
+Sur CRM et Notes :
+
+Boutons “Créer”, “Modifier”, “Supprimer” doivent être conditionnés via <Can/>
+
+Si guest ou member sans update → rendre les formulaires read-only :
+
+inputs disabled
+
+pas de boutons save
+
+afficher micro-text : “Lecture seule”
+
+3) Sous-vues CRM contrôlées
+
+CRM a 3 sous-vues :
+
+Clients
+
+Opportunités
+
+KPIs
+
+Le rendu doit :
+
+masquer les tabs non autorisés
+
+si une sous-vue est la route actuelle mais non autorisée → rediriger vers une sous-vue autorisée (sinon ErrorState)
+
+D) Guest View personnalisable (CRM + Notes)
+
+On utilise la table module_views créée en Phase 1.
+
+1) Modèle de config minimal (JSONB)
+
+Pour CRM :
+
+{
+  "subviewsEnabled": {
+    "crm.clients": true,
+    "crm.opportunities": false,
+    "crm.kpis": false
+  },
+  "layout": {
+    "clientsTable": {
+      "visibleColumns": ["name","stage","lastContactAt","owner"]
+    }
+  }
+}
+
+
+Pour Notes :
+
+{
+  "layout": {
+    "notesList": {
+      "mode": "list",
+      "visibleFields": ["title","project","updatedAt"]
+    }
+  }
+}
+
+2) Admin configure la vue Guest
+
+Dans Settings > Permissions :
+Ajouter section “Vue invités (lecture)” :
+
+choisir modules activés pour guests (read)
+
+choisir sous-vues CRM visibles
+
+choisir colonnes visibles pour CRM clients table
+
+choisir champs visibles pour notes list
+
+bouton “Appliquer à tous les invités”
+
+Stockage :
+
+on enregistre dans module_views pour chaque membre guest
+
+si beaucoup de guests, on peut créer un “template guest” dans Settings (Settings table) puis propager sur save (acceptable)
+
+3) Comportement côté guest
+
+Quand un guest charge CRM/Notes :
+
+le front fetch /api/views/me?module=crm (et notes)
+
+applique les colonnes visibles / champs visibles
+
+si pas de config, fallback safe :
+
+CRM clients minimal : name + stage
+
+Notes minimal : title + updatedAt
+
+E) UX / Design System
+
+Tous dropdowns : background blanc
+
+Toasts success : non tronqués (augmenter max width + wrap)
+
+Utiliser FormField, FormInput, DataTableShell, EmptyState, ErrorState
+
+Ajout d’un badge “Lecture seule” (Badge intent="info" tone="soft") pour guests et membres restreints
+
+F) Tests & non-régression
+1) Vitest backend (au minimum)
+
+member sans crm.read → 403 sur GET clients
+
+guest avec crm.read true mais crm.clients false → 403 sur GET clients
+
+admin → OK
+
+2) Vitest frontend
+
+can() cache : fonctionne
+
+tabs CRM masqués si pas autorisé
+
+read-only mode : form disabled si pas update
+
+G) Livrables attendus
+
+CRM + Notes totalement protégés (API + UI)
+
+sous-vues CRM contrôlées
+
+vue Guest lecture personnalisable (CRM + Notes) configurée par admin dans Settings
+
+toasts non tronqués + dropdowns blancs partout dans CRM/Notes
+
+docs : docs/91-rbac-phase-2-enforcement.md

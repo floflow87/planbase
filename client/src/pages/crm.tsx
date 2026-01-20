@@ -23,6 +23,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, optimisticAdd, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
+import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   DndContext,
   closestCenter,
@@ -143,6 +145,7 @@ function DraggableKanbanCard({
   onDelete: () => void;
   isDragOverlay?: boolean;
 }) {
+  const { can: canDo } = usePermissions();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `client-${client.id}`,
     data: { client },
@@ -192,24 +195,28 @@ function DraggableKanbanCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
-                <Edit className="w-4 h-4 mr-2" />
-                Modifier
-              </DropdownMenuItem>
+              {canDo("crm", "update") && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }} data-testid={`kanban-edit-${client.id}`}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+              )}
               <Link href={`/crm/${client.id}`}>
                 <DropdownMenuItem data-testid={`kanban-view-${client.id}`}>
                   <Building2 className="w-4 h-4 mr-2" />
                   Voir le client
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                data-testid={`kanban-delete-${client.id}`}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
+              {canDo("crm", "delete") && (
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  data-testid={`kanban-delete-${client.id}`}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -842,7 +849,10 @@ export default function CRM() {
     }
   };
 
+  const { can: canDo } = usePermissions();
+
   return (
+    <PermissionGuard module="crm" action="read">
     <div className="h-full overflow-auto bg-[#F8FAFC] dark:bg-background" data-testid="page-crm">
       {!accountId ? (
         <div className="flex items-center justify-center h-full">
@@ -854,6 +864,9 @@ export default function CRM() {
         </div>
       ) : (
       <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <ReadOnlyBadge module="crm" />
+        </div>
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="crm-kpis">
           {kpis.map((kpi, index) => {
@@ -953,10 +966,12 @@ export default function CRM() {
               <Download className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Exporter</span>
             </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
-            </Button>
+            <Can module="crm" action="create">
+              <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-new-client">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline text-[12px]">Nouveau Client</span>
+              </Button>
+            </Can>
           </div>
         </div>
 
@@ -1226,26 +1241,30 @@ export default function CRM() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-card">
-                              <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Modifier
-                              </DropdownMenuItem>
+                              {canDo("crm", "update") && (
+                                <DropdownMenuItem onClick={() => setEditingClient(client)} data-testid={`button-edit-${client.id}`}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Modifier
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem data-testid={`button-message-${client.id}`}>
                                 <MessageSquare className="w-4 h-4 mr-2" />
                                 Message
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setClientToDelete(client.id);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                                data-testid={`button-delete-${client.id}`}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Supprimer
-                              </DropdownMenuItem>
+                              {canDo("crm", "delete") && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setClientToDelete(client.id);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                  data-testid={`button-delete-${client.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Supprimer
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1443,5 +1462,6 @@ export default function CRM() {
       </div>
       )}
     </div>
+    </PermissionGuard>
   );
 }

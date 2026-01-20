@@ -295,7 +295,8 @@ export function requirePermission(module: RbacModule, action: RbacAction, subvie
 
       if (!hasAccess) {
         return res.status(403).json({
-          error: "Insufficient permissions",
+          error: "FORBIDDEN_PERMISSION",
+          message: "Accès restreint : vous n'avez pas la permission.",
           required: { module, action, subviewKey },
         });
       }

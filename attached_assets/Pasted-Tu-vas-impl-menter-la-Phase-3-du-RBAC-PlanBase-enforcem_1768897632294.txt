@@ -1,0 +1,192 @@
+Tu vas implémenter la Phase 3 du RBAC PlanBase : enforcement complet multi-modules + vues invités généralisées + navigation dynamique + audit tooling.
+
+Objectifs
+
+Enforcer RBAC (API + UI) sur les modules restants :
+
+Product, Profitability, Documents, Projects, Roadmap, Tasks
+(CRM + Notes déjà traités en phase 2)
+
+Ajouter des permissions subviews pour les modules complexes
+
+Généraliser le système module_views pour que Guest ait une vue lecture personnalisée par module
+
+Rendre la navigation (sidebar) dynamique selon permissions
+
+Ajouter tests + scripts d’audit pour garantir la couverture RBAC
+
+A) Corrections architecture (IMPORTANT)
+
+Vérifier que la lecture n’est pas filtrée par memberId sauf si c’est un objet privé.
+
+Lecture standard : filtrer par organizationId
+
+Écriture : filtrer par organizationId + ownership si nécessaire
+
+Ajouter un endpoint unique :
+
+GET /api/me/context qui renvoie org + membership + role + permissions matrix (+ module_views si possible)
+Frontend doit préférer cet endpoint pour réduire les appels.
+
+B) Subviews à ajouter (permissions scope=subview)
+Product (module: product)
+
+product.backlog (liste tickets)
+
+product.epics
+
+product.stats
+
+product.retrospective
+
+product.recipe (recette)
+
+Profitability (module: profitability)
+
+profitability.overview
+
+profitability.byProject
+
+profitability.simulations
+
+profitability.resources
+
+Documents (module: documents)
+
+documents.list
+
+documents.upload
+
+documents.integrations (ex: Google Drive future)
+
+Roadmap (module: roadmap)
+
+roadmap.gantt
+
+roadmap.output
+
+roadmap.okr
+
+roadmap.tree (si existant ou futur)
+
+Rules:
+
+Si subviews non définies → fallback sur module-level
+
+Guest doit pouvoir être autorisé à une subview sans forcément tout le module (lecture) si tu juges ça cohérent, sinon impose module.read obligatoire.
+
+C) Backend enforcement
+
+Ajouter requirePermission(module, action, subviewKey?) sur toutes les routes de :
+
+Product, Profitability, Documents, Projects, Roadmap, Tasks
+
+Pour les routes list/read -> require read
+
+Pour create/update/delete -> require action correspondante
+
+Renvoi erreurs standardisées :
+
+403: { code: "FORBIDDEN_PERMISSION", module, action, subviewKey }
+
+D) Frontend enforcement
+
+Sidebar dynamique :
+
+Ne montrer que les modules dont can(module,"read") est true
+
+Dans Product / Roadmap / Profitability : tabs/sections masquées si subview non autorisée
+
+Route guards :
+
+Si module.read false -> ErrorState + CTA retour dashboard
+
+Si subview route non autorisée -> rediriger vers la première subview autorisée, sinon ErrorState
+
+UI actions :
+
+Masquer tous boutons Create/Edit/Delete via <Can/>
+
+Si update=false : passer les formulaires en read-only (disabled) + badge “Lecture seule”
+
+Tables/listing :
+
+Si guest view layout est défini -> appliquer colonnes/sections visibles
+
+Sinon fallback safe par défaut (minimal)
+
+E) Settings UI — amélioration “Vues Invités”
+
+Dans Settings > Permissions :
+Ajouter un sous-onglet ou section “Vues Invités” :
+
+Sélecteur membre Guest (ou “Appliquer à tous les invités”)
+
+Pour chaque module :
+
+modules visibles (read)
+
+subviews visibles (checkbox)
+
+layout minimal :
+
+tables : visibleColumns
+
+pages : visibleSections / visibleCards
+
+Bouton “Appliquer / Sauvegarder”
+Stocker dans module_views.
+
+F) Audits + tests
+
+Ajouter scripts/audit-permissions-coverage.ts :
+
+scan server/routes.ts (ou dossier server/routes)
+
+liste endpoints non protégés (pas de requirePermission)
+
+Vitest backend :
+
+1 test par module au minimum : member sans permission -> 403
+
+cross-tenant : user d’un autre org -> 404 ou 403
+
+Vitest frontend :
+
+sidebar filtering
+
+subview redirect
+
+read-only mode
+
+G) Livrables
+
+Enforcement complet sur modules cibles
+
+subviews fonctionnelles
+
+sidebar dynamique
+
+vues invités généralisées
+
+endpoint /api/me/context
+
+audit script + tests
+
+doc docs/92-rbac-phase-3.md
+
+Design & UX
+
+Tous dropdowns background blanc
+
+Toasts non tronqués
+
+Utiliser DS patterns (FormField/DataTableShell/EmptyState/ErrorState)
+
+Ajouter badge “Lecture seule” sur pages guest
+
+Donne-moi en sortie :
+
+fichiers modifiés
+
+comment tester 3 scénarios : admin / member restreint / guest

@@ -19,6 +19,11 @@ interface RbacData {
   permissions: PermissionMatrix;
 }
 
+export interface ModuleViewConfig {
+  subviewsEnabled?: Record<string, boolean>;
+  layout?: Record<string, any>;
+}
+
 export function usePermissions() {
   const { user } = useAuth();
 
@@ -37,6 +42,16 @@ export function usePermissions() {
     return data.permissions[module]?.[action] ?? false;
   };
 
+  const isReadOnly = (module: RbacModule): boolean => {
+    if (!data) return true;
+    if (data.role === "admin") return false;
+    
+    const modulePerms = data.permissions[module];
+    if (!modulePerms) return true;
+    
+    return modulePerms.read && !modulePerms.create && !modulePerms.update && !modulePerms.delete;
+  };
+
   const isAdmin = data?.role === "admin";
   const isMember = data?.role === "member";
   const isGuest = data?.role === "guest";
@@ -46,6 +61,7 @@ export function usePermissions() {
     isLoading,
     error,
     can,
+    isReadOnly,
     isAdmin,
     isMember,
     isGuest,
@@ -57,4 +73,31 @@ export function usePermissions() {
 export function useCanAccess(module: RbacModule, action: RbacAction): boolean {
   const { can } = usePermissions();
   return can(module, action);
+}
+
+export function useModuleView(module: string) {
+  const { user } = useAuth();
+
+  const { data, isLoading, error } = useQuery<ModuleViewConfig>({
+    queryKey: ["/api/views/me", { module }],
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isSubviewEnabled = (subviewKey: string): boolean => {
+    if (!data?.subviewsEnabled) return true;
+    return data.subviewsEnabled[subviewKey] ?? true;
+  };
+
+  const getLayoutConfig = (key: string): any => {
+    return data?.layout?.[key] ?? null;
+  };
+
+  return {
+    viewConfig: data,
+    isLoading,
+    error,
+    isSubviewEnabled,
+    getLayoutConfig,
+  };
 }
