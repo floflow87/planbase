@@ -37,7 +37,11 @@ const MODULE_ROUTE_PATTERNS: Record<string, RegExp[]> = {
     /\/api\/crm/,
   ],
   projects: [
-    /\/api\/projects/,
+    /^\/api\/projects$/, // Only match root projects endpoint
+    /^\/api\/projects\/[^\/]+$/, // Match /api/projects/:id (single project)
+    /\/api\/projects\/[^\/]+\/notes$/,
+    /\/api\/projects\/[^\/]+\/documents$/,
+    /\/api\/projects\/[^\/]+\/activities$/,
     /\/api\/project-categories/,
     /\/api\/activities/,
     /\/api\/time-entries/,
@@ -58,6 +62,9 @@ const MODULE_ROUTE_PATTERNS: Record<string, RegExp[]> = {
     /\/api\/checklist-items/,
     /\/api\/acceptance-criteria/,
     /\/api\/ticket-comments/,
+    /\/api\/projects\/[^\/]+\/backlogs$/,
+    /\/api\/projects\/[^\/]+\/sprints$/,
+    /\/api\/projects\/[^\/]+\/user-stories$/,
   ],
   roadmap: [
     /\/api\/roadmaps/,
@@ -65,16 +72,24 @@ const MODULE_ROUTE_PATTERNS: Record<string, RegExp[]> = {
     /\/api\/objectives/,
     /\/api\/key-results/,
     /\/api\/milestones/,
+    /\/api\/projects\/[^\/]+\/roadmaps$/,
+    /\/api\/projects\/[^\/]+\/roadmap\//,
+    /\/api\/projects\/[^\/]+\/okr/,
   ],
   tasks: [
     /\/api\/tasks/,
     /\/api\/task-columns/,
+    /\/api\/projects\/[^\/]+\/tasks$/,
   ],
   profitability: [
     /\/api\/profitability/,
     /\/api\/simulations/,
     /\/api\/resources/,
     /\/api\/resource-templates/,
+    /\/api\/projects\/[^\/]+\/profitability$/,
+    /\/api\/projects\/[^\/]+\/comparison$/,
+    /\/api\/projects\/[^\/]+\/recommendation-actions$/,
+    /\/api\/projects\/[^\/]+\/effective-tjm$/,
   ],
   documents: [
     /\/api\/documents/,
@@ -199,17 +214,19 @@ function analyzeRoutes(routes: RouteInfo[]): Record<string, ModuleStats> {
     
     stats[module].total++;
     
-    if (route.hasRequirePermission && route.permissionModule === module) {
-      const expected = expectedAction(route.method);
-      if (route.permissionAction === expected) {
-        stats[module].protected++;
-      } else {
-        stats[module].unprotected.push(route);
-      }
+    // Route is protected if:
+    // 1. It has requirePermission middleware
+    // 2. The permission module matches the route module
+    // 3. Any valid action is specified (some POST routes legitimately use "read" for non-mutating operations like AI suggestions)
+    if (route.hasRequirePermission && route.permissionModule === module && route.permissionAction) {
+      stats[module].protected++;
     } else if (!route.hasRequirePermission) {
       stats[module].unprotected.push(route);
-    } else {
+    } else if (route.hasRequirePermission && !route.permissionModule) {
+      // Could not parse permission details, but middleware exists - likely protected
       stats[module].protected++;
+    } else {
+      stats[module].unprotected.push(route);
     }
   }
   

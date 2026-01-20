@@ -2890,7 +2890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all user stories for a project (via backlogs linked to the project)
-  app.get("/api/projects/:projectId/user-stories", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
+  app.get("/api/projects/:projectId/user-stories", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -5156,7 +5156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get roadmaps by project ID
-  app.get("/api/projects/:projectId/roadmaps", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/roadmaps", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
       res.json(roadmaps);
@@ -5166,7 +5166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get roadmap phases for a project (T1/T2/T3/LT based on project startDate)
-  app.get("/api/projects/:projectId/roadmap/phases", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/roadmap/phases", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -5370,7 +5370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Get milestones for a project (roadmap items with type='milestone')
-  app.get("/api/projects/:projectId/roadmap/milestones", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/roadmap/milestones", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -5445,7 +5445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get roadmap recommendations based on milestone status
-  app.get("/api/projects/:projectId/roadmap/recommendations", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/roadmap/recommendations", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project) {
@@ -5604,7 +5604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Import CDC (Cahier des Charges) items into roadmap
-  app.post("/api/projects/:projectId/roadmap/import-cdc", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/roadmap/import-cdc", requireAuth, requireOrgMember, requirePermission("roadmap", "create"), async (req, res) => {
     try {
       console.log("📥 Import CDC started for project:", req.params.projectId);
       
@@ -5724,7 +5724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Diagnostic endpoint for CDC import issues - reset orphaned scope items
-  app.post("/api/projects/:projectId/roadmap/reset-cdc", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/roadmap/reset-cdc", requireAuth, requireOrgMember, requirePermission("roadmap", "update"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.projectId);
       if (!project || project.accountId !== req.accountId) {
@@ -5777,7 +5777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get backlogs by project ID
-  app.get("/api/projects/:projectId/backlogs", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/backlogs", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
     try {
       const projectBacklogs = await db.select().from(backlogs)
         .where(and(
@@ -6109,7 +6109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Get OKR objectives for a project
-  app.get("/api/projects/:projectId/okr/objectives", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/okr/objectives", requireAuth, requireOrgMember, requirePermission("roadmap", "read", "roadmap.okr"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -6125,7 +6125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get full OKR tree for a project (objectives + key results + links)
-  app.get("/api/projects/:projectId/okr", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/okr", requireAuth, requireOrgMember, requirePermission("roadmap", "read", "roadmap.okr"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const projectId = req.params.projectId;
@@ -6250,7 +6250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Regenerate OKR from project type
-  app.post("/api/projects/:projectId/okr/regenerate", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/okr/regenerate", requireAuth, requireOrgMember, requirePermission("roadmap", "create", "roadmap.okr"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -6300,7 +6300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create OKR objective
-  app.post("/api/projects/:projectId/okr/objectives", requireAuth, requireRole("owner", "collaborator"), async (req, res) => {
+  app.post("/api/projects/:projectId/okr/objectives", requireAuth, requireOrgMember, requirePermission("roadmap", "create", "roadmap.okr"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const userId = req.userId!;
@@ -9691,7 +9691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get effective TJM and internal daily cost for a project (project override ?? global)
-  app.get("/api/projects/:projectId/effective-tjm", requireAuth, async (req, res) => {
+  app.get("/api/projects/:projectId/effective-tjm", requireAuth, requireOrgMember, requirePermission("profitability", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       const { projectId } = req.params;

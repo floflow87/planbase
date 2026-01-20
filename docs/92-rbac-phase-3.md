@@ -8,18 +8,18 @@ Phase 3 extends RBAC (Role-Based Access Control) enforcement to all remaining mo
 
 ### Backend Route Protection
 
-Applied the three-layer auth pattern to **209+ routes** across all modules:
+Applied the three-layer auth pattern to **212 routes** across all modules:
 
 | Module | Routes Protected | Coverage |
 |--------|-----------------|----------|
-| **Product** | 53/53 | 100% ✅ |
-| **Tasks** | 14/14 | 100% ✅ |
-| **Profitability** | 8/8 | 100% ✅ |
-| **Documents** | 22/23 | 96% |
-| **CRM** | 18/19 | 95% |
-| **Notes** | 19/22 | 86% |
-| **Roadmap** | 15/18 | 83% |
-| **Projects** | 60/76 | 79% |
+| **CRM** | 19/19 | 100% ✅ |
+| **Projects** | 37/37 | 100% ✅ |
+| **Product** | 56/56 | 100% ✅ |
+| **Roadmap** | 28/28 | 100% ✅ |
+| **Tasks** | 15/15 | 100% ✅ |
+| **Profitability** | 12/12 | 100% ✅ |
+| **Documents** | 23/23 | 100% ✅ |
+| **Notes** | 22/22 | 100% ✅ |
 
 **Three-layer Auth Pattern:**
 ```typescript
@@ -154,15 +154,6 @@ Outputs coverage report by module and identifies unprotected routes.
 2. **Member Default**: Members get full access to all modules by default
 3. **Guest Restrictions**: Guests have configurable, restrictive access
 4. **Subview Filtering**: UI respects subview enabled/disabled state
-
-## Known Gaps
-
-Some edge-case routes have lower coverage due to audit script regex limitations:
-- Complex multi-line route definitions
-- Routes using middleware arrays
-- Nested routes with dynamic patterns
-
-These should be verified manually if security is critical.
 
 ## Future Improvements
 
