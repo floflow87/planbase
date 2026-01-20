@@ -96,38 +96,31 @@ export function PermissionsTab() {
 
   const { data: memberPermissions, isLoading: permissionsLoading } = useQuery<PermissionMatrix>({
     queryKey: ["/api/rbac/members", selectedMemberId, "permissions"],
-    queryFn: async () => {
-      const response = await fetch(`/api/rbac/members/${selectedMemberId}/permissions`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("supabase_token")}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch permissions");
-      return response.json();
-    },
     enabled: !!selectedMemberId && isAdmin,
   });
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: RbacRole }) => {
-      return apiRequest("PATCH", `/api/rbac/members/${memberId}/role`, { role });
+      const response = await apiRequest(`/api/rbac/members/${memberId}/role`, "PATCH", { role });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       toast({ title: "Rôle mis à jour", description: "Le rôle a été modifié avec succès." });
     },
-    onError: () => {
-      toast({ title: "Erreur", description: "Impossible de modifier le rôle.", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de modifier le rôle.", variant: "destructive" });
     },
   });
 
   const updatePermissionMutation = useMutation({
     mutationFn: async (params: { memberId: string; module: RbacModule; action: RbacAction; allowed: boolean }) => {
-      return apiRequest("PATCH", `/api/rbac/members/${params.memberId}/permissions`, {
+      const response = await apiRequest(`/api/rbac/members/${params.memberId}/permissions`, "PATCH", {
         module: params.module,
         action: params.action,
         allowed: params.allowed,
       });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMemberId, "permissions"] });
@@ -140,7 +133,8 @@ export function PermissionsTab() {
 
   const resetPermissionsMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      return apiRequest("POST", `/api/rbac/members/${memberId}/permissions/reset`);
+      const response = await apiRequest(`/api/rbac/members/${memberId}/permissions/reset`, "POST");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMemberId, "permissions"] });
@@ -153,16 +147,7 @@ export function PermissionsTab() {
 
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: RbacRole }) => {
-      const response = await fetch("/api/rbac/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || "Impossible d'ajouter le membre");
-      }
+      const response = await apiRequest("/api/rbac/invite", "POST", { email, role });
       return response.json();
     },
     onSuccess: () => {
