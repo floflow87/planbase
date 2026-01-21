@@ -10448,6 +10448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get the member to delete directly from DB
+      console.log("🔍 Fetching member to delete:", memberId);
       const [memberToDelete] = await db
         .select()
         .from(organizationMembers)
@@ -10457,12 +10458,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
       
+      console.log("📋 Found member:", memberToDelete);
+      
       if (!memberToDelete) {
         return res.status(404).json({ error: "Membre non trouvé dans cette organisation" });
       }
 
       // PROTECTION: Cannot delete account owner
       const targetUser = await storage.getUser(memberToDelete.userId);
+      console.log("👤 Target user:", targetUser?.email, "role:", targetUser?.role);
+      
       if (targetUser && targetUser.role === 'owner') {
         return res.status(403).json({ 
           error: "Impossible de supprimer le propriétaire du compte" 
@@ -10475,25 +10480,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Delete the member
+      console.log("🗑️ Deleting member from DB...");
       await db.delete(organizationMembers).where(eq(organizationMembers.id, memberId));
+      console.log("✅ Member deleted from DB");
 
-      // Log member removal
-      const { logAuditEvent } = await import("./services/auditService");
-      await logAuditEvent({
-        organizationId: accountId,
-        actorMemberId,
-        actionType: 'member.removed',
-        resourceType: 'member',
-        resourceId: memberId,
-        meta: { 
-          removedUserId: memberToDelete.userId,
-          removedUserEmail: targetUser?.email || 'unknown',
-          removedRole: memberToDelete.role,
-        },
-      });
+      // Log member removal (non-blocking)
+      try {
+        const { logAuditEvent } = await import("./services/auditService");
+        await logAuditEvent({
+          organizationId: accountId,
+          actorMemberId: actorMemberId!,
+          actionType: 'member.removed',
+          resourceType: 'member',
+          resourceId: memberId,
+          meta: { 
+            removedUserId: memberToDelete.userId,
+            removedUserEmail: targetUser?.email || 'unknown',
+            removedRole: memberToDelete.role,
+          },
+        });
+        console.log("📝 Audit log created");
+      } catch (auditError) {
+        console.error("⚠️ Audit log failed (non-blocking):", auditError);
+      }
 
       res.json({ success: true, message: "Membre supprimé de l'organisation" });
     } catch (error: any) {
+      console.error("❌ DELETE member error:", error);
       res.status(500).json({ error: error.message });
     }
   });
