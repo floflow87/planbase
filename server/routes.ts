@@ -6532,8 +6532,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ACCOUNT SETTINGS ROUTES
   // ============================================
 
-  // Get account details (OWNER ONLY)
-  app.get("/api/accounts/:accountId", requireAuth, requireRole("owner"), async (req, res) => {
+  // Get account details (for all organization members)
+  app.get("/api/accounts/:accountId", requireAuth, requireOrgMember, async (req, res) => {
     try {
       if (req.params.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied to this account" });
@@ -6544,11 +6544,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Account not found" });
       }
 
-      res.json({
-        id: account.id,
-        name: account.name,
-        siret: account.siret,
-      });
+      // Get user to check if they're the owner
+      const user = await storage.getUser(req.userId!);
+      const isOwner = user?.role === 'owner' && user?.accountId === req.accountId;
+
+      // Return full details for owners, limited details for members
+      if (isOwner) {
+        res.json({
+          id: account.id,
+          name: account.name,
+          siret: account.siret,
+          plan: account.plan,
+        });
+      } else {
+        // Invited members can only see organization name and ID
+        res.json({
+          id: account.id,
+          name: account.name,
+          plan: account.plan,
+        });
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

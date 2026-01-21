@@ -28,6 +28,7 @@ import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { appUsers } from "@shared/schema";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
@@ -767,6 +768,7 @@ export default function Settings() {
   
   const { startOnboarding } = useOnboarding();
   const { config, isLoading: configLoading, refetch: refetchConfig } = useConfig();
+  const { role: membershipRole, isAdmin } = usePermissions();
   
   const { data: userProfile, isLoading } = useQuery<AppUser>({
     queryKey: ["/api/me"],
@@ -775,10 +777,11 @@ export default function Settings() {
 
   const { data: account, isLoading: accountLoading } = useQuery<Account>({
     queryKey: ["/api/accounts", userProfile?.accountId],
-    enabled: !!userProfile?.accountId && userProfile?.role === "owner",
+    enabled: !!userProfile?.accountId, // Fetch for all users to show organization name
   });
 
   const isOwner = userProfile?.role === "owner";
+  const isInvitedUser = userProfile?.role === "user"; // Invited users have role "user"
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -1005,14 +1008,20 @@ export default function Settings() {
                         <div>
                           <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                             <Shield className="w-3 h-3" />
-                            Rôle
+                            {isInvitedUser ? "Organisation" : "Rôle"}
                           </Label>
-                          <Badge 
-                            variant={isOwner ? "default" : "secondary"} 
-                            data-testid="badge-role"
-                          >
-                            {isOwner ? "Propriétaire" : "Collaborateur"}
-                          </Badge>
+                          {isInvitedUser ? (
+                            <p className="text-sm font-medium" data-testid="text-organization-name">
+                              {account?.name || "—"}
+                            </p>
+                          ) : (
+                            <Badge 
+                              variant="default" 
+                              data-testid="badge-role"
+                            >
+                              Propriétaire
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
