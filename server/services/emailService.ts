@@ -3,6 +3,16 @@ import { Resend } from 'resend';
 let connectionSettings: any;
 
 async function getCredentials() {
+  // Check for direct environment variables first (for Render/production)
+  if (process.env.RESEND_API_KEY) {
+    console.log('📧 Using RESEND_API_KEY from environment');
+    return {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.EMAIL_FROM || 'Planbase <noreply@planbase.io>'
+    };
+  }
+
+  // Fall back to Replit connector system
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -62,6 +72,7 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
     
     // Use APP_URL for production, or planbase.io as default
     const baseUrl = process.env.APP_URL || 'https://planbase.io';
+    console.log('📧 EMAIL: APP_URL =', process.env.APP_URL, '→ baseUrl =', baseUrl);
     
     const inviteUrl = `${baseUrl}/accept-invitation?token=${params.token}`;
     const expirationDate = params.expiresAt.toLocaleDateString('fr-FR', {
