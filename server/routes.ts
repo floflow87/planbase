@@ -10482,10 +10482,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Vous ne pouvez pas vous supprimer vous-même" });
       }
 
-      // Delete the member
-      console.log("🗑️ Deleting member from DB...");
+      // Delete the member from organization_members
+      console.log("🗑️ Deleting member from organization_members...");
       await db.delete(organizationMembers).where(eq(organizationMembers.id, memberId));
-      console.log("✅ Member deleted from DB");
+      console.log("✅ Member deleted from organization_members");
+
+      // For invited users (non-owners), completely delete their account
+      // They should not have a standalone account - they only exist in the inviting organization
+      if (targetUser && targetUser.role !== 'owner') {
+        console.log("🗑️ Deleting invited user completely...");
+        
+        // Delete from app_users
+        await db.delete(appUsers).where(eq(appUsers.id, targetUser.id));
+        console.log("✅ User deleted from app_users");
+        
+        // Delete from Supabase Auth
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabaseAdmin = createClient(
+            process.env.VITE_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+          );
+          
+          await supabaseAdmin.auth.admin.deleteUser(targetUser.id);
+          console.log("✅ User deleted from Supabase Auth");
+        } catch (authError) {
+          console.error("⚠️ Failed to delete from Supabase Auth (non-blocking):", authError);
+        }
+      }
 
       // Log member removal (non-blocking)
       try {
@@ -10500,6 +10525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             removedUserId: memberToDelete.userId,
             removedUserEmail: targetUser?.email || 'unknown',
             removedRole: memberToDelete.role,
+            fullyDeleted: targetUser?.role !== 'owner',
           },
         });
         console.log("📝 Audit log created");
