@@ -1775,6 +1775,16 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Ticket comments comment_type column added");
 
+    // ============================================
+    // Update invitations role constraint for RBAC roles
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE invitations DROP CONSTRAINT IF EXISTS invitations_role_check;
+      ALTER TABLE invitations ADD CONSTRAINT invitations_role_check 
+        CHECK (role IN ('admin', 'member', 'guest', 'collaborator', 'client_viewer'));
+    `);
+    console.log("✅ Invitations role constraint updated for RBAC");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
