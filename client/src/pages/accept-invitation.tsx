@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { Loader2, User, Lock, Mail, ArrowLeft, Shield, CheckCircle } from "lucide-react";
 import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
 import planbaseLogo from "@assets/planbase-logo.png";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface InvitationInfo {
@@ -23,12 +23,6 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Administrateur",
   member: "Membre",
   guest: "Invité",
-};
-
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  admin: "Accès complet à toutes les fonctionnalités et paramètres",
-  member: "Accès aux projets et modules assignés",
-  guest: "Accès en lecture seule aux éléments partagés",
 };
 
 async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean> {
@@ -130,21 +124,13 @@ export default function AcceptInvitation() {
         throw new Error(errorData.error || "Erreur lors de l'inscription");
       }
 
-      const data = await response.json();
-
       toast({
         title: "Inscription réussie",
-        description: "Connexion en cours...",
+        description: "Vous pouvez maintenant vous connecter.",
         variant: "success",
       });
 
-      const hasSession = await waitForSession();
-      if (hasSession) {
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-        setLocation("/");
-      } else {
-        setLocation("/login");
-      }
+      setLocation("/login");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -169,75 +155,92 @@ export default function AcceptInvitation() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-              <Shield className="w-6 h-6 text-destructive" />
+      <div className="min-h-screen flex">
+        <div className="flex-1 flex items-center justify-center p-8 bg-background">
+          <div className="w-full max-w-md space-y-8 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
             </div>
-            <CardTitle>Invitation invalide</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground mb-2">Invitation invalide</h1>
+              <p className="text-muted-foreground">{error}</p>
+            </div>
             <Link href="/login">
-              <Button variant="outline">
+              <Button variant="outline" className="mt-4">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Retour à la connexion
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
+          <div className="flex flex-col items-center gap-8">
+            <div className="flex flex-col items-center">
+              <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>
+                PlanBase
+              </h2>
+              <p className="text-sm text-white/80 mt-2 font-light italic">Travaillez autrement</p>
+            </div>
+            <img 
+              src={mockupImage} 
+              alt="PlanBase Preview" 
+              className="max-w-2xl w-full"
+            />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <div className="lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8 lg:p-12 flex flex-col justify-center">
-        <div className="max-w-md mx-auto w-full">
-          <Link href="/" className="inline-block mb-8">
-            <img src={planbaseLogo} alt="PlanBase" className="h-8" />
-          </Link>
+    <div className="min-h-screen flex">
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-md space-y-6">
+          <div className="md:hidden flex flex-col items-center -mt-[27px] mb-8">
+            <img src={planbaseLogo} alt="PlanBase" className="w-14 h-14 rounded-xl shadow-lg mb-[22px]" />
+            <h2 className="text-2xl font-bold italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent">
+              PlanBase
+            </h2>
+          </div>
 
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Rejoindre {invitationInfo?.accountName}</h1>
-            <p className="text-muted-foreground">
+          <div className="text-left">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+              Rejoindre {invitationInfo?.accountName}
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               Vous avez été invité à rejoindre cette organisation
             </p>
           </div>
 
-          <Card className="mb-6 border-primary/20 bg-primary/5">
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <CheckCircle className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">Invitation de {invitationInfo?.inviterName}</p>
-                  <p className="text-sm text-muted-foreground">{invitationInfo?.accountName}</p>
+                  <p className="font-medium text-sm">Invitation de {invitationInfo?.inviterName}</p>
+                  <p className="text-xs text-muted-foreground">{invitationInfo?.accountName}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Votre rôle :</span>
-                <Badge variant="secondary">{ROLE_LABELS[invitationInfo?.role || "member"]}</Badge>
+                <span className="text-xs text-muted-foreground">Votre rôle :</span>
+                <Badge variant="secondary" className="text-xs">{ROLE_LABELS[invitationInfo?.role || "member"]}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {ROLE_DESCRIPTIONS[invitationInfo?.role || "member"]}
-              </p>
             </CardContent>
           </Card>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
                   value={invitationInfo?.email || ""}
                   disabled
-                  className="pl-10 bg-muted"
+                  className="pl-10 h-12 bg-muted"
                   data-testid="input-email"
                 />
               </div>
@@ -248,9 +251,9 @@ export default function AcceptInvitation() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
+                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">Prénom</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     id="firstName"
                     name="firstName"
@@ -259,13 +262,13 @@ export default function AcceptInvitation() {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    className="pl-10"
+                    className="pl-10 h-12"
                     data-testid="input-firstname"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
+                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">Nom</Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -274,44 +277,45 @@ export default function AcceptInvitation() {
                   value={formData.lastName}
                   onChange={handleChange}
                   required
+                  className="h-12"
                   data-testid="input-lastname"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">Mot de passe</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Votre mot de passe"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   minLength={6}
-                  className="pl-10"
+                  className="pl-10 h-12"
                   data-testid="input-password"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">Confirmer le mot de passe</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Confirmer le mot de passe"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
                   minLength={6}
-                  className="pl-10"
+                  className="pl-10 h-12"
                   data-testid="input-confirm-password"
                 />
               </div>
@@ -319,13 +323,13 @@ export default function AcceptInvitation() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-12 bg-violet-600 hover:bg-violet-700 text-white font-medium"
               disabled={loading}
               data-testid="button-submit"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Création du compte...
                 </>
               ) : (
@@ -334,21 +338,31 @@ export default function AcceptInvitation() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Vous avez déjà un compte ?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Se connecter
-            </Link>
-          </p>
+          <div className="text-center pt-4">
+            <p className="text-sm text-muted-foreground">
+              Vous avez déjà un compte ?{" "}
+              <Link href="/login">
+                <button className="text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300 font-medium">
+                  Se connecter
+                </button>
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 items-center justify-center p-12">
-        <div className="max-w-lg">
-          <img
-            src={mockupImage}
-            alt="PlanBase Interface"
-            className="w-full rounded-lg shadow-2xl"
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-violet-600 via-purple-600 to-violet-700 items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex flex-col items-center">
+            <h2 className="text-7xl font-bold text-white text-center tracking-tight" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif', fontStyle: 'italic' }}>
+              PlanBase
+            </h2>
+            <p className="text-sm text-white/80 mt-2 font-light italic">Travaillez autrement</p>
+          </div>
+          <img 
+            src={mockupImage} 
+            alt="PlanBase Preview" 
+            className="max-w-2xl w-full"
           />
         </div>
       </div>
