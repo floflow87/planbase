@@ -10465,11 +10465,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Membre non trouvé dans cette organisation" });
       }
 
-      // PROTECTION: Cannot delete account owner
+      // PROTECTION: Cannot delete THE owner of THIS organization
       const targetUser = await storage.getUser(memberToDelete.userId);
-      console.log("👤 Target user:", targetUser?.email, "role:", targetUser?.role);
+      console.log("👤 Target user:", targetUser?.email, "role:", targetUser?.role, "accountId:", targetUser?.accountId);
       
-      if (targetUser && targetUser.role === 'owner') {
+      // Only protect if user is owner AND their accountId matches this organization
+      const isOwnerOfThisOrg = targetUser && targetUser.role === 'owner' && targetUser.accountId === accountId;
+      if (isOwnerOfThisOrg) {
         return res.status(403).json({ 
           error: "Impossible de supprimer le propriétaire du compte" 
         });
