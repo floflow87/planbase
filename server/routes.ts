@@ -10890,9 +10890,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
       }
 
-      // Create user in our database
+      // Create user in our database (id must match Supabase auth.users.id)
       const newUser = await storage.createUser({
-        supabaseId: authData.user.id,
+        id: authData.user.id,
         email: invitation.email,
         firstName: firstName || '',
         lastName: lastName || '',

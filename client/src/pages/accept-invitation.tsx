@@ -225,7 +225,9 @@ export default function AcceptInvitation() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Votre rôle :</span>
-                <Badge variant="secondary" className="text-xs">{ROLE_LABELS[invitationInfo?.role || "member"]}</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {invitationInfo?.role ? ROLE_LABELS[invitationInfo.role] || invitationInfo.role : "Membre"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
