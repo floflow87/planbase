@@ -124,13 +124,46 @@ export default function AcceptInvitation() {
         throw new Error(errorData.error || "Erreur lors de l'inscription");
       }
 
+      // Sign in the user automatically
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: invitationInfo?.email || '',
+        password: formData.password,
+      });
+
+      if (signInError) {
+        // If sign-in fails, redirect to login page
+        toast({
+          title: "Inscription réussie",
+          description: "Vous pouvez maintenant vous connecter.",
+          variant: "success",
+        });
+        setLocation("/login");
+        return;
+      }
+
+      // Wait for session to be established
+      const sessionReady = await waitForSession();
+      if (!sessionReady) {
+        toast({
+          title: "Inscription réussie",
+          description: "Vous pouvez maintenant vous connecter.",
+          variant: "success",
+        });
+        setLocation("/login");
+        return;
+      }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries();
+
       toast({
-        title: "Inscription réussie",
-        description: "Vous pouvez maintenant vous connecter.",
+        title: "Bienvenue !",
+        description: "Votre compte a été créé avec succès.",
         variant: "success",
       });
 
-      setLocation("/login");
+      // Redirect to home - onboarding will trigger automatically
+      setLocation("/");
     } catch (error: any) {
       toast({
         variant: "destructive",
