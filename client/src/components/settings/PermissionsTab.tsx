@@ -112,7 +112,8 @@ export function PermissionsTab() {
 
   const copyInvitationLink = async (member: Member) => {
     if (!member.invitationToken) return;
-    const baseUrl = window.location.origin;
+    // Use planbase.io for production, current origin for development
+    const baseUrl = import.meta.env.VITE_APP_URL || 'https://planbase.io';
     const invitationLink = `${baseUrl}/accept-invitation?token=${member.invitationToken}`;
     try {
       await navigator.clipboard.writeText(invitationLink);

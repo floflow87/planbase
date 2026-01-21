@@ -58,11 +58,8 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
       : params.role === 'member' ? 'Membre' 
       : 'Invité';
     
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : process.env.REPLIT_DEPLOYMENT_URL 
-      ? `https://${process.env.REPLIT_DEPLOYMENT_URL}`
-      : 'https://planbase.io';
+    // Use APP_URL for production, or planbase.io as default
+    const baseUrl = process.env.APP_URL || 'https://planbase.io';
     
     const inviteUrl = `${baseUrl}/accept-invitation?token=${params.token}`;
     const expirationDate = params.expiresAt.toLocaleDateString('fr-FR', {

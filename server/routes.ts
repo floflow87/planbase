@@ -10396,7 +10396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/rbac/members/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership?.id;
+      const actorMemberId = req.memberId;
       const { memberId } = req.params;
 
       console.log("🗑️ DELETE member request:", { memberId, accountId, actorMemberId });
