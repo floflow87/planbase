@@ -9,7 +9,7 @@ const app = express();
 // Configure CORS for production
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://app.planbase.io', 'https://www.planbase.io']
+    ? (process.env.APP_URL ? [process.env.APP_URL] : ['https://app.planbase.io', 'https://www.planbase.io'])
     : true,
   credentials: true,
 }));
