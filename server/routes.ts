@@ -10777,6 +10777,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate invitation token (public - no auth required)
+  app.get("/api/invitations/validate", async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Token d'invitation invalide" });
+      }
+
+      const { invitations } = await import("@shared/schema");
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.token, token))
+        .limit(1);
+
+      if (!invitation) {
+        return res.status(404).json({ error: "Invitation non trouvée" });
+      }
+
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ error: "Cette invitation a déjà été utilisée ou révoquée" });
+      }
+
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Cette invitation a expiré" });
+      }
+
+      // Get account name for display
+      const account = await storage.getAccount(invitation.accountId);
+      
+      // Get inviter name (from first admin of the account)
+      const members = await permissionService.getMembersByOrganization(invitation.accountId);
+      const adminMember = members.find(m => m.role === 'admin');
+      let inviterName = 'Un membre';
+      if (adminMember) {
+        const inviter = await storage.getUser(adminMember.userId);
+        if (inviter) {
+          inviterName = inviter.firstName && inviter.lastName 
+            ? `${inviter.firstName} ${inviter.lastName}` 
+            : inviter.email || 'Un membre';
+        }
+      }
+
+      res.json({
+        email: invitation.email,
+        role: invitation.role,
+        accountName: account?.name || 'Organisation',
+        inviterName,
+      });
+    } catch (error: any) {
+      console.error("Validate invitation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Accept invitation and create account (public - no auth required)
+  app.post("/api/invitations/accept", async (req, res) => {
+    try {
+      const { token, password, firstName, lastName } = req.body;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Token d'invitation invalide" });
+      }
+
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères" });
+      }
+
+      const { invitations } = await import("@shared/schema");
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.token, token))
+        .limit(1);
+
+      if (!invitation) {
+        return res.status(404).json({ error: "Invitation non trouvée" });
+      }
+
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ error: "Cette invitation a déjà été utilisée ou révoquée" });
+      }
+
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Cette invitation a expiré" });
+      }
+
+      // Check if user already exists with this email
+      const existingUser = await storage.getUserByEmail(invitation.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "Un compte existe déjà avec cet email. Connectez-vous pour rejoindre l'organisation." });
+      }
+
+      // Create user in Supabase Auth
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(
+        process.env.VITE_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: invitation.email,
+        password,
+        email_confirm: true,
+      });
+
+      if (authError || !authData.user) {
+        console.error("Supabase auth error:", authError);
+        return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
+      }
+
+      // Create user in our database
+      const newUser = await storage.createUser({
+        supabaseId: authData.user.id,
+        email: invitation.email,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        accountId: invitation.accountId,
+        role: 'user', // Not owner since they're joining an existing org
+      });
+
+      // Create organization member with the invited role
+      const newMember = await permissionService.createMember({
+        organizationId: invitation.accountId,
+        userId: newUser.id,
+        role: invitation.role,
+      });
+
+      // Mark invitation as accepted
+      await db
+        .update(invitations)
+        .set({ status: 'accepted' })
+        .where(eq(invitations.id, invitation.id));
+
+      // Log the acceptance
+      const { logAuditEvent } = await import("./services/auditService");
+      await logAuditEvent({
+        organizationId: invitation.accountId,
+        actorMemberId: newMember.id,
+        actionType: 'invitation.accepted',
+        resourceType: 'invitation',
+        resourceId: invitation.id,
+        meta: { email: invitation.email, role: invitation.role },
+      });
+
+      // Sign in the user
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: invitation.email,
+      });
+
+      res.json({
+        success: true,
+        user: newUser,
+        member: newMember,
+        message: "Compte créé avec succès. Vous pouvez maintenant vous connecter.",
+      });
+    } catch (error: any) {
+      console.error("Accept invitation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // MODULE VIEWS - Custom view configurations for guests
   // ============================================

@@ -39,6 +39,7 @@ import Settings from "@/pages/settings";
 import SharePublicPage from "@/pages/share-public";
 import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
+import AcceptInvitation from "@/pages/accept-invitation";
 import NotFound from "@/pages/not-found";
 import { LogOut, Mail, Calendar, Plus, X, User, Moon, Sun, Users, FolderKanban, CheckSquare, StickyNote } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -71,6 +72,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/accept-invitation" component={AcceptInvitation} />
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
       </Route>

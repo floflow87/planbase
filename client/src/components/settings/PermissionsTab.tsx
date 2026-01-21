@@ -91,7 +91,7 @@ const ROLE_COLORS: Record<RbacRole, string> = {
 
 export function PermissionsTab() {
   const { toast } = useToast();
-  const { isAdmin } = usePermissions();
+  const { isAdmin, memberId: currentMemberId } = usePermissions();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -400,7 +400,7 @@ export function PermissionsTab() {
                         </SelectContent>
                       </Select>
                     )}
-                    {!member.isOwner && (
+                    {!member.isOwner && member.id !== currentMemberId && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
