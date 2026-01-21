@@ -164,7 +164,7 @@ function Router() {
 }
 
 function UserMenu() {
-  const { user, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
 
@@ -179,7 +179,10 @@ function UserMenu() {
 
   if (!user) return null;
 
-  const userInitials = user.email?.substring(0, 2).toUpperCase() || "U";
+  // Priority: FirstName + LastName initials, then email first 2 chars
+  const userInitials = userProfile?.firstName && userProfile?.lastName
+    ? `${userProfile.firstName[0]}${userProfile.lastName[0]}`.toUpperCase()
+    : user.email?.substring(0, 2).toUpperCase() || "U";
 
   return (
     <DropdownMenu>

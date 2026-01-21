@@ -970,7 +970,7 @@ export default function Settings() {
 
           <TabsContent value="informations" className="space-y-4">
             <Accordion type="multiple" defaultValue={["account", "personal", "profile", "password", "tour"]} className="space-y-3">
-              <AccordionItem value="account" className="border rounded-lg px-4">
+              <AccordionItem value="account" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center justify-between w-full pr-2">
                     <div className="flex items-center gap-2">
@@ -1103,7 +1103,7 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="personal" className="border rounded-lg px-4">
+              <AccordionItem value="personal" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <UserCircle className="w-4 h-4" />
@@ -1293,7 +1293,7 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="profile" className="border rounded-lg px-4">
+              <AccordionItem value="profile" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <Target className="w-4 h-4" />
@@ -1308,7 +1308,7 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="password" className="border rounded-lg px-4">
+              <AccordionItem value="password" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <Lock className="w-4 h-4" />
@@ -1414,7 +1414,7 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="tour" className="border rounded-lg px-4">
+              <AccordionItem value="tour" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4" />
