@@ -1,0 +1,54 @@
+    jobTitle: 'Admin',
+    lastName: 'Martin',
+    name: 'Demo Owner',
+    role: 'owner'
+  }
+}
+✅ AUTH SUCCESS: {
+  userId: '839d3ce6-6fbf-4541-952d-a999b193572f',
+  email: 'floflow87@planbase.io',
+  accountId: 'b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4',
+  role: 'owner'
+}
+✅ AUTH SUCCESS: {
+  userId: '839d3ce6-6fbf-4541-952d-a999b193572f',
+  email: 'floflow87@planbase.io',
+  accountId: 'b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4',
+  role: 'owner'
+}
+[GET]
+app.planbase.io/api/me clientIP="45.82.64.240" requestID="b1d425b9-a549-429d" responseTimeMS=314 responseBytes=234 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+[GET]
+app.planbase.io/api/time-entries/active clientIP="45.82.64.240" requestID="2e0f8bef-b3f4-49d9" responseTimeMS=369 responseBytes=232 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+3:51:10 PM [express] GET /api/me 304 in 313ms :: {"id":"839d3ce6-6fbf-4541-952d-a999b193572f","accou…
+3:51:10 PM [express] GET /api/time-entries/active 304 in 367ms
+[GET]
+app.planbase.io/api/time-entries/active clientIP="45.82.64.240" requestID="3d27cc36-520d-4a4f" responseTimeMS=291 responseBytes=232 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+🔍 AUTH DEBUG: {
+  userId: '9fe4ddc0-6d3f-4d69-9c77-fc9cb2e79c8d',
+  email: 'floflow87@planbase.io',
+  accountId: 'b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4',
+  role: 'owner',
+  metadata: {
+    account_id: 'b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4',
+    displayName: 'Florent Martin',
+    email_verified: true,
+    firstName: 'Florent',
+    gender: 'male',
+    jobTitle: 'Admin',
+    lastName: 'Martin',
+    name: 'Demo Owner',
+    role: 'owner'
+  }
+}
+✅ AUTH SUCCESS: {
+  userId: '839d3ce6-6fbf-4541-952d-a999b193572f',
+  email: 'floflow87@planbase.io',
+  accountId: 'b79f7c03-9ca0-4a0f-a4ec-c203110a1ac4',
+  role: 'owner'
+}
+3:51:11 PM [express] GET /api/time-entries/active 304 in 290ms
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+[HEAD]
+app.planbase.io/ clientIP="5.161.75.7" requestID="58517424-dd42-4da3" responseTimeMS=3 responseBytes=406 userAgent="Mozilla/5.0+(compatible; UptimeRobot/2.0; http://www.uptimer
