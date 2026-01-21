@@ -240,23 +240,26 @@ export async function requireOrgMember(req: Request, res: Response, next: NextFu
     let member = await permissionService.getMemberByUserAndOrg(req.userId, req.accountId);
     
     if (!member) {
-      // Auto-create member for legacy users (owner = admin, collaborator = member, client_viewer = guest)
-      const roleMapping: Record<string, "admin" | "member" | "guest"> = {
-        owner: "admin",
-        collaborator: "member",
-        client_viewer: "guest",
-      };
-      
-      const orgRole = roleMapping[req.userRole || "collaborator"] || "member";
-      
-      const newMember = await permissionService.createMember({
-        organizationId: req.accountId,
-        userId: req.userId,
-        role: orgRole,
-      });
-      
-      req.memberId = newMember.id;
-      req.orgRole = orgRole;
+      // Only auto-create membership for account OWNER (emergency recovery)
+      // All other users without membership must be rejected (they were likely removed)
+      if (req.userRole === "owner") {
+        console.log(`🔧 AUTO-CREATE: Creating admin membership for account owner ${req.userId}`);
+        const newMember = await permissionService.createMember({
+          organizationId: req.accountId,
+          userId: req.userId,
+          role: "admin",
+        });
+        
+        req.memberId = newMember.id;
+        req.orgRole = "admin";
+      } else {
+        // User was removed from organization - reject access
+        console.log(`🚫 ACCESS DENIED: User ${req.userId} has no membership in organization ${req.accountId}`);
+        return res.status(403).json({ 
+          error: "NO_MEMBERSHIP",
+          message: "Vous n'avez plus accès à cette organisation. Votre accès a été révoqué."
+        });
+      }
     } else {
       // AUTO-FIX: If user is account owner but not admin in RBAC, correct it automatically
       if (req.userRole === "owner" && member.role !== "admin") {

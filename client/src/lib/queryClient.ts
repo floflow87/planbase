@@ -4,6 +4,9 @@ import { supabase } from "./supabase";
 // Track if we're already handling a 401 to prevent infinite loops
 let isHandling401 = false;
 
+// Track if we're already handling access revocation
+let isHandlingAccessRevoked = false;
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -28,6 +31,35 @@ async function throwIfResNotOk(res: Response) {
       
       // Reset flag after a delay
       setTimeout(() => { isHandling401 = false; }, 2000);
+    }
+    
+    // Handle access revocation (NO_MEMBERSHIP error)
+    if (res.status === 403 && !isHandlingAccessRevoked) {
+      try {
+        const errorData = JSON.parse(text);
+        if (errorData.error === "NO_MEMBERSHIP") {
+          // Skip if already on login page
+          if (window.location.pathname === "/login") {
+            throw new Error(`${res.status}: ${text}`);
+          }
+          
+          isHandlingAccessRevoked = true;
+          console.warn("403 NO_MEMBERSHIP - access revoked, signing out");
+          
+          // Clear all queries first to prevent more requests
+          queryClient.clear();
+          
+          await supabase.auth.signOut();
+          
+          // Redirect to login with message
+          window.location.href = "/login?revoked=true";
+          
+          // Reset flag after a delay
+          setTimeout(() => { isHandlingAccessRevoked = false; }, 2000);
+        }
+      } catch (parseError) {
+        // Not a JSON error, continue normally
+      }
     }
     
     throw new Error(`${res.status}: ${text}`);

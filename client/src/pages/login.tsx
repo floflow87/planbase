@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
-import { Loader2, User, Lock, Monitor } from "lucide-react";
+import { Loader2, User, Lock, Monitor, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import mockupImage from "@assets/PlanBase mockup web_1762441884022.png";
 import planbaseLogo from "@assets/planbase-logo.png";
 
@@ -24,11 +25,20 @@ async function waitForSession(maxAttempts = 10, delayMs = 300): Promise<boolean>
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const { signIn } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showRevokedMessage, setShowRevokedMessage] = useState(false);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    if (params.get("revoked") === "true") {
+      setShowRevokedMessage(true);
+    }
+  }, [searchString]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +119,17 @@ export default function Login() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Connexion</h1>
             <p className="text-sm md:text-base text-muted-foreground">Accédez à votre compte</p>
           </div>
+
+          {showRevokedMessage && (
+            <Alert variant="destructive" data-testid="alert-access-revoked">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Accès révoqué</AlertTitle>
+              <AlertDescription>
+                Votre accès à cette organisation a été révoqué par un administrateur.
+                Veuillez contacter l'administrateur si vous pensez qu'il s'agit d'une erreur.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
