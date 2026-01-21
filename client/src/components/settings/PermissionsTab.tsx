@@ -144,7 +144,7 @@ export function PermissionsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
-      toast({ title: "Rôle mis à jour", description: "Le rôle a été modifié avec succès." });
+      toast({ title: "Rôle mis à jour", description: "Le rôle a été modifié avec succès.", variant: "success" });
     },
     onError: (error: Error) => {
       toast({ title: "Erreur", description: error.message || "Impossible de modifier le rôle.", variant: "destructive" });
@@ -162,7 +162,7 @@ export function PermissionsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMemberId, "permissions"] });
-      toast({ title: "Permission mise à jour" });
+      toast({ title: "Permission mise à jour", variant: "success" });
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de modifier la permission.", variant: "destructive" });
@@ -176,7 +176,7 @@ export function PermissionsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMemberId, "permissions"] });
-      toast({ title: "Permissions réinitialisées", description: "Les permissions par défaut ont été restaurées." });
+      toast({ title: "Permissions réinitialisées", description: "Les permissions par défaut ont été restaurées.", variant: "success" });
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de réinitialiser les permissions.", variant: "destructive" });
@@ -191,7 +191,7 @@ export function PermissionsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       setSelectedMemberId(null);
-      toast({ title: "Membre supprimé", description: "Le membre a été retiré de l'organisation." });
+      toast({ title: "Membre supprimé", description: "Le membre a été retiré de l'organisation.", variant: "success" });
     },
     onError: (error: Error) => {
       toast({ title: "Erreur", description: error.message || "Impossible de supprimer le membre.", variant: "destructive" });
@@ -205,7 +205,7 @@ export function PermissionsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
-      toast({ title: "Membre ajouté", description: "Le membre a été ajouté à votre organisation." });
+      toast({ title: "Membre ajouté", description: "Le membre a été ajouté à votre organisation.", variant: "success" });
       setInviteDialogOpen(false);
       setInviteEmail("");
       setInviteRole("member");

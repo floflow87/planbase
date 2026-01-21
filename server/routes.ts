@@ -10287,10 +10287,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedMembers = await Promise.all(
         members.map(async (member) => {
           const user = await storage.getUser(member.userId);
+          // isOwner = true only if this user is the owner of THIS organization
+          // i.e., their accountId matches this organization's accountId AND they have role 'owner'
+          const isOwnerOfThisOrg = user?.role === 'owner' && user?.accountId === accountId;
           return {
             ...member,
             status: "actif",
-            isOwner: user?.role === 'owner',
+            isOwner: isOwnerOfThisOrg,
             user: user ? {
               id: user.id,
               email: user.email,
