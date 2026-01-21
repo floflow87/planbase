@@ -992,7 +992,7 @@ export default function Settings() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg border">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-white dark:bg-card rounded-lg border">
                         <div>
                           <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                             <Hash className="w-3 h-3" />
@@ -1452,9 +1452,6 @@ export default function Settings() {
                       Personnalisez les statuts et seuils pour votre compte
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    Portée: ACCOUNT
-                  </Badge>
                 </div>
 
                 <TJMEditor onRefetch={refetchConfig} />
