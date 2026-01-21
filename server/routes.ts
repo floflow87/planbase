@@ -681,41 +681,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email required" });
       }
       
-      console.log(`🧹 Cleaning up orphaned data for email: ${email}`);
+      console.log(`🧹 Cleaning up ALL data for email: ${email}`);
       
-      // Find user in app_users by email
-      const [user] = await db.select().from(appUsers).where(eq(appUsers.email, email)).limit(1);
-      
-      if (!user) {
-        console.log(`⚠️ No user found with email: ${email}`);
-        return res.json({ success: true, message: "Aucun utilisateur trouvé avec cet email" });
+      // Delete ALL invitations for this email
+      try {
+        const invResult = await db.delete(invitations).where(eq(invitations.email, email.toLowerCase().trim()));
+        console.log(`🧹 Deleted from invitations`);
+      } catch (e: any) {
+        console.error(`❌ Error deleting from invitations:`, e.message);
       }
       
-      console.log(`🧹 Found user: ${user.id}, role: ${user.role}, accountId: ${user.accountId}`);
+      // Find ALL users in app_users by email (there could be multiple)
+      const users = await db.select().from(appUsers).where(eq(appUsers.email, email));
+      console.log(`🧹 Found ${users.length} user(s) with email: ${email}`);
       
-      // Delete from organization_members first
-      if (user.accountId) {
+      for (const user of users) {
+        console.log(`🧹 Processing user: ${user.id}, role: ${user.role}, accountId: ${user.accountId}`);
+        
+        // Delete from organization_members first
         try {
-          const omResult = await db.delete(organizationMembers).where(eq(organizationMembers.userId, user.id));
-          console.log(`🧹 Deleted from organization_members`);
+          await db.delete(organizationMembers).where(eq(organizationMembers.userId, user.id));
+          console.log(`🧹 Deleted user ${user.id} from organization_members`);
         } catch (e: any) {
           console.error(`❌ Error deleting from organization_members:`, e.message);
         }
-      }
-      
-      // Delete from app_users
-      try {
-        await db.delete(appUsers).where(eq(appUsers.id, user.id));
-        console.log(`🧹 Deleted from app_users`);
-      } catch (e: any) {
-        console.error(`❌ Error deleting from app_users:`, e.message);
+        
+        // Delete from app_users
+        try {
+          await db.delete(appUsers).where(eq(appUsers.id, user.id));
+          console.log(`🧹 Deleted user ${user.id} from app_users`);
+        } catch (e: any) {
+          console.error(`❌ Error deleting from app_users:`, e.message);
+        }
       }
       
       // Also try to delete from Supabase Auth if still exists
       await deleteSupabaseAuthUserByEmail(email);
       
-      console.log(`✅ Cleanup complete for ${email}`);
-      res.json({ success: true, message: `Données orphelines supprimées pour ${email}` });
+      console.log(`✅ Full cleanup complete for ${email}`);
+      res.json({ success: true, message: `Toutes les données supprimées pour ${email}` });
     } catch (error: any) {
       console.error(`❌ Cleanup error:`, error);
       res.status(500).json({ error: error.message });
