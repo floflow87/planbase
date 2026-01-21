@@ -334,8 +334,8 @@ export function RoleViewConfig() {
   return (
     <Card data-testid="card-role-view-config">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Eye className="w-5 h-5" />
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Eye className="w-4 h-4" />
           Vues par défaut
         </CardTitle>
         <CardDescription>

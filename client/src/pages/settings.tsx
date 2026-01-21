@@ -986,10 +986,6 @@ export default function Settings() {
               <Users className="w-3.5 h-3.5" />
               Utilisateurs
             </TabsTrigger>
-            <TabsTrigger value="audit" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-audit">
-              <Clock className="w-3.5 h-3.5" />
-              Audit
-            </TabsTrigger>
             <TabsTrigger value="integrations" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-integrations">
               <Puzzle className="w-3.5 h-3.5" />
               Intégrations
@@ -1328,22 +1324,7 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="profile" className="border rounded-lg px-4 bg-white dark:bg-card">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    <span className="text-sm font-semibold">Type de profil</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ProfileTypeCard 
-                    currentProfileType={(userProfile?.profile as { type?: UserProfileType } | null)?.type}
-                    embedded={true}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-<AccordionItem value="tour" className="border rounded-lg px-4 bg-white dark:bg-card">
+              <AccordionItem value="tour" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4" />
@@ -1371,45 +1352,60 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="config">
-            {!isOwner ? (
+            <div className="space-y-6">
               <Card>
-                <CardContent className="py-8">
-                  <div className="text-center text-muted-foreground">
-                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">Seuls les propriétaires du compte peuvent modifier la configuration.</p>
-                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    <CardTitle className="text-sm">Type de profil</CardTitle>
                   </div>
+                  <CardDescription className="text-xs">
+                    Sélectionnez votre type de profil pour personnaliser votre expérience
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProfileTypeCard 
+                    currentProfileType={(userProfile?.profile as { type?: UserProfileType } | null)?.type}
+                    embedded={true}
+                  />
                 </CardContent>
               </Card>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold">Configuration du compte</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Personnalisez les statuts et seuils pour votre compte
-                    </p>
-                  </div>
-                </div>
 
-                <TJMEditor onRefetch={refetchConfig} />
+              {!isOwner ? (
+                <Card>
+                  <CardContent className="py-8">
+                    <div className="text-center text-muted-foreground">
+                      <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-sm">Seuls les propriétaires du compte peuvent modifier la configuration.</p>
+                      <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-sm font-semibold">Configuration du compte</h2>
+                      <p className="text-xs text-muted-foreground">
+                        Personnalisez les statuts et seuils pour votre compte
+                      </p>
+                    </div>
+                  </div>
+
+                  <TJMEditor onRefetch={refetchConfig} />
 
                 <ThresholdEditor
-                  thresholds={config?.thresholds as ThresholdConfig}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
-
-              </div>
-            )}
+                    thresholds={config?.thresholds as ThresholdConfig}
+                    onSave={handleSave}
+                    isPending={updateConfigMutation.isPending}
+                  />
+                </>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="permissions" className="space-y-6">
             <PermissionsTab />
-          </TabsContent>
-
-          <TabsContent value="audit" className="space-y-6">
-            <AuditTab />
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">
