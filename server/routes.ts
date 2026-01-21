@@ -10447,15 +10447,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ success: true, message: "Invitation révoquée" });
       }
 
-      // Get the member to delete
-      const memberToDelete = await permissionService.getMember(memberId);
+      // Get the member to delete directly from DB
+      const [memberToDelete] = await db
+        .select()
+        .from(organizationMembers)
+        .where(and(
+          eq(organizationMembers.id, memberId),
+          eq(organizationMembers.organizationId, accountId)
+        ))
+        .limit(1);
+      
       if (!memberToDelete) {
-        return res.status(404).json({ error: "Membre non trouvé" });
-      }
-
-      // Check if member belongs to this organization
-      if (memberToDelete.organizationId !== accountId) {
-        return res.status(403).json({ error: "Ce membre n'appartient pas à cette organisation" });
+        return res.status(404).json({ error: "Membre non trouvé dans cette organisation" });
       }
 
       // PROTECTION: Cannot delete account owner
