@@ -977,14 +977,26 @@ export default function Settings() {
                       <Building2 className="w-4 h-4" />
                       <span className="text-sm font-semibold">Informations du compte</span>
                     </div>
-                    {userProfile?.account?.plan && (
+                    <div className="flex items-center gap-2">
+                      {userProfile?.account?.plan && (
+                        <Badge 
+                          className="bg-green-600 hover:bg-green-700 text-white font-semibold" 
+                          data-testid="badge-plan"
+                        >
+                          {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
+                        </Badge>
+                      )}
                       <Badge 
-                        className="bg-green-600 hover:bg-green-700 text-white font-semibold mr-2" 
-                        data-testid="badge-plan"
+                        variant={isAdmin ? "default" : membershipRole === 'member' ? "secondary" : "outline"}
+                        className="mr-2"
+                        data-testid="badge-role-header"
                       >
-                        {userProfile.account.plan === 'starter' ? 'Start' : userProfile.account.plan}
+                        {isAdmin ? "Administrateur" : 
+                         membershipRole === 'member' ? "Membre" : 
+                         membershipRole === 'guest' ? "Invité" : 
+                         isOwner ? "Propriétaire" : "Membre"}
                       </Badge>
-                    )}
+                    </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
@@ -1007,21 +1019,12 @@ export default function Settings() {
                         </div>
                         <div>
                           <Label className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                            <Shield className="w-3 h-3" />
-                            {isInvitedUser ? "Organisation" : "Rôle"}
+                            <Building2 className="w-3 h-3" />
+                            Organisation
                           </Label>
-                          {isInvitedUser ? (
-                            <p className="text-sm font-medium" data-testid="text-organization-name">
-                              {account?.name || "—"}
-                            </p>
-                          ) : (
-                            <Badge 
-                              variant="default" 
-                              data-testid="badge-role"
-                            >
-                              Propriétaire
-                            </Badge>
-                          )}
+                          <p className="text-sm font-medium" data-testid="text-organization-name">
+                            {account?.name || "—"}
+                          </p>
                         </div>
                       </div>
 
