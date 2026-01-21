@@ -524,6 +524,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to delete user from Supabase Auth by email
+  async function deleteSupabaseAuthUserByEmail(email: string): Promise<void> {
+    // List users and find by email since we don't have the Supabase Auth ID
+    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) {
+      console.error(`❌ Error listing Supabase Auth users:`, listError);
+      return;
+    }
+    
+    const supabaseUser = listData.users.find(u => u.email === email);
+    if (supabaseUser) {
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(supabaseUser.id);
+      if (deleteError) {
+        console.error(`❌ Error deleting ${email} from Supabase Auth:`, deleteError);
+      } else {
+        console.log(`🗑️ Deleted ${email} from Supabase Auth (ID: ${supabaseUser.id})`);
+      }
+    } else {
+      console.log(`⚠️ User ${email} not found in Supabase Auth`);
+    }
+  }
+
   // Delete user account
   app.delete("/api/me/delete", requireAuth, async (req, res) => {
     try {
@@ -537,8 +559,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const isOwner = user.role === "owner";
       const accountId = user.accountId;
+      const userEmail = user.email;
 
-      console.log(`🗑️ Delete account request for user ${userId}, role: ${user.role}, isOwner: ${isOwner}`);
+      console.log(`🗑️ Delete account request for user ${userId} (${userEmail}), role: ${user.role}, isOwner: ${isOwner}`);
 
       if (isOwner && accountId) {
         // Owner: Delete all organization data, members, and the account
@@ -562,8 +585,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
               // Delete from app_users
               await db.delete(appUsers).where(eq(appUsers.id, member.userId));
-              // Delete from Supabase Auth
-              await supabaseAdmin.auth.admin.deleteUser(member.userId);
+              // Delete from Supabase Auth using email
+              await deleteSupabaseAuthUserByEmail(memberUser.email);
               console.log(`🗑️ Deleted invited member ${member.userId} from organization`);
             }
           }
@@ -579,11 +602,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Delete the owner user from app_users
         await db.delete(appUsers).where(eq(appUsers.id, userId));
         
-        // Delete from Supabase Auth
-        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-        if (authError) {
-          console.error(`❌ Error deleting owner from Supabase Auth:`, authError);
-        }
+        // Delete from Supabase Auth using email
+        await deleteSupabaseAuthUserByEmail(userEmail);
         
         console.log(`✅ Owner ${userId} and organization ${accountId} deleted successfully`);
       } else {
@@ -605,11 +625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.delete(appUsers).where(eq(appUsers.id, userId));
         console.log(`🗑️ Deleted user from app_users`);
         
-        // Delete from Supabase Auth
-        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-        if (authError) {
-          console.error(`❌ Error deleting user from Supabase Auth:`, authError);
-        }
+        // Delete from Supabase Auth using email
+        await deleteSupabaseAuthUserByEmail(userEmail);
         
         console.log(`✅ Invited user ${userId} deleted successfully (organization data preserved)`);
       }
