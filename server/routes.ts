@@ -10290,6 +10290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return {
             ...member,
             status: "actif",
+            isOwner: user?.role === 'owner',
             user: user ? {
               id: user.id,
               email: user.email,
@@ -10383,6 +10384,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await logMemberRoleChanged(accountId, actorMemberId, memberId, oldRole, role);
 
       res.json(member);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a member from the organization (admin only)
+  app.delete("/api/rbac/members/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const actorMemberId = req.membership!.id;
+      const { memberId } = req.params;
+
+      // Check if it's a pending invitation
+      if (memberId.startsWith('invitation-')) {
+        const invitationId = memberId.replace('invitation-', '');
+        // Delete the invitation
+        await db.delete(invitations).where(eq(invitations.id, invitationId));
+        
+        // Log invitation revocation
+        const { logAuditEvent } = await import("./services/auditService");
+        await logAuditEvent({
+          organizationId: accountId,
+          actorMemberId,
+          actionType: 'invitation.revoked',
+          resourceType: 'invitation',
+          resourceId: invitationId,
+          meta: { revokedInvitationId: invitationId },
+        });
+        
+        return res.json({ success: true, message: "Invitation révoquée" });
+      }
+
+      // Get the member to delete
+      const memberToDelete = await permissionService.getMember(memberId);
+      if (!memberToDelete) {
+        return res.status(404).json({ error: "Membre non trouvé" });
+      }
+
+      // Check if member belongs to this organization
+      if (memberToDelete.organizationId !== accountId) {
+        return res.status(403).json({ error: "Ce membre n'appartient pas à cette organisation" });
+      }
+
+      // PROTECTION: Cannot delete account owner
+      const targetUser = await storage.getUser(memberToDelete.userId);
+      if (targetUser && targetUser.role === 'owner') {
+        return res.status(403).json({ 
+          error: "Impossible de supprimer le propriétaire du compte" 
+        });
+      }
+
+      // Cannot delete yourself
+      if (memberId === actorMemberId) {
+        return res.status(403).json({ error: "Vous ne pouvez pas vous supprimer vous-même" });
+      }
+
+      // Delete the member
+      await db.delete(organizationMembers).where(eq(organizationMembers.id, memberId));
+
+      // Log member removal
+      const { logAuditEvent } = await import("./services/auditService");
+      await logAuditEvent({
+        organizationId: accountId,
+        actorMemberId,
+        actionType: 'member.removed',
+        resourceType: 'member',
+        resourceId: memberId,
+        meta: { 
+          removedUserId: memberToDelete.userId,
+          removedUserEmail: targetUser?.email || 'unknown',
+          removedRole: memberToDelete.role,
+        },
+      });
+
+      res.json({ success: true, message: "Membre supprimé de l'organisation" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

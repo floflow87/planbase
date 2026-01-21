@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check } from "lucide-react";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check, Trash2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -52,6 +52,7 @@ interface Member {
   role: RbacRole;
   status?: string;
   invitationToken?: string;
+  isOwner?: boolean;
   createdAt: string;
   user: MemberUser | null;
 }
@@ -167,6 +168,21 @@ export function PermissionsTab() {
     },
     onError: () => {
       toast({ title: "Erreur", description: "Impossible de réinitialiser les permissions.", variant: "destructive" });
+    },
+  });
+
+  const deleteMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const response = await apiRequest(`/api/rbac/members/${memberId}`, "DELETE");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      setSelectedMemberId(null);
+      toast({ title: "Membre supprimé", description: "Le membre a été retiré de l'organisation." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de supprimer le membre.", variant: "destructive" });
     },
   });
 
@@ -358,7 +374,7 @@ export function PermissionsTab() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>
+                        <TooltipContent className="bg-white text-foreground border">
                           {copiedInvitationId === member.id 
                             ? "Lien d'inscription copié" 
                             : "Copier le lien d'inscription"
@@ -372,7 +388,7 @@ export function PermissionsTab() {
                         onValueChange={(value) => {
                           updateRoleMutation.mutate({ memberId: member.id, role: value as RbacRole });
                         }}
-                        disabled={updateRoleMutation.isPending}
+                        disabled={updateRoleMutation.isPending || member.isOwner}
                       >
                         <SelectTrigger className="w-[130px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
                           <SelectValue />
@@ -383,6 +399,37 @@ export function PermissionsTab() {
                           <SelectItem value="guest">Invité</SelectItem>
                         </SelectContent>
                       </Select>
+                    )}
+                    {!member.isOwner && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(isPending 
+                                ? "Voulez-vous vraiment révoquer cette invitation ?" 
+                                : "Voulez-vous vraiment retirer ce membre de l'organisation ?"
+                              )) {
+                                deleteMemberMutation.mutate(member.id);
+                              }
+                            }}
+                            disabled={deleteMemberMutation.isPending}
+                            data-testid={`button-delete-member-${member.id}`}
+                          >
+                            {deleteMemberMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-white text-foreground border">
+                          {isPending ? "Révoquer l'invitation" : "Retirer de l'organisation"}
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </div>

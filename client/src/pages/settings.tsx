@@ -1449,7 +1449,7 @@ export default function Settings() {
                   <div>
                     <h2 className="text-sm font-semibold">Configuration du compte</h2>
                     <p className="text-xs text-muted-foreground">
-                      Personnalisez les étapes, statuts et seuils pour votre compte
+                      Personnalisez les statuts et seuils pour votre compte
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs">
@@ -1465,41 +1465,6 @@ export default function Settings() {
                   isPending={updateConfigMutation.isPending}
                 />
 
-                <ConfigEditor
-                  configKey="project.stages"
-                  title="Étapes de projet"
-                  description="Définissez les étapes du pipeline de projets"
-                  currentValue={config?.["project.stages"] as StageConfig[]}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
-
-                <ConfigEditor
-                  configKey="task.statuses"
-                  title="Statuts de tâches"
-                  description="Configurez les statuts du workflow de tâches"
-                  currentValue={config?.["task.statuses"] as StageConfig[]}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
-
-                <ConfigEditor
-                  configKey="task.priorities"
-                  title="Priorités des tâches"
-                  description="Personnalisez les niveaux de priorité"
-                  currentValue={config?.["task.priorities"] as StageConfig[]}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
-
-                <ConfigEditor
-                  configKey="billing.statuses"
-                  title="Statuts de facturation"
-                  description="Configurez les états de facturation"
-                  currentValue={config?.["billing.statuses"] as StageConfig[]}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
               </div>
             )}
           </TabsContent>
