@@ -726,7 +726,7 @@ interface Tab {
 
 function AppLayout() {
   const [location, setLocation] = useLocation();
-  const isAuthPage = location === "/login" || location === "/signup";
+  const isAuthPage = location === "/login" || location === "/signup" || location.startsWith("/accept-invitation");
   const isStandalone = useIsStandalone();
   const { user } = useAuth();
   

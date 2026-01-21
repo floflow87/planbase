@@ -36,6 +36,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MemberUser {
   id: string;
@@ -97,6 +107,8 @@ export function PermissionsTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<RbacRole>("member");
   const [copiedInvitationId, setCopiedInvitationId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<{ id: string; isPending: boolean } | null>(null);
 
   const copyInvitationLink = async (member: Member) => {
     if (!member.invitationToken) return;
@@ -409,12 +421,8 @@ export function PermissionsTab() {
                             className="text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(isPending 
-                                ? "Voulez-vous vraiment révoquer cette invitation ?" 
-                                : "Voulez-vous vraiment retirer ce membre de l'organisation ?"
-                              )) {
-                                deleteMemberMutation.mutate(member.id);
-                              }
+                              setMemberToDelete({ id: member.id, isPending });
+                              setDeleteDialogOpen(true);
                             }}
                             disabled={deleteMemberMutation.isPending}
                             data-testid={`button-delete-member-${member.id}`}
@@ -574,6 +582,37 @@ export function PermissionsTab() {
       )}
 
       <RoleViewConfig />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {memberToDelete?.isPending ? "Révoquer l'invitation" : "Retirer le membre"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberToDelete?.isPending 
+                ? "Êtes-vous sûr de vouloir révoquer cette invitation ? Le lien d'invitation ne sera plus valide."
+                : "Êtes-vous sûr de vouloir retirer ce membre de l'organisation ? Cette action est irréversible."
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (memberToDelete) {
+                  deleteMemberMutation.mutate(memberToDelete.id);
+                }
+                setDeleteDialogOpen(false);
+                setMemberToDelete(null);
+              }}
+            >
+              {memberToDelete?.isPending ? "Révoquer" : "Retirer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
