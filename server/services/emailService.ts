@@ -35,9 +35,11 @@ async function getCredentials() {
 
 async function getResendClient() {
   const { apiKey, fromEmail } = await getCredentials();
+  // Allow override via environment variable for multi-project setups (Render, etc.)
+  const overrideFromEmail = process.env.EMAIL_FROM || 'Planbase <noreply@planbase.io>';
   return {
     client: new Resend(apiKey),
-    fromEmail
+    fromEmail: overrideFromEmail
   };
 }
 
