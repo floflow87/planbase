@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2
 } from "lucide-react";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { AuditTab } from "@/components/settings/AuditTab";
@@ -765,6 +766,8 @@ export default function Settings() {
   const { toast } = useToast();
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [, setLocation] = useLocation();
   
   const { startOnboarding } = useOnboarding();
   const { config, isLoading: configLoading, refetch: refetchConfig } = useConfig();
@@ -879,6 +882,31 @@ export default function Settings() {
     },
   });
 
+  const { signOut } = useAuth();
+  
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("/api/me/delete", "DELETE");
+      return response.json();
+    },
+    onSuccess: async () => {
+      toast({
+        title: "Compte supprimé",
+        description: "Votre compte a été supprimé avec succès",
+        variant: "success",
+      });
+      await signOut();
+      setLocation("/login");
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer le compte",
+      });
+    },
+  });
+
   const updateAccountMutation = useMutation({
     mutationFn: async (data: AccountFormData) => {
       if (!userProfile?.accountId) {
@@ -966,10 +994,14 @@ export default function Settings() {
               <Puzzle className="w-3.5 h-3.5" />
               Intégrations
             </TabsTrigger>
+            <TabsTrigger value="security" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-security">
+              <Shield className="w-3.5 h-3.5" />
+              Sécurité
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="informations" className="space-y-4">
-            <Accordion type="multiple" defaultValue={["account", "personal", "profile", "password", "tour"]} className="space-y-3">
+            <Accordion type="multiple" defaultValue={["account", "personal", "profile", "tour"]} className="space-y-3">
               <AccordionItem value="account" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center justify-between w-full pr-2">
@@ -1311,6 +1343,96 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
+<AccordionItem value="tour" className="border rounded-lg px-4 bg-white dark:bg-card">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Visite guidée</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => startOnboarding()}
+                      className="text-[12px]"
+                      data-testid="button-restart-onboarding"
+                    >
+                      <HelpCircle className="w-4 h-4 mr-2" />
+                      Relancer la visite guidée
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </TabsContent>
+
+          <TabsContent value="config">
+            {!isOwner ? (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center text-muted-foreground">
+                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">Seuls les propriétaires du compte peuvent modifier la configuration.</p>
+                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold">Configuration du compte</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Personnalisez les statuts et seuils pour votre compte
+                    </p>
+                  </div>
+                </div>
+
+                <TJMEditor onRefetch={refetchConfig} />
+
+                <ThresholdEditor
+                  thresholds={config?.thresholds as ThresholdConfig}
+                  onSave={handleSave}
+                  isPending={updateConfigMutation.isPending}
+                />
+
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="permissions" className="space-y-6">
+            <PermissionsTab />
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-6">
+            <AuditTab />
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xs">Intégrations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-muted-foreground">Google Calendar - Connectez votre calendrier depuis la page Calendrier</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Les credentials Google OAuth sont configurés au niveau de l'application.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-4">
+            <Accordion type="multiple" defaultValue={["password", "delete-account"]} className="space-y-3">
               <AccordionItem value="password" className="border rounded-lg px-4 bg-white dark:bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
@@ -1417,92 +1539,63 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="tour" className="border rounded-lg px-4 bg-white dark:bg-card">
+              <AccordionItem value="delete-account" className="border rounded-lg px-4 bg-white dark:bg-card border-red-200 dark:border-red-900">
                 <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    <span className="text-sm font-semibold">Visite guidée</span>
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <Trash2 className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Supprimer mon compte</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Relancez la visite guidée pour redécouvrir les modules et fonctionnalités de l'application.
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => startOnboarding()}
-                      className="text-[12px]"
-                      data-testid="button-restart-onboarding"
-                    >
-                      <HelpCircle className="w-4 h-4 mr-2" />
-                      Relancer la visite guidée
-                    </Button>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-900">
+                      <p className="text-xs text-red-700 dark:text-red-300 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span>
+                          Une fois votre compte supprimé, il est impossible de revenir en arrière. Veuillez en être certain.
+                          {isInvitedUser && (
+                            <span className="block mt-1 font-medium">
+                              Vous serez retiré de l'organisation mais les données de l'organisation seront conservées.
+                            </span>
+                          )}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Pour confirmer, tapez <span className="font-mono font-semibold text-red-600 dark:text-red-400">supprimer mon compte</span> ci-dessous
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="supprimer mon compte"
+                        value={deleteConfirmation}
+                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        data-testid="input-delete-confirmation"
+                        className="font-mono"
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={deleteConfirmation !== "supprimer mon compte" || deleteAccountMutation.isPending}
+                        onClick={() => deleteAccountMutation.mutate()}
+                        data-testid="button-delete-account"
+                        className="text-[12px]"
+                      >
+                        {deleteAccountMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer mon compte
+                      </Button>
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-          </TabsContent>
-
-          <TabsContent value="config">
-            {!isOwner ? (
-              <Card>
-                <CardContent className="py-8">
-                  <div className="text-center text-muted-foreground">
-                    <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-sm">Seuls les propriétaires du compte peuvent modifier la configuration.</p>
-                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold">Configuration du compte</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Personnalisez les statuts et seuils pour votre compte
-                    </p>
-                  </div>
-                </div>
-
-                <TJMEditor onRefetch={refetchConfig} />
-
-                <ThresholdEditor
-                  thresholds={config?.thresholds as ThresholdConfig}
-                  onSave={handleSave}
-                  isPending={updateConfigMutation.isPending}
-                />
-
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="permissions" className="space-y-6">
-            <PermissionsTab />
-          </TabsContent>
-
-          <TabsContent value="audit" className="space-y-6">
-            <AuditTab />
-          </TabsContent>
-
-          <TabsContent value="integrations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs">Intégrations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-muted-foreground">Google Calendar - Connectez votre calendrier depuis la page Calendrier</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Les credentials Google OAuth sont configurés au niveau de l'application.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -524,6 +524,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user account
+  app.delete("/api/me/delete", requireAuth, async (req, res) => {
+    try {
+      const userId = req.userId!;
+      
+      // Get current user to determine their role
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const isOwner = user.role === "owner";
+      const accountId = user.accountId;
+
+      console.log(`🗑️ Delete account request for user ${userId}, role: ${user.role}, isOwner: ${isOwner}`);
+
+      if (isOwner && accountId) {
+        // Owner: Delete all organization data, members, and the account
+        console.log(`🗑️ Owner deletion: Deleting organization ${accountId} and all data`);
+        
+        // Get all members of this organization first
+        const members = await db.select().from(organizationMembers).where(eq(organizationMembers.accountId, accountId));
+        
+        // Delete all invited users (role='user') from this organization
+        for (const member of members) {
+          if (member.userId !== userId) {
+            // Check if this is an invited user (not an owner of another organization)
+            const memberUser = await storage.getUser(member.userId);
+            if (memberUser && memberUser.role === "user") {
+              // Delete from organization_members first
+              await db.delete(organizationMembers).where(
+                and(
+                  eq(organizationMembers.userId, member.userId),
+                  eq(organizationMembers.accountId, accountId)
+                )
+              );
+              // Delete from app_users
+              await db.delete(appUsers).where(eq(appUsers.id, member.userId));
+              // Delete from Supabase Auth
+              await supabaseAdmin.auth.admin.deleteUser(member.userId);
+              console.log(`🗑️ Deleted invited member ${member.userId} from organization`);
+            }
+          }
+        }
+        
+        // Delete organization members for the owner
+        await db.delete(organizationMembers).where(eq(organizationMembers.accountId, accountId));
+        
+        // Delete the account/organization itself
+        await db.delete(accounts).where(eq(accounts.id, accountId));
+        console.log(`🗑️ Deleted organization ${accountId}`);
+        
+        // Delete the owner user from app_users
+        await db.delete(appUsers).where(eq(appUsers.id, userId));
+        
+        // Delete from Supabase Auth
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (authError) {
+          console.error(`❌ Error deleting owner from Supabase Auth:`, authError);
+        }
+        
+        console.log(`✅ Owner ${userId} and organization ${accountId} deleted successfully`);
+      } else {
+        // Invited user: Only delete the user, NOT the organization data
+        console.log(`🗑️ Invited user deletion: Only removing user ${userId} from organization ${accountId}`);
+        
+        // Delete from organization_members
+        if (accountId) {
+          await db.delete(organizationMembers).where(
+            and(
+              eq(organizationMembers.userId, userId),
+              eq(organizationMembers.accountId, accountId)
+            )
+          );
+          console.log(`🗑️ Removed user from organization_members`);
+        }
+        
+        // Delete from app_users
+        await db.delete(appUsers).where(eq(appUsers.id, userId));
+        console.log(`🗑️ Deleted user from app_users`);
+        
+        // Delete from Supabase Auth
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (authError) {
+          console.error(`❌ Error deleting user from Supabase Auth:`, authError);
+        }
+        
+        console.log(`✅ Invited user ${userId} deleted successfully (organization data preserved)`);
+      }
+
+      res.json({ success: true, message: "Compte supprimé avec succès" });
+    } catch (error: any) {
+      console.error(`❌ Error deleting account:`, error);
+      res.status(400).json({ error: error.message || "Impossible de supprimer le compte" });
+    }
+  });
+
   // Update user profile type (for onboarding)
   app.patch("/api/me/profile-type", requireAuth, async (req, res) => {
     try {
