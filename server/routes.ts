@@ -99,6 +99,7 @@ import {
   insertOkrLinkSchema,
   auditEvents,
   invitations,
+  organizationMembers,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
@@ -10884,6 +10885,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/invitations/accept", async (req, res) => {
     try {
       const { token, password, firstName, lastName } = req.body;
+      
+      console.log("📧 INVITATION ACCEPT:", { token: token?.substring(0, 8) + '...', firstName, lastName, hasPassword: !!password });
 
       if (!token || typeof token !== 'string') {
         return res.status(400).json({ error: "Token d'invitation invalide" });
@@ -10945,6 +10948,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName || '',
         accountId: invitation.accountId,
         role: 'user', // Not owner since they're joining an existing org
+      });
+      
+      console.log("✅ USER CREATED:", { 
+        id: newUser.id, 
+        email: newUser.email, 
+        firstName: newUser.firstName, 
+        lastName: newUser.lastName,
+        accountId: newUser.accountId 
       });
 
       // Create organization member with the invited role
