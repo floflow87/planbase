@@ -545,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`🗑️ Owner deletion: Deleting organization ${accountId} and all data`);
         
         // Get all members of this organization first
-        const members = await db.select().from(organizationMembers).where(eq(organizationMembers.accountId, accountId));
+        const members = await db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, accountId));
         
         // Delete all invited users (role='user') from this organization
         for (const member of members) {
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await db.delete(organizationMembers).where(
                 and(
                   eq(organizationMembers.userId, member.userId),
-                  eq(organizationMembers.accountId, accountId)
+                  eq(organizationMembers.organizationId, accountId)
                 )
               );
               // Delete from app_users
@@ -570,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Delete organization members for the owner
-        await db.delete(organizationMembers).where(eq(organizationMembers.accountId, accountId));
+        await db.delete(organizationMembers).where(eq(organizationMembers.organizationId, accountId));
         
         // Delete the account/organization itself
         await db.delete(accounts).where(eq(accounts.id, accountId));
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await db.delete(organizationMembers).where(
             and(
               eq(organizationMembers.userId, userId),
-              eq(organizationMembers.accountId, accountId)
+              eq(organizationMembers.organizationId, accountId)
             )
           );
           console.log(`🗑️ Removed user from organization_members`);
