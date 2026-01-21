@@ -569,64 +569,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get all members of this organization first
         const members = await db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, accountId));
+        console.log(`🗑️ Found ${members.length} organization members`);
         
         // Delete all invited users (role='user') from this organization
         for (const member of members) {
           if (member.userId !== userId) {
-            // Check if this is an invited user (not an owner of another organization)
             const memberUser = await storage.getUser(member.userId);
             if (memberUser && memberUser.role === "user") {
-              // Delete from organization_members first
-              await db.delete(organizationMembers).where(
-                and(
-                  eq(organizationMembers.userId, member.userId),
-                  eq(organizationMembers.organizationId, accountId)
-                )
-              );
-              // Delete from app_users
-              await db.delete(appUsers).where(eq(appUsers.id, member.userId));
-              // Delete from Supabase Auth using email
-              await deleteSupabaseAuthUserByEmail(memberUser.email);
-              console.log(`🗑️ Deleted invited member ${member.userId} from organization`);
+              try {
+                // Delete from Supabase Auth FIRST (most important)
+                await deleteSupabaseAuthUserByEmail(memberUser.email);
+                
+                // Delete from organization_members
+                await db.delete(organizationMembers).where(
+                  and(
+                    eq(organizationMembers.userId, member.userId),
+                    eq(organizationMembers.organizationId, accountId)
+                  )
+                );
+                console.log(`🗑️ Deleted member ${member.userId} from organization_members`);
+                
+                // Delete from app_users
+                await db.delete(appUsers).where(eq(appUsers.id, member.userId));
+                console.log(`🗑️ Deleted member ${member.userId} from app_users`);
+              } catch (memberError: any) {
+                console.error(`❌ Error deleting member ${member.userId}:`, memberError.message);
+              }
             }
           }
         }
         
-        // Delete organization members for the owner
-        await db.delete(organizationMembers).where(eq(organizationMembers.organizationId, accountId));
-        
-        // Delete the account/organization itself
-        await db.delete(accounts).where(eq(accounts.id, accountId));
-        console.log(`🗑️ Deleted organization ${accountId}`);
-        
-        // Delete the owner user from app_users
-        await db.delete(appUsers).where(eq(appUsers.id, userId));
-        
-        // Delete from Supabase Auth using email
+        // Delete from Supabase Auth FIRST for owner
         await deleteSupabaseAuthUserByEmail(userEmail);
+        
+        try {
+          // Delete organization members for the owner
+          await db.delete(organizationMembers).where(eq(organizationMembers.organizationId, accountId));
+          console.log(`🗑️ Deleted all organization_members for org ${accountId}`);
+        } catch (e: any) {
+          console.error(`❌ Error deleting organization_members:`, e.message);
+        }
+        
+        try {
+          // Delete the owner user from app_users BEFORE deleting account
+          await db.delete(appUsers).where(eq(appUsers.id, userId));
+          console.log(`🗑️ Deleted owner from app_users`);
+        } catch (e: any) {
+          console.error(`❌ Error deleting owner from app_users:`, e.message);
+        }
+        
+        try {
+          // Delete the account/organization itself
+          await db.delete(accounts).where(eq(accounts.id, accountId));
+          console.log(`🗑️ Deleted organization ${accountId}`);
+        } catch (e: any) {
+          console.error(`❌ Error deleting account:`, e.message);
+        }
         
         console.log(`✅ Owner ${userId} and organization ${accountId} deleted successfully`);
       } else {
         // Invited user: Only delete the user, NOT the organization data
         console.log(`🗑️ Invited user deletion: Only removing user ${userId} from organization ${accountId}`);
         
+        // Delete from Supabase Auth FIRST (prevents reconnection)
+        await deleteSupabaseAuthUserByEmail(userEmail);
+        
         // Delete from organization_members
         if (accountId) {
-          await db.delete(organizationMembers).where(
-            and(
-              eq(organizationMembers.userId, userId),
-              eq(organizationMembers.organizationId, accountId)
-            )
-          );
-          console.log(`🗑️ Removed user from organization_members`);
+          try {
+            const deleteResult = await db.delete(organizationMembers).where(
+              and(
+                eq(organizationMembers.userId, userId),
+                eq(organizationMembers.organizationId, accountId)
+              )
+            );
+            console.log(`🗑️ Removed user from organization_members, result:`, deleteResult);
+          } catch (e: any) {
+            console.error(`❌ Error deleting from organization_members:`, e.message);
+          }
         }
         
         // Delete from app_users
-        await db.delete(appUsers).where(eq(appUsers.id, userId));
-        console.log(`🗑️ Deleted user from app_users`);
-        
-        // Delete from Supabase Auth using email
-        await deleteSupabaseAuthUserByEmail(userEmail);
+        try {
+          const deleteResult = await db.delete(appUsers).where(eq(appUsers.id, userId));
+          console.log(`🗑️ Deleted user from app_users, result:`, deleteResult);
+        } catch (e: any) {
+          console.error(`❌ Error deleting from app_users:`, e.message);
+        }
         
         console.log(`✅ Invited user ${userId} deleted successfully (organization data preserved)`);
       }
