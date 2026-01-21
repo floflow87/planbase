@@ -10399,19 +10399,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if it's a pending invitation
       if (memberId.startsWith('invitation-')) {
         const invitationId = memberId.replace('invitation-', '');
+        
+        // Check if invitation exists and belongs to this organization
+        const [invitation] = await db
+          .select()
+          .from(invitations)
+          .where(and(
+            eq(invitations.id, invitationId),
+            eq(invitations.accountId, accountId)
+          ))
+          .limit(1);
+        
+        if (!invitation) {
+          return res.status(404).json({ error: "Invitation non trouvée" });
+        }
+        
         // Delete the invitation
         await db.delete(invitations).where(eq(invitations.id, invitationId));
         
-        // Log invitation revocation
-        const { logAuditEvent } = await import("./services/auditService");
-        await logAuditEvent({
-          organizationId: accountId,
-          actorMemberId,
-          actionType: 'invitation.revoked',
-          resourceType: 'invitation',
-          resourceId: invitationId,
-          meta: { revokedInvitationId: invitationId },
-        });
+        // Log invitation revocation (only if we have a valid actorMemberId)
+        if (actorMemberId) {
+          const { logAuditEvent } = await import("./services/auditService");
+          await logAuditEvent({
+            organizationId: accountId,
+            actorMemberId,
+            actionType: 'invitation.revoked',
+            resourceType: 'invitation',
+            resourceId: invitationId,
+            meta: { revokedInvitationId: invitationId, email: invitation.email },
+          });
+        }
         
         return res.json({ success: true, message: "Invitation révoquée" });
       }

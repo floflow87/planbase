@@ -1,0 +1,154 @@
+Tu vas implémenter un smoke test Resend dans PlanBase pour vérifier que l’envoi d’email fonctionne réellement en environnement Render avant toute customisation.
+
+Objectif
+
+Avoir un moyen simple et sécurisé de :
+
+valider que RESEND_API_KEY est bien lue en runtime
+
+valider que le from est valide (domaine vérifié Resend)
+
+envoyer un email de test à une adresse fournie
+
+logguer le résultat côté serveur (succès/erreur)
+
+A) Variables d’environnement (standardiser)
+
+Le backend doit lire uniquement :
+
+RESEND_API_KEY
+
+RESEND_FROM_EMAIL (ex: PlanBase <noreply@ton-domaine.com>)
+
+APP_URL (optionnel pour liens)
+
+Ajouter un check de démarrage :
+
+si RESEND_API_KEY manquant → log warning clair au boot
+
+ne pas crasher l’app
+
+Ajouter dans /api/health (ou équivalent) un champ non sensible :
+
+emailProvider: "resend"
+
+emailConfigured: boolean (true si API key + from présents)
+
+⚠️ Ne jamais exposer l’API key.
+
+B) Service minimal emailService
+
+Créer server/services/emailService.ts (ou équivalent) :
+
+initialise Resend avec RESEND_API_KEY
+
+expose une seule fonction :
+
+sendTestEmail({ to, subject?, text? })
+
+Comportement :
+
+subject par défaut : [PlanBase] Test email
+
+body text par défaut : Resend OK - sent at <timestamp> - env: <NODE_ENV>
+
+from : RESEND_FROM_EMAIL
+
+reply_to optionnel (non nécessaire)
+
+retourne { id } de Resend si succès
+
+Gestion d’erreur :
+
+catch et rethrow avec message clair (inclure code Resend si dispo)
+
+C) Endpoint sécurisé de test
+
+Ajouter dans server/routes.ts :
+
+POST /api/admin/test-email
+
+Règles de sécurité :
+
+endpoint auth obligatoire
+
+réservé au rôle Admin (RBAC)
+
+payload JSON :
+
+to: string (email)
+
+subject?: string
+
+text?: string
+
+Validation :
+
+vérifier format email
+
+limiter longueur text (ex 2000 chars)
+
+rate-limit simple par IP/user (ex 5/min) ou cooldown en mémoire
+
+Réponse :
+
+200 { ok: true, provider: "resend", id: "<resend_id>" }
+
+400/403/500 avec { ok:false, error:"..." }
+
+D) UI minimale côté Settings (sans design lourd)
+
+Dans Settings (onglet existant ou section “Intégrations”) :
+
+bloc “Email (Resend)”
+
+affiche :
+
+emailConfigured (badge OK/KO)
+
+input email “Envoyer un test à…”
+
+bouton “Envoyer un email test”
+
+toastSuccess / toastError
+
+UX :
+
+si emailConfigured=false → désactiver le bouton et afficher le message :
+“Configure RESEND_API_KEY et RESEND_FROM_EMAIL sur Render.”
+
+E) Logging minimal (sans table, V1)
+
+Pour ce smoke test, logguer dans les logs serveur :
+
+userId/memberId
+
+to
+
+resend id
+
+timestamp
+
+erreur complète si fail
+
+(Ne pas créer de table DB pour l’instant.)
+
+F) Check final (instructions)
+
+À la fin, fournir :
+
+comment configurer Render env vars (noms exacts)
+
+comment tester en local (curl + UI)
+
+comment tester en prod Render
+
+quoi regarder dans les logs en cas d’échec :
+
+missing API key
+
+from invalid
+
+domain not verified
+
+unauthorized
