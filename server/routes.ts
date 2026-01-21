@@ -10393,12 +10393,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/rbac/members/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.membership?.id;
       const { memberId } = req.params;
+
+      console.log("🗑️ DELETE member request:", { memberId, accountId, actorMemberId });
 
       // Check if it's a pending invitation
       if (memberId.startsWith('invitation-')) {
         const invitationId = memberId.replace('invitation-', '');
+        console.log("🔍 Looking for invitation:", invitationId);
         
         // Check if invitation exists and belongs to this organization
         const [invitation] = await db
@@ -10410,24 +10413,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ))
           .limit(1);
         
+        console.log("📋 Found invitation:", invitation);
+        
         if (!invitation) {
+          console.log("❌ Invitation not found");
           return res.status(404).json({ error: "Invitation non trouvée" });
         }
         
         // Delete the invitation
         await db.delete(invitations).where(eq(invitations.id, invitationId));
+        console.log("✅ Invitation deleted");
         
         // Log invitation revocation (only if we have a valid actorMemberId)
         if (actorMemberId) {
-          const { logAuditEvent } = await import("./services/auditService");
-          await logAuditEvent({
-            organizationId: accountId,
-            actorMemberId,
-            actionType: 'invitation.revoked',
-            resourceType: 'invitation',
-            resourceId: invitationId,
-            meta: { revokedInvitationId: invitationId, email: invitation.email },
-          });
+          try {
+            const { logAuditEvent } = await import("./services/auditService");
+            await logAuditEvent({
+              organizationId: accountId,
+              actorMemberId,
+              actionType: 'invitation.revoked',
+              resourceType: 'invitation',
+              resourceId: invitationId,
+              meta: { revokedInvitationId: invitationId, email: invitation.email },
+            });
+          } catch (auditError) {
+            console.error("⚠️ Audit log failed (non-blocking):", auditError);
+          }
         }
         
         return res.json({ success: true, message: "Invitation révoquée" });
