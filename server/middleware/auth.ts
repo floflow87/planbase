@@ -292,6 +292,11 @@ export function requirePermission(module: RbacModule, action: RbacAction, subvie
         return res.status(401).json({ error: "Organization membership required" });
       }
 
+      // OWNER always has FULL access - this is non-negotiable
+      if (req.userRole === "owner") {
+        return next();
+      }
+
       // Admin always has access
       if (req.orgRole === "admin") {
         return next();
@@ -326,6 +331,11 @@ export function requirePermission(module: RbacModule, action: RbacAction, subvie
  * Must be used AFTER requireAuth and requireOrgMember
  */
 export function requireOrgAdmin(req: Request, res: Response, next: NextFunction) {
+  // OWNER always has FULL access - this is non-negotiable
+  if (req.userRole === "owner") {
+    return next();
+  }
+  
   if (req.orgRole !== "admin") {
     return res.status(403).json({ 
       error: "Admin privileges required",

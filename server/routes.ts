@@ -11282,7 +11282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Module and config are required" });
       }
 
-      const view = await permissionService.setModuleView(req.accountId!, memberId, module, config);
+      const view = await permissionService.setModuleViewWithOrg(req.accountId!, memberId, module, config);
       res.json(view);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

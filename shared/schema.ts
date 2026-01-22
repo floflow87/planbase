@@ -133,7 +133,8 @@ export type InsertModuleView = z.infer<typeof insertModuleViewSchema>;
 export type ModuleView = typeof moduleViews.$inferSelect;
 
 // RBAC constants
-export const RBAC_ROLES = ['admin', 'member', 'guest'] as const;
+// IMPORTANT: 'owner' has FULL access to everything - this is non-negotiable
+export const RBAC_ROLES = ['owner', 'admin', 'member', 'guest'] as const;
 export type RbacRole = typeof RBAC_ROLES[number];
 
 export const RBAC_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'] as const;

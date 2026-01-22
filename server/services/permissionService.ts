@@ -49,7 +49,18 @@ function clearOrganizationCache(organizationId: string) {
 }
 
 // Default permissions by role
+// IMPORTANT: Owner has FULL access to everything - this is non-negotiable
 const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = {
+  owner: {
+    crm: ['read', 'create', 'update', 'delete'],
+    projects: ['read', 'create', 'update', 'delete'],
+    product: ['read', 'create', 'update', 'delete'],
+    roadmap: ['read', 'create', 'update', 'delete'],
+    tasks: ['read', 'create', 'update', 'delete'],
+    notes: ['read', 'create', 'update', 'delete'],
+    documents: ['read', 'create', 'update', 'delete'],
+    profitability: ['read', 'create', 'update', 'delete'],
+  },
   admin: {
     crm: ['read', 'create', 'update', 'delete'],
     projects: ['read', 'create', 'update', 'delete'],
@@ -382,7 +393,7 @@ export const permissionService = {
   // Module Views (Guest View Configurations)
   // ============================================
 
-  async getModuleView(organizationId: string, memberId: string, module: string): Promise<ModuleView | null> {
+  async getModuleViewWithOrg(organizationId: string, memberId: string, module: string): Promise<ModuleView | null> {
     const [view] = await db
       .select()
       .from(moduleViews)
@@ -396,8 +407,8 @@ export const permissionService = {
     return view || null;
   },
 
-  async setModuleView(organizationId: string, memberId: string, module: string, config: any): Promise<ModuleView> {
-    const existing = await this.getModuleView(organizationId, memberId, module);
+  async setModuleViewWithOrg(organizationId: string, memberId: string, module: string, config: any): Promise<ModuleView> {
+    const existing = await this.getModuleViewWithOrg(organizationId, memberId, module);
     
     if (existing) {
       const [updated] = await db
@@ -478,7 +489,7 @@ export const permissionService = {
 
     // Apply the template to each guest
     for (const guest of guestMembers) {
-      await this.setModuleView(organizationId, guest.id, module, config);
+      await this.setModuleViewWithOrg(organizationId, guest.id, module, config);
     }
   },
 
@@ -535,7 +546,7 @@ export const permissionService = {
       );
 
     for (const member of memberMembers) {
-      await this.setModuleView(organizationId, member.id, module, config);
+      await this.setModuleViewWithOrg(organizationId, member.id, module, config);
     }
   },
 };
