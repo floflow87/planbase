@@ -45,9 +45,10 @@ export async function refreshAccessToken(accountId: string, userId: string) {
     throw new Error("Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
   }
 
-  const domain = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-    : "http://localhost:5000";
+  // Use same domain logic as routes.ts for consistency
+  const domain = process.env.APP_URL?.replace(/\/$/, '') 
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+    || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   
   const oauth2Client = createOAuth2Client({
     clientId,
@@ -96,9 +97,10 @@ export async function getCalendarEvents(accountId: string, userId: string, start
     throw new Error("Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
   }
 
-  const domain = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-    : "http://localhost:5000";
+  // Use same domain logic as routes.ts for consistency
+  const domain = process.env.APP_URL?.replace(/\/$/, '') 
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+    || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   
   const oauth2Client = createOAuth2Client({
     clientId,

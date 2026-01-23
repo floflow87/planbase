@@ -6804,6 +6804,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // Start OAuth flow
+  // Helper function to get the correct domain for Google OAuth redirect
+  const getGoogleRedirectDomain = () => {
+    // Priority: APP_URL > REPLIT_DEV_DOMAIN > fallback
+    if (process.env.APP_URL) {
+      return process.env.APP_URL.replace(/\/$/, ''); // Remove trailing slash
+    }
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    }
+    return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  };
+
+  // Diagnostic endpoint for Google OAuth configuration
+  app.get("/api/google/debug", requireAuth, async (req, res) => {
+    const clientId = getGoogleClientId();
+    const clientSecret = getGoogleClientSecret();
+    const domain = getGoogleRedirectDomain();
+    const redirectUri = `${domain}/api/google/auth/callback`;
+    
+    res.json({
+      configured: !!(clientId && clientSecret),
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      domain,
+      redirectUri,
+      envVars: {
+        APP_URL: process.env.APP_URL || 'not set',
+        REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN ? 'set' : 'not set',
+        REPL_SLUG: process.env.REPL_SLUG || 'not set',
+      },
+      instructions: `Add this redirect URI to your Google Cloud Console: ${redirectUri}`
+    });
+  });
+
   app.get("/api/google/auth/start", requireAuth, async (req, res) => {
     try {
       const clientId = getGoogleClientId();
@@ -6817,10 +6851,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { createOAuth2Client, getAuthUrl } = await import("./lib/google-calendar");
       
-      const domain = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const domain = getGoogleRedirectDomain();
       const redirectUri = `${domain}/api/google/auth/callback`;
+      
+      console.log("📅 Google OAuth Start - Using redirect URI:", redirectUri);
       
       const oauth2Client = createOAuth2Client({
         clientId,
@@ -6859,10 +6893,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { createOAuth2Client, exchangeCodeForTokens } = await import("./lib/google-calendar");
       
-      const domain = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const domain = getGoogleRedirectDomain();
       const redirectUri = `${domain}/api/google/auth/callback`;
+      
+      console.log("📅 Google OAuth Callback - Using redirect URI:", redirectUri);
       
       const oauth2Client = createOAuth2Client({
         clientId,
