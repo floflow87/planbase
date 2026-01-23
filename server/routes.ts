@@ -6806,9 +6806,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start OAuth flow
   // Helper function to get the correct domain for Google OAuth redirect
   const getGoogleRedirectDomain = () => {
-    // Priority: APP_URL > REPLIT_DEV_DOMAIN > fallback
-    if (process.env.APP_URL) {
-      return process.env.APP_URL.replace(/\/$/, ''); // Remove trailing slash
+    // Priority: GOOGLE_REDIRECT_DOMAIN > REPLIT_DEV_DOMAIN > fallback
+    // Use GOOGLE_REDIRECT_DOMAIN for stable OAuth redirects (separate from APP_URL used by Render)
+    if (process.env.GOOGLE_REDIRECT_DOMAIN) {
+      return process.env.GOOGLE_REDIRECT_DOMAIN.replace(/\/$/, ''); // Remove trailing slash
     }
     if (process.env.REPLIT_DEV_DOMAIN) {
       return `https://${process.env.REPLIT_DEV_DOMAIN}`;
@@ -6830,7 +6831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       domain,
       redirectUri,
       envVars: {
-        APP_URL: process.env.APP_URL || 'not set',
+        GOOGLE_REDIRECT_DOMAIN: process.env.GOOGLE_REDIRECT_DOMAIN || 'not set',
         REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN ? 'set' : 'not set',
         REPL_SLUG: process.env.REPL_SLUG || 'not set',
       },

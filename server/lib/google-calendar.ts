@@ -46,7 +46,7 @@ export async function refreshAccessToken(accountId: string, userId: string) {
   }
 
   // Use same domain logic as routes.ts for consistency
-  const domain = process.env.APP_URL?.replace(/\/$/, '') 
+  const domain = process.env.GOOGLE_REDIRECT_DOMAIN?.replace(/\/$/, '') 
     || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
     || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   
@@ -98,7 +98,7 @@ export async function getCalendarEvents(accountId: string, userId: string, start
   }
 
   // Use same domain logic as routes.ts for consistency
-  const domain = process.env.APP_URL?.replace(/\/$/, '') 
+  const domain = process.env.GOOGLE_REDIRECT_DOMAIN?.replace(/\/$/, '') 
     || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
     || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   
