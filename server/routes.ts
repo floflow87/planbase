@@ -6817,8 +6817,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   };
 
-  // Diagnostic endpoint for Google OAuth configuration
-  app.get("/api/google/debug", requireAuth, async (req, res) => {
+  // Diagnostic endpoint for Google OAuth configuration (no auth required for debugging)
+  app.get("/api/google/debug", async (req, res) => {
     const clientId = getGoogleClientId();
     const clientSecret = getGoogleClientSecret();
     const domain = getGoogleRedirectDomain();
