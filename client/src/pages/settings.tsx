@@ -22,6 +22,7 @@ import {
   DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2
 } from "lucide-react";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
+import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { AuditTab } from "@/components/settings/AuditTab";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
@@ -1409,22 +1410,7 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs">Intégrations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-muted-foreground">Google Calendar - Connectez votre calendrier depuis la page Calendrier</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Les credentials Google OAuth sont configurés au niveau de l'application.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <IntegrationsTab />
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">

@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronsUpDown, Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Client } from "@shared/schema";
 
 interface AppointmentPanelProps {
   open: boolean;
@@ -25,6 +29,33 @@ export function AppointmentPanel({ open, onClose, selectedDate }: AppointmentPan
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchValue, setClientSearchValue] = useState("");
+
+  // Fetch clients for autocomplete
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+    enabled: open,
+  });
+
+  // Filter clients based on search
+  const filteredClients = useMemo(() => {
+    if (!clientSearchValue) return clients;
+    const search = clientSearchValue.toLowerCase();
+    return clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(search) ||
+        client.email?.toLowerCase().includes(search) ||
+        client.company?.toLowerCase().includes(search)
+    );
+  }, [clients, clientSearchValue]);
+
+  // Get selected client name for display
+  const selectedClient = useMemo(() => 
+    clients.find((c) => c.id === selectedClientId),
+    [clients, selectedClientId]
+  );
 
   // Update start date when panel opens with a selected date
   useEffect(() => {
@@ -67,10 +98,15 @@ export function AppointmentPanel({ open, onClose, selectedDate }: AppointmentPan
       return;
     }
 
+    // Convert datetime-local format to ISO string with timezone
+    const startDateTimeISO = new Date(startDateTime).toISOString();
+    const endDateTimeISO = endDateTime ? new Date(endDateTime).toISOString() : null;
+    
     createMutation.mutate({
       title: title.trim(),
-      startDateTime,
-      endDateTime: endDateTime || null,
+      startDateTime: startDateTimeISO,
+      endDateTime: endDateTimeISO,
+      clientId: selectedClientId,
       contactEmail: contactEmail.trim() || null,
       contactPhone: contactPhone.trim() || null,
       notes: notes.trim() || null,
@@ -81,6 +117,8 @@ export function AppointmentPanel({ open, onClose, selectedDate }: AppointmentPan
     setTitle("");
     setStartDateTime(new Date().toISOString().slice(0, 16));
     setEndDateTime("");
+    setSelectedClientId(null);
+    setClientSearchValue("");
     setContactEmail("");
     setContactPhone("");
     setNotes("");
@@ -108,6 +146,97 @@ export function AppointmentPanel({ open, onClose, selectedDate }: AppointmentPan
               onChange={(e) => setTitle(e.target.value)}
               data-testid="input-appointment-title"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Client</Label>
+            <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={clientSearchOpen}
+                  className="w-full justify-between font-normal"
+                  data-testid="button-select-client"
+                >
+                  {selectedClient ? (
+                    <span className="truncate">
+                      {selectedClient.name}
+                      {selectedClient.company && (
+                        <span className="text-muted-foreground ml-1">
+                          ({selectedClient.company})
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Sélectionner un client...</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Rechercher un client..." 
+                    value={clientSearchValue}
+                    onValueChange={setClientSearchValue}
+                    data-testid="input-search-client"
+                  />
+                  <CommandList>
+                    <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredClients.slice(0, 10).map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={client.id}
+                          onSelect={() => {
+                            setSelectedClientId(client.id);
+                            setClientSearchOpen(false);
+                            setClientSearchValue("");
+                            if (client.email && !contactEmail) {
+                              setContactEmail(client.email);
+                            }
+                            if (client.phone && !contactPhone) {
+                              setContactPhone(client.phone);
+                            }
+                          }}
+                          data-testid={`client-option-${client.id}`}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedClientId === client.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span>{client.name}</span>
+                            {client.company && (
+                              <span className="text-xs text-muted-foreground">{client.company}</span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {selectedClient && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedClientId(null);
+                  setContactEmail("");
+                  setContactPhone("");
+                }}
+                data-testid="button-clear-client"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Retirer le client
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
