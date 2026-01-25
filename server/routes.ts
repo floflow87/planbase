@@ -7070,6 +7070,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const appointment = await storage.createAppointment(data);
       
+      // Try to sync to Google Calendar if user is connected
+      try {
+        const googleToken = await storage.getGoogleTokenByUserId(req.accountId!, req.userId!);
+        if (googleToken) {
+          const { createCalendarEvent } = await import("./lib/google-calendar");
+          const googleEvent = await createCalendarEvent(req.accountId!, req.userId!, {
+            title: data.title,
+            startDateTime: data.startDateTime,
+            endDateTime: data.endDateTime || undefined,
+            description: data.notes || undefined,
+          });
+          
+          // Update appointment with Google Event ID for future sync
+          if (googleEvent?.id) {
+            await storage.updateAppointment(req.accountId!, appointment.id, {
+              googleEventId: googleEvent.id,
+            });
+          }
+          console.log("📅 Synced appointment to Google Calendar:", googleEvent?.id);
+        }
+      } catch (syncError: any) {
+        // Don't fail the appointment creation if Google sync fails
+        console.error("⚠️ Failed to sync to Google Calendar:", syncError.message);
+      }
+      
       res.json(appointment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
