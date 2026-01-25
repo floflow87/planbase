@@ -31,6 +31,7 @@ export function IntegrationsTab() {
       toast({
         title: "Déconnexion réussie",
         description: "Votre compte Google Calendar a été déconnecté.",
+        variant: "success",
       });
     },
     onError: () => {

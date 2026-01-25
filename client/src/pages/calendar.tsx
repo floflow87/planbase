@@ -150,6 +150,7 @@ export default function Calendar() {
       toast({
         title: "Déconnexion réussie",
         description: "Votre Google Calendar a été déconnecté.",
+        variant: "success",
       });
     },
   });
@@ -175,6 +176,7 @@ export default function Calendar() {
             toast({
               title: "✅ Google Calendar connecté !",
               description: "Vos événements seront synchronisés.",
+              variant: "success",
             });
           }
         }, 2000);
