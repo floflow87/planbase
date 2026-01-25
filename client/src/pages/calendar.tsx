@@ -383,7 +383,7 @@ export default function Calendar() {
   };
 
   // Calendar layout constants
-  const SLOT_HEIGHT = 80; // h-20 = 5rem = 80px
+  const SLOT_HEIGHT = 48; // Reduced height to show more hours (07:00-18:00 visible)
   const START_HOUR = 7;
   const END_HOUR = 24; // Midnight (00:00)
   const TOTAL_HOURS = END_HOUR - START_HOUR; // 17 hours (7:00 to 00:00)
