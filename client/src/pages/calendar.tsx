@@ -62,6 +62,8 @@ export default function Calendar() {
   const [selectedAppointmentDate, setSelectedAppointmentDate] = useState<Date | undefined>(undefined);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentMode, setAppointmentMode] = useState<"create" | "view" | "edit">("create");
+  const [appointmentReadOnly, setAppointmentReadOnly] = useState(false);
+  const [appointmentSource, setAppointmentSource] = useState<"planbase" | "google">("planbase");
   const [showTasks, setShowTasks] = useState(true);
   const { toast } = useToast();
 
@@ -384,6 +386,8 @@ export default function Calendar() {
             onClick={() => {
               setSelectedAppointment(null);
               setAppointmentMode("create");
+              setAppointmentReadOnly(false);
+              setAppointmentSource("planbase");
               setAppointmentDialogOpen(true);
             }}
             data-testid="button-new-appointment"
@@ -469,6 +473,8 @@ export default function Calendar() {
                   setSelectedAppointmentDate(selectedDate);
                   setSelectedAppointment(null);
                   setAppointmentMode("create");
+                  setAppointmentReadOnly(false);
+                  setAppointmentSource("planbase");
                   setAppointmentDialogOpen(true);
                 };
 
@@ -505,6 +511,8 @@ export default function Calendar() {
                               e.stopPropagation();
                               setSelectedAppointment(apt);
                               setAppointmentMode("view");
+                              setAppointmentReadOnly(false);
+                              setAppointmentSource("planbase");
                               setAppointmentDialogOpen(true);
                             }}
                           >
@@ -527,6 +535,25 @@ export default function Calendar() {
                             className="text-xs p-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer hover:bg-cyan-200 dark:hover:bg-cyan-900/50 border-l-2 border-cyan-500"
                             title={`Google: ${startTime} - ${event.summary}`}
                             data-testid={`google-event-${event.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const googleAppointment: Appointment = {
+                                id: event.id,
+                                title: event.summary,
+                                type: null,
+                                startDateTime: event.start.dateTime || event.start.date || "",
+                                endDateTime: event.end?.dateTime || event.end?.date || null,
+                                clientId: null,
+                                contactEmail: null,
+                                contactPhone: null,
+                                notes: event.description || null,
+                              };
+                              setSelectedAppointment(googleAppointment);
+                              setAppointmentMode("view");
+                              setAppointmentReadOnly(true);
+                              setAppointmentSource("google");
+                              setAppointmentDialogOpen(true);
+                            }}
                           >
                             <span className="font-medium">{startTime}</span> {event.summary}
                           </div>
@@ -794,10 +821,14 @@ export default function Calendar() {
           setSelectedAppointmentDate(undefined);
           setSelectedAppointment(null);
           setAppointmentMode("create");
+          setAppointmentReadOnly(false);
+          setAppointmentSource("planbase");
         }}
         selectedDate={selectedAppointmentDate || currentDate}
         appointment={selectedAppointment}
         mode={appointmentMode}
+        isReadOnly={appointmentReadOnly}
+        source={appointmentSource}
       />
     </div>
   );

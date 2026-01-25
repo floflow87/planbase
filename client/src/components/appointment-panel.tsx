@@ -34,6 +34,8 @@ interface AppointmentPanelProps {
   selectedDate?: Date;
   appointment?: Appointment | null;
   mode?: "create" | "view" | "edit";
+  isReadOnly?: boolean;
+  source?: "planbase" | "google";
 }
 
 const appointmentTypeLabels: Record<AppointmentType, string> = {
@@ -48,9 +50,10 @@ const appointmentTypeLabels: Record<AppointmentType, string> = {
   OTHER: "Autre",
 };
 
-export function AppointmentPanel({ open, onClose, selectedDate, appointment, mode: initialMode = "create" }: AppointmentPanelProps) {
+export function AppointmentPanel({ open, onClose, selectedDate, appointment, mode: initialMode = "create", isReadOnly = false, source = "planbase" }: AppointmentPanelProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
+  const [modeJustChanged, setModeJustChanged] = useState(false);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<AppointmentType>("MEETING");
   const [startDateTime, setStartDateTime] = useState(
@@ -116,6 +119,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       toast({
         title: "Rendez-vous créé",
         description: "Votre rendez-vous a été ajouté au calendrier.",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
       });
       handleClose();
     },
@@ -138,6 +142,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       toast({
         title: "Rendez-vous modifié",
         description: "Les modifications ont été enregistrées.",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
       });
       handleClose();
     },
@@ -159,6 +164,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       toast({
         title: "Rendez-vous supprimé",
         description: "Le rendez-vous a été supprimé du calendrier.",
+        className: "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800",
       });
       handleClose();
     },
@@ -171,8 +177,18 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
     },
   });
 
+  const handleSwitchToEdit = () => {
+    setModeJustChanged(true);
+    setMode("edit");
+    setTimeout(() => setModeJustChanged(false), 300);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (modeJustChanged) {
+      return;
+    }
     
     if (!title.trim() || !startDateTime) {
       toast({
@@ -233,7 +249,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
         handleClose();
       }
     }}>
-      <SheetContent className="sm:max-w-xl w-full overflow-y-auto flex flex-col" data-testid="sheet-appointment">
+      <SheetContent className="sm:max-w-xl w-full overflow-y-auto flex flex-col bg-white dark:bg-gray-950" data-testid="sheet-appointment">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {isViewMode ? <Eye className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
@@ -313,7 +329,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                           )}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">Sélectionner un client...</span>
+                        <span className="text-muted-foreground text-sm">Sélectionner un client...</span>
                       )}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -453,36 +469,39 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
           <div className="flex justify-between gap-2 pt-4 border-t">
             {isViewMode && appointment ? (
               <>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={isLoading}
-                      data-testid="button-delete-appointment"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Supprimer
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer le rendez-vous ?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Cette action est irréversible. Le rendez-vous sera définitivement supprimé.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteMutation.mutate()}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                {!isReadOnly && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={isLoading}
+                        data-testid="button-delete-appointment"
                       >
+                        <Trash2 className="w-4 h-4 mr-2" />
                         Supprimer
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer le rendez-vous ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action est irréversible. Le rendez-vous sera définitivement supprimé.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteMutation.mutate()}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Supprimer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                {isReadOnly && <div />}
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -494,7 +513,8 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => setMode("edit")}
+                    onClick={handleSwitchToEdit}
+                    disabled={isReadOnly}
                     data-testid="button-edit-appointment"
                   >
                     <Edit className="w-4 h-4 mr-2" />
