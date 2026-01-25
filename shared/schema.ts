@@ -1708,7 +1708,10 @@ export const insertRoadmapDependencySchema = createInsertSchema(roadmapDependenc
 export const insertClientCommentSchema = createInsertSchema(clientComments).omit({ id: true, createdAt: true });
 export const insertNoteLinkSchema = createInsertSchema(noteLinks).omit({ noteId: true });
 export const insertDocumentLinkSchema = createInsertSchema(documentLinks).omit({ documentId: true });
-export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  startDateTime: z.union([z.string(), z.date()]).transform((val) => typeof val === 'string' ? new Date(val) : val),
+  endDateTime: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => val ? (typeof val === 'string' ? new Date(val) : val) : null),
+});
 export const updateAppointmentSchema = insertAppointmentSchema.omit({ accountId: true, createdBy: true, googleEventId: true }).partial();
 export const insertGoogleCalendarTokenSchema = createInsertSchema(googleCalendarTokens).omit({ id: true, createdAt: true, updatedAt: true });
 
