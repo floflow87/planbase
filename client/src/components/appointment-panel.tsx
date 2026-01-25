@@ -50,6 +50,15 @@ const appointmentTypeLabels: Record<AppointmentType, string> = {
   OTHER: "Autre",
 };
 
+function formatDateTimeLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function AppointmentPanel({ open, onClose, selectedDate, appointment, mode: initialMode = "create", isReadOnly = false, source = "planbase" }: AppointmentPanelProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
@@ -57,7 +66,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
   const [title, setTitle] = useState("");
   const [type, setType] = useState<AppointmentType>("MEETING");
   const [startDateTime, setStartDateTime] = useState(
-    selectedDate ? selectedDate.toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
+    selectedDate ? formatDateTimeLocal(selectedDate) : formatDateTimeLocal(new Date())
   );
   const [endDateTime, setEndDateTime] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -93,8 +102,8 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       if (appointment) {
         setTitle(appointment.title);
         setType(appointment.type || "MEETING");
-        setStartDateTime(new Date(appointment.startDateTime).toISOString().slice(0, 16));
-        setEndDateTime(appointment.endDateTime ? new Date(appointment.endDateTime).toISOString().slice(0, 16) : "");
+        setStartDateTime(formatDateTimeLocal(new Date(appointment.startDateTime)));
+        setEndDateTime(appointment.endDateTime ? formatDateTimeLocal(new Date(appointment.endDateTime)) : "");
         setSelectedClientId(appointment.clientId);
         setContactEmail(appointment.contactEmail || "");
         setContactPhone(appointment.contactPhone || "");
@@ -103,7 +112,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       } else {
         setMode("create");
         if (selectedDate) {
-          setStartDateTime(selectedDate.toISOString().slice(0, 16));
+          setStartDateTime(formatDateTimeLocal(selectedDate));
         }
       }
     }
@@ -223,7 +232,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
   const handleClose = () => {
     setTitle("");
     setType("MEETING");
-    setStartDateTime(new Date().toISOString().slice(0, 16));
+    setStartDateTime(formatDateTimeLocal(new Date()));
     setEndDateTime("");
     setSelectedClientId(null);
     setClientSearchValue("");
@@ -320,10 +329,10 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                       data-testid="button-select-client"
                     >
                       {selectedClient ? (
-                        <span className="truncate">
+                        <span className="truncate text-sm">
                           {selectedClient.name}
                           {selectedClient.company && (
-                            <span className="text-muted-foreground ml-1">
+                            <span className="text-muted-foreground ml-1 text-xs">
                               ({selectedClient.company})
                             </span>
                           )}

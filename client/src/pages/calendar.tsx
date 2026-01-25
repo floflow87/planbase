@@ -56,7 +56,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 export default function Calendar() {
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("planbase-calendar-view");
+    return (saved as ViewMode) || "month";
+  });
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [selectedAppointmentDate, setSelectedAppointmentDate] = useState<Date | undefined>(undefined);
@@ -318,28 +321,37 @@ export default function Calendar() {
           {/* View Mode Toggles */}
           <div className="flex border border-border rounded-md">
             <Button
-              variant={viewMode === "month" ? "default" : "ghost"}
+              variant={viewMode === "month" ? "default" : "outline"}
               size="sm"
-              onClick={() => setViewMode("month")}
-              className="rounded-r-none"
+              onClick={() => {
+                setViewMode("month");
+                localStorage.setItem("planbase-calendar-view", "month");
+              }}
+              className={`rounded-r-none ${viewMode !== "month" ? "bg-white dark:bg-gray-900" : ""}`}
               data-testid="button-view-month"
             >
               Mois
             </Button>
             <Button
-              variant={viewMode === "week" ? "default" : "ghost"}
+              variant={viewMode === "week" ? "default" : "outline"}
               size="sm"
-              onClick={() => setViewMode("week")}
-              className="rounded-none border-x border-border"
+              onClick={() => {
+                setViewMode("week");
+                localStorage.setItem("planbase-calendar-view", "week");
+              }}
+              className={`rounded-none border-x border-border ${viewMode !== "week" ? "bg-white dark:bg-gray-900" : ""}`}
               data-testid="button-view-week"
             >
               Semaine
             </Button>
             <Button
-              variant={viewMode === "day" ? "default" : "ghost"}
+              variant={viewMode === "day" ? "default" : "outline"}
               size="sm"
-              onClick={() => setViewMode("day")}
-              className="rounded-l-none"
+              onClick={() => {
+                setViewMode("day");
+                localStorage.setItem("planbase-calendar-view", "day");
+              }}
+              className={`rounded-l-none ${viewMode !== "day" ? "bg-white dark:bg-gray-900" : ""}`}
               data-testid="button-view-day"
             >
               Jour
@@ -351,6 +363,7 @@ export default function Calendar() {
             variant="outline" 
             size="sm"
             onClick={goToPrevious}
+            className="bg-white dark:bg-gray-900"
             data-testid="button-previous"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -359,6 +372,7 @@ export default function Calendar() {
             variant="outline" 
             size="sm"
             onClick={goToToday}
+            className="bg-white dark:bg-gray-900"
             data-testid="button-today"
           >
             Aujourd'hui
@@ -367,6 +381,7 @@ export default function Calendar() {
             variant="outline" 
             size="sm"
             onClick={goToNext}
+            className="bg-white dark:bg-gray-900"
             data-testid="button-next"
           >
             <ChevronRight className="w-4 h-4" />
