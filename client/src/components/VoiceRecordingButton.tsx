@@ -39,14 +39,14 @@ export function VoiceRecordingButton({ onTranscript, onError, className }: Voice
           >
             {isRecording ? (
               <div className="flex items-center justify-center">
-                <MicOff size={40} />
+                <MicOff size={48} />
                 <span className="absolute top-1 right-1 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
                 </span>
               </div>
             ) : (
-              <Mic size={40} />
+              <Mic size={48} />
             )}
           </Button>
         </TooltipTrigger>

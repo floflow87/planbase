@@ -7045,16 +7045,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const appointment = await storage.createAppointment(data);
       
-      // Create activity log
-      await storage.createActivity({
-        accountId: req.accountId!,
-        subjectType: "appointment",
-        subjectId: appointment.id,
-        kind: "note",
-        payload: { description: `New appointment: ${data.title}` },
-        createdBy: req.userId || null,
-      });
-      
       res.json(appointment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
