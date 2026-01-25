@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -909,36 +910,41 @@ export default function Calendar() {
                               const offsetMinutes = startTime.getMinutes();
                               const offsetPx = (offsetMinutes / 60) * SLOT_HEIGHT;
                               
+                              const clientName = apt.clientId ? clients?.find((c: any) => c.id === apt.clientId)?.name : null;
+                              
                               return (
-                                <div
-                                  key={apt.id}
-                                  className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 text-xs overflow-hidden group"
-                                  style={{ top: offsetPx, height: heightPx }}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.dataTransfer.setData("appointmentId", apt.id);
-                                    e.dataTransfer.setData("type", "appointment");
-                                    e.dataTransfer.effectAllowed = "move";
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (justResized) {
-                                      setJustResized(false);
-                                      return;
-                                    }
-                                    setSelectedAppointment(apt);
-                                    setAppointmentMode("view");
-                                    setAppointmentDialogOpen(true);
-                                  }}
-                                >
-                                  <div className="p-0.5">
-                                    <div className="font-semibold">
-                                      {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                      {resizePreview?.id === apt.id && ` - ${resizePreview.endTime}`}
-                                    </div>
-                                    <div className="truncate">{apt.title}</div>
-                                  </div>
-                                  {/* Resize handle */}
+                                <Tooltip key={apt.id}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 text-xs overflow-hidden group"
+                                      style={{ top: offsetPx, height: heightPx }}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        e.dataTransfer.setData("appointmentId", apt.id);
+                                        e.dataTransfer.setData("type", "appointment");
+                                        e.dataTransfer.effectAllowed = "move";
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (justResized) {
+                                          setJustResized(false);
+                                          return;
+                                        }
+                                        setSelectedAppointment(apt);
+                                        setAppointmentMode("view");
+                                        setAppointmentDialogOpen(true);
+                                      }}
+                                    >
+                                      <div className="p-0.5">
+                                        <div className="truncate">
+                                          <span className="font-semibold">
+                                            {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                            {resizePreview?.id === apt.id && ` - ${resizePreview.endTime}`}
+                                          </span>
+                                          {" "}{apt.title}
+                                        </div>
+                                      </div>
+                                      {/* Resize handle */}
                                   <div
                                     className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
                                     onMouseDown={(e) => {
@@ -990,7 +996,16 @@ export default function Calendar() {
                                       document.addEventListener("mouseup", handleMouseUp);
                                     }}
                                   />
-                                </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="bg-white dark:bg-gray-800 border shadow-lg p-2 max-w-xs">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{apt.title}</p>
+                                      {clientName && <p className="text-xs text-gray-600 dark:text-gray-400">Client: {clientName}</p>}
+                                      {apt.notes && <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{apt.notes}</p>}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
                               );
                             })}
                             
@@ -1195,40 +1210,44 @@ export default function Calendar() {
                           const heightPx = Math.max((durationMinutes / 60) * SLOT_HEIGHT, 24);
                           const offsetMinutes = startTime.getMinutes();
                           const offsetPx = (offsetMinutes / 60) * SLOT_HEIGHT;
+                          const clientName = apt.clientId ? clients?.find((c: any) => c.id === apt.clientId)?.name : null;
 
                           return (
-                            <div
-                              key={apt.id}
-                              className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
-                              style={{ top: offsetPx, height: heightPx }}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData("appointmentId", apt.id);
-                                e.dataTransfer.setData("type", "appointment");
-                                e.dataTransfer.effectAllowed = "move";
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (justResized) {
-                                  setJustResized(false);
-                                  return;
-                                }
-                                setSelectedAppointment(apt);
-                                setAppointmentMode("view");
-                                setAppointmentDialogOpen(true);
-                              }}
-                            >
-                              <div className="p-2 h-full flex flex-col">
-                                <div className="font-semibold text-sm">
-                                  {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                  {resizePreview?.id === apt.id 
-                                    ? ` - ${resizePreview.endTime}`
-                                    : endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                                  }
-                                </div>
-                                <div className="text-sm truncate">{apt.title}</div>
-                              </div>
-                              {/* Resize handle */}
+                            <Tooltip key={apt.id}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
+                                  style={{ top: offsetPx, height: heightPx }}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("appointmentId", apt.id);
+                                    e.dataTransfer.setData("type", "appointment");
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (justResized) {
+                                      setJustResized(false);
+                                      return;
+                                    }
+                                    setSelectedAppointment(apt);
+                                    setAppointmentMode("view");
+                                    setAppointmentDialogOpen(true);
+                                  }}
+                                >
+                                  <div className="p-2 h-full">
+                                    <div className="truncate text-sm">
+                                      <span className="font-semibold">
+                                        {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                        {resizePreview?.id === apt.id 
+                                          ? ` - ${resizePreview.endTime}`
+                                          : endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                                        }
+                                      </span>
+                                      {" "}{apt.title}
+                                    </div>
+                                  </div>
+                                  {/* Resize handle */}
                               <div
                                 className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onMouseDown={(e) => {
@@ -1280,7 +1299,16 @@ export default function Calendar() {
                                   document.addEventListener("mouseup", handleMouseUp);
                                 }}
                               />
-                            </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="bg-white dark:bg-gray-800 border shadow-lg p-2 max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{apt.title}</p>
+                                  {clientName && <p className="text-xs text-gray-600 dark:text-gray-400">Client: {clientName}</p>}
+                                  {apt.notes && <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{apt.notes}</p>}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
                           );
                         })}
                         

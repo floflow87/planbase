@@ -255,6 +255,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
             onCheckChange?.(ticket.id, ticket.type, checked === true);
           }}
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           className="data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
           data-testid={`checkbox-ticket-${ticket.id}`}
         />
@@ -286,6 +287,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                   variant="outline" 
                   className="text-xs px-1.5 cursor-pointer hover:bg-muted"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-points-${ticket.id}`}
                 >
                   {ticket.estimatePoints || "-"}
@@ -332,6 +334,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 <div 
                   className="cursor-pointer hover:opacity-80 p-0.5 rounded hover:bg-muted"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-priority-${ticket.id}`}
                 >
                   {getPriorityIcon(ticket.priority)}
@@ -377,6 +380,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 <div 
                   className="cursor-pointer hover:opacity-80"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-assignee-${ticket.id}`}
                 >
                   {assignee ? (
@@ -461,6 +465,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
                 <div 
                   className="cursor-pointer hover:opacity-80 min-w-[80px]"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   data-testid={`ticket-epic-${ticket.id}`}
                 >
                   {ticketEpic ? (
@@ -558,6 +563,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
           <SelectTrigger 
             className={cn("h-6 w-auto min-w-[90px] text-xs px-2 border cursor-pointer bg-white dark:bg-white", getStateStyle(ticket.state))}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             data-testid={`select-inline-state-${ticket.id}`}
           >
             <SelectValue>
@@ -600,6 +606,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
               size="icon" 
               className="h-6 w-6 opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               data-testid={`button-ticket-menu-${ticket.id}`}
             >
               <MoreVertical className="h-4 w-4" />
