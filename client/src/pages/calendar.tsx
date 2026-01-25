@@ -6,11 +6,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AppointmentPanel } from "@/components/appointment-panel";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { supabase } from "@/lib/supabase";
 import googleLogo from "@assets/png-clipart-google-logo-google-search-google-s-g-suite-google-text-trademark_1763028333519.png";
 import { getTaskPriorityColorWithBorder } from "@shared/config";
+import type { Task as FullTask, AppUser, Project, TaskColumn } from "@shared/schema";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -72,6 +74,8 @@ export default function Calendar() {
   const [appointmentReadOnly, setAppointmentReadOnly] = useState(false);
   const [appointmentSource, setAppointmentSource] = useState<"planbase" | "google">("planbase");
   const [showTasks, setShowTasks] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<FullTask | null>(null);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch appointments for the current month
@@ -105,6 +109,26 @@ export default function Calendar() {
     },
   });
 
+  // Fetch full tasks for task detail modal
+  const { data: fullTasks = [] } = useQuery<FullTask[]>({
+    queryKey: ["/api/tasks"],
+  });
+
+  // Fetch users for task detail modal
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Fetch projects for task detail modal
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  // Fetch task columns for task detail modal
+  const { data: taskColumns = [] } = useQuery<TaskColumn[]>({
+    queryKey: ["/api/task-columns"],
+  });
+
   // Check Google Calendar connection status
   const { data: googleStatus } = useQuery<{ connected: boolean; email: string | null; configured: boolean }>({
     queryKey: ["/api/google/status"],
@@ -133,6 +157,40 @@ export default function Calendar() {
     },
     enabled: !!googleStatus?.connected,
   });
+
+  // Update task mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async (task: Partial<FullTask> & { id: string }) => {
+      const response = await apiRequest(`/api/tasks/${task.id}`, "PATCH", task);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setTaskModalOpen(false);
+      setSelectedTask(null);
+    },
+  });
+
+  // Delete task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest(`/api/tasks/${taskId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setTaskModalOpen(false);
+      setSelectedTask(null);
+    },
+  });
+
+  // Handle task click to open detail modal
+  const handleTaskClick = (taskId: string) => {
+    const fullTask = fullTasks.find(t => t.id === taskId);
+    if (fullTask) {
+      setSelectedTask(fullTask);
+      setTaskModalOpen(true);
+    }
+  };
 
   // Disconnect Google Calendar
   const disconnectMutation = useMutation({
@@ -602,6 +660,10 @@ export default function Calendar() {
                             className={`text-xs p-1 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
                             title={`Tâche: ${task.title}`}
                             data-testid={`task-${task.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTaskClick(task.id);
+                            }}
                           >
                             <CheckSquare className="w-3 h-3 inline mr-1" />
                             {task.title}
@@ -791,12 +853,12 @@ export default function Calendar() {
                         {showTasks && timeIndex === 0 && dayTasks.map(task => (
                           <div
                             key={task.id}
-                            className={`text-xs p-1 mb-1 rounded truncate cursor-pointer ${
-                              task.priority === "high" ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-2 border-red-500" :
-                              task.priority === "medium" ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-2 border-yellow-500" :
-                              "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-2 border-green-500"
-                            }`}
+                            className={`text-xs p-1 mb-1 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
                             title={task.title}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTaskClick(task.id);
+                            }}
                           >
                             <CheckSquare className="w-3 h-3 inline mr-1" /> {task.title}
                           </div>
@@ -988,12 +1050,12 @@ export default function Calendar() {
                       {showTasks && timeIndex === 0 && dayTasks.map(task => (
                         <div
                           key={task.id}
-                          className={`text-sm p-2 rounded cursor-pointer ${
-                            task.priority === "high" ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-4 border-red-500" :
-                            task.priority === "medium" ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-l-4 border-yellow-500" :
-                            "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-4 border-green-500"
-                          }`}
+                          className={`text-sm p-2 rounded cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
                           title={task.title}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTaskClick(task.id);
+                          }}
                         >
                           <div className="flex items-center gap-2">
                             <CheckSquare className="w-4 h-4" />
@@ -1027,6 +1089,27 @@ export default function Calendar() {
         mode={appointmentMode}
         isReadOnly={appointmentReadOnly}
         source={appointmentSource}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        task={selectedTask}
+        users={users}
+        projects={projects}
+        columns={taskColumns}
+        isOpen={taskModalOpen}
+        onClose={() => {
+          setTaskModalOpen(false);
+          setSelectedTask(null);
+        }}
+        onSave={(taskData) => {
+          if (selectedTask) {
+            updateTaskMutation.mutate({ ...taskData, id: selectedTask.id } as Partial<FullTask> & { id: string });
+          }
+        }}
+        onDelete={(task) => {
+          deleteTaskMutation.mutate(task.id);
+        }}
       />
     </div>
   );
