@@ -24,6 +24,10 @@ interface Appointment {
   contactEmail: string | null;
   contactPhone: string | null;
   notes: string | null;
+  location?: string | null;
+  htmlLink?: string | null;
+  attendees?: Array<{ email: string; displayName?: string; responseStatus?: string }> | null;
+  organizer?: { email: string; displayName?: string } | null;
 }
 
 interface GoogleEvent {
@@ -564,6 +568,17 @@ export default function Calendar() {
                                 contactEmail: null,
                                 contactPhone: null,
                                 notes: event.description || null,
+                                location: event.location || null,
+                                htmlLink: event.htmlLink || null,
+                                attendees: event.attendees?.map((a: any) => ({
+                                  email: a.email,
+                                  displayName: a.displayName,
+                                  responseStatus: a.responseStatus
+                                })) || null,
+                                organizer: event.organizer ? {
+                                  email: event.organizer.email,
+                                  displayName: event.organizer.displayName
+                                } : null,
                               };
                               setSelectedAppointment(googleAppointment);
                               setAppointmentMode("view");
@@ -630,8 +645,25 @@ export default function Calendar() {
                     </div>
 
                     {/* Time slots */}
-                    {generateTimeSlots().map((time, timeIndex) => (
-                      <div key={timeIndex} className="h-20 border-b border-border p-1 relative">
+                    {generateTimeSlots().map((time, timeIndex) => {
+                      const slotHour = parseInt(time.split(':')[0]);
+                      const slotDateTime = new Date(date);
+                      slotDateTime.setHours(slotHour, 0, 0, 0);
+                      
+                      return (
+                      <div 
+                        key={timeIndex} 
+                        className="h-20 border-b border-border p-1 relative cursor-pointer hover-elevate"
+                        onClick={() => {
+                          setSelectedAppointmentDate(slotDateTime);
+                          setSelectedAppointment(null);
+                          setAppointmentMode("create");
+                          setAppointmentSource("planbase");
+                          setAppointmentReadOnly(false);
+                          setAppointmentDialogOpen(true);
+                        }}
+                        data-testid={`week-slot-${dayIndex}-${timeIndex}`}
+                      >
                         {/* Render appointments/events in this time slot */}
                         {dayAppointments.map(apt => {
                           const aptTime = new Date(apt.startDateTime);
@@ -679,6 +711,17 @@ export default function Calendar() {
                                       contactEmail: null,
                                       contactPhone: null,
                                       notes: event.description || null,
+                                      location: event.location || null,
+                                      htmlLink: event.htmlLink || null,
+                                      attendees: event.attendees?.map((a: any) => ({
+                                        email: a.email,
+                                        displayName: a.displayName,
+                                        responseStatus: a.responseStatus
+                                      })) || null,
+                                      organizer: event.organizer ? {
+                                        email: event.organizer.email,
+                                        displayName: event.organizer.displayName
+                                      } : null,
                                     };
                                     setSelectedAppointment(googleApt as any);
                                     setAppointmentMode("view");
@@ -716,6 +759,17 @@ export default function Calendar() {
                                     contactEmail: null,
                                     contactPhone: null,
                                     notes: event.description || null,
+                                    location: event.location || null,
+                                    htmlLink: event.htmlLink || null,
+                                    attendees: event.attendees?.map((a: any) => ({
+                                      email: a.email,
+                                      displayName: a.displayName,
+                                      responseStatus: a.responseStatus
+                                    })) || null,
+                                    organizer: event.organizer ? {
+                                      email: event.organizer.email,
+                                      displayName: event.organizer.displayName
+                                    } : null,
                                   };
                                   setSelectedAppointment(googleApt as any);
                                   setAppointmentMode("view");
@@ -746,7 +800,8 @@ export default function Calendar() {
                           </div>
                         ))}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -786,9 +841,23 @@ export default function Calendar() {
                   const dayGoogleEvents = getGoogleEventsForDay(currentDate);
                   const dayTasks = getTasksForDay(currentDate);
                   const slotHour = parseInt(time.split(':')[0]);
+                  const slotDateTime = new Date(currentDate);
+                  slotDateTime.setHours(slotHour, 0, 0, 0);
 
                   return (
-                    <div key={timeIndex} className="h-20 border-b border-border p-2 space-y-1">
+                    <div 
+                      key={timeIndex} 
+                      className="h-20 border-b border-border p-2 space-y-1 cursor-pointer hover-elevate"
+                      onClick={() => {
+                        setSelectedAppointmentDate(slotDateTime);
+                        setSelectedAppointment(null);
+                        setAppointmentMode("create");
+                        setAppointmentSource("planbase");
+                        setAppointmentReadOnly(false);
+                        setAppointmentDialogOpen(true);
+                      }}
+                      data-testid={`day-slot-${timeIndex}`}
+                    >
                       {/* Render appointments in this time slot */}
                       {dayAppointments.map(apt => {
                         const aptTime = new Date(apt.startDateTime);
@@ -837,6 +906,17 @@ export default function Calendar() {
                                     contactEmail: null,
                                     contactPhone: null,
                                     notes: event.description || null,
+                                    location: event.location || null,
+                                    htmlLink: event.htmlLink || null,
+                                    attendees: event.attendees?.map((a: any) => ({
+                                      email: a.email,
+                                      displayName: a.displayName,
+                                      responseStatus: a.responseStatus
+                                    })) || null,
+                                    organizer: event.organizer ? {
+                                      email: event.organizer.email,
+                                      displayName: event.organizer.displayName
+                                    } : null,
                                   };
                                   setSelectedAppointment(googleApt as any);
                                   setAppointmentMode("view");
@@ -874,6 +954,17 @@ export default function Calendar() {
                                   contactEmail: null,
                                   contactPhone: null,
                                   notes: event.description || null,
+                                  location: event.location || null,
+                                  htmlLink: event.htmlLink || null,
+                                  attendees: event.attendees?.map((a: any) => ({
+                                    email: a.email,
+                                    displayName: a.displayName,
+                                    responseStatus: a.responseStatus
+                                  })) || null,
+                                  organizer: event.organizer ? {
+                                    email: event.organizer.email,
+                                    displayName: event.organizer.displayName
+                                  } : null,
                                 };
                                 setSelectedAppointment(googleApt as any);
                                 setAppointmentMode("view");
