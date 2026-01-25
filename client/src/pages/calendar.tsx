@@ -382,20 +382,26 @@ export default function Calendar() {
     return days;
   };
 
-  // Generate time slots for day/week views (7am to 9pm in 1-hour slots)
+  // Calendar layout constants
+  const SLOT_HEIGHT = 80; // h-20 = 5rem = 80px
+  const START_HOUR = 7;
+  const END_HOUR = 24; // Midnight (00:00)
+  const TOTAL_HOURS = END_HOUR - START_HOUR; // 17 hours (7:00 to 00:00)
+  
+  // State for drag & drop visual feedback
+  const [dragOverSlot, setDragOverSlot] = useState<{ date: string; hour: number } | null>(null);
+  
+  // State for resize time display
+  const [resizePreview, setResizePreview] = useState<{ id: string; endTime: string } | null>(null);
+
+  // Generate time slots for day/week views (7am to midnight in 1-hour slots)
   const generateTimeSlots = () => {
     const slots: string[] = [];
-    for (let hour = 7; hour <= 21; hour++) {
+    for (let hour = START_HOUR; hour < END_HOUR; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
   };
-
-  // Calendar layout constants
-  const SLOT_HEIGHT = 80; // h-20 = 5rem = 80px
-  const START_HOUR = 7;
-  const END_HOUR = 21;
-  const TOTAL_HOURS = END_HOUR - START_HOUR + 1;
 
   // Calculate position and height for an appointment with clamping
   const calculateEventPosition = (startDateTime: string, endDateTime: string | null) => {
@@ -821,9 +827,15 @@ export default function Calendar() {
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const y = e.clientY - rect.top;
+                          const hour = START_HOUR + Math.floor(y / SLOT_HEIGHT);
+                          setDragOverSlot({ date: date.toISOString().split('T')[0], hour });
                         }}
+                        onDragLeave={() => setDragOverSlot(null)}
                         onDrop={(e) => {
                           e.preventDefault();
+                          setDragOverSlot(null);
                           const appointmentId = e.dataTransfer.getData("appointmentId");
                           const type = e.dataTransfer.getData("type");
                           
@@ -853,11 +865,14 @@ export default function Calendar() {
                           const slotHour = parseInt(time.split(':')[0]);
                           const slotDateTime = new Date(date);
                           slotDateTime.setHours(slotHour, 0, 0, 0);
+                          const isDragTarget = dragOverSlot?.date === date.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
 
                           return (
                             <div
                               key={timeIndex}
-                              className="absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate"
+                              className={`absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate transition-colors duration-150 ${
+                                isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
+                              }`}
                               style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
                               onClick={() => {
                                 setSelectedAppointmentDate(slotDateTime);
@@ -918,6 +933,7 @@ export default function Calendar() {
                               <div className="p-0.5">
                                 <div className="font-semibold">
                                   {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                  {resizePreview?.id === apt.id && ` - ${resizePreview.endTime}`}
                                 </div>
                                 <div className="truncate">{apt.title}</div>
                               </div>
@@ -929,16 +945,29 @@ export default function Calendar() {
                                   e.preventDefault();
                                   const startY = e.clientY;
                                   const startHeight = height;
+                                  const parentEl = (e.target as HTMLElement).parentElement!;
 
                                   const handleMouseMove = (moveEvent: MouseEvent) => {
                                     const deltaY = moveEvent.clientY - startY;
                                     const newHeight = Math.max(20, startHeight + deltaY);
-                                    (e.target as HTMLElement).parentElement!.style.height = `${newHeight}px`;
+                                    const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
+                                    const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                                    const newEndDateTime = new Date(apt.startDateTime);
+                                    newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                                    
+                                    parentEl.style.height = `${newHeight}px`;
+                                    
+                                    // Show real-time end time
+                                    setResizePreview({
+                                      id: apt.id,
+                                      endTime: newEndDateTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                                    });
                                   };
 
                                   const handleMouseUp = (upEvent: MouseEvent) => {
                                     document.removeEventListener("mousemove", handleMouseMove);
                                     document.removeEventListener("mouseup", handleMouseUp);
+                                    setResizePreview(null);
                                     
                                     const deltaY = upEvent.clientY - startY;
                                     const newHeight = Math.max(20, startHeight + deltaY);
@@ -946,6 +975,9 @@ export default function Calendar() {
                                     const roundedMinutes = Math.round(durationMinutes / 15) * 15;
                                     const newEndDateTime = new Date(apt.startDateTime);
                                     newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                                    
+                                    // Optimistic update - immediately apply new height
+                                    parentEl.style.height = `${(roundedMinutes / 60) * SLOT_HEIGHT}px`;
                                     
                                     updateAppointmentMutation.mutate({
                                       id: apt.id,
@@ -1103,9 +1135,15 @@ export default function Calendar() {
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const hour = START_HOUR + Math.floor(y / SLOT_HEIGHT);
+                    setDragOverSlot({ date: currentDate.toISOString().split('T')[0], hour });
                   }}
+                  onDragLeave={() => setDragOverSlot(null)}
                   onDrop={(e) => {
                     e.preventDefault();
+                    setDragOverSlot(null);
                     const appointmentId = e.dataTransfer.getData("appointmentId");
                     const type = e.dataTransfer.getData("type");
                     
@@ -1135,11 +1173,14 @@ export default function Calendar() {
                     const slotHour = parseInt(time.split(':')[0]);
                     const slotDateTime = new Date(currentDate);
                     slotDateTime.setHours(slotHour, 0, 0, 0);
+                    const isDragTarget = dragOverSlot?.date === currentDate.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
 
                     return (
                       <div
                         key={timeIndex}
-                        className="absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate"
+                        className={`absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate transition-colors duration-150 ${
+                          isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
+                        }`}
                         style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
                         onClick={() => {
                           setSelectedAppointmentDate(slotDateTime);
@@ -1204,7 +1245,10 @@ export default function Calendar() {
                         <div className="p-2 h-full flex flex-col">
                           <div className="font-semibold text-sm">
                             {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                            {endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                            {resizePreview?.id === apt.id 
+                              ? ` - ${resizePreview.endTime}`
+                              : endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                            }
                           </div>
                           <div className="text-sm truncate">{apt.title}</div>
                         </div>
@@ -1216,6 +1260,7 @@ export default function Calendar() {
                             e.preventDefault();
                             const startY = e.clientY;
                             const startHeight = height;
+                            const parentEl = (e.target as HTMLElement).parentElement!;
 
                             const handleMouseMove = (moveEvent: MouseEvent) => {
                               const deltaY = moveEvent.clientY - startY;
@@ -1226,12 +1271,19 @@ export default function Calendar() {
                               newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
                               
                               // Visual feedback during drag
-                              (e.target as HTMLElement).parentElement!.style.height = `${newHeight}px`;
+                              parentEl.style.height = `${newHeight}px`;
+                              
+                              // Show real-time end time
+                              setResizePreview({
+                                id: apt.id,
+                                endTime: newEndDateTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                              });
                             };
 
                             const handleMouseUp = (upEvent: MouseEvent) => {
                               document.removeEventListener("mousemove", handleMouseMove);
                               document.removeEventListener("mouseup", handleMouseUp);
+                              setResizePreview(null);
                               
                               const deltaY = upEvent.clientY - startY;
                               const newHeight = Math.max(20, startHeight + deltaY);
@@ -1239,6 +1291,9 @@ export default function Calendar() {
                               const roundedMinutes = Math.round(durationMinutes / 15) * 15;
                               const newEndDateTime = new Date(apt.startDateTime);
                               newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                              
+                              // Optimistic update - immediately apply new height
+                              parentEl.style.height = `${(roundedMinutes / 60) * SLOT_HEIGHT}px`;
                               
                               updateAppointmentMutation.mutate({
                                 id: apt.id,
