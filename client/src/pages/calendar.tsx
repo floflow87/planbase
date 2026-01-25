@@ -171,6 +171,21 @@ export default function Calendar() {
     },
   });
 
+  // Update appointment mutation (for drag & drop and resize)
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async (data: { id: string; startDateTime?: string; endDateTime?: string }) => {
+      const response = await apiRequest(`/api/appointments/${data.id}`, "PATCH", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "/api/appointments" });
+      toast({
+        title: "Rendez-vous mis à jour",
+        variant: "success",
+      });
+    },
+  });
+
   // Delete task mutation
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -376,6 +391,58 @@ export default function Calendar() {
     return slots;
   };
 
+  // Calendar layout constants
+  const SLOT_HEIGHT = 80; // h-20 = 5rem = 80px
+  const START_HOUR = 7;
+  const END_HOUR = 21;
+  const TOTAL_HOURS = END_HOUR - START_HOUR + 1;
+
+  // Calculate position and height for an appointment with clamping
+  const calculateEventPosition = (startDateTime: string, endDateTime: string | null) => {
+    const start = new Date(startDateTime);
+    const startHour = start.getHours();
+    const startMinutes = start.getMinutes();
+    
+    // Clamp start hour to visible range
+    const clampedStartHour = Math.max(START_HOUR, Math.min(END_HOUR, startHour));
+    const clampedStartMinutes = startHour < START_HOUR ? 0 : (startHour >= END_HOUR ? 0 : startMinutes);
+    
+    // Default duration 1 hour if no end time
+    let durationMinutes = 60;
+    if (endDateTime) {
+      const end = new Date(endDateTime);
+      durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    }
+    // Ensure minimum duration of 15 minutes
+    durationMinutes = Math.max(15, durationMinutes);
+    
+    // Calculate top position (pixels from top of container)
+    const topMinutes = (clampedStartHour - START_HOUR) * 60 + clampedStartMinutes;
+    const top = Math.max(0, (topMinutes / 60) * SLOT_HEIGHT);
+    
+    // Calculate height based on duration
+    const height = Math.max((durationMinutes / 60) * SLOT_HEIGHT, 20); // Minimum 20px height
+    
+    return { top, height };
+  };
+
+  // Convert pixel position to datetime with clamping
+  const pixelToDateTime = (pixelY: number, baseDate: Date) => {
+    // Clamp pixel position to valid range
+    const clampedPixelY = Math.max(0, Math.min(pixelY, TOTAL_HOURS * SLOT_HEIGHT));
+    const totalMinutes = (clampedPixelY / SLOT_HEIGHT) * 60;
+    const rawHour = START_HOUR + Math.floor(totalMinutes / 60);
+    const rawMinutes = Math.round((totalMinutes % 60) / 15) * 15;
+    
+    // Clamp hour to visible range
+    const hour = Math.max(START_HOUR, Math.min(END_HOUR, rawHour));
+    const minutes = hour === END_HOUR ? 0 : rawMinutes;
+    
+    const result = new Date(baseDate);
+    result.setHours(hour, minutes, 0, 0);
+    return result;
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -567,6 +634,36 @@ export default function Calendar() {
                       !isCurrentMonth ? "bg-muted/30" : "bg-card"
                     } ${isToday ? "bg-violet-50 dark:bg-violet-950/20" : ""}`}
                     data-testid={`calendar-cell-${date.toISOString().split('T')[0]}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const appointmentId = e.dataTransfer.getData("appointmentId");
+                      const type = e.dataTransfer.getData("type");
+                      
+                      if (type === "appointment" && appointmentId) {
+                        const apt = appointments.find(a => a.id === appointmentId);
+                        if (apt) {
+                          const oldStart = new Date(apt.startDateTime);
+                          const newStart = new Date(date);
+                          newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0);
+                          
+                          const duration = apt.endDateTime 
+                            ? new Date(apt.endDateTime).getTime() - oldStart.getTime()
+                            : 60 * 60 * 1000;
+                          const newEnd = new Date(newStart.getTime() + duration);
+                          
+                          updateAppointmentMutation.mutate({
+                            id: appointmentId,
+                            startDateTime: newStart.toISOString(),
+                            endDateTime: newEnd.toISOString(),
+                          });
+                        }
+                      }
+                    }}
                   >
                     <div className={`text-sm font-medium mb-1 ${
                       isCurrentMonth ? "text-foreground" : "text-muted-foreground"
@@ -585,9 +682,15 @@ export default function Calendar() {
                         return (
                           <div
                             key={apt.id}
-                            className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                            className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-grab hover-elevate"
                             title={`${startTime} - ${apt.title}`}
                             data-testid={`appointment-${apt.id}`}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("appointmentId", apt.id);
+                              e.dataTransfer.setData("type", "appointment");
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedAppointment(apt);
@@ -613,7 +716,7 @@ export default function Calendar() {
                         return (
                           <div
                             key={event.id}
-                            className="text-xs p-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer hover:bg-cyan-200 dark:hover:bg-cyan-900/50 border-l-2 border-cyan-500"
+                            className="text-xs p-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer hover-elevate border-l-2 border-cyan-500"
                             title={`Google: ${startTime} - ${event.summary}`}
                             data-testid={`google-event-${event.id}`}
                             onClick={(e) => {
@@ -678,261 +781,133 @@ export default function Calendar() {
           </div>
         )}
 
-        {viewMode === "week" && (
-          <div className="bg-card rounded-lg border border-border overflow-auto">
-            <div className="grid grid-cols-8 min-w-[800px]">
-              {/* Time column */}
-              <div className="border-r border-border">
-                <div className="h-12 border-b border-border"></div>
-                {generateTimeSlots().map(time => (
-                  <div key={time} className="h-20 border-b border-border p-2 text-xs text-muted-foreground">
-                    {time}
-                  </div>
-                ))}
-              </div>
+        {viewMode === "week" && (() => {
+          const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
 
-              {/* Day columns */}
-              {generateWeekGrid().map((date, dayIndex) => {
-                const isToday = date.toDateString() === new Date().toDateString();
-                const dayAppointments = getAppointmentsForDay(date);
-                const dayGoogleEvents = getGoogleEventsForDay(date);
-                const dayTasks = getTasksForDay(date);
-
-                return (
-                  <div key={dayIndex} className="border-r border-border last:border-r-0">
-                    {/* Day header */}
-                    <div className={`h-12 border-b border-border p-2 text-center ${isToday ? "bg-violet-100 dark:bg-violet-900/30" : ""}`}>
-                      <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
-                      <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
-                        {date.getDate()}
-                      </div>
+          return (
+            <div className="bg-card rounded-lg border border-border overflow-auto">
+              <div className="grid grid-cols-8 min-w-[800px]">
+                {/* Time column */}
+                <div className="border-r border-border">
+                  <div className="h-12 border-b border-border"></div>
+                  {generateTimeSlots().map(time => (
+                    <div key={time} className="h-20 border-b border-border p-2 text-xs text-muted-foreground">
+                      {time}
                     </div>
-
-                    {/* Time slots */}
-                    {generateTimeSlots().map((time, timeIndex) => {
-                      const slotHour = parseInt(time.split(':')[0]);
-                      const slotDateTime = new Date(date);
-                      slotDateTime.setHours(slotHour, 0, 0, 0);
-                      
-                      return (
-                      <div 
-                        key={timeIndex} 
-                        className="h-20 border-b border-border p-1 relative cursor-pointer hover-elevate"
-                        onClick={() => {
-                          setSelectedAppointmentDate(slotDateTime);
-                          setSelectedAppointment(null);
-                          setAppointmentMode("create");
-                          setAppointmentSource("planbase");
-                          setAppointmentReadOnly(false);
-                          setAppointmentDialogOpen(true);
-                        }}
-                        data-testid={`week-slot-${dayIndex}-${timeIndex}`}
-                      >
-                        {/* Render appointments/events in this time slot */}
-                        {dayAppointments.map(apt => {
-                          const aptTime = new Date(apt.startDateTime);
-                          const aptHour = aptTime.getHours();
-                          const slotHour = parseInt(time.split(':')[0]);
-                          
-                          if (aptHour === slotHour) {
-                            return (
-                              <div
-                                key={apt.id}
-                                className="text-xs p-1 mb-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-800/40"
-                                title={apt.title}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAppointment(apt);
-                                  setAppointmentMode("view");
-                                  setAppointmentDialogOpen(true);
-                                }}
-                              >
-                                {aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {apt.title}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
-                        
-                        {dayGoogleEvents.map(event => {
-                          if (!event.start.dateTime) {
-                            // All-day events: show only in first time slot
-                            if (timeIndex === 0) {
-                              return (
-                                <div
-                                  key={event.id}
-                                  className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/40"
-                                  title={event.summary}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const googleApt = {
-                                      id: event.id,
-                                      title: event.summary || "Sans titre",
-                                      type: null,
-                                      startDateTime: event.start.date || event.start.dateTime,
-                                      endDateTime: event.end?.date || event.end?.dateTime || null,
-                                      clientId: null,
-                                      contactEmail: null,
-                                      contactPhone: null,
-                                      notes: event.description || null,
-                                      location: event.location || null,
-                                      htmlLink: event.htmlLink || null,
-                                      attendees: event.attendees?.map((a: any) => ({
-                                        email: a.email,
-                                        displayName: a.displayName,
-                                        responseStatus: a.responseStatus
-                                      })) || null,
-                                      organizer: event.organizer ? {
-                                        email: event.organizer.email,
-                                        displayName: event.organizer.displayName
-                                      } : null,
-                                    };
-                                    setSelectedAppointment(googleApt as any);
-                                    setAppointmentMode("view");
-                                    setAppointmentSource("google");
-                                    setAppointmentReadOnly(true);
-                                    setAppointmentDialogOpen(true);
-                                  }}
-                                >
-                                  Toute la journée: {event.summary}
-                                </div>
-                              );
-                            }
-                            return null;
-                          }
-                          
-                          const eventTime = new Date(event.start.dateTime);
-                          const eventHour = eventTime.getHours();
-                          const slotHour = parseInt(time.split(':')[0]);
-                          
-                          if (eventHour === slotHour) {
-                            return (
-                              <div
-                                key={event.id}
-                                className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/40"
-                                title={event.summary}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const googleApt = {
-                                    id: event.id,
-                                    title: event.summary || "Sans titre",
-                                    type: null,
-                                    startDateTime: event.start.dateTime,
-                                    endDateTime: event.end?.dateTime || null,
-                                    clientId: null,
-                                    contactEmail: null,
-                                    contactPhone: null,
-                                    notes: event.description || null,
-                                    location: event.location || null,
-                                    htmlLink: event.htmlLink || null,
-                                    attendees: event.attendees?.map((a: any) => ({
-                                      email: a.email,
-                                      displayName: a.displayName,
-                                      responseStatus: a.responseStatus
-                                    })) || null,
-                                    organizer: event.organizer ? {
-                                      email: event.organizer.email,
-                                      displayName: event.organizer.displayName
-                                    } : null,
-                                  };
-                                  setSelectedAppointment(googleApt as any);
-                                  setAppointmentMode("view");
-                                  setAppointmentSource("google");
-                                  setAppointmentReadOnly(true);
-                                  setAppointmentDialogOpen(true);
-                                }}
-                              >
-                                {eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {event.summary}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
-
-                        {/* Tasks: show only in first time slot since they have no specific time */}
-                        {showTasks && timeIndex === 0 && dayTasks.map(task => (
-                          <div
-                            key={task.id}
-                            className={`text-xs p-1 mb-1 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
-                            title={task.title}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTaskClick(task.id);
-                            }}
-                          >
-                            <CheckSquare className="w-3 h-3 inline mr-1" /> {task.title}
-                          </div>
-                        ))}
-                      </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {viewMode === "day" && (
-          <div className="bg-card rounded-lg border border-border overflow-auto max-w-4xl mx-auto">
-            <div className="grid grid-cols-2">
-              {/* Time column */}
-              <div className="border-r border-border col-span-2">
-                {/* Day header */}
-                <div className="h-16 border-b border-border p-4 bg-violet-50 dark:bg-violet-950/20">
-                  <div className="text-sm text-muted-foreground">
-                    {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][currentDate.getDay()]}
-                  </div>
-                  <div className="text-lg font-bold text-violet-600 dark:text-violet-400">
-                    {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                  </div>
+                  ))}
                 </div>
-              </div>
 
-              {/* Time column */}
-              <div className="border-r border-border">
-                {generateTimeSlots().map(time => (
-                  <div key={time} className="h-20 border-b border-border p-2 text-sm text-muted-foreground font-medium">
-                    {time}
-                  </div>
-                ))}
-              </div>
-
-              {/* Events column */}
-              <div>
-                {generateTimeSlots().map((time, timeIndex) => {
-                  const dayAppointments = getAppointmentsForDay(currentDate);
-                  const dayGoogleEvents = getGoogleEventsForDay(currentDate);
-                  const dayTasks = getTasksForDay(currentDate);
-                  const slotHour = parseInt(time.split(':')[0]);
-                  const slotDateTime = new Date(currentDate);
-                  slotDateTime.setHours(slotHour, 0, 0, 0);
+                {/* Day columns */}
+                {generateWeekGrid().map((date, dayIndex) => {
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const dayAppointments = getAppointmentsForDay(date);
+                  const dayGoogleEvents = getGoogleEventsForDay(date);
+                  const dayTasks = getTasksForDay(date);
 
                   return (
-                    <div 
-                      key={timeIndex} 
-                      className="h-20 border-b border-border p-2 space-y-1 cursor-pointer hover-elevate"
-                      onClick={() => {
-                        setSelectedAppointmentDate(slotDateTime);
-                        setSelectedAppointment(null);
-                        setAppointmentMode("create");
-                        setAppointmentSource("planbase");
-                        setAppointmentReadOnly(false);
-                        setAppointmentDialogOpen(true);
-                      }}
-                      data-testid={`day-slot-${timeIndex}`}
-                    >
-                      {/* Render appointments in this time slot */}
-                      {dayAppointments.map(apt => {
-                        const aptTime = new Date(apt.startDateTime);
-                        const aptHour = aptTime.getHours();
-                        
-                        if (aptHour === slotHour) {
+                    <div key={dayIndex} className="border-r border-border last:border-r-0">
+                      {/* Day header */}
+                      <div className={`h-12 border-b border-border p-2 text-center ${isToday ? "bg-violet-100 dark:bg-violet-900/30" : ""}`}>
+                        <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
+                        <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
+                          {date.getDate()}
+                        </div>
+                      </div>
+
+                      {/* Events container with absolute positioning */}
+                      <div 
+                        className="relative"
+                        style={{ height: totalHeight }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const appointmentId = e.dataTransfer.getData("appointmentId");
+                          const type = e.dataTransfer.getData("type");
+                          
+                          if (type === "appointment" && appointmentId) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const y = e.clientY - rect.top;
+                            const newDateTime = pixelToDateTime(y, date);
+                            
+                            const apt = appointments.find(a => a.id === appointmentId);
+                            if (apt) {
+                              const duration = apt.endDateTime 
+                                ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
+                                : 60 * 60 * 1000;
+                              const newEndDateTime = new Date(newDateTime.getTime() + duration);
+                              
+                              updateAppointmentMutation.mutate({
+                                id: appointmentId,
+                                startDateTime: newDateTime.toISOString(),
+                                endDateTime: newEndDateTime.toISOString(),
+                              });
+                            }
+                          }
+                        }}
+                      >
+                        {/* Background grid for clicking to create appointments */}
+                        {generateTimeSlots().map((time, timeIndex) => {
+                          const slotHour = parseInt(time.split(':')[0]);
+                          const slotDateTime = new Date(date);
+                          slotDateTime.setHours(slotHour, 0, 0, 0);
+
+                          return (
+                            <div
+                              key={timeIndex}
+                              className="absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate"
+                              style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+                              onClick={() => {
+                                setSelectedAppointmentDate(slotDateTime);
+                                setSelectedAppointment(null);
+                                setAppointmentMode("create");
+                                setAppointmentSource("planbase");
+                                setAppointmentReadOnly(false);
+                                setAppointmentDialogOpen(true);
+                              }}
+                              data-testid={`week-slot-${dayIndex}-${timeIndex}`}
+                            />
+                          );
+                        })}
+
+                        {/* Tasks (shown at top) */}
+                        {showTasks && dayTasks.length > 0 && (
+                          <div className="absolute left-0.5 right-0.5 top-0.5 z-10 space-y-0.5">
+                            {dayTasks.map(task => (
+                              <div
+                                key={task.id}
+                                className={`text-xs p-0.5 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
+                                title={task.title}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTaskClick(task.id);
+                                }}
+                              >
+                                <CheckSquare className="w-3 h-3 inline mr-0.5" /> {task.title}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Appointments with absolute positioning */}
+                        {dayAppointments.map(apt => {
+                          const { top, height } = calculateEventPosition(apt.startDateTime, apt.endDateTime);
+                          const startTime = new Date(apt.startDateTime);
+
                           return (
                             <div
                               key={apt.id}
-                              className="text-sm p-2 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
+                              className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 overflow-hidden text-xs group"
+                              style={{ top, height, minHeight: 20 }}
                               title={apt.title}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("appointmentId", apt.id);
+                                e.dataTransfer.setData("type", "appointment");
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedAppointment(apt);
@@ -940,23 +915,61 @@ export default function Calendar() {
                                 setAppointmentDialogOpen(true);
                               }}
                             >
-                              <div className="font-semibold">{aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
-                              <div>{apt.title}</div>
-                              {apt.notes && <div className="text-xs mt-1 text-muted-foreground">{apt.notes}</div>}
+                              <div className="p-0.5">
+                                <div className="font-semibold">
+                                  {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                </div>
+                                <div className="truncate">{apt.title}</div>
+                              </div>
+                              {/* Resize handle */}
+                              <div
+                                className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  const startY = e.clientY;
+                                  const startHeight = height;
+
+                                  const handleMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaY = moveEvent.clientY - startY;
+                                    const newHeight = Math.max(20, startHeight + deltaY);
+                                    (e.target as HTMLElement).parentElement!.style.height = `${newHeight}px`;
+                                  };
+
+                                  const handleMouseUp = (upEvent: MouseEvent) => {
+                                    document.removeEventListener("mousemove", handleMouseMove);
+                                    document.removeEventListener("mouseup", handleMouseUp);
+                                    
+                                    const deltaY = upEvent.clientY - startY;
+                                    const newHeight = Math.max(20, startHeight + deltaY);
+                                    const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
+                                    const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                                    const newEndDateTime = new Date(apt.startDateTime);
+                                    newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                                    
+                                    updateAppointmentMutation.mutate({
+                                      id: apt.id,
+                                      endDateTime: newEndDateTime.toISOString(),
+                                    });
+                                  };
+
+                                  document.addEventListener("mousemove", handleMouseMove);
+                                  document.addEventListener("mouseup", handleMouseUp);
+                                }}
+                              />
                             </div>
                           );
-                        }
-                        return null;
-                      })}
-                      
-                      {dayGoogleEvents.map(event => {
-                        if (!event.start.dateTime) {
-                          // All-day event: show only in first time slot
-                          if (timeIndex === 0) {
+                        })}
+
+                        {/* Google Calendar events with absolute positioning */}
+                        {dayGoogleEvents.map(event => {
+                          if (!event.start.dateTime) {
+                            // All-day event
                             return (
                               <div
                                 key={event.id}
-                                className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
+                                className="absolute left-0.5 right-0.5 z-10 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-2 border-cyan-500 text-xs"
+                                style={{ top: 2, height: 18 }}
                                 title={event.summary}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -989,22 +1002,22 @@ export default function Calendar() {
                                   setAppointmentDialogOpen(true);
                                 }}
                               >
-                                <div className="font-semibold">Toute la journée</div>
-                                <div>{event.summary}</div>
+                                <div className="p-0.5 truncate">{event.summary}</div>
                               </div>
                             );
                           }
-                          return null;
-                        }
-                        
-                        const eventTime = new Date(event.start.dateTime);
-                        const eventHour = eventTime.getHours();
-                        
-                        if (eventHour === slotHour) {
+
+                          const { top, height } = calculateEventPosition(
+                            event.start.dateTime,
+                            event.end?.dateTime || null
+                          );
+                          const startTime = new Date(event.start.dateTime);
+
                           return (
                             <div
                               key={event.id}
-                              className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
+                              className="absolute left-0.5 right-0.5 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-2 border-cyan-500 overflow-hidden text-xs"
+                              style={{ top, height, minHeight: 20 }}
                               title={event.summary}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1037,17 +1050,114 @@ export default function Calendar() {
                                 setAppointmentDialogOpen(true);
                               }}
                             >
-                              <div className="font-semibold">{eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
-                              <div>{event.summary}</div>
-                              {event.description && <div className="text-xs mt-1">{event.description}</div>}
+                              <div className="p-0.5">
+                                <div className="font-semibold">
+                                  {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                </div>
+                                <div className="truncate">{event.summary}</div>
+                              </div>
                             </div>
                           );
-                        }
-                        return null;
-                      })}
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
-                      {/* Tasks for this day (shown at top of day) */}
-                      {showTasks && timeIndex === 0 && dayTasks.map(task => (
+        {viewMode === "day" && (() => {
+          const dayAppointments = getAppointmentsForDay(currentDate);
+          const dayGoogleEvents = getGoogleEventsForDay(currentDate);
+          const dayTasks = getTasksForDay(currentDate);
+          const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
+
+          return (
+            <div className="bg-card rounded-lg border border-border overflow-auto max-w-4xl mx-auto">
+              {/* Day header */}
+              <div className="h-16 border-b border-border p-4 bg-violet-50 dark:bg-violet-950/20">
+                <div className="text-sm text-muted-foreground">
+                  {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][currentDate.getDay()]}
+                </div>
+                <div className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                  {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </div>
+              </div>
+
+              <div className="flex">
+                {/* Time column */}
+                <div className="w-16 flex-shrink-0 border-r border-border">
+                  {generateTimeSlots().map(time => (
+                    <div key={time} className="h-20 border-b border-border p-2 text-sm text-muted-foreground font-medium">
+                      {time}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Events column with absolute positioning */}
+                <div 
+                  className="flex-1 relative"
+                  style={{ height: totalHeight }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const appointmentId = e.dataTransfer.getData("appointmentId");
+                    const type = e.dataTransfer.getData("type");
+                    
+                    if (type === "appointment" && appointmentId) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const y = e.clientY - rect.top;
+                      const newDateTime = pixelToDateTime(y, currentDate);
+                      
+                      const apt = appointments.find(a => a.id === appointmentId);
+                      if (apt) {
+                        const duration = apt.endDateTime 
+                          ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
+                          : 60 * 60 * 1000;
+                        const newEndDateTime = new Date(newDateTime.getTime() + duration);
+                        
+                        updateAppointmentMutation.mutate({
+                          id: appointmentId,
+                          startDateTime: newDateTime.toISOString(),
+                          endDateTime: newEndDateTime.toISOString(),
+                        });
+                      }
+                    }
+                  }}
+                >
+                  {/* Background grid for clicking to create appointments */}
+                  {generateTimeSlots().map((time, timeIndex) => {
+                    const slotHour = parseInt(time.split(':')[0]);
+                    const slotDateTime = new Date(currentDate);
+                    slotDateTime.setHours(slotHour, 0, 0, 0);
+
+                    return (
+                      <div
+                        key={timeIndex}
+                        className="absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate"
+                        style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+                        onClick={() => {
+                          setSelectedAppointmentDate(slotDateTime);
+                          setSelectedAppointment(null);
+                          setAppointmentMode("create");
+                          setAppointmentSource("planbase");
+                          setAppointmentReadOnly(false);
+                          setAppointmentDialogOpen(true);
+                        }}
+                        data-testid={`day-slot-${timeIndex}`}
+                      />
+                    );
+                  })}
+
+                  {/* Tasks (shown at top) */}
+                  {showTasks && dayTasks.length > 0 && (
+                    <div className="absolute left-1 right-1 top-1 z-10 space-y-1">
+                      {dayTasks.map(task => (
                         <div
                           key={task.id}
                           className={`text-sm p-2 rounded cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
@@ -1059,18 +1169,196 @@ export default function Calendar() {
                         >
                           <div className="flex items-center gap-2">
                             <CheckSquare className="w-4 h-4" />
-                            <span className="font-semibold">Tâche à faire</span>
+                            <span className="font-semibold truncate">{task.title}</span>
                           </div>
-                          <div>{task.title}</div>
                         </div>
                       ))}
                     </div>
-                  );
-                })}
+                  )}
+
+                  {/* Appointments with absolute positioning based on time */}
+                  {dayAppointments.map(apt => {
+                    const { top, height } = calculateEventPosition(apt.startDateTime, apt.endDateTime);
+                    const startTime = new Date(apt.startDateTime);
+                    const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
+
+                    return (
+                      <div
+                        key={apt.id}
+                        className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
+                        style={{ top, height, minHeight: 24 }}
+                        title={apt.title}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("appointmentId", apt.id);
+                          e.dataTransfer.setData("type", "appointment");
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAppointment(apt);
+                          setAppointmentMode("view");
+                          setAppointmentDialogOpen(true);
+                        }}
+                      >
+                        <div className="p-2 h-full flex flex-col">
+                          <div className="font-semibold text-sm">
+                            {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                          </div>
+                          <div className="text-sm truncate">{apt.title}</div>
+                        </div>
+                        {/* Resize handle */}
+                        <div
+                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const startY = e.clientY;
+                            const startHeight = height;
+
+                            const handleMouseMove = (moveEvent: MouseEvent) => {
+                              const deltaY = moveEvent.clientY - startY;
+                              const newHeight = Math.max(20, startHeight + deltaY);
+                              const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
+                              const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                              const newEndDateTime = new Date(apt.startDateTime);
+                              newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                              
+                              // Visual feedback during drag
+                              (e.target as HTMLElement).parentElement!.style.height = `${newHeight}px`;
+                            };
+
+                            const handleMouseUp = (upEvent: MouseEvent) => {
+                              document.removeEventListener("mousemove", handleMouseMove);
+                              document.removeEventListener("mouseup", handleMouseUp);
+                              
+                              const deltaY = upEvent.clientY - startY;
+                              const newHeight = Math.max(20, startHeight + deltaY);
+                              const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
+                              const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                              const newEndDateTime = new Date(apt.startDateTime);
+                              newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                              
+                              updateAppointmentMutation.mutate({
+                                id: apt.id,
+                                endDateTime: newEndDateTime.toISOString(),
+                              });
+                            };
+
+                            document.addEventListener("mousemove", handleMouseMove);
+                            document.addEventListener("mouseup", handleMouseUp);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+
+                  {/* Google Calendar events with absolute positioning */}
+                  {dayGoogleEvents.map(event => {
+                    if (!event.start.dateTime) {
+                      // All-day event
+                      return (
+                        <div
+                          key={event.id}
+                          className="absolute left-1 right-1 z-10 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
+                          style={{ top: 4, height: 28 }}
+                          title={event.summary}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const googleApt = {
+                              id: event.id,
+                              title: event.summary || "Sans titre",
+                              type: null,
+                              startDateTime: event.start.date || event.start.dateTime,
+                              endDateTime: event.end?.date || event.end?.dateTime || null,
+                              clientId: null,
+                              contactEmail: null,
+                              contactPhone: null,
+                              notes: event.description || null,
+                              location: event.location || null,
+                              htmlLink: event.htmlLink || null,
+                              attendees: event.attendees?.map((a: any) => ({
+                                email: a.email,
+                                displayName: a.displayName,
+                                responseStatus: a.responseStatus
+                              })) || null,
+                              organizer: event.organizer ? {
+                                email: event.organizer.email,
+                                displayName: event.organizer.displayName
+                              } : null,
+                            };
+                            setSelectedAppointment(googleApt as any);
+                            setAppointmentMode("view");
+                            setAppointmentSource("google");
+                            setAppointmentReadOnly(true);
+                            setAppointmentDialogOpen(true);
+                          }}
+                        >
+                          <div className="p-1 text-sm font-semibold truncate">Journée: {event.summary}</div>
+                        </div>
+                      );
+                    }
+
+                    const { top, height } = calculateEventPosition(
+                      event.start.dateTime,
+                      event.end?.dateTime || null
+                    );
+                    const startTime = new Date(event.start.dateTime);
+                    const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+
+                    return (
+                      <div
+                        key={event.id}
+                        className="absolute left-1 right-1 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 overflow-hidden"
+                        style={{ top, height, minHeight: 24 }}
+                        title={event.summary}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const googleApt = {
+                            id: event.id,
+                            title: event.summary || "Sans titre",
+                            type: null,
+                            startDateTime: event.start.dateTime,
+                            endDateTime: event.end?.dateTime || null,
+                            clientId: null,
+                            contactEmail: null,
+                            contactPhone: null,
+                            notes: event.description || null,
+                            location: event.location || null,
+                            htmlLink: event.htmlLink || null,
+                            attendees: event.attendees?.map((a: any) => ({
+                              email: a.email,
+                              displayName: a.displayName,
+                              responseStatus: a.responseStatus
+                            })) || null,
+                            organizer: event.organizer ? {
+                              email: event.organizer.email,
+                              displayName: event.organizer.displayName
+                            } : null,
+                          };
+                          setSelectedAppointment(googleApt as any);
+                          setAppointmentMode("view");
+                          setAppointmentSource("google");
+                          setAppointmentReadOnly(true);
+                          setAppointmentDialogOpen(true);
+                        }}
+                      >
+                        <div className="p-2 h-full flex flex-col">
+                          <div className="font-semibold text-sm">
+                            {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                          </div>
+                          <div className="text-sm truncate">{event.summary}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Appointment Panel */}
