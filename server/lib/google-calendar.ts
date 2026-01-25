@@ -19,7 +19,7 @@ export function getAuthUrl(oauth2Client: any, state: string) {
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: [
-      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/userinfo.email",
     ],
     state, // state = JSON.stringify({ accountId, userId })
@@ -124,4 +124,77 @@ export async function getCalendarEvents(accountId: string, userId: string, start
   });
 
   return response.data.items || [];
+}
+
+export async function createCalendarEvent(
+  accountId: string, 
+  userId: string, 
+  eventData: {
+    title: string;
+    startDateTime: string;
+    endDateTime?: string;
+    description?: string;
+  }
+) {
+  let token = await storage.getGoogleTokenByUserId(accountId, userId);
+  if (!token) {
+    throw new Error("No Google token found");
+  }
+
+  // Check if token is expired and refresh if needed
+  if (new Date(token.expiresAt) < new Date()) {
+    await refreshAccessToken(accountId, userId);
+    token = await storage.getGoogleTokenByUserId(accountId, userId);
+    if (!token) {
+      throw new Error("Failed to refresh Google token");
+    }
+  }
+
+  const clientId = getGoogleClientId();
+  const clientSecret = getGoogleClientSecret();
+  
+  if (!clientId || !clientSecret) {
+    throw new Error("Google OAuth not configured");
+  }
+
+  const domain = process.env.GOOGLE_REDIRECT_DOMAIN?.replace(/\/$/, '') 
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+    || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  
+  const oauth2Client = createOAuth2Client({
+    clientId,
+    clientSecret,
+    redirectUri: `${domain}/api/google/auth/callback`,
+  });
+
+  oauth2Client.setCredentials({
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+  });
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  const endTime = eventData.endDateTime 
+    ? new Date(eventData.endDateTime)
+    : new Date(new Date(eventData.startDateTime).getTime() + 60 * 60 * 1000); // 1 hour default
+
+  const event = {
+    summary: eventData.title,
+    description: eventData.description || "",
+    start: {
+      dateTime: new Date(eventData.startDateTime).toISOString(),
+      timeZone: "Europe/Paris",
+    },
+    end: {
+      dateTime: endTime.toISOString(),
+      timeZone: "Europe/Paris",
+    },
+  };
+
+  const response = await calendar.events.insert({
+    calendarId: "primary",
+    requestBody: event,
+  });
+
+  return response.data;
 }

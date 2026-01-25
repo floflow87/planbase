@@ -413,25 +413,27 @@ export default function Calendar() {
           
           {/* 2. Google Calendar */}
           {googleStatus?.connected ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
-              <CalendarIcon className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-muted-foreground">{googleStatus.email}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => disconnectMutation.mutate()}
-                data-testid="button-disconnect-google"
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => disconnectMutation.mutate()}
+              className="bg-white dark:bg-gray-900 relative group"
+              title={`Connecté: ${googleStatus.email} - Cliquer pour déconnecter`}
+              data-testid="button-disconnect-google"
+            >
+              <img src={googleLogo} alt="Google" className="w-5 h-5" />
+              <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+              <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                {googleStatus.email}
+              </div>
+            </Button>
           ) : (
             <Button 
               variant="outline" 
               size="icon"
               onClick={handleConnectGoogle}
               disabled={!googleStatus?.configured}
+              className="bg-white dark:bg-gray-900"
               title={googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
               data-testid="button-google-calendar"
             >
@@ -640,8 +642,14 @@ export default function Calendar() {
                             return (
                               <div
                                 key={apt.id}
-                                className="text-xs p-1 mb-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer"
+                                className="text-xs p-1 mb-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-800/40"
                                 title={apt.title}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAppointment(apt);
+                                  setAppointmentMode("view");
+                                  setAppointmentDialogOpen(true);
+                                }}
                               >
                                 {aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {apt.title}
                               </div>
@@ -657,8 +665,26 @@ export default function Calendar() {
                               return (
                                 <div
                                   key={event.id}
-                                  className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500"
+                                  className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/40"
                                   title={event.summary}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const googleApt = {
+                                      id: event.id,
+                                      title: event.summary || "Sans titre",
+                                      type: null,
+                                      startDateTime: event.start.date || event.start.dateTime,
+                                      endDateTime: event.end?.date || event.end?.dateTime || null,
+                                      clientId: null,
+                                      contactEmail: null,
+                                      contactPhone: null,
+                                      notes: event.description || null,
+                                    };
+                                    setSelectedAppointment(googleApt as any);
+                                    setAppointmentMode("view");
+                                    setIsGoogleEvent(true);
+                                    setAppointmentDialogOpen(true);
+                                  }}
                                 >
                                   Toute la journée: {event.summary}
                                 </div>
@@ -675,8 +701,26 @@ export default function Calendar() {
                             return (
                               <div
                                 key={event.id}
-                                className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500"
+                                className="text-xs p-1 mb-1 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 truncate cursor-pointer border-l-2 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/40"
                                 title={event.summary}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const googleApt = {
+                                    id: event.id,
+                                    title: event.summary || "Sans titre",
+                                    type: null,
+                                    startDateTime: event.start.dateTime,
+                                    endDateTime: event.end?.dateTime || null,
+                                    clientId: null,
+                                    contactEmail: null,
+                                    contactPhone: null,
+                                    notes: event.description || null,
+                                  };
+                                  setSelectedAppointment(googleApt as any);
+                                  setAppointmentMode("view");
+                                  setIsGoogleEvent(true);
+                                  setAppointmentDialogOpen(true);
+                                }}
                               >
                                 {eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} {event.summary}
                               </div>
@@ -754,6 +798,12 @@ export default function Calendar() {
                               key={apt.id}
                               className="text-sm p-2 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
                               title={apt.title}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAppointment(apt);
+                                setAppointmentMode("view");
+                                setAppointmentDialogOpen(true);
+                              }}
                             >
                               <div className="font-semibold">{aptTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
                               <div>{apt.title}</div>
@@ -771,8 +821,26 @@ export default function Calendar() {
                             return (
                               <div
                                 key={event.id}
-                                className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
+                                className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
                                 title={event.summary}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const googleApt = {
+                                    id: event.id,
+                                    title: event.summary || "Sans titre",
+                                    type: null,
+                                    startDateTime: event.start.date || event.start.dateTime,
+                                    endDateTime: event.end?.date || event.end?.dateTime || null,
+                                    clientId: null,
+                                    contactEmail: null,
+                                    contactPhone: null,
+                                    notes: event.description || null,
+                                  };
+                                  setSelectedAppointment(googleApt as any);
+                                  setAppointmentMode("view");
+                                  setIsGoogleEvent(true);
+                                  setAppointmentDialogOpen(true);
+                                }}
                               >
                                 <div className="font-semibold">Toute la journée</div>
                                 <div>{event.summary}</div>
@@ -789,8 +857,26 @@ export default function Calendar() {
                           return (
                             <div
                               key={event.id}
-                              className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
+                              className="text-sm p-2 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 hover:bg-cyan-200 dark:hover:bg-cyan-800/50"
                               title={event.summary}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const googleApt = {
+                                  id: event.id,
+                                  title: event.summary || "Sans titre",
+                                  type: null,
+                                  startDateTime: event.start.dateTime,
+                                  endDateTime: event.end?.dateTime || null,
+                                  clientId: null,
+                                  contactEmail: null,
+                                  contactPhone: null,
+                                  notes: event.description || null,
+                                };
+                                setSelectedAppointment(googleApt as any);
+                                setAppointmentMode("view");
+                                setIsGoogleEvent(true);
+                                setAppointmentDialogOpen(true);
+                              }}
                             >
                               <div className="font-semibold">{eventTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
                               <div>{event.summary}</div>

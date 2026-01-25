@@ -6989,6 +6989,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Google Calendar event
+  app.post("/api/google/events", requireAuth, async (req, res) => {
+    try {
+      const { title, startDateTime, endDateTime, description } = req.body;
+      
+      if (!title || !startDateTime) {
+        return res.status(400).json({ error: "Title and startDateTime are required" });
+      }
+      
+      const { createCalendarEvent } = await import("./lib/google-calendar");
+      
+      const event = await createCalendarEvent(req.accountId!, req.userId!, {
+        title,
+        startDateTime,
+        endDateTime,
+        description,
+      });
+      
+      res.json(event);
+    } catch (error: any) {
+      console.error("Failed to create Google Calendar event:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // CALENDAR & APPOINTMENTS
   // ============================================
