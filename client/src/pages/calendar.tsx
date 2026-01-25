@@ -130,6 +130,11 @@ export default function Calendar() {
     queryKey: ["/api/task-columns"],
   });
 
+  // Fetch clients for appointment tooltips
+  const { data: clients = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/clients"],
+  });
+
   // Check Google Calendar connection status
   const { data: googleStatus } = useQuery<{ connected: boolean; email: string | null; configured: boolean }>({
     queryKey: ["/api/google/status"],
