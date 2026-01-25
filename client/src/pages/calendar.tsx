@@ -393,6 +393,9 @@ export default function Calendar() {
   
   // State for resize time display
   const [resizePreview, setResizePreview] = useState<{ id: string; endTime: string } | null>(null);
+  
+  // State to track if we just finished resizing (to prevent click after resize)
+  const [justResized, setJustResized] = useState(false);
 
   // Generate time slots for day/week views (7am to midnight in 1-hour slots)
   const generateTimeSlots = () => {
@@ -789,48 +792,336 @@ export default function Calendar() {
 
         {viewMode === "week" && (() => {
           const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
+          const weekDays = generateWeekGrid();
 
           return (
             <div className="bg-card rounded-lg border border-border overflow-auto">
-              <div className="grid grid-cols-8 min-w-[800px]">
-                {/* Time column */}
-                <div className="border-r border-border">
-                  <div className="h-12 border-b border-border"></div>
-                  {generateTimeSlots().map(time => (
-                    <div key={time} className="h-20 border-b border-border p-2 text-xs text-muted-foreground">
-                      {time}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Day columns */}
-                {generateWeekGrid().map((date, dayIndex) => {
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  const dayAppointments = getAppointmentsForDay(date);
-                  const dayGoogleEvents = getGoogleEventsForDay(date);
-                  const dayTasks = getTasksForDay(date);
-
-                  return (
-                    <div key={dayIndex} className="border-r border-border last:border-r-0">
-                      {/* Day header */}
-                      <div className={`h-12 border-b border-border p-2 text-center ${isToday ? "bg-violet-100 dark:bg-violet-900/30" : ""}`}>
+              <div className="min-w-[800px]">
+                {/* Header row */}
+                <div className="grid grid-cols-8">
+                  <div className="h-12 border-b border-r border-border"></div>
+                  {weekDays.map((date, dayIndex) => {
+                    const isToday = date.toDateString() === new Date().toDateString();
+                    return (
+                      <div key={dayIndex} className={`h-12 border-b border-r border-border last:border-r-0 p-2 text-center ${isToday ? "bg-violet-100 dark:bg-violet-900/30" : ""}`}>
                         <div className="text-xs text-muted-foreground">{["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"][dayIndex]}</div>
                         <div className={`text-sm font-semibold ${isToday ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
                           {date.getDate()}
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* Events container with absolute positioning */}
-                      <div 
-                        className="relative"
-                        style={{ height: totalHeight }}
+                {/* Time grid rows */}
+                {generateTimeSlots().map((time, timeIndex) => {
+                  const slotHour = parseInt(time.split(':')[0]);
+                  
+                  return (
+                    <div key={timeIndex} className="grid grid-cols-8 border-b border-border" style={{ height: SLOT_HEIGHT }}>
+                      {/* Time label */}
+                      <div className="border-r border-border p-2 text-xs text-muted-foreground">
+                        {time}
+                      </div>
+                      
+                      {/* Day cells */}
+                      {weekDays.map((date, dayIndex) => {
+                        const slotDateTime = new Date(date);
+                        slotDateTime.setHours(slotHour, 0, 0, 0);
+                        const isDragTarget = dragOverSlot?.date === date.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
+                        const dayAppointments = getAppointmentsForDay(date);
+                        const dayGoogleEvents = getGoogleEventsForDay(date);
+                        const dayTasks = getTasksForDay(date);
+                        
+                        // Get appointments that start in this specific hour
+                        const appointmentsInSlot = dayAppointments.filter(apt => {
+                          const startHour = new Date(apt.startDateTime).getHours();
+                          return startHour === slotHour;
+                        });
+                        
+                        // Get Google events that start in this specific hour
+                        const googleEventsInSlot = dayGoogleEvents.filter(event => {
+                          if (!event.start.dateTime) return false;
+                          const startHour = new Date(event.start.dateTime).getHours();
+                          return startHour === slotHour;
+                        });
+
+                        return (
+                          <div
+                            key={dayIndex}
+                            className={`relative border-r border-border last:border-r-0 cursor-pointer hover-elevate transition-colors duration-150 ${
+                              isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
+                            }`}
+                            onClick={() => {
+                              setSelectedAppointmentDate(slotDateTime);
+                              setSelectedAppointment(null);
+                              setAppointmentMode("create");
+                              setAppointmentSource("planbase");
+                              setAppointmentReadOnly(false);
+                              setAppointmentDialogOpen(true);
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              setDragOverSlot({ date: date.toISOString().split('T')[0], hour: slotHour });
+                            }}
+                            onDragLeave={() => setDragOverSlot(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDragOverSlot(null);
+                              const appointmentId = e.dataTransfer.getData("appointmentId");
+                              const type = e.dataTransfer.getData("type");
+                              
+                              if (type === "appointment" && appointmentId) {
+                                const apt = appointments.find(a => a.id === appointmentId);
+                                if (apt) {
+                                  const duration = apt.endDateTime 
+                                    ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
+                                    : 60 * 60 * 1000;
+                                  const newStartDateTime = new Date(slotDateTime);
+                                  const newEndDateTime = new Date(newStartDateTime.getTime() + duration);
+                                  
+                                  updateAppointmentMutation.mutate({
+                                    id: appointmentId,
+                                    startDateTime: newStartDateTime.toISOString(),
+                                    endDateTime: newEndDateTime.toISOString(),
+                                  });
+                                }
+                              }
+                            }}
+                            data-testid={`week-slot-${dayIndex}-${timeIndex}`}
+                          >
+                            {/* Appointments that start in this slot */}
+                            {appointmentsInSlot.map(apt => {
+                              const startTime = new Date(apt.startDateTime);
+                              const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
+                              const durationMinutes = endTime 
+                                ? (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+                                : 60;
+                              const heightPx = Math.max((durationMinutes / 60) * SLOT_HEIGHT, 20);
+                              const offsetMinutes = startTime.getMinutes();
+                              const offsetPx = (offsetMinutes / 60) * SLOT_HEIGHT;
+                              
+                              return (
+                                <div
+                                  key={apt.id}
+                                  className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 text-xs overflow-hidden group"
+                                  style={{ top: offsetPx, height: heightPx }}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("appointmentId", apt.id);
+                                    e.dataTransfer.setData("type", "appointment");
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (justResized) {
+                                      setJustResized(false);
+                                      return;
+                                    }
+                                    setSelectedAppointment(apt);
+                                    setAppointmentMode("view");
+                                    setAppointmentDialogOpen(true);
+                                  }}
+                                >
+                                  <div className="p-0.5">
+                                    <div className="font-semibold">
+                                      {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                      {resizePreview?.id === apt.id && ` - ${resizePreview.endTime}`}
+                                    </div>
+                                    <div className="truncate">{apt.title}</div>
+                                  </div>
+                                  {/* Resize handle */}
+                                  <div
+                                    className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onMouseDown={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const startY = e.clientY;
+                                      const startHeight = heightPx;
+                                      const parentEl = (e.target as HTMLElement).parentElement!;
+
+                                      const handleMouseMove = (moveEvent: MouseEvent) => {
+                                        const deltaY = moveEvent.clientY - startY;
+                                        const newHeight = Math.max(20, startHeight + deltaY);
+                                        const durationMins = (newHeight / SLOT_HEIGHT) * 60;
+                                        const roundedMinutes = Math.round(durationMins / 15) * 15;
+                                        const newEndDateTime = new Date(apt.startDateTime);
+                                        newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                                        
+                                        parentEl.style.height = `${newHeight}px`;
+                                        
+                                        setResizePreview({
+                                          id: apt.id,
+                                          endTime: newEndDateTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                                        });
+                                      };
+
+                                      const handleMouseUp = (upEvent: MouseEvent) => {
+                                        document.removeEventListener("mousemove", handleMouseMove);
+                                        document.removeEventListener("mouseup", handleMouseUp);
+                                        setResizePreview(null);
+                                        setJustResized(true);
+                                        setTimeout(() => setJustResized(false), 100);
+                                        
+                                        const deltaY = upEvent.clientY - startY;
+                                        const newHeight = Math.max(20, startHeight + deltaY);
+                                        const durationMins = (newHeight / SLOT_HEIGHT) * 60;
+                                        const roundedMinutes = Math.round(durationMins / 15) * 15;
+                                        const newEndDateTime = new Date(apt.startDateTime);
+                                        newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
+                                        
+                                        parentEl.style.height = `${(roundedMinutes / 60) * SLOT_HEIGHT}px`;
+                                        
+                                        updateAppointmentMutation.mutate({
+                                          id: apt.id,
+                                          endDateTime: newEndDateTime.toISOString(),
+                                        });
+                                      };
+
+                                      document.addEventListener("mousemove", handleMouseMove);
+                                      document.addEventListener("mouseup", handleMouseUp);
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                            
+                            {/* Google events that start in this slot */}
+                            {googleEventsInSlot.map(event => {
+                              const startTime = new Date(event.start.dateTime!);
+                              const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+                              const durationMinutes = endTime 
+                                ? (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+                                : 60;
+                              const heightPx = Math.max((durationMinutes / 60) * SLOT_HEIGHT, 20);
+                              const offsetMinutes = startTime.getMinutes();
+                              const offsetPx = (offsetMinutes / 60) * SLOT_HEIGHT;
+                              
+                              return (
+                                <div
+                                  key={event.id}
+                                  className="absolute left-0.5 right-0.5 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-2 border-cyan-500 text-xs overflow-hidden"
+                                  style={{ top: offsetPx, height: heightPx }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const googleApt = {
+                                      id: event.id,
+                                      title: event.summary || "Sans titre",
+                                      type: null,
+                                      startDateTime: event.start.dateTime,
+                                      endDateTime: event.end?.dateTime || null,
+                                      clientId: null,
+                                      contactEmail: null,
+                                      contactPhone: null,
+                                      notes: event.description || null,
+                                      location: event.location || null,
+                                      htmlLink: event.htmlLink || null,
+                                      attendees: event.attendees?.map((a: any) => ({
+                                        email: a.email,
+                                        displayName: a.displayName,
+                                        responseStatus: a.responseStatus
+                                      })) || null,
+                                      organizer: event.organizer ? {
+                                        email: event.organizer.email,
+                                        displayName: event.organizer.displayName,
+                                        self: event.organizer.self
+                                      } : null,
+                                      accountId: "",
+                                    };
+                                    setSelectedAppointment(googleApt as any);
+                                    setAppointmentMode("view");
+                                    setAppointmentSource("google");
+                                    setAppointmentReadOnly(true);
+                                    setAppointmentDialogOpen(true);
+                                  }}
+                                >
+                                  <div className="p-0.5">
+                                    <div className="font-semibold truncate">
+                                      {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                    </div>
+                                    <div className="truncate">{event.summary}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {viewMode === "day" && (() => {
+          const dayAppointments = getAppointmentsForDay(currentDate);
+          const dayGoogleEvents = getGoogleEventsForDay(currentDate);
+          const dayTasks = getTasksForDay(currentDate);
+          const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
+
+          return (
+            <div className="bg-card rounded-lg border border-border overflow-auto max-w-4xl mx-auto">
+              {/* Day header */}
+              <div className="h-16 border-b border-border p-4 bg-violet-50 dark:bg-violet-950/20">
+                <div className="text-sm text-muted-foreground">
+                  {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][currentDate.getDay()]}
+                </div>
+                <div className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                  {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </div>
+              </div>
+
+              {/* Time grid rows */}
+              <div>
+                {generateTimeSlots().map((time, timeIndex) => {
+                  const slotHour = parseInt(time.split(':')[0]);
+                  const slotDateTime = new Date(currentDate);
+                  slotDateTime.setHours(slotHour, 0, 0, 0);
+                  const isDragTarget = dragOverSlot?.date === currentDate.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
+                  
+                  // Get appointments that start in this specific hour
+                  const appointmentsInSlot = dayAppointments.filter(apt => {
+                    const startHour = new Date(apt.startDateTime).getHours();
+                    return startHour === slotHour;
+                  });
+                  
+                  // Get Google events that start in this specific hour
+                  const googleEventsInSlot = dayGoogleEvents.filter(event => {
+                    if (!event.start.dateTime) return false;
+                    const startHour = new Date(event.start.dateTime).getHours();
+                    return startHour === slotHour;
+                  });
+                  
+                  // Get tasks for first slot only
+                  const showTasksInSlot = timeIndex === 0 && showTasks && dayTasks.length > 0;
+
+                  return (
+                    <div key={timeIndex} className="flex border-b border-border" style={{ height: SLOT_HEIGHT }}>
+                      {/* Time label */}
+                      <div className="w-16 flex-shrink-0 border-r border-border p-2 text-sm text-muted-foreground font-medium">
+                        {time}
+                      </div>
+                      
+                      {/* Event cell */}
+                      <div
+                        className={`flex-1 relative cursor-pointer hover-elevate transition-colors duration-150 ${
+                          isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedAppointmentDate(slotDateTime);
+                          setSelectedAppointment(null);
+                          setAppointmentMode("create");
+                          setAppointmentSource("planbase");
+                          setAppointmentReadOnly(false);
+                          setAppointmentDialogOpen(true);
+                        }}
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = "move";
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const y = e.clientY - rect.top;
-                          const hour = START_HOUR + Math.floor(y / SLOT_HEIGHT);
-                          setDragOverSlot({ date: date.toISOString().split('T')[0], hour });
+                          setDragOverSlot({ date: currentDate.toISOString().split('T')[0], hour: slotHour });
                         }}
                         onDragLeave={() => setDragOverSlot(null)}
                         onDrop={(e) => {
@@ -840,83 +1131,62 @@ export default function Calendar() {
                           const type = e.dataTransfer.getData("type");
                           
                           if (type === "appointment" && appointmentId) {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const y = e.clientY - rect.top;
-                            const newDateTime = pixelToDateTime(y, date);
-                            
                             const apt = appointments.find(a => a.id === appointmentId);
                             if (apt) {
                               const duration = apt.endDateTime 
                                 ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
                                 : 60 * 60 * 1000;
-                              const newEndDateTime = new Date(newDateTime.getTime() + duration);
+                              const newStartDateTime = new Date(slotDateTime);
+                              const newEndDateTime = new Date(newStartDateTime.getTime() + duration);
                               
                               updateAppointmentMutation.mutate({
                                 id: appointmentId,
-                                startDateTime: newDateTime.toISOString(),
+                                startDateTime: newStartDateTime.toISOString(),
                                 endDateTime: newEndDateTime.toISOString(),
                               });
                             }
                           }
                         }}
+                        data-testid={`day-slot-${timeIndex}`}
                       >
-                        {/* Background grid for clicking to create appointments */}
-                        {generateTimeSlots().map((time, timeIndex) => {
-                          const slotHour = parseInt(time.split(':')[0]);
-                          const slotDateTime = new Date(date);
-                          slotDateTime.setHours(slotHour, 0, 0, 0);
-                          const isDragTarget = dragOverSlot?.date === date.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
-
-                          return (
-                            <div
-                              key={timeIndex}
-                              className={`absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate transition-colors duration-150 ${
-                                isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
-                              }`}
-                              style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
-                              onClick={() => {
-                                setSelectedAppointmentDate(slotDateTime);
-                                setSelectedAppointment(null);
-                                setAppointmentMode("create");
-                                setAppointmentSource("planbase");
-                                setAppointmentReadOnly(false);
-                                setAppointmentDialogOpen(true);
-                              }}
-                              data-testid={`week-slot-${dayIndex}-${timeIndex}`}
-                            />
-                          );
-                        })}
-
-                        {/* Tasks (shown at top) */}
-                        {showTasks && dayTasks.length > 0 && (
-                          <div className="absolute left-0.5 right-0.5 top-0.5 z-10 space-y-0.5">
+                        {/* Tasks (shown in first slot) */}
+                        {showTasksInSlot && (
+                          <div className="absolute left-1 right-1 top-1 z-10 space-y-1">
                             {dayTasks.map(task => (
                               <div
                                 key={task.id}
-                                className={`text-xs p-0.5 rounded truncate cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
+                                className={`text-sm p-2 rounded cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
                                 title={task.title}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleTaskClick(task.id);
                                 }}
                               >
-                                <CheckSquare className="w-3 h-3 inline mr-0.5" /> {task.title}
+                                <div className="flex items-center gap-2">
+                                  <CheckSquare className="w-4 h-4" />
+                                  <span className="font-semibold truncate">{task.title}</span>
+                                </div>
                               </div>
                             ))}
                           </div>
                         )}
-
-                        {/* Appointments with absolute positioning */}
-                        {dayAppointments.map(apt => {
-                          const { top, height } = calculateEventPosition(apt.startDateTime, apt.endDateTime);
+                        
+                        {/* Appointments that start in this slot */}
+                        {appointmentsInSlot.map(apt => {
                           const startTime = new Date(apt.startDateTime);
+                          const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
+                          const durationMinutes = endTime 
+                            ? (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+                            : 60;
+                          const heightPx = Math.max((durationMinutes / 60) * SLOT_HEIGHT, 24);
+                          const offsetMinutes = startTime.getMinutes();
+                          const offsetPx = (offsetMinutes / 60) * SLOT_HEIGHT;
 
                           return (
                             <div
                               key={apt.id}
-                              className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 overflow-hidden text-xs group"
-                              style={{ top, height, minHeight: 20 }}
-                              title={apt.title}
+                              className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
+                              style={{ top: offsetPx, height: heightPx }}
                               draggable
                               onDragStart={(e) => {
                                 e.dataTransfer.setData("appointmentId", apt.id);
@@ -925,39 +1195,45 @@ export default function Calendar() {
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (justResized) {
+                                  setJustResized(false);
+                                  return;
+                                }
                                 setSelectedAppointment(apt);
                                 setAppointmentMode("view");
                                 setAppointmentDialogOpen(true);
                               }}
                             >
-                              <div className="p-0.5">
-                                <div className="font-semibold">
+                              <div className="p-2 h-full flex flex-col">
+                                <div className="font-semibold text-sm">
                                   {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                  {resizePreview?.id === apt.id && ` - ${resizePreview.endTime}`}
+                                  {resizePreview?.id === apt.id 
+                                    ? ` - ${resizePreview.endTime}`
+                                    : endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                                  }
                                 </div>
-                                <div className="truncate">{apt.title}</div>
+                                <div className="text-sm truncate">{apt.title}</div>
                               </div>
                               {/* Resize handle */}
                               <div
-                                className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
                                   const startY = e.clientY;
-                                  const startHeight = height;
+                                  const startHeight = heightPx;
                                   const parentEl = (e.target as HTMLElement).parentElement!;
 
                                   const handleMouseMove = (moveEvent: MouseEvent) => {
                                     const deltaY = moveEvent.clientY - startY;
                                     const newHeight = Math.max(20, startHeight + deltaY);
-                                    const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
-                                    const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                                    const durationMins = (newHeight / SLOT_HEIGHT) * 60;
+                                    const roundedMinutes = Math.round(durationMins / 15) * 15;
                                     const newEndDateTime = new Date(apt.startDateTime);
                                     newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
                                     
                                     parentEl.style.height = `${newHeight}px`;
                                     
-                                    // Show real-time end time
                                     setResizePreview({
                                       id: apt.id,
                                       endTime: newEndDateTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
@@ -968,15 +1244,16 @@ export default function Calendar() {
                                     document.removeEventListener("mousemove", handleMouseMove);
                                     document.removeEventListener("mouseup", handleMouseUp);
                                     setResizePreview(null);
+                                    setJustResized(true);
+                                    setTimeout(() => setJustResized(false), 100);
                                     
                                     const deltaY = upEvent.clientY - startY;
                                     const newHeight = Math.max(20, startHeight + deltaY);
-                                    const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
-                                    const roundedMinutes = Math.round(durationMinutes / 15) * 15;
+                                    const durationMins = (newHeight / SLOT_HEIGHT) * 60;
+                                    const roundedMinutes = Math.round(durationMins / 15) * 15;
                                     const newEndDateTime = new Date(apt.startDateTime);
                                     newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
                                     
-                                    // Optimistic update - immediately apply new height
                                     parentEl.style.height = `${(roundedMinutes / 60) * SLOT_HEIGHT}px`;
                                     
                                     updateAppointmentMutation.mutate({
@@ -992,65 +1269,23 @@ export default function Calendar() {
                             </div>
                           );
                         })}
-
-                        {/* Google Calendar events with absolute positioning */}
-                        {dayGoogleEvents.map(event => {
-                          if (!event.start.dateTime) {
-                            // All-day event
-                            return (
-                              <div
-                                key={event.id}
-                                className="absolute left-0.5 right-0.5 z-10 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-2 border-cyan-500 text-xs"
-                                style={{ top: 2, height: 18 }}
-                                title={event.summary}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const googleApt = {
-                                    id: event.id,
-                                    title: event.summary || "Sans titre",
-                                    type: null,
-                                    startDateTime: event.start.date || event.start.dateTime,
-                                    endDateTime: event.end?.date || event.end?.dateTime || null,
-                                    clientId: null,
-                                    contactEmail: null,
-                                    contactPhone: null,
-                                    notes: event.description || null,
-                                    location: event.location || null,
-                                    htmlLink: event.htmlLink || null,
-                                    attendees: event.attendees?.map((a: any) => ({
-                                      email: a.email,
-                                      displayName: a.displayName,
-                                      responseStatus: a.responseStatus
-                                    })) || null,
-                                    organizer: event.organizer ? {
-                                      email: event.organizer.email,
-                                      displayName: event.organizer.displayName
-                                    } : null,
-                                  };
-                                  setSelectedAppointment(googleApt as any);
-                                  setAppointmentMode("view");
-                                  setAppointmentSource("google");
-                                  setAppointmentReadOnly(true);
-                                  setAppointmentDialogOpen(true);
-                                }}
-                              >
-                                <div className="p-0.5 truncate">{event.summary}</div>
-                              </div>
-                            );
-                          }
-
-                          const { top, height } = calculateEventPosition(
-                            event.start.dateTime,
-                            event.end?.dateTime || null
-                          );
-                          const startTime = new Date(event.start.dateTime);
+                        
+                        {/* Google events that start in this slot */}
+                        {googleEventsInSlot.map(event => {
+                          const startTimeG = new Date(event.start.dateTime!);
+                          const endTimeG = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+                          const durationMinutesG = endTimeG 
+                            ? (endTimeG.getTime() - startTimeG.getTime()) / (1000 * 60)
+                            : 60;
+                          const heightPxG = Math.max((durationMinutesG / 60) * SLOT_HEIGHT, 24);
+                          const offsetMinutesG = startTimeG.getMinutes();
+                          const offsetPxG = (offsetMinutesG / 60) * SLOT_HEIGHT;
 
                           return (
                             <div
                               key={event.id}
-                              className="absolute left-0.5 right-0.5 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-2 border-cyan-500 overflow-hidden text-xs"
-                              style={{ top, height, minHeight: 20 }}
-                              title={event.summary}
+                              className="absolute left-1 right-1 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 overflow-hidden"
+                              style={{ top: offsetPxG, height: heightPxG }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const googleApt = {
@@ -1082,11 +1317,12 @@ export default function Calendar() {
                                 setAppointmentDialogOpen(true);
                               }}
                             >
-                              <div className="p-0.5">
-                                <div className="font-semibold">
-                                  {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                              <div className="p-2 h-full flex flex-col">
+                                <div className="font-semibold text-sm">
+                                  {startTimeG.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                  {endTimeG && ` - ${endTimeG.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
                                 </div>
-                                <div className="truncate">{event.summary}</div>
+                                <div className="text-sm truncate">{event.summary}</div>
                               </div>
                             </div>
                           );
@@ -1095,321 +1331,6 @@ export default function Calendar() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {viewMode === "day" && (() => {
-          const dayAppointments = getAppointmentsForDay(currentDate);
-          const dayGoogleEvents = getGoogleEventsForDay(currentDate);
-          const dayTasks = getTasksForDay(currentDate);
-          const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
-
-          return (
-            <div className="bg-card rounded-lg border border-border overflow-auto max-w-4xl mx-auto">
-              {/* Day header */}
-              <div className="h-16 border-b border-border p-4 bg-violet-50 dark:bg-violet-950/20">
-                <div className="text-sm text-muted-foreground">
-                  {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][currentDate.getDay()]}
-                </div>
-                <div className="text-lg font-bold text-violet-600 dark:text-violet-400">
-                  {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                </div>
-              </div>
-
-              <div className="flex">
-                {/* Time column */}
-                <div className="w-16 flex-shrink-0 border-r border-border">
-                  {generateTimeSlots().map(time => (
-                    <div key={time} className="h-20 border-b border-border p-2 text-sm text-muted-foreground font-medium">
-                      {time}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Events column with absolute positioning */}
-                <div 
-                  className="flex-1 relative"
-                  style={{ height: totalHeight }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const y = e.clientY - rect.top;
-                    const hour = START_HOUR + Math.floor(y / SLOT_HEIGHT);
-                    setDragOverSlot({ date: currentDate.toISOString().split('T')[0], hour });
-                  }}
-                  onDragLeave={() => setDragOverSlot(null)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOverSlot(null);
-                    const appointmentId = e.dataTransfer.getData("appointmentId");
-                    const type = e.dataTransfer.getData("type");
-                    
-                    if (type === "appointment" && appointmentId) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const y = e.clientY - rect.top;
-                      const newDateTime = pixelToDateTime(y, currentDate);
-                      
-                      const apt = appointments.find(a => a.id === appointmentId);
-                      if (apt) {
-                        const duration = apt.endDateTime 
-                          ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
-                          : 60 * 60 * 1000;
-                        const newEndDateTime = new Date(newDateTime.getTime() + duration);
-                        
-                        updateAppointmentMutation.mutate({
-                          id: appointmentId,
-                          startDateTime: newDateTime.toISOString(),
-                          endDateTime: newEndDateTime.toISOString(),
-                        });
-                      }
-                    }
-                  }}
-                >
-                  {/* Background grid for clicking to create appointments */}
-                  {generateTimeSlots().map((time, timeIndex) => {
-                    const slotHour = parseInt(time.split(':')[0]);
-                    const slotDateTime = new Date(currentDate);
-                    slotDateTime.setHours(slotHour, 0, 0, 0);
-                    const isDragTarget = dragOverSlot?.date === currentDate.toISOString().split('T')[0] && dragOverSlot?.hour === slotHour;
-
-                    return (
-                      <div
-                        key={timeIndex}
-                        className={`absolute left-0 right-0 border-b border-border cursor-pointer hover-elevate transition-colors duration-150 ${
-                          isDragTarget ? 'bg-violet-200/50 dark:bg-violet-800/30 ring-2 ring-violet-400 ring-inset' : ''
-                        }`}
-                        style={{ top: timeIndex * SLOT_HEIGHT, height: SLOT_HEIGHT }}
-                        onClick={() => {
-                          setSelectedAppointmentDate(slotDateTime);
-                          setSelectedAppointment(null);
-                          setAppointmentMode("create");
-                          setAppointmentSource("planbase");
-                          setAppointmentReadOnly(false);
-                          setAppointmentDialogOpen(true);
-                        }}
-                        data-testid={`day-slot-${timeIndex}`}
-                      />
-                    );
-                  })}
-
-                  {/* Tasks (shown at top) */}
-                  {showTasks && dayTasks.length > 0 && (
-                    <div className="absolute left-1 right-1 top-1 z-10 space-y-1">
-                      {dayTasks.map(task => (
-                        <div
-                          key={task.id}
-                          className={`text-sm p-2 rounded cursor-pointer hover-elevate ${getTaskPriorityColorWithBorder(task.priority)}`}
-                          title={task.title}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTaskClick(task.id);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <CheckSquare className="w-4 h-4" />
-                            <span className="font-semibold truncate">{task.title}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Appointments with absolute positioning based on time */}
-                  {dayAppointments.map(apt => {
-                    const { top, height } = calculateEventPosition(apt.startDateTime, apt.endDateTime);
-                    const startTime = new Date(apt.startDateTime);
-                    const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
-
-                    return (
-                      <div
-                        key={apt.id}
-                        className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
-                        style={{ top, height, minHeight: 24 }}
-                        title={apt.title}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("appointmentId", apt.id);
-                          e.dataTransfer.setData("type", "appointment");
-                          e.dataTransfer.effectAllowed = "move";
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAppointment(apt);
-                          setAppointmentMode("view");
-                          setAppointmentDialogOpen(true);
-                        }}
-                      >
-                        <div className="p-2 h-full flex flex-col">
-                          <div className="font-semibold text-sm">
-                            {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                            {resizePreview?.id === apt.id 
-                              ? ` - ${resizePreview.endTime}`
-                              : endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                            }
-                          </div>
-                          <div className="text-sm truncate">{apt.title}</div>
-                        </div>
-                        {/* Resize handle */}
-                        <div
-                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-violet-300/50 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            const startY = e.clientY;
-                            const startHeight = height;
-                            const parentEl = (e.target as HTMLElement).parentElement!;
-
-                            const handleMouseMove = (moveEvent: MouseEvent) => {
-                              const deltaY = moveEvent.clientY - startY;
-                              const newHeight = Math.max(20, startHeight + deltaY);
-                              const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
-                              const roundedMinutes = Math.round(durationMinutes / 15) * 15;
-                              const newEndDateTime = new Date(apt.startDateTime);
-                              newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
-                              
-                              // Visual feedback during drag
-                              parentEl.style.height = `${newHeight}px`;
-                              
-                              // Show real-time end time
-                              setResizePreview({
-                                id: apt.id,
-                                endTime: newEndDateTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-                              });
-                            };
-
-                            const handleMouseUp = (upEvent: MouseEvent) => {
-                              document.removeEventListener("mousemove", handleMouseMove);
-                              document.removeEventListener("mouseup", handleMouseUp);
-                              setResizePreview(null);
-                              
-                              const deltaY = upEvent.clientY - startY;
-                              const newHeight = Math.max(20, startHeight + deltaY);
-                              const durationMinutes = (newHeight / SLOT_HEIGHT) * 60;
-                              const roundedMinutes = Math.round(durationMinutes / 15) * 15;
-                              const newEndDateTime = new Date(apt.startDateTime);
-                              newEndDateTime.setMinutes(newEndDateTime.getMinutes() + roundedMinutes);
-                              
-                              // Optimistic update - immediately apply new height
-                              parentEl.style.height = `${(roundedMinutes / 60) * SLOT_HEIGHT}px`;
-                              
-                              updateAppointmentMutation.mutate({
-                                id: apt.id,
-                                endDateTime: newEndDateTime.toISOString(),
-                              });
-                            };
-
-                            document.addEventListener("mousemove", handleMouseMove);
-                            document.addEventListener("mouseup", handleMouseUp);
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-
-                  {/* Google Calendar events with absolute positioning */}
-                  {dayGoogleEvents.map(event => {
-                    if (!event.start.dateTime) {
-                      // All-day event
-                      return (
-                        <div
-                          key={event.id}
-                          className="absolute left-1 right-1 z-10 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500"
-                          style={{ top: 4, height: 28 }}
-                          title={event.summary}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const googleApt = {
-                              id: event.id,
-                              title: event.summary || "Sans titre",
-                              type: null,
-                              startDateTime: event.start.date || event.start.dateTime,
-                              endDateTime: event.end?.date || event.end?.dateTime || null,
-                              clientId: null,
-                              contactEmail: null,
-                              contactPhone: null,
-                              notes: event.description || null,
-                              location: event.location || null,
-                              htmlLink: event.htmlLink || null,
-                              attendees: event.attendees?.map((a: any) => ({
-                                email: a.email,
-                                displayName: a.displayName,
-                                responseStatus: a.responseStatus
-                              })) || null,
-                              organizer: event.organizer ? {
-                                email: event.organizer.email,
-                                displayName: event.organizer.displayName
-                              } : null,
-                            };
-                            setSelectedAppointment(googleApt as any);
-                            setAppointmentMode("view");
-                            setAppointmentSource("google");
-                            setAppointmentReadOnly(true);
-                            setAppointmentDialogOpen(true);
-                          }}
-                        >
-                          <div className="p-1 text-sm font-semibold truncate">Journée: {event.summary}</div>
-                        </div>
-                      );
-                    }
-
-                    const { top, height } = calculateEventPosition(
-                      event.start.dateTime,
-                      event.end?.dateTime || null
-                    );
-                    const startTime = new Date(event.start.dateTime);
-                    const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : null;
-
-                    return (
-                      <div
-                        key={event.id}
-                        className="absolute left-1 right-1 z-20 rounded bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 cursor-pointer border-l-4 border-cyan-500 overflow-hidden"
-                        style={{ top, height, minHeight: 24 }}
-                        title={event.summary}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const googleApt = {
-                            id: event.id,
-                            title: event.summary || "Sans titre",
-                            type: null,
-                            startDateTime: event.start.dateTime,
-                            endDateTime: event.end?.dateTime || null,
-                            clientId: null,
-                            contactEmail: null,
-                            contactPhone: null,
-                            notes: event.description || null,
-                            location: event.location || null,
-                            htmlLink: event.htmlLink || null,
-                            attendees: event.attendees?.map((a: any) => ({
-                              email: a.email,
-                              displayName: a.displayName,
-                              responseStatus: a.responseStatus
-                            })) || null,
-                            organizer: event.organizer ? {
-                              email: event.organizer.email,
-                              displayName: event.organizer.displayName
-                            } : null,
-                          };
-                          setSelectedAppointment(googleApt as any);
-                          setAppointmentMode("view");
-                          setAppointmentSource("google");
-                          setAppointmentReadOnly(true);
-                          setAppointmentDialogOpen(true);
-                        }}
-                      >
-                        <div className="p-2 h-full flex flex-col">
-                          <div className="font-semibold text-sm">
-                            {startTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                            {endTime && ` - ${endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
-                          </div>
-                          <div className="text-sm truncate">{event.summary}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             </div>
           );
