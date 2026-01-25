@@ -1785,6 +1785,14 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Invitations role constraint updated for RBAC");
 
+    // ============================================
+    // Add type column to appointments table
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE appointments ADD COLUMN IF NOT EXISTS type text;
+    `);
+    console.log("✅ Appointments type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

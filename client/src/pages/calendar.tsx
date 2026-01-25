@@ -17,6 +17,7 @@ type ViewMode = "month" | "week" | "day";
 interface Appointment {
   id: string;
   title: string;
+  type: string | null;
   startDateTime: string;
   endDateTime: string | null;
   clientId: string | null;
@@ -59,6 +60,8 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const [selectedAppointmentDate, setSelectedAppointmentDate] = useState<Date | undefined>(undefined);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [appointmentMode, setAppointmentMode] = useState<"create" | "view" | "edit">("create");
   const [showTasks, setShowTasks] = useState(true);
   const { toast } = useToast();
 
@@ -378,7 +381,11 @@ export default function Calendar() {
           <Button 
             variant="default" 
             size="sm"
-            onClick={() => setAppointmentDialogOpen(true)}
+            onClick={() => {
+              setSelectedAppointment(null);
+              setAppointmentMode("create");
+              setAppointmentDialogOpen(true);
+            }}
             data-testid="button-new-appointment"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -460,6 +467,8 @@ export default function Calendar() {
                   const selectedDate = new Date(date);
                   selectedDate.setHours(9, 0, 0, 0);
                   setSelectedAppointmentDate(selectedDate);
+                  setSelectedAppointment(null);
+                  setAppointmentMode("create");
                   setAppointmentDialogOpen(true);
                 };
 
@@ -492,6 +501,12 @@ export default function Calendar() {
                             className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-pointer hover:bg-violet-200 dark:hover:bg-violet-900/50"
                             title={`${startTime} - ${apt.title}`}
                             data-testid={`appointment-${apt.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAppointment(apt);
+                              setAppointmentMode("view");
+                              setAppointmentDialogOpen(true);
+                            }}
                           >
                             <span className="font-medium">{startTime}</span> {apt.title}
                           </div>
@@ -777,8 +792,12 @@ export default function Calendar() {
         onClose={() => {
           setAppointmentDialogOpen(false);
           setSelectedAppointmentDate(undefined);
+          setSelectedAppointment(null);
+          setAppointmentMode("create");
         }}
         selectedDate={selectedAppointmentDate || currentDate}
+        appointment={selectedAppointment}
+        mode={appointmentMode}
       />
     </div>
   );

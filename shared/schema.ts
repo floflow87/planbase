@@ -1143,11 +1143,15 @@ export const clientComments = pgTable("client_comments", {
 // CALENDAR & APPOINTMENTS
 // ============================================
 
+export const appointmentTypes = ["KICKOFF", "MEETING", "CALL", "WORKSHOP", "REVIEW", "RETROSPECTIVE", "DEMO", "DELIVERY", "OTHER"] as const;
+export type AppointmentType = typeof appointmentTypes[number];
+
 export const appointments = pgTable("appointments", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   title: text("title").notNull(), // Motif du rendez-vous
+  type: text("type", { enum: appointmentTypes }).default("MEETING"),
   startDateTime: timestamp("start_date_time", { withTimezone: true }).notNull(),
   endDateTime: timestamp("end_date_time", { withTimezone: true }),
   contactEmail: text("contact_email"),
