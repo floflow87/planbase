@@ -682,7 +682,8 @@ export default function Calendar() {
                                     };
                                     setSelectedAppointment(googleApt as any);
                                     setAppointmentMode("view");
-                                    setIsGoogleEvent(true);
+                                    setAppointmentSource("google");
+                                    setAppointmentReadOnly(true);
                                     setAppointmentDialogOpen(true);
                                   }}
                                 >
@@ -718,7 +719,8 @@ export default function Calendar() {
                                   };
                                   setSelectedAppointment(googleApt as any);
                                   setAppointmentMode("view");
-                                  setIsGoogleEvent(true);
+                                  setAppointmentSource("google");
+                                  setAppointmentReadOnly(true);
                                   setAppointmentDialogOpen(true);
                                 }}
                               >
@@ -838,7 +840,8 @@ export default function Calendar() {
                                   };
                                   setSelectedAppointment(googleApt as any);
                                   setAppointmentMode("view");
-                                  setIsGoogleEvent(true);
+                                  setAppointmentSource("google");
+                                  setAppointmentReadOnly(true);
                                   setAppointmentDialogOpen(true);
                                 }}
                               >
@@ -874,7 +877,8 @@ export default function Calendar() {
                                 };
                                 setSelectedAppointment(googleApt as any);
                                 setAppointmentMode("view");
-                                setIsGoogleEvent(true);
+                                setAppointmentSource("google");
+                                setAppointmentReadOnly(true);
                                 setAppointmentDialogOpen(true);
                               }}
                             >
