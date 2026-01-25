@@ -875,10 +875,17 @@ export default function Calendar() {
                               if (type === "appointment" && appointmentId) {
                                 const apt = appointments.find(a => a.id === appointmentId);
                                 if (apt) {
+                                  // Calculate minutes based on Y position within the slot (rounded to 30 min)
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const y = e.clientY - rect.top;
+                                  const minuteOffset = Math.round((y / SLOT_HEIGHT) * 60 / 30) * 30;
+                                  const clampedMinutes = Math.min(Math.max(minuteOffset, 0), 30);
+                                  
                                   const duration = apt.endDateTime 
                                     ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
                                     : 60 * 60 * 1000;
                                   const newStartDateTime = new Date(slotDateTime);
+                                  newStartDateTime.setMinutes(clampedMinutes);
                                   const newEndDateTime = new Date(newStartDateTime.getTime() + duration);
                                   
                                   updateAppointmentMutation.mutate({
@@ -1133,10 +1140,17 @@ export default function Calendar() {
                           if (type === "appointment" && appointmentId) {
                             const apt = appointments.find(a => a.id === appointmentId);
                             if (apt) {
+                              // Calculate minutes based on Y position within the slot (rounded to 30 min)
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const y = e.clientY - rect.top;
+                              const minuteOffset = Math.round((y / SLOT_HEIGHT) * 60 / 30) * 30;
+                              const clampedMinutes = Math.min(Math.max(minuteOffset, 0), 30);
+                              
                               const duration = apt.endDateTime 
                                 ? new Date(apt.endDateTime).getTime() - new Date(apt.startDateTime).getTime()
                                 : 60 * 60 * 1000;
                               const newStartDateTime = new Date(slotDateTime);
+                              newStartDateTime.setMinutes(clampedMinutes);
                               const newEndDateTime = new Date(newStartDateTime.getTime() + duration);
                               
                               updateAppointmentMutation.mutate({
