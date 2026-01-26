@@ -5,7 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, X, CheckSquare, RefreshCw, Link, Unlink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AppointmentPanel } from "@/components/appointment-panel";
@@ -557,35 +564,72 @@ export default function Calendar() {
             Nouveau rdv
           </Button>
           
-          {/* 2. Google Calendar */}
-          {googleStatus?.connected ? (
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => disconnectMutation.mutate()}
-              className="bg-white dark:bg-gray-900 relative group"
-              title={`Connecté: ${googleStatus.email} - Cliquer pour déconnecter`}
-              data-testid="button-disconnect-google"
-            >
-              <img src={googleLogo} alt="Google" className="w-5 h-5" />
-              <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></span>
-              <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                {googleStatus.email}
-              </div>
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleConnectGoogle}
-              disabled={!googleStatus?.configured}
-              className="bg-white dark:bg-gray-900"
-              title={googleStatus?.configured ? "Connecter Google Calendar" : "Configurer Google OAuth"}
-              data-testid="button-google-calendar"
-            >
-              <img src={googleLogo} alt="Google" className="w-5 h-5" />
-            </Button>
-          )}
+          {/* 2. Google Calendar Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="bg-white dark:bg-gray-900 relative"
+                data-testid="button-google-dropdown"
+              >
+                <img src={googleLogo} alt="Google" className="w-5 h-5" />
+                {googleStatus?.connected && (
+                  <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {googleStatus?.connected ? (
+                <>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">
+                    {googleStatus.email}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ["/api/google/events"] });
+                      toast({
+                        title: "Synchronisation",
+                        description: "Événements Google Calendar actualisés.",
+                      });
+                    }}
+                    data-testid="menu-sync-google"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Synchroniser
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => disconnectMutation.mutate()}
+                    className="text-destructive focus:text-destructive"
+                    data-testid="menu-disconnect-google"
+                  >
+                    <Unlink className="w-4 h-4 mr-2" />
+                    Déconnecter
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuItem 
+                    onClick={handleConnectGoogle}
+                    disabled={!googleStatus?.configured}
+                    data-testid="menu-connect-google"
+                  >
+                    <Link className="w-4 h-4 mr-2" />
+                    Connecter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    disabled
+                    className="text-muted-foreground"
+                    data-testid="menu-sync-google-disabled"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Synchroniser
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           {/* 3. Tasks Toggle */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
