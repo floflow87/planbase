@@ -11206,7 +11206,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token, password, firstName, lastName } = req.body;
       
-      console.log("📧 INVITATION ACCEPT:", { token: token?.substring(0, 8) + '...', firstName, lastName, hasPassword: !!password });
+      console.log("📧 INVITATION ACCEPT:", { 
+        token: token?.substring(0, 8) + '...', 
+        firstName, 
+        lastName, 
+        hasPassword: !!password 
+      });
 
       if (!token || typeof token !== 'string') {
         return res.status(400).json({ error: "Token d'invitation invalide" });
@@ -11253,12 +11258,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: invitation.email,
         password,
         email_confirm: true,
+        user_metadata: {
+          account_id: invitation.accountId,
+          role: invitation.role === 'admin' ? 'owner' : 'user',
+          firstName: firstName || '',
+          lastName: lastName || '',
+          displayName: `${firstName || ''} ${lastName || ''}`.trim(),
+        },
       });
 
       if (authError || !authData.user) {
         console.error("Supabase auth error:", authError);
         return res.status(400).json({ error: authError?.message || "Erreur lors de la création du compte" });
       }
+
+      console.log("✅ SUPABASE USER CREATED:", { 
+        id: authData.user.id, 
+        email: authData.user.email,
+        metadata: authData.user.user_metadata 
+      });
 
       // Create user in our database (id must match Supabase auth.users.id)
       const newUser = await storage.createUser({
