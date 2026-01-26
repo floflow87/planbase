@@ -62,6 +62,7 @@ export const invitations = pgTable("invitations", {
   role: text("role").notNull(), // 'collaborator', 'client_viewer'
   status: text("status").notNull().default("pending"), // 'pending', 'accepted', 'revoked', 'expired'
   token: text("token").notNull(),
+  emailBounced: boolean("email_bounced").notNull().default(false),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

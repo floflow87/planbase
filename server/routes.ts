@@ -11260,7 +11260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email_confirm: true,
         user_metadata: {
           account_id: invitation.accountId,
-          role: invitation.role === 'admin' ? 'owner' : 'user',
+          role: invitation.role === 'admin' ? 'collaborator' : invitation.role === 'guest' ? 'client_viewer' : 'collaborator',
           firstName: firstName || '',
           lastName: lastName || '',
           displayName: `${firstName || ''} ${lastName || ''}`.trim(),
@@ -11279,13 +11279,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create user in our database (id must match Supabase auth.users.id)
+      // Map RBAC role to app_users role: admin→collaborator, member→collaborator, guest→client_viewer
+      const appUserRole = invitation.role === 'admin' ? 'collaborator' 
+        : invitation.role === 'guest' ? 'client_viewer' 
+        : 'collaborator';
+      
       const newUser = await storage.createUser({
         id: authData.user.id,
         email: invitation.email,
         firstName: firstName || '',
         lastName: lastName || '',
         accountId: invitation.accountId,
-        role: 'user', // Not owner since they're joining an existing org
+        role: appUserRole,
       });
       
       console.log("✅ USER CREATED:", { 
