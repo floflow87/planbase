@@ -6,8 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Loader2, Settings, Unlink, ExternalLink } from "lucide-react";
-import { SiGooglecalendar, SiGmail, SiGooglemeet, SiGoogledrive, SiGooglesheets, SiSlack, SiCalendly } from "react-icons/si";
-import { MdOutlineEmail, MdDynamicForm } from "react-icons/md";
+import { SiCalendly } from "react-icons/si";
+
+import googleCalendarIcon from "@assets/Google_Calendar_icon_(2020).svg_1769421317054.png";
+import gmailIcon from "@assets/Gmail_icon_(2020).svg_1769421317054.png";
+import googleMeetIcon from "@assets/Google_Meet_Logo_512px_1769421317054.webp";
+import googleDriveIcon from "@assets/Google_Drive_logo_1769421317053.png";
+import googleSheetsIcon from "@assets/Google_Sheets_logo_(2014-2020).svg_1769421317055.png";
+import googleFormsIcon from "@assets/Google_Forms_2020_Logo.svg_1769421317054.png";
+import outlookIcon from "@assets/Microsoft_Office_Outlook_(2018–2024).svg_1769421317055.png";
+import slackIcon from "@assets/WORK-d00db09e_1769421317055.png";
 
 interface GoogleStatus {
   connected: boolean;
@@ -30,8 +38,8 @@ const integrations: Integration[] = [
     id: "google-calendar",
     name: "Google Calendar",
     description: "Synchronisez vos rendez-vous avec Google Calendar",
-    icon: <SiGooglecalendar className="h-8 w-8 text-blue-500" />,
-    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    icon: <img src={googleCalendarIcon} alt="Google Calendar" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: true,
     detailPath: "/settings/integrations/google-calendar",
   },
@@ -39,8 +47,8 @@ const integrations: Integration[] = [
     id: "gmail",
     name: "Gmail",
     description: "Synchronisez vos emails avec Google Gmail",
-    icon: <SiGmail className="h-8 w-8 text-red-500" />,
-    iconBg: "bg-red-50 dark:bg-red-900/20",
+    icon: <img src={gmailIcon} alt="Gmail" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/gmail",
   },
@@ -48,8 +56,8 @@ const integrations: Integration[] = [
     id: "google-meet",
     name: "Google Meet",
     description: "Intégrez vos visioconférences avec Google Meet",
-    icon: <SiGooglemeet className="h-8 w-8 text-green-500" />,
-    iconBg: "bg-green-50 dark:bg-green-900/20",
+    icon: <img src={googleMeetIcon} alt="Google Meet" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/google-meet",
   },
@@ -57,8 +65,8 @@ const integrations: Integration[] = [
     id: "google-drive",
     name: "Google Drive",
     description: "Connectez vos fichiers Google Drive",
-    icon: <SiGoogledrive className="h-8 w-8 text-yellow-500" />,
-    iconBg: "bg-yellow-50 dark:bg-yellow-900/20",
+    icon: <img src={googleDriveIcon} alt="Google Drive" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/google-drive",
   },
@@ -66,8 +74,8 @@ const integrations: Integration[] = [
     id: "google-sheets",
     name: "Google Sheets",
     description: "Exportez vos données vers Google Sheets",
-    icon: <SiGooglesheets className="h-8 w-8 text-green-600" />,
-    iconBg: "bg-green-50 dark:bg-green-900/20",
+    icon: <img src={googleSheetsIcon} alt="Google Sheets" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/google-sheets",
   },
@@ -75,8 +83,8 @@ const integrations: Integration[] = [
     id: "google-forms",
     name: "Google Forms",
     description: "Créez des formulaires connectés à Planbase",
-    icon: <MdDynamicForm className="h-8 w-8 text-purple-500" />,
-    iconBg: "bg-purple-50 dark:bg-purple-900/20",
+    icon: <img src={googleFormsIcon} alt="Google Forms" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/google-forms",
   },
@@ -84,8 +92,8 @@ const integrations: Integration[] = [
     id: "outlook",
     name: "Microsoft Outlook",
     description: "Synchronisez vos emails avec Microsoft Outlook",
-    icon: <MdOutlineEmail className="h-8 w-8 text-blue-600" />,
-    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    icon: <img src={outlookIcon} alt="Outlook" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/outlook",
   },
@@ -93,8 +101,8 @@ const integrations: Integration[] = [
     id: "slack",
     name: "Slack",
     description: "Recevez des notifications et collaborez via Slack",
-    icon: <SiSlack className="h-8 w-8 text-[#4A154B]" />,
-    iconBg: "bg-purple-50 dark:bg-purple-900/20",
+    icon: <img src={slackIcon} alt="Slack" className="h-8 w-8" />,
+    iconBg: "bg-white dark:bg-gray-800",
     available: false,
     detailPath: "/settings/integrations/slack",
   },
