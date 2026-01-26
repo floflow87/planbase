@@ -44,7 +44,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Google Calendar",
     description: "Synchronisez vos rendez-vous avec Google Calendar",
     longDescription: "Connectez votre compte Google Calendar pour synchroniser automatiquement vos rendez-vous. Les événements créés dans Planbase apparaîtront dans votre calendrier Google et vice versa.",
-    icon: <img src={googleCalendarIcon} alt="Google Calendar" className="h-12 w-12" />,
+    icon: <img src={googleCalendarIcon} alt="Google Calendar" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Synchronisation bidirectionnelle des rendez-vous",
@@ -59,7 +59,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Gmail",
     description: "Synchronisez vos emails avec Google Gmail",
     longDescription: "Intégrez Gmail pour centraliser vos communications clients directement dans Planbase. Retrouvez vos emails importants liés à vos projets sans quitter l'application.",
-    icon: <img src={gmailIcon} alt="Gmail" className="h-12 w-12" />,
+    icon: <img src={gmailIcon} alt="Gmail" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Synchronisation des emails clients",
@@ -74,7 +74,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Google Meet",
     description: "Intégrez vos visioconférences avec Google Meet",
     longDescription: "Planifiez et lancez des visioconférences Google Meet directement depuis vos rendez-vous Planbase. Partagez les liens de réunion automatiquement avec vos participants.",
-    icon: <img src={googleMeetIcon} alt="Google Meet" className="h-12 w-12" />,
+    icon: <img src={googleMeetIcon} alt="Google Meet" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Création automatique de liens Meet",
@@ -89,7 +89,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Google Drive",
     description: "Connectez vos fichiers Google Drive",
     longDescription: "Accédez à vos fichiers Google Drive depuis Planbase. Liez des documents à vos projets et partagez-les facilement avec votre équipe.",
-    icon: <img src={googleDriveIcon} alt="Google Drive" className="h-12 w-12" />,
+    icon: <img src={googleDriveIcon} alt="Google Drive" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Accès aux fichiers Drive",
@@ -104,7 +104,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Google Sheets",
     description: "Exportez vos données vers Google Sheets",
     longDescription: "Exportez vos données Planbase vers Google Sheets pour des analyses avancées. Créez des rapports personnalisés et des tableaux de bord automatisés.",
-    icon: <img src={googleSheetsIcon} alt="Google Sheets" className="h-12 w-12" />,
+    icon: <img src={googleSheetsIcon} alt="Google Sheets" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Export automatique des données",
@@ -119,7 +119,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Google Forms",
     description: "Créez des formulaires connectés à Planbase",
     longDescription: "Créez des formulaires Google Forms et récupérez automatiquement les réponses dans Planbase. Idéal pour les questionnaires clients et les retours d'expérience.",
-    icon: <img src={googleFormsIcon} alt="Google Forms" className="h-12 w-12" />,
+    icon: <img src={googleFormsIcon} alt="Google Forms" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Création de formulaires",
@@ -134,7 +134,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Microsoft Outlook",
     description: "Synchronisez vos emails avec Microsoft Outlook",
     longDescription: "Intégrez Microsoft Outlook pour synchroniser vos emails et votre calendrier. Parfait pour les équipes utilisant Microsoft 365.",
-    icon: <img src={outlookIcon} alt="Outlook" className="h-12 w-12" />,
+    icon: <img src={outlookIcon} alt="Outlook" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Synchronisation des emails",
@@ -149,7 +149,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Slack",
     description: "Recevez des notifications et collaborez via Slack",
     longDescription: "Connectez Slack pour recevoir des notifications en temps réel et interagir avec Planbase directement depuis vos canaux Slack.",
-    icon: <img src={slackIcon} alt="Slack" className="h-12 w-12" />,
+    icon: <img src={slackIcon} alt="Slack" className="h-10 w-10 object-contain" />,
     iconBg: "bg-white dark:bg-gray-800",
     features: [
       "Notifications en temps réel",
@@ -164,7 +164,7 @@ const integrationDetails: Record<string, IntegrationInfo> = {
     name: "Calendly",
     description: "Planifiez vos rendez-vous avec Calendly",
     longDescription: "Synchronisez Calendly avec Planbase pour importer automatiquement vos rendez-vous planifiés via Calendly.",
-    icon: <SiCalendly className="h-12 w-12 text-blue-500" />,
+    icon: <SiCalendly className="h-10 w-10 text-blue-500" />,
     iconBg: "bg-blue-50 dark:bg-blue-900/20",
     features: [
       "Import automatique des RDV",
