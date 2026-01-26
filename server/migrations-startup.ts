@@ -1817,6 +1817,84 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Invitations email_bounced column added");
 
+    // ============================================
+    // Initialize permissions for members without any permissions
+    // ============================================
+    const DEFAULT_PERMISSIONS_BY_ROLE: Record<string, Record<string, string[]>> = {
+      owner: {
+        crm: ['read', 'create', 'update', 'delete'],
+        projects: ['read', 'create', 'update', 'delete'],
+        product: ['read', 'create', 'update', 'delete'],
+        roadmap: ['read', 'create', 'update', 'delete'],
+        tasks: ['read', 'create', 'update', 'delete'],
+        notes: ['read', 'create', 'update', 'delete'],
+        documents: ['read', 'create', 'update', 'delete'],
+        profitability: ['read', 'create', 'update', 'delete'],
+      },
+      admin: {
+        crm: ['read', 'create', 'update', 'delete'],
+        projects: ['read', 'create', 'update', 'delete'],
+        product: ['read', 'create', 'update', 'delete'],
+        roadmap: ['read', 'create', 'update', 'delete'],
+        tasks: ['read', 'create', 'update', 'delete'],
+        notes: ['read', 'create', 'update', 'delete'],
+        documents: ['read', 'create', 'update', 'delete'],
+        profitability: ['read', 'create', 'update', 'delete'],
+      },
+      member: {
+        crm: ['read', 'create', 'update'],
+        projects: ['read', 'create', 'update'],
+        product: ['read', 'create', 'update'],
+        roadmap: ['read', 'create', 'update'],
+        tasks: ['read', 'create', 'update', 'delete'],
+        notes: ['read', 'create', 'update', 'delete'],
+        documents: ['read', 'create', 'update'],
+        profitability: ['read'],
+      },
+      guest: {
+        crm: ['read'],
+        projects: ['read'],
+        product: ['read'],
+        roadmap: ['read'],
+        tasks: ['read'],
+        notes: ['read'],
+        documents: ['read'],
+        profitability: [],
+      },
+    };
+
+    // Find members without permissions
+    const membersWithoutPerms = await db.execute(sql`
+      SELECT om.id, om.organization_id, om.role
+      FROM organization_members om
+      LEFT JOIN permissions p ON p.member_id = om.id
+      WHERE p.id IS NULL
+    `);
+
+    for (const member of (membersWithoutPerms.rows || [])) {
+      const memberId = member.id as string;
+      const orgId = member.organization_id as string;
+      const role = (member.role as string) || 'member';
+      const rolePerms = DEFAULT_PERMISSIONS_BY_ROLE[role] || DEFAULT_PERMISSIONS_BY_ROLE.member;
+      
+      const modules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'];
+      const actions = ['read', 'create', 'update', 'delete'];
+      
+      for (const mod of modules) {
+        const allowedActions = rolePerms[mod] || [];
+        for (const action of actions) {
+          const allowed = allowedActions.includes(action);
+          await db.execute(sql`
+            INSERT INTO permissions (organization_id, member_id, module, action, allowed, scope)
+            VALUES (${orgId}, ${memberId}, ${mod}, ${action}, ${allowed}, 'module')
+            ON CONFLICT (member_id, module, action, COALESCE(subview_key, '')) DO NOTHING
+          `);
+        }
+      }
+      console.log(`✅ Initialized permissions for member ${memberId} (role: ${role})`);
+    }
+    console.log("✅ Member permissions initialized");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

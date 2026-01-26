@@ -11203,8 +11203,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Resend webhook for email bounce notifications (public endpoint)
+  // Security: Validates webhook using Resend/Svix HMAC signature if RESEND_WEBHOOK_SECRET is configured
   app.post("/api/webhooks/resend", async (req, res) => {
     try {
+      // Validate webhook signature if secret is configured
+      const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const signature = req.headers['svix-signature'] as string;
+        const timestamp = req.headers['svix-timestamp'] as string;
+        const webhookId = req.headers['svix-id'] as string;
+        
+        if (!signature || !timestamp || !webhookId) {
+          console.warn("⚠️ Resend webhook: Missing signature headers");
+          return res.status(401).json({ error: "Missing webhook signature" });
+        }
+        
+        // Validate timestamp is within 5 minutes to prevent replay attacks
+        const timestampMs = parseInt(timestamp) * 1000;
+        const now = Date.now();
+        if (Math.abs(now - timestampMs) > 5 * 60 * 1000) {
+          console.warn("⚠️ Resend webhook: Timestamp too old");
+          return res.status(401).json({ error: "Webhook timestamp expired" });
+        }
+        
+        // Verify HMAC signature using Svix format
+        // Svix signature format: "v1,<base64-signature>" - may contain multiple versions
+        const crypto = await import('crypto');
+        const rawBody = JSON.stringify(req.body);
+        const signedPayload = `${webhookId}.${timestamp}.${rawBody}`;
+        
+        // Extract v1 signatures from header
+        const signatureParts = signature.split(' ');
+        const v1Signatures = signatureParts
+          .filter(part => part.startsWith('v1,'))
+          .map(part => part.substring(3));
+        
+        if (v1Signatures.length === 0) {
+          console.warn("⚠️ Resend webhook: No v1 signature found");
+          return res.status(401).json({ error: "Invalid signature format" });
+        }
+        
+        // Decode the webhook secret (base64 encoded, starts with "whsec_")
+        const secretBytes = Buffer.from(
+          webhookSecret.startsWith('whsec_') ? webhookSecret.substring(6) : webhookSecret,
+          'base64'
+        );
+        
+        // Compute expected signature
+        const expectedSignature = crypto
+          .createHmac('sha256', secretBytes)
+          .update(signedPayload)
+          .digest('base64');
+        
+        // Verify at least one signature matches (timing-safe comparison)
+        const signatureValid = v1Signatures.some(sig => {
+          try {
+            return crypto.timingSafeEqual(
+              Buffer.from(sig, 'base64'),
+              Buffer.from(expectedSignature, 'base64')
+            );
+          } catch {
+            return false;
+          }
+        });
+        
+        if (!signatureValid) {
+          console.warn("⚠️ Resend webhook: Signature verification failed");
+          return res.status(401).json({ error: "Invalid webhook signature" });
+        }
+        
+        console.log("✅ Resend webhook: Signature verified");
+      }
+      
       const event = req.body;
       console.log("📬 RESEND WEBHOOK:", event.type, event.data?.to);
 

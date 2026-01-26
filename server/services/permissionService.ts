@@ -51,6 +51,7 @@ function clearOrganizationCache(organizationId: string) {
 
 // Default permissions by role
 // IMPORTANT: Owner has FULL access to everything - this is non-negotiable
+// Owner role is never stored in organization_members but is resolved from app_users.role
 const DEFAULT_PERMISSIONS: Record<RbacRole, Record<RbacModule, RbacAction[]>> = {
   owner: {
     crm: ['read', 'create', 'update', 'delete'],

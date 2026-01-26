@@ -1057,79 +1057,87 @@ export default function Settings() {
                         </div>
                       </div>
 
-                      <Form {...accountForm}>
-                        <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={accountForm.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="flex items-center gap-2 text-xs">
-                                    <Building2 className="w-3.5 h-3.5" />
-                                    Nom du compte *
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Mon entreprise"
-                                      data-testid="input-account-name"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                      {isAdmin ? (
+                        <Form {...accountForm}>
+                          <form onSubmit={accountForm.handleSubmit(onAccountSubmit)} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={accountForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="flex items-center gap-2 text-xs">
+                                      <Building2 className="w-3.5 h-3.5" />
+                                      Nom du compte *
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Mon entreprise"
+                                        data-testid="input-account-name"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
 
-                            <FormField
-                              control={accountForm.control}
-                              name="siret"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="flex items-center gap-2 text-xs">
-                                    <Building2 className="w-3.5 h-3.5" />
-                                    SIRET
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="123 456 789 00012"
-                                      data-testid="input-account-siret"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <p className="text-xs text-muted-foreground">
-                                    Numéro SIRET de votre entreprise (14 chiffres)
-                                  </p>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
+                              <FormField
+                                control={accountForm.control}
+                                name="siret"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="flex items-center gap-2 text-xs">
+                                      <Building2 className="w-3.5 h-3.5" />
+                                      SIRET
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="123 456 789 00012"
+                                        data-testid="input-account-siret"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground">
+                                      Numéro SIRET de votre entreprise (14 chiffres)
+                                    </p>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
 
-                          <div className="flex justify-end gap-3 pt-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => accountForm.reset()}
-                              data-testid="button-cancel-account-info"
-                              className="text-[12px]"
-                            >
-                              Annuler
-                            </Button>
-                            <Button
-                              type="submit"
-                              disabled={updateAccountMutation.isPending}
-                              data-testid="button-save-account-info"
-                              className="text-[12px]"
-                            >
-                              {updateAccountMutation.isPending && (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              )}
-                              Enregistrer
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
+                            <div className="flex justify-end gap-3 pt-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => accountForm.reset()}
+                                data-testid="button-cancel-account-info"
+                                className="text-[12px]"
+                              >
+                                Annuler
+                              </Button>
+                              <Button
+                                type="submit"
+                                disabled={updateAccountMutation.isPending}
+                                data-testid="button-save-account-info"
+                                className="text-[12px]"
+                              >
+                                {updateAccountMutation.isPending && (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                )}
+                                Enregistrer
+                              </Button>
+                            </div>
+                          </form>
+                        </Form>
+                      ) : (
+                        <div className="p-4 bg-muted/50 rounded-md">
+                          <p className="text-xs text-muted-foreground">
+                            Seuls les administrateurs peuvent modifier les informations du compte.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </AccordionContent>
@@ -1410,7 +1418,19 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">
-            <IntegrationsTab />
+            {isAdmin ? (
+              <IntegrationsTab />
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center text-muted-foreground">
+                    <Puzzle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">Seuls les administrateurs peuvent gérer les intégrations.</p>
+                    <p className="text-xs mt-2">Contactez votre administrateur pour effectuer des modifications.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">
