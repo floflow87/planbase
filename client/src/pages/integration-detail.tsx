@@ -268,12 +268,12 @@ export default function IntegrationDetailPage() {
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
-            <div className={`w-20 h-20 rounded-xl flex items-center justify-center ${integration.iconBg} border border-border`}>
+            <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${integration.iconBg} border border-border`}>
               {integration.icon}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <CardTitle className="text-xl">{integration.name}</CardTitle>
+                <CardTitle className="text-base">{integration.name}</CardTitle>
                 {isLoading ? (
                   <Badge variant="secondary" className="gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -289,7 +289,7 @@ export default function IntegrationDetailPage() {
                   <Badge variant="outline">Non connecté</Badge>
                 )}
               </div>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-xs">
                 {integration.longDescription}
               </CardDescription>
             </div>
@@ -322,31 +322,33 @@ export default function IntegrationDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Button asChild data-testid="button-open-calendar">
+                    <Button asChild size="sm" data-testid="button-open-calendar">
                       <Link href="/calendar">
-                        <Calendar className="h-4 w-4 mr-2" />
+                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
                         Ouvrir le calendrier
                       </Link>
                     </Button>
                     <Button 
                       variant="outline" 
+                      size="sm"
                       onClick={handleSyncGoogle}
                       data-testid="button-sync-google"
                     >
-                      <RefreshCw className="h-4 w-4 mr-2" />
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                       Synchroniser
                     </Button>
                     <Button
                       variant="ghost"
+                      size="sm"
                       onClick={() => disconnectMutation.mutate()}
                       disabled={disconnectMutation.isPending}
                       className="text-destructive hover:text-destructive"
                       data-testid="button-disconnect-google"
                     >
                       {disconnectMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                       ) : (
-                        <Unlink className="h-4 w-4 mr-2" />
+                        <Unlink className="h-3.5 w-3.5 mr-1.5" />
                       )}
                       Déconnecter
                     </Button>
@@ -386,16 +388,16 @@ export default function IntegrationDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Zap className="w-4 h-4" />
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Zap className="w-3.5 h-3.5" />
             Fonctionnalités
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid gap-2 md:grid-cols-2">
             {integration.features.map((feature, index) => (
-              <li key={index} className="flex items-center gap-2 text-sm">
-                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+              <li key={index} className="flex items-center gap-2 text-xs">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                 <span>{feature}</span>
               </li>
             ))}
@@ -405,13 +407,13 @@ export default function IntegrationDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="w-4 h-4" />
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5" />
             Sécurité & Confidentialité
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Vos données sont protégées grâce au protocole OAuth 2.0. Planbase n'accède qu'aux 
             informations nécessaires et ne stocke jamais vos identifiants. Vous pouvez révoquer 
             l'accès à tout moment depuis cette page ou depuis les paramètres de votre compte 
