@@ -36,6 +36,7 @@ import Commercial from "@/pages/commercial";
 import Legal from "@/pages/legal";
 import CalendarPage from "@/pages/calendar";
 import Settings from "@/pages/settings";
+import IntegrationDetailPage from "@/pages/integration-detail";
 import SharePublicPage from "@/pages/share-public";
 import ProjectDecisions from "@/pages/project-decisions";
 import ProjectExecutive from "@/pages/project-executive";
@@ -156,6 +157,9 @@ function Router() {
       </Route>
       <Route path="/settings">
         <ProtectedRoute><Settings /></ProtectedRoute>
+      </Route>
+      <Route path="/settings/integrations/:integrationId">
+        <ProtectedRoute><IntegrationDetailPage /></ProtectedRoute>
       </Route>
       <Route path="/share/:token" component={SharePublicPage} />
       <Route component={NotFound} />

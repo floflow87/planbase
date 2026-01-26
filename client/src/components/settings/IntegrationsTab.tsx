@@ -1,18 +1,113 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, ExternalLink, CheckCircle, XCircle, Loader2, Unlink } from "lucide-react";
-import { SiGoogle } from "react-icons/si";
+import { CheckCircle, Loader2, Settings, Unlink, ExternalLink } from "lucide-react";
+import { SiGooglecalendar, SiGmail, SiGooglemeet, SiGoogledrive, SiGooglesheets, SiSlack, SiCalendly } from "react-icons/si";
+import { MdOutlineEmail, MdDynamicForm } from "react-icons/md";
 
 interface GoogleStatus {
   connected: boolean;
   email?: string;
   calendarId?: string;
 }
+
+interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  available: boolean;
+  detailPath: string;
+}
+
+const integrations: Integration[] = [
+  {
+    id: "google-calendar",
+    name: "Google Calendar",
+    description: "Synchronisez vos rendez-vous avec Google Calendar",
+    icon: <SiGooglecalendar className="h-8 w-8 text-blue-500" />,
+    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    available: true,
+    detailPath: "/settings/integrations/google-calendar",
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    description: "Synchronisez vos emails avec Google Gmail",
+    icon: <SiGmail className="h-8 w-8 text-red-500" />,
+    iconBg: "bg-red-50 dark:bg-red-900/20",
+    available: false,
+    detailPath: "/settings/integrations/gmail",
+  },
+  {
+    id: "google-meet",
+    name: "Google Meet",
+    description: "Intégrez vos visioconférences avec Google Meet",
+    icon: <SiGooglemeet className="h-8 w-8 text-green-500" />,
+    iconBg: "bg-green-50 dark:bg-green-900/20",
+    available: false,
+    detailPath: "/settings/integrations/google-meet",
+  },
+  {
+    id: "google-drive",
+    name: "Google Drive",
+    description: "Connectez vos fichiers Google Drive",
+    icon: <SiGoogledrive className="h-8 w-8 text-yellow-500" />,
+    iconBg: "bg-yellow-50 dark:bg-yellow-900/20",
+    available: false,
+    detailPath: "/settings/integrations/google-drive",
+  },
+  {
+    id: "google-sheets",
+    name: "Google Sheets",
+    description: "Exportez vos données vers Google Sheets",
+    icon: <SiGooglesheets className="h-8 w-8 text-green-600" />,
+    iconBg: "bg-green-50 dark:bg-green-900/20",
+    available: false,
+    detailPath: "/settings/integrations/google-sheets",
+  },
+  {
+    id: "google-forms",
+    name: "Google Forms",
+    description: "Créez des formulaires connectés à Planbase",
+    icon: <MdDynamicForm className="h-8 w-8 text-purple-500" />,
+    iconBg: "bg-purple-50 dark:bg-purple-900/20",
+    available: false,
+    detailPath: "/settings/integrations/google-forms",
+  },
+  {
+    id: "outlook",
+    name: "Microsoft Outlook",
+    description: "Synchronisez vos emails avec Microsoft Outlook",
+    icon: <MdOutlineEmail className="h-8 w-8 text-blue-600" />,
+    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    available: false,
+    detailPath: "/settings/integrations/outlook",
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    description: "Recevez des notifications et collaborez via Slack",
+    icon: <SiSlack className="h-8 w-8 text-[#4A154B]" />,
+    iconBg: "bg-purple-50 dark:bg-purple-900/20",
+    available: false,
+    detailPath: "/settings/integrations/slack",
+  },
+  {
+    id: "calendly",
+    name: "Calendly",
+    description: "Planifiez vos rendez-vous avec Calendly",
+    icon: <SiCalendly className="h-8 w-8 text-blue-500" />,
+    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    available: false,
+    detailPath: "/settings/integrations/calendly",
+  },
+];
 
 export function IntegrationsTab() {
   const { toast } = useToast();
@@ -45,120 +140,108 @@ export function IntegrationsTab() {
 
   return (
     <div className="space-y-6">
-      <Card data-testid="card-google-calendar-integration">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <SiGoogle className="h-5 w-5 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Google Calendar</CardTitle>
-              <CardDescription className="text-xs">
-                Synchronisez vos rendez-vous avec Google Calendar
-              </CardDescription>
-            </div>
-            {isLoadingGoogle ? (
-              <Badge variant="secondary" className="gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Chargement...
-              </Badge>
-            ) : googleStatus?.connected ? (
-              <Badge variant="default" className="gap-1">
-                <CheckCircle className="h-3 w-3" />
-                Connecté
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="gap-1">
-                <XCircle className="h-3 w-3" />
-                Non connecté
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {googleStatus?.connected ? (
-            <>
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Compte Google</span>
-                  <span className="font-medium">{googleStatus.email || "N/A"}</span>
-                </div>
-                {googleStatus.calendarId && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Calendrier ID</span>
-                    <span className="font-mono text-xs truncate max-w-[200px]">
-                      {googleStatus.calendarId}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button asChild size="sm" data-testid="button-open-calendar">
-                  <Link href="/calendar">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Ouvrir le calendrier
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => disconnectMutation.mutate()}
-                  disabled={disconnectMutation.isPending}
-                  data-testid="button-disconnect-google"
-                >
-                  {disconnectMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Unlink className="h-4 w-4 mr-2" />
-                  )}
-                  Déconnecter
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Connectez votre compte Google pour synchroniser automatiquement vos rendez-vous
-                avec Google Calendar. Vous pourrez voir vos événements directement dans Planbase
-                et créer de nouveaux événements qui se synchroniseront avec votre calendrier.
-              </p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button asChild size="sm" data-testid="button-connect-google">
-                  <Link href="/calendar">
-                    <SiGoogle className="h-4 w-4 mr-2" />
-                    Connecter Google Calendar
-                  </Link>
-                </Button>
-                <Button asChild variant="ghost" size="sm" data-testid="button-calendar-page">
-                  <Link href="/calendar">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Voir la page Calendrier
-                  </Link>
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {integrations.map((integration) => {
+          const isGoogleCalendar = integration.id === "google-calendar";
+          const isConnected = isGoogleCalendar && googleStatus?.connected;
+          const isLoading = isGoogleCalendar && isLoadingGoogle;
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Autres intégrations</CardTitle>
-          <CardDescription className="text-xs">
-            Bientôt disponible
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            D'autres intégrations seront disponibles prochainement, notamment :
-          </p>
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-disc list-inside">
-            <li>Slack - Notifications et actions rapides</li>
-            <li>Jira - Import/Export de projets</li>
-            <li>Notion - Synchronisation de notes</li>
-          </ul>
-        </CardContent>
-      </Card>
+          return (
+            <Card 
+              key={integration.id} 
+              className="relative overflow-hidden"
+              data-testid={`card-integration-${integration.id}`}
+            >
+              <CardContent className="p-4">
+                {/* Status Badge */}
+                <div className="absolute top-3 right-3">
+                  {isLoading ? (
+                    <Badge variant="secondary" className="gap-1 text-xs">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    </Badge>
+                  ) : isConnected ? (
+                    <Badge className="gap-1 text-xs bg-green-500 hover:bg-green-600">
+                      <CheckCircle className="h-3 w-3" />
+                      Connecté
+                    </Badge>
+                  ) : !integration.available ? (
+                    <Badge variant="secondary" className="text-xs">
+                      Bientôt disponible
+                    </Badge>
+                  ) : null}
+                </div>
+
+                {/* Icon */}
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-3 ${integration.iconBg} border border-border`}>
+                  {integration.icon}
+                </div>
+
+                {/* Name & Description */}
+                <h3 className="font-semibold text-sm mb-1">{integration.name}</h3>
+                <p className="text-xs text-muted-foreground mb-4 line-clamp-2">
+                  {integration.description}
+                </p>
+
+                {/* Connected info */}
+                {isConnected && googleStatus?.email && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Votre compte Google est connecté.{" "}
+                    <Link href={integration.detailPath} className="text-primary hover:underline">
+                      Voir les détails
+                    </Link>
+                  </p>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {integration.available ? (
+                    <>
+                      <Button 
+                        asChild 
+                        variant="outline" 
+                        size="sm"
+                        data-testid={`button-configure-${integration.id}`}
+                      >
+                        <Link href={integration.detailPath}>
+                          <Settings className="h-3.5 w-3.5 mr-1.5" />
+                          Configurer
+                        </Link>
+                      </Button>
+                      {isConnected && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => disconnectMutation.mutate()}
+                          disabled={disconnectMutation.isPending}
+                          className="text-destructive hover:text-destructive"
+                          data-testid={`button-disconnect-${integration.id}`}
+                        >
+                          {disconnectMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Unlink className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      disabled
+                      className="opacity-50"
+                      data-testid={`button-coming-soon-${integration.id}`}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                      Détails
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
