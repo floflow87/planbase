@@ -99,9 +99,7 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
                 <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   <tr>
                     <td style="padding: 40px 40px 20px; text-align: center;">
-                      <div style="display: inline-block; background: linear-gradient(135deg, #7C3AED 0%, #06B6D4 100%); padding: 12px 24px; border-radius: 8px;">
-                        <span style="color: #ffffff; font-size: 24px; font-weight: 700;">Planbase</span>
-                      </div>
+                      <img src="${baseUrl}/planbase-logo.png" alt="PlanBase" style="width: 56px; height: 56px; border-radius: 12px;" />
                     </td>
                   </tr>
                   <tr>
