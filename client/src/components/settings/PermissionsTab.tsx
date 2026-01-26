@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check, Trash2 } from "lucide-react";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check, Trash2, AlertCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -62,6 +62,7 @@ interface Member {
   role: RbacRole;
   status?: string;
   invitationToken?: string;
+  emailBounced?: boolean;
   isOwner?: boolean;
   createdAt: string;
   user: MemberUser | null;
@@ -350,7 +351,12 @@ export function PermissionsTab() {
                         <p className="text-sm font-medium">
                           {isPending ? member.user?.email : displayName}
                         </p>
-                        {isPending && (
+                        {isPending && member.emailBounced && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-red-600 border-red-300 bg-red-50">
+                            Non délivré
+                          </Badge>
+                        )}
+                        {isPending && !member.emailBounced && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 bg-amber-50">
                             Invitation en attente
                           </Badge>
@@ -487,22 +493,41 @@ export function PermissionsTab() {
           </CardHeader>
           <CardContent className="space-y-4">
             {selectedMember.status === "invitation_en_attente" ? (
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                      Invitation en attente
-                    </p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
-                      Cette personne recevra le rôle <strong>{ROLE_LABELS[selectedMember.role]}</strong> avec les permissions par défaut associées une fois l'invitation acceptée.
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Vous pourrez personnaliser ses permissions après son inscription.
-                    </p>
+              selectedMember.emailBounced ? (
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                        Email non délivré
+                      </p>
+                      <p className="text-xs text-red-700 dark:text-red-300">
+                        L'invitation envoyée à <strong>{selectedMember.user?.email}</strong> n'a pas pu être délivrée. Vérifiez que l'adresse email est correcte.
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        Vous pouvez copier le lien d'invitation et l'envoyer manuellement, ou révoquer cette invitation et en créer une nouvelle.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                        Invitation en attente
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Cette personne recevra le rôle <strong>{ROLE_LABELS[selectedMember.role]}</strong> avec les permissions par défaut associées une fois l'invitation acceptée.
+                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Vous pourrez personnaliser ses permissions après son inscription.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
               <>
                 {selectedMember.role !== "admin" && (

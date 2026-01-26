@@ -10624,6 +10624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "invitation_en_attente",
         invitationId: inv.id,
         invitationToken: inv.token,
+        emailBounced: inv.emailBounced ?? false,
         expiresAt: inv.expiresAt,
         createdAt: inv.createdAt,
         updatedAt: inv.updatedAt,
