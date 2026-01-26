@@ -592,6 +592,7 @@ export default function Calendar() {
                       toast({
                         title: "Synchronisation",
                         description: "Événements Google Calendar actualisés.",
+                        variant: "success",
                       });
                     }}
                     data-testid="menu-sync-google"
