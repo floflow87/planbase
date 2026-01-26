@@ -4,6 +4,7 @@ import {
   organizationMembers,
   permissions,
   moduleViews,
+  roleViewTemplates,
   OrganizationMember,
   Permission,
   ModuleView,
@@ -432,43 +433,42 @@ export const permissionService = {
   },
 
   async getGuestViewTemplate(organizationId: string, module: string): Promise<any | null> {
-    // Guest view templates are stored with a special "template" memberId
-    const [view] = await db
+    const [template] = await db
       .select()
-      .from(moduleViews)
+      .from(roleViewTemplates)
       .where(
         and(
-          eq(moduleViews.organizationId, organizationId),
-          eq(moduleViews.memberId, "template"),
-          eq(moduleViews.module, module)
+          eq(roleViewTemplates.organizationId, organizationId),
+          eq(roleViewTemplates.role, "guest"),
+          eq(roleViewTemplates.module, module)
         )
       );
-    return view?.config || null;
+    return template?.config || null;
   },
 
   async setGuestViewTemplate(organizationId: string, module: string, config: any): Promise<void> {
     const existing = await db
       .select()
-      .from(moduleViews)
+      .from(roleViewTemplates)
       .where(
         and(
-          eq(moduleViews.organizationId, organizationId),
-          eq(moduleViews.memberId, "template"),
-          eq(moduleViews.module, module)
+          eq(roleViewTemplates.organizationId, organizationId),
+          eq(roleViewTemplates.role, "guest"),
+          eq(roleViewTemplates.module, module)
         )
       );
 
     if (existing.length > 0) {
       await db
-        .update(moduleViews)
+        .update(roleViewTemplates)
         .set({ config, updatedAt: new Date() })
-        .where(eq(moduleViews.id, existing[0].id));
+        .where(eq(roleViewTemplates.id, existing[0].id));
     } else {
       await db
-        .insert(moduleViews)
+        .insert(roleViewTemplates)
         .values({
           organizationId,
-          memberId: "template",
+          role: "guest",
           module,
           config,
         });
@@ -494,40 +494,40 @@ export const permissionService = {
   },
 
   async getMemberViewTemplate(organizationId: string, module: string): Promise<any | null> {
-    const [view] = await db
+    const [template] = await db
       .select()
-      .from(moduleViews)
+      .from(roleViewTemplates)
       .where(
         and(
-          eq(moduleViews.organizationId, organizationId),
-          eq(moduleViews.memberId, "member-template"),
-          eq(moduleViews.module, module)
+          eq(roleViewTemplates.organizationId, organizationId),
+          eq(roleViewTemplates.role, "member"),
+          eq(roleViewTemplates.module, module)
         )
       );
-    return view?.config || null;
+    return template?.config || null;
   },
 
   async setMemberViewTemplate(organizationId: string, module: string, config: any): Promise<void> {
     const existing = await db
       .select()
-      .from(moduleViews)
+      .from(roleViewTemplates)
       .where(
         and(
-          eq(moduleViews.organizationId, organizationId),
-          eq(moduleViews.memberId, "member-template"),
-          eq(moduleViews.module, module)
+          eq(roleViewTemplates.organizationId, organizationId),
+          eq(roleViewTemplates.role, "member"),
+          eq(roleViewTemplates.module, module)
         )
       );
 
     if (existing.length > 0) {
       await db
-        .update(moduleViews)
+        .update(roleViewTemplates)
         .set({ config, updatedAt: new Date() })
-        .where(eq(moduleViews.id, existing[0].id));
+        .where(eq(roleViewTemplates.id, existing[0].id));
     } else {
-      await db.insert(moduleViews).values({
+      await db.insert(roleViewTemplates).values({
         organizationId,
-        memberId: "member-template",
+        role: "member",
         module,
         config,
       });

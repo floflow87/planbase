@@ -1793,6 +1793,30 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Appointments type column added");
 
+    // ============================================
+    // Role view templates table for storing default views per role
+    // ============================================
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS role_view_templates (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        module text NOT NULL,
+        config jsonb NOT NULL DEFAULT '{}',
+        updated_at timestamp with time zone DEFAULT now() NOT NULL,
+        UNIQUE(organization_id, role, module)
+      );
+    `);
+    console.log("✅ Role view templates table created");
+
+    // ============================================
+    // Add email_bounced column to invitations table
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE invitations ADD COLUMN IF NOT EXISTS email_bounced boolean NOT NULL DEFAULT false;
+    `);
+    console.log("✅ Invitations email_bounced column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

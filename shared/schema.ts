@@ -112,6 +112,18 @@ export const moduleViews = pgTable("module_views", {
   memberModuleIdx: uniqueIndex().on(table.memberId, table.module),
 }));
 
+// Role view templates - for storing default view configurations per role
+export const roleViewTemplates = pgTable("role_view_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // 'guest', 'member', 'admin'
+  module: text("module").notNull(), // 'crm', 'projects', etc.
+  config: jsonb("config").notNull().default({}), // { subviewsEnabled: { 'crm.clients': true } }
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  roleModuleIdx: uniqueIndex().on(table.organizationId, table.role, table.module),
+}));
+
 export const insertOrganizationMemberSchema = createInsertSchema(organizationMembers).omit({
   id: true,
   createdAt: true,

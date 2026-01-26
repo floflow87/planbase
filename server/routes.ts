@@ -11202,6 +11202,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Resend webhook for email bounce notifications (public endpoint)
+  app.post("/api/webhooks/resend", async (req, res) => {
+    try {
+      const event = req.body;
+      console.log("📬 RESEND WEBHOOK:", event.type, event.data?.to);
+
+      // Handle bounce and delivery_failed events
+      if (event.type === 'email.bounced' || event.type === 'email.delivery_failed' || event.type === 'email.complained') {
+        const recipientEmail = event.data?.to?.[0];
+        
+        if (recipientEmail) {
+          // Mark all pending invitations for this email as bounced
+          const result = await db
+            .update(invitations)
+            .set({ emailBounced: true, updatedAt: new Date() })
+            .where(
+              and(
+                eq(invitations.email, recipientEmail.toLowerCase()),
+                eq(invitations.status, 'pending')
+              )
+            );
+          console.log(`✅ Marked invitations as bounced for ${recipientEmail}`);
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("Resend webhook error:", error);
+      // Always return 200 to Resend to prevent retries
+      res.status(200).json({ received: true, error: error.message });
+    }
+  });
+
   // Accept invitation and create account (public - no auth required)
   app.post("/api/invitations/accept", async (req, res) => {
     try {
