@@ -233,43 +233,56 @@ export const permissionService = {
   },
 
   async setPermission(data: InsertPermission): Promise<Permission> {
-    // Check if permission already exists
-    const existing = await db
-      .select()
-      .from(permissions)
-      .where(
-        and(
-          eq(permissions.memberId, data.memberId),
-          eq(permissions.module, data.module),
-          eq(permissions.action, data.action),
-          data.subviewKey 
-            ? eq(permissions.subviewKey, data.subviewKey) 
-            : eq(permissions.scope, 'module')
-        )
-      );
+    console.log("🔧 setPermission called with:", JSON.stringify(data, null, 2));
+    
+    try {
+      // Check if permission already exists
+      const existing = await db
+        .select()
+        .from(permissions)
+        .where(
+          and(
+            eq(permissions.memberId, data.memberId),
+            eq(permissions.module, data.module),
+            eq(permissions.action, data.action),
+            data.subviewKey 
+              ? eq(permissions.subviewKey, data.subviewKey) 
+              : eq(permissions.scope, 'module')
+          )
+        );
 
-    let result: Permission;
-    if (existing.length > 0) {
-      const [updated] = await db
-        .update(permissions)
-        .set({
-          allowed: data.allowed,
-          version: existing[0].version + 1,
-          updatedAt: new Date(),
-        })
-        .where(eq(permissions.id, existing[0].id))
-        .returning();
-      result = updated;
-    } else {
-      const [created] = await db
-        .insert(permissions)
-        .values(data)
-        .returning();
-      result = created;
+      console.log("🔍 Existing permissions found:", existing.length);
+
+      let result: Permission;
+      if (existing.length > 0) {
+        console.log("📝 Updating existing permission:", existing[0].id);
+        const [updated] = await db
+          .update(permissions)
+          .set({
+            allowed: data.allowed,
+            version: existing[0].version + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(permissions.id, existing[0].id))
+          .returning();
+        result = updated;
+      } else {
+        console.log("➕ Creating new permission");
+        const [created] = await db
+          .insert(permissions)
+          .values(data)
+          .returning();
+        result = created;
+      }
+
+      clearMemberCache(data.organizationId, data.memberId);
+      console.log("✅ Permission set successfully:", result.id);
+      return result;
+    } catch (error: any) {
+      console.error("❌ setPermission error:", error.message);
+      console.error("❌ Full error:", error);
+      throw error;
     }
-
-    clearMemberCache(data.organizationId, data.memberId);
-    return result;
   },
 
   async initializeDefaultPermissions(organizationId: string, memberId: string, role: RbacRole): Promise<void> {
