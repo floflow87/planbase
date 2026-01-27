@@ -10977,17 +10977,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await permissionService.bulkUpdatePermissions(accountId, memberId, updates);
       const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
       
-      // Log bulk permission update
-      const actorMemberId = req.membership!.id;
-      const { logAuditEvent } = await import("./services/auditService");
-      await logAuditEvent({
-        organizationId: accountId,
-        actorMemberId,
-        actionType: 'permission.updated',
-        resourceType: 'member',
-        resourceId: memberId,
-        meta: { bulk: true, updateCount: updates.length },
-      });
+      // Log bulk permission update (non-blocking)
+      try {
+        const actorMemberId = req.membership?.id;
+        if (actorMemberId) {
+          const { logAuditEvent } = await import("./services/auditService");
+          await logAuditEvent({
+            organizationId: accountId,
+            actorMemberId,
+            actionType: 'permission.updated',
+            resourceType: 'member',
+            resourceId: memberId,
+            meta: { bulk: true, updateCount: updates.length },
+          });
+        }
+      } catch (auditError: any) {
+        console.warn("⚠️ Audit log failed (non-blocking):", auditError.message);
+      }
       
       res.json(matrix);
     } catch (error: any) {
