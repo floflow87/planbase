@@ -10316,7 +10316,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get distinct project types that have resource templates (for "Core" badge)
-  app.get("/api/resource-templates/project-types", requireAuth, requireOrgMember, requirePermission("profitability", "read", "profitability.resources"), async (req, res) => {
+  // Note: This endpoint uses projects.read permission because it's called from Projects page
+  // to show available project types, not from Profitability module
+  app.get("/api/resource-templates/project-types", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const accountId = req.accountId!;
       

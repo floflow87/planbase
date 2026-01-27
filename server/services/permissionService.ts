@@ -462,10 +462,13 @@ export const permissionService = {
   async setModuleViewWithOrg(organizationId: string, memberId: string, module: string, config: any): Promise<ModuleView> {
     const existing = await this.getModuleViewWithOrg(organizationId, memberId, module);
     
+    // Extract subviewsEnabled from config if it has that structure
+    const subviewsEnabled = config?.subviewsEnabled || config;
+    
     if (existing) {
       const [updated] = await db
         .update(moduleViews)
-        .set({ config, updatedAt: new Date() })
+        .set({ subviewsEnabled, updatedAt: new Date() })
         .where(eq(moduleViews.id, existing.id))
         .returning();
       return updated;
@@ -476,7 +479,7 @@ export const permissionService = {
           organizationId,
           memberId,
           module,
-          config,
+          subviewsEnabled,
         })
         .returning();
       return created;

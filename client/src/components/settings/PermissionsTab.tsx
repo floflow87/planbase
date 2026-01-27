@@ -195,6 +195,43 @@ export function PermissionsTab() {
     },
   });
 
+  const bulkUpdatePermissionsMutation = useMutation({
+    mutationFn: async (params: { memberId: string; updates: Array<{ module: RbacModule; action: RbacAction; allowed: boolean }> }) => {
+      const response = await apiRequest(`/api/rbac/members/${params.memberId}/permissions/bulk`, "POST", {
+        updates: params.updates,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMemberId, "permissions"] });
+      toast({ title: "Permissions mises à jour", variant: "success" });
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de modifier les permissions.", variant: "destructive" });
+    },
+  });
+
+  const toggleColumnPermissions = (action: RbacAction, checked: boolean) => {
+    if (!selectedMemberId || !memberPermissions) return;
+    const updates = RBAC_MODULES.map(module => ({
+      module,
+      action,
+      allowed: checked,
+    }));
+    bulkUpdatePermissionsMutation.mutate({ memberId: selectedMemberId, updates });
+  };
+
+  const isColumnAllChecked = (action: RbacAction): boolean => {
+    if (!memberPermissions) return false;
+    return RBAC_MODULES.every(module => memberPermissions[module]?.[action] === true);
+  };
+
+  const isColumnSomeChecked = (action: RbacAction): boolean => {
+    if (!memberPermissions) return false;
+    const checkedCount = RBAC_MODULES.filter(module => memberPermissions[module]?.[action] === true).length;
+    return checkedCount > 0 && checkedCount < RBAC_MODULES.length;
+  };
+
   const resetPermissionsMutation = useMutation({
     mutationFn: async (memberId: string) => {
       const response = await apiRequest(`/api/rbac/members/${memberId}/permissions/reset`, "POST");
@@ -612,7 +649,16 @@ export function PermissionsTab() {
                           <th className="text-left p-2 font-medium text-xs">Module</th>
                           {RBAC_ACTIONS.map((action) => (
                             <th key={action} className="text-center p-2 font-medium text-xs">
-                              {ACTION_LABELS[action]}
+                              <div className="flex flex-col items-center gap-1">
+                                <span>{ACTION_LABELS[action]}</span>
+                                <Checkbox
+                                  checked={isColumnAllChecked(action)}
+                                  className={isColumnSomeChecked(action) ? "data-[state=checked]:bg-primary/50" : ""}
+                                  onCheckedChange={(checked) => toggleColumnPermissions(action, !!checked)}
+                                  disabled={selectedMember.role === "admin" || bulkUpdatePermissionsMutation.isPending}
+                                  data-testid={`permission-column-${action}`}
+                                />
+                              </div>
                             </th>
                           ))}
                         </tr>
