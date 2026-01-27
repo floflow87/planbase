@@ -11160,6 +11160,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Resend invitation email (admin only)
+  app.post("/api/invitations/:invitationId/resend", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const { invitationId } = req.params;
+
+      const { invitations } = await import("@shared/schema");
+      
+      // Find the invitation
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.id, invitationId),
+            eq(invitations.accountId, accountId),
+            eq(invitations.status, 'pending')
+          )
+        )
+        .limit(1);
+
+      if (!invitation) {
+        return res.status(404).json({ error: "Invitation non trouvée ou déjà acceptée" });
+      }
+
+      // Check if invitation is expired
+      if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Cette invitation a expiré. Veuillez en créer une nouvelle." });
+      }
+
+      // Get account and inviter info for the email
+      const account = await storage.getAccount(accountId);
+      const organizationName = account?.name || 'Planbase';
+
+      const inviter = await storage.getUser(req.userId!);
+      const inviterName = inviter?.firstName && inviter?.lastName 
+        ? `${inviter.firstName} ${inviter.lastName}` 
+        : inviter?.email || 'Un membre de votre équipe';
+
+      // Send the invitation email
+      const { sendInvitationEmail } = await import("./services/emailService");
+      const emailResult = await sendInvitationEmail({
+        to: invitation.email,
+        inviterName,
+        organizationName,
+        role: invitation.role as 'admin' | 'member' | 'guest',
+        token: invitation.token,
+        expiresAt: new Date(invitation.expiresAt!),
+      });
+
+      if (!emailResult.success) {
+        return res.status(500).json({ error: `Échec de l'envoi de l'email: ${emailResult.error}` });
+      }
+
+      // Reset emailBounced flag if it was set
+      if (invitation.emailBounced) {
+        await db
+          .update(invitations)
+          .set({ emailBounced: false })
+          .where(eq(invitations.id, invitationId));
+      }
+
+      res.json({ success: true, message: "Invitation renvoyée avec succès" });
+    } catch (error: any) {
+      console.error("Resend invitation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Validate invitation token (public - no auth required)
   app.get("/api/invitations/validate", async (req, res) => {
     try {

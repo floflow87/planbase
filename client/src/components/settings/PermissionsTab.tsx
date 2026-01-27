@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check, Trash2, AlertCircle } from "lucide-react";
+import { Shield, Users, RotateCcw, Loader2, PackagePlus, UserPlus, Clock, Copy, Check, Trash2, AlertCircle, Send } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -108,8 +108,32 @@ export function PermissionsTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<RbacRole>("member");
   const [copiedInvitationId, setCopiedInvitationId] = useState<string | null>(null);
+  const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{ id: string; isPending: boolean } | null>(null);
+
+  const resendInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await apiRequest(`/api/invitations/${invitationId}/resend`, "POST");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      toast({ title: "Invitation renvoyée", description: "L'email d'invitation a été renvoyé avec succès.", variant: "success" });
+      setResendingInvitationId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erreur", description: error.message || "Impossible de renvoyer l'invitation.", variant: "destructive" });
+      setResendingInvitationId(null);
+    },
+  });
+
+  const resendInvitation = (member: Member) => {
+    // Extract invitation ID from member ID (format: invitation-{uuid})
+    const invitationId = member.id.replace('invitation-', '');
+    setResendingInvitationId(member.id);
+    resendInvitationMutation.mutate(invitationId);
+  };
 
   const copyInvitationLink = async (member: Member) => {
     if (!member.invitationToken) return;
@@ -375,31 +399,56 @@ export function PermissionsTab() {
                       {ROLE_LABELS[member.role]}
                     </Badge>
                     {isPending && member.invitationToken && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyInvitationLink(member);
-                            }}
-                            data-testid={`button-copy-invitation-${member.id}`}
-                          >
-                            {copiedInvitationId === member.id ? (
-                              <Check className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-white text-foreground border">
-                          {copiedInvitationId === member.id 
-                            ? "Lien d'inscription copié" 
-                            : "Copier le lien d'inscription"
-                          }
-                        </TooltipContent>
-                      </Tooltip>
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyInvitationLink(member);
+                              }}
+                              data-testid={`button-copy-invitation-${member.id}`}
+                            >
+                              {copiedInvitationId === member.id ? (
+                                <Check className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-white text-foreground border">
+                            {copiedInvitationId === member.id 
+                              ? "Lien d'inscription copié" 
+                              : "Copier le lien d'inscription"
+                            }
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                resendInvitation(member);
+                              }}
+                              disabled={resendingInvitationId === member.id}
+                              data-testid={`button-resend-invitation-${member.id}`}
+                            >
+                              {resendingInvitationId === member.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-white text-foreground border">
+                            Renvoyer l'invitation par email
+                          </TooltipContent>
+                        </Tooltip>
+                      </>
                     )}
                     {!isPending && (
                       <Select
