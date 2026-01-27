@@ -16,6 +16,10 @@ import googleSheetsIcon from "@assets/Google_Sheets_logo_(2014-2020).svg_1769421
 import googleFormsIcon from "@assets/Google_Forms_2020_Logo.svg_1769421317054.png";
 import outlookIcon from "@assets/Microsoft_Office_Outlook_(2018–2024).svg_1769421317055.png";
 import slackIcon from "@assets/WORK-d00db09e_1769421317055.png";
+import docusignIcon from "@assets/docusign.png";
+import linkedinIcon from "@assets/linkedin.png";
+import paypalIcon from "@assets/paypal.png";
+import lemlistIcon from "@assets/lemlist.png";
 
 interface GoogleStatus {
   connected: boolean;
@@ -114,6 +118,42 @@ const integrations: Integration[] = [
     iconBg: "bg-blue-50 dark:bg-blue-900/20",
     available: false,
     detailPath: "/settings/integrations/calendly",
+  },
+  {
+    id: "docusign",
+    name: "DocuSign",
+    description: "Signez et gérez vos contrats électroniquement",
+    icon: <img src={docusignIcon} alt="DocuSign" className="h-7 w-7 object-contain" />,
+    iconBg: "bg-white dark:bg-gray-800",
+    available: false,
+    detailPath: "/settings/integrations/docusign",
+  },
+  {
+    id: "lemlist",
+    name: "Lemlist",
+    description: "Automatisez vos campagnes d'emailing personnalisées",
+    icon: <img src={lemlistIcon} alt="Lemlist" className="h-7 w-7 object-contain" />,
+    iconBg: "bg-white dark:bg-gray-800",
+    available: false,
+    detailPath: "/settings/integrations/lemlist",
+  },
+  {
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "Connectez et enrichissez vos contacts professionnels",
+    icon: <img src={linkedinIcon} alt="LinkedIn" className="h-7 w-7 object-contain" />,
+    iconBg: "bg-white dark:bg-gray-800",
+    available: false,
+    detailPath: "/settings/integrations/linkedin",
+  },
+  {
+    id: "paypal",
+    name: "PayPal",
+    description: "Gérez vos paiements et transactions en ligne",
+    icon: <img src={paypalIcon} alt="PayPal" className="h-7 w-7 object-contain" />,
+    iconBg: "bg-white dark:bg-gray-800",
+    available: false,
+    detailPath: "/settings/integrations/paypal",
   },
 ];
 
