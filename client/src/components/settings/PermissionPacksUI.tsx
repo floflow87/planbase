@@ -43,6 +43,7 @@ interface PermissionPacksUIProps {
   memberId: string;
   memberName: string;
   currentRole: string;
+  currentPackId?: string | null;
   onPackApplied?: () => void;
 }
 
@@ -72,9 +73,10 @@ const ACTION_LABELS: Record<string, string> = {
   delete: "Supprimer",
 };
 
-export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApplied }: PermissionPacksUIProps) {
+export function PermissionPacksUI({ memberId, memberName, currentRole, currentPackId, onPackApplied }: PermissionPacksUIProps) {
   const { toast } = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{ pack: PermissionPack } | null>(null);
+  const [appliedPackId, setAppliedPackId] = useState<string | null>(currentPackId || null);
 
   const { data: packs = [], isLoading } = useQuery<PermissionPack[]>({
     queryKey: ["/api/permission-packs"],
@@ -87,6 +89,7 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
     },
     onSuccess: (_, packId) => {
       const appliedPack = packs.find(p => p.id === packId);
+      setAppliedPackId(packId);
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
@@ -125,8 +128,13 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
         </p>
         
         <div className="grid gap-3">
-          {packs.map(pack => (
-            <Card key={pack.id} className="hover-elevate">
+          {packs.map(pack => {
+            const isSelected = appliedPackId === pack.id;
+            return (
+            <Card 
+              key={pack.id} 
+              className={`hover-elevate ${isSelected ? 'border-2 border-green-500 dark:border-green-400 bg-green-50/50 dark:bg-green-900/10' : ''}`}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
@@ -164,7 +172,8 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       </div>
 
