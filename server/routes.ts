@@ -10920,6 +10920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify member exists in this organization
       const members = await permissionService.getMembersByOrganization(accountId);
+      console.log("🔍 Permission update - memberId:", memberId, "members found:", members.map(m => ({ id: m.id, email: m.email })));
       const memberExists = members.some(m => m.id === memberId);
       if (!memberExists) {
         return res.status(404).json({ error: "Membre non trouvé dans cette organisation" });
@@ -10942,6 +10943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(permission);
     } catch (error: any) {
+      console.error("❌ Permission update error:", error);
       res.status(500).json({ error: error.message });
     }
   });
