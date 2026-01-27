@@ -354,6 +354,28 @@ export const permissionService = {
   async getFullPermissionMatrix(organizationId: string, memberId: string): Promise<Record<RbacModule, Record<RbacAction, boolean>>> {
     const perms = await this.getPermissionsForMember(memberId, organizationId);
     
+    // If no permissions exist for this member, initialize them with role defaults
+    if (perms.length === 0) {
+      // Get member's role
+      const [member] = await db
+        .select()
+        .from(organizationMembers)
+        .where(eq(organizationMembers.id, memberId))
+        .limit(1);
+      
+      if (member) {
+        console.log(`🔧 Initializing missing permissions for member ${memberId} with role ${member.role}`);
+        await this.initializeDefaultPermissions(organizationId, memberId, member.role as RbacRole);
+        // Re-fetch permissions after initialization
+        const newPerms = await this.getPermissionsForMember(memberId, organizationId);
+        return this.buildPermissionMatrix(newPerms);
+      }
+    }
+    
+    return this.buildPermissionMatrix(perms);
+  },
+
+  buildPermissionMatrix(perms: Permission[]): Record<RbacModule, Record<RbacAction, boolean>> {
     const matrix: Record<RbacModule, Record<RbacAction, boolean>> = {} as any;
     
     for (const module of RBAC_MODULES) {
