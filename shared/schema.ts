@@ -174,7 +174,10 @@ export type RoadmapSubview = typeof ROADMAP_SUBVIEWS[number];
 export const PROJECTS_SUBVIEWS = ['projects.list', 'projects.details', 'projects.scope', 'projects.billing'] as const;
 export type ProjectsSubview = typeof PROJECTS_SUBVIEWS[number];
 
-export const ALL_SUBVIEWS = [...CRM_SUBVIEWS, ...PRODUCT_SUBVIEWS, ...PROFITABILITY_SUBVIEWS, ...DOCUMENTS_SUBVIEWS, ...ROADMAP_SUBVIEWS, ...PROJECTS_SUBVIEWS] as const;
+export const WHITEBOARDS_SUBVIEWS = ['whiteboards.list', 'whiteboards.create', 'whiteboards.edit'] as const;
+export type WhiteboardsSubview = typeof WHITEBOARDS_SUBVIEWS[number];
+
+export const ALL_SUBVIEWS = [...CRM_SUBVIEWS, ...PRODUCT_SUBVIEWS, ...PROFITABILITY_SUBVIEWS, ...DOCUMENTS_SUBVIEWS, ...ROADMAP_SUBVIEWS, ...PROJECTS_SUBVIEWS, ...WHITEBOARDS_SUBVIEWS] as const;
 export type Subview = typeof ALL_SUBVIEWS[number];
 
 export const MODULE_SUBVIEWS: Record<RbacModule, readonly string[]> = {
@@ -184,6 +187,7 @@ export const MODULE_SUBVIEWS: Record<RbacModule, readonly string[]> = {
   documents: DOCUMENTS_SUBVIEWS,
   roadmap: ROADMAP_SUBVIEWS,
   projects: PROJECTS_SUBVIEWS,
+  whiteboards: WHITEBOARDS_SUBVIEWS,
   tasks: [], // No subviews for tasks
   notes: [], // No subviews for notes
 };

@@ -11651,19 +11651,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/views/template/member", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const { module, config, applyToAll } = req.body;
+      console.log("📝 POST /api/views/template/member", { module, config, applyToAll, accountId: req.accountId });
 
       if (!module || !config) {
         return res.status(400).json({ error: "Module and config are required" });
       }
 
       await permissionService.setMemberViewTemplate(req.accountId!, module, config);
+      console.log("✅ setMemberViewTemplate completed for module:", module);
 
       if (applyToAll) {
         await permissionService.applyMemberViewTemplateToAll(req.accountId!, module, config);
+        console.log("✅ applyMemberViewTemplateToAll completed for module:", module);
       }
 
       res.json({ success: true, message: applyToAll ? "Template applied to all members" : "Template saved" });
     } catch (error: any) {
+      console.error("❌ Error saving member view template:", error);
       res.status(500).json({ error: error.message });
     }
   });

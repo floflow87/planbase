@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Save, Loader2, Users, FolderKanban, Package, Rocket, DollarSign, FolderOpen, ChevronDown, ChevronRight, UserCheck, UserMinus } from "lucide-react";
+import { Eye, Save, Loader2, Users, FolderKanban, Package, Rocket, DollarSign, FolderOpen, ChevronDown, ChevronRight, UserCheck, UserMinus, PenTool } from "lucide-react";
 import { useState, useEffect } from "react";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import type { RbacModule, RbacRole } from "@shared/schema";
@@ -112,6 +112,18 @@ const MODULE_DEFINITIONS: ModuleDefinition[] = [
     ],
     guestDefaultConfig: { "documents.list": false, "documents.upload": false, "documents.integrations": false },
     memberDefaultConfig: { "documents.list": true, "documents.upload": true, "documents.integrations": false },
+  },
+  {
+    id: "whiteboards",
+    label: "Whiteboards",
+    icon: PenTool,
+    subviews: [
+      { key: "whiteboards.list", label: "Liste des whiteboards" },
+      { key: "whiteboards.create", label: "Création" },
+      { key: "whiteboards.edit", label: "Édition" },
+    ],
+    guestDefaultConfig: { "whiteboards.list": true, "whiteboards.create": false, "whiteboards.edit": false },
+    memberDefaultConfig: { "whiteboards.list": true, "whiteboards.create": true, "whiteboards.edit": true },
   },
 ];
 
