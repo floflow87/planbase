@@ -10997,7 +10997,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(matrix);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error("❌ Bulk permissions update error:", error);
+      res.status(500).json({ error: error.message, stack: error.stack });
     }
   });
 
