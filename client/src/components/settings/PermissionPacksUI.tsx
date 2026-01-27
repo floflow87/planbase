@@ -82,7 +82,7 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
 
   const applyMutation = useMutation({
     mutationFn: async (packId: string) => {
-      const res = await apiRequest("POST", `/api/permission-packs/${packId}/apply/${memberId}`, {});
+      const res = await apiRequest(`/api/permission-packs/${packId}/apply/${memberId}`, "POST", {});
       return res.json();
     },
     onSuccess: (_, packId) => {
