@@ -10649,7 +10649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/rbac/members/:memberId/role", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { memberId } = req.params;
       const { role } = req.body;
 
@@ -10940,7 +10940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log permission update (non-blocking)
       try {
-        const actorMemberId = req.membership!.id;
+        const actorMemberId = req.memberId!;
         const { logPermissionUpdated } = await import("./services/auditService");
         await logPermissionUpdated(accountId, actorMemberId, memberId, { module, action, allowed, subviewKey });
       } catch (auditError) {
@@ -10979,7 +10979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log bulk permission update (non-blocking)
       try {
-        const actorMemberId = req.membership?.id;
+        const actorMemberId = req.memberId;
         if (actorMemberId) {
           const { logAuditEvent } = await import("./services/auditService");
           await logAuditEvent({
@@ -11006,7 +11006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/rbac/members/:memberId/permissions/reset", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { memberId } = req.params;
 
       // Get the member to find their role
@@ -11726,7 +11726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/share-links", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const memberId = req.membership!.id;
+      const memberId = req.memberId!;
       const { resourceType, resourceId, expiresInDays, permissions: perms } = req.body;
 
       if (!resourceType || !resourceId) {
@@ -11790,7 +11790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/share-links/:id/revoke", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const memberId = req.membership!.id;
+      const memberId = req.memberId!;
       const shareLinkId = req.params.id;
 
       const { revokeShareLink } = await import("./services/shareLinkService");
@@ -11883,7 +11883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/member-project-access", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { memberId, projectId, accessLevel = "read" } = req.body;
 
       if (!memberId || !projectId) {
@@ -11929,7 +11929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/member-project-access/:memberId/:projectId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { memberId, projectId } = req.params;
 
       const { logProjectAccessRevoked } = await import("./services/auditService");
@@ -12062,7 +12062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/approvals/request", requireAuth, requireOrgMember, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { resourceType, resourceId, projectId, comment } = req.body;
 
       if (!resourceType || !resourceId) {
@@ -12089,7 +12089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Decide on an approval (approve/reject/request changes)
   app.post("/api/approvals/decide", requireAuth, requireOrgMember, async (req, res) => {
     try {
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { approvalId, decision, comment } = req.body;
 
       if (!approvalId || !decision) {
