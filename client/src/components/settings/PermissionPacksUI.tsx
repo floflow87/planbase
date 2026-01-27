@@ -86,11 +86,13 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
       return res.json();
     },
     onSuccess: (_, packId) => {
+      const appliedPack = packs.find(p => p.id === packId);
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/permissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
       toast({
         title: "Pack appliqué",
-        description: `Les permissions ont été mises à jour avec succès`,
+        description: `Pack "${appliedPack?.name || packId}" appliqué avec succès`,
         className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800",
       });
       setConfirmDialog(null);
