@@ -95,10 +95,11 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
       setConfirmDialog(null);
       onPackApplied?.();
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("❌ Permission pack apply error:", error);
       toast({
         title: "Erreur",
-        description: "Impossible d'appliquer le pack de permissions",
+        description: error?.message || "Impossible d'appliquer le pack de permissions",
         variant: "destructive",
       });
     },
