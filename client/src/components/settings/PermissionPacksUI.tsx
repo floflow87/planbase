@@ -133,7 +133,7 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, currentPa
             return (
             <Card 
               key={pack.id} 
-              className={`hover-elevate ${isSelected ? 'border-2 border-green-500 dark:border-green-400 bg-green-50/50 dark:bg-green-900/10' : ''}`}
+              className={`hover-elevate ${isSelected ? 'border-2 border-violet-500 dark:border-violet-400 bg-violet-50/50 dark:bg-violet-900/20' : ''}`}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
