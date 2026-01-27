@@ -11997,7 +11997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { getPermissionPack } = await import("@shared/config/permissionPacks");
       const { logPackApplied } = await import("./services/auditService");
-      const { RBAC_ACTIONS } = await import("@shared/schema");
+      const { RBAC_ACTIONS, RBAC_MODULES } = await import("@shared/schema");
 
       const pack = getPermissionPack(packId);
       if (!pack) {
@@ -12007,23 +12007,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("📦 Found pack:", pack.name, "with", pack.permissions.length, "permission entries");
 
+      // Build a lookup map for pack permissions
+      const packPermissionMap: Record<string, string[]> = {};
+      for (const entry of pack.permissions) {
+        packPermissionMap[entry.module] = entry.actions;
+      }
+
       // Delete existing permissions for this member
       await db.execute(sql`
         DELETE FROM permissions WHERE organization_id = ${accountId} AND member_id = ${memberId}
       `);
       console.log("🗑️ Deleted existing permissions");
 
-      // Insert new permissions from pack
-      for (const entry of pack.permissions) {
+      // Insert permissions for ALL modules (allowed=true only for those in pack)
+      for (const module of RBAC_MODULES) {
+        const packActions = packPermissionMap[module] || [];
         for (const action of RBAC_ACTIONS) {
-          const allowed = entry.actions.includes(action);
+          const allowed = packActions.includes(action);
           await db.execute(sql`
             INSERT INTO permissions (organization_id, member_id, module, action, allowed, scope)
-            VALUES (${accountId}, ${memberId}, ${entry.module}, ${action}, ${allowed}, 'module')
+            VALUES (${accountId}, ${memberId}, ${module}, ${action}, ${allowed}, 'module')
           `);
         }
       }
-      console.log("✅ Inserted new permissions");
+      console.log("✅ Inserted new permissions for all", RBAC_MODULES.length, "modules");
 
       // Update module views with default subviews from pack
       for (const [module, subviews] of Object.entries(pack.defaultSubviews)) {

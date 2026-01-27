@@ -34,6 +34,7 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       { module: 'notes', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'documents', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'profitability', actions: ['read', 'create', 'update', 'delete'] },
+      { module: 'whiteboards', actions: ['read', 'create', 'update', 'delete'] },
     ],
     defaultSubviews: {
       crm: ['crm.clients', 'crm.opportunities', 'crm.kpis'],
@@ -60,6 +61,7 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       { module: 'notes', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'documents', actions: ['read', 'create', 'update'] },
       { module: 'profitability', actions: ['read'] },
+      { module: 'whiteboards', actions: ['read', 'create', 'update'] },
     ],
     defaultSubviews: {
       crm: ['crm.clients', 'crm.opportunities', 'crm.kpis'],
@@ -123,6 +125,7 @@ export const PERMISSION_PACKS: PermissionPack[] = [
       { module: 'tasks', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'notes', actions: ['read', 'create', 'update', 'delete'] },
       { module: 'documents', actions: ['read', 'create', 'update'] },
+      { module: 'whiteboards', actions: ['read', 'create', 'update'] },
     ],
     defaultSubviews: {
       product: ['product.backlog', 'product.epics', 'product.stats'],
