@@ -10898,6 +10898,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { memberId } = req.params;
       const { module, action, allowed, subviewKey } = req.body;
 
+      // Check if this is a pending invitation (can't modify permissions for invitations)
+      if (memberId.startsWith('invitation-')) {
+        return res.status(400).json({ error: "Impossible de modifier les permissions d'une invitation en attente. Attendez que l'utilisateur accepte l'invitation." });
+      }
+
       if (!module || !action || typeof allowed !== 'boolean') {
         return res.status(400).json({ error: "Missing required fields: module, action, allowed" });
       }
@@ -10911,6 +10916,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (!VALID_ACTIONS.includes(action)) {
         return res.status(400).json({ error: `Invalid action: ${action}. Must be one of: ${VALID_ACTIONS.join(', ')}` });
+      }
+
+      // Verify member exists in this organization
+      const members = await permissionService.getMembersByOrganization(accountId);
+      const memberExists = members.some(m => m.id === memberId);
+      if (!memberExists) {
+        return res.status(404).json({ error: "Membre non trouvé dans cette organisation" });
       }
 
       const permission = await permissionService.setPermission({

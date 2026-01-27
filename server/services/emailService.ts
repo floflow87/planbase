@@ -70,8 +70,8 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
       : params.role === 'member' ? 'Membre' 
       : 'Invité';
     
-    // Use APP_URL for production, or planbase.io as default
-    const baseUrl = process.env.APP_URL || 'https://planbase.io';
+    // Use APP_URL for production, or app.planbase.io as default
+    const baseUrl = process.env.APP_URL || 'https://app.planbase.io';
     console.log('📧 EMAIL: APP_URL =', process.env.APP_URL, '→ baseUrl =', baseUrl);
     
     const inviteUrl = `${baseUrl}/accept-invitation?token=${params.token}`;
@@ -99,7 +99,7 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
                 <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   <tr>
                     <td style="padding: 40px 40px 20px; text-align: center;">
-                      <img src="${baseUrl}/planbase-logo.png" alt="PlanBase" style="width: 56px; height: 56px; border-radius: 12px;" />
+                      <img src="${baseUrl}/planbase-logo-email.png" alt="PlanBase" width="56" height="56" style="width: 56px; height: 56px; max-width: 56px; max-height: 56px; border-radius: 12px; display: block; margin: 0 auto;" />
                     </td>
                   </tr>
                   <tr>
