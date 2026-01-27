@@ -150,7 +150,7 @@ export type ModuleView = typeof moduleViews.$inferSelect;
 export const RBAC_ROLES = ['owner', 'admin', 'member', 'guest'] as const;
 export type RbacRole = typeof RBAC_ROLES[number];
 
-export const RBAC_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'] as const;
+export const RBAC_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'] as const;
 export type RbacModule = typeof RBAC_MODULES[number];
 
 export const RBAC_ACTIONS = ['read', 'create', 'update', 'delete'] as const;

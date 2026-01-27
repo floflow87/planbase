@@ -79,6 +79,7 @@ const MODULE_LABELS: Record<RbacModule, string> = {
   notes: "Notes",
   documents: "Documents",
   profitability: "Rentabilité",
+  whiteboards: "Whiteboards",
 };
 
 const ACTION_LABELS: Record<RbacAction, string> = {

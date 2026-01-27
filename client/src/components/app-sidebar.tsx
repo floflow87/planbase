@@ -31,7 +31,7 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
   "/product": "product",
   "/roadmap": "roadmap",
   "/tasks": "tasks",
-  "/mindmaps": null,
+  "/mindmaps": "whiteboards",
   "/notes": "notes",
   "/documents": "documents",
   "/finance": "profitability",

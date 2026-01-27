@@ -11,11 +11,12 @@ interface PermissionMatrix {
   notes: Record<RbacAction, boolean>;
   documents: Record<RbacAction, boolean>;
   profitability: Record<RbacAction, boolean>;
+  whiteboards: Record<RbacAction, boolean>;
 }
 
 interface RbacData {
   memberId: string;
-  role: "admin" | "member" | "guest";
+  role: "owner" | "admin" | "member" | "guest";
   permissions: PermissionMatrix;
 }
 
@@ -36,15 +37,16 @@ export function usePermissions() {
   const can = (module: RbacModule, action: RbacAction): boolean => {
     if (!data) return false;
     
-    // Admin has full access
-    if (data.role === "admin") return true;
+    // Owner and Admin have full access to everything
+    if (data.role === "owner" || data.role === "admin") return true;
     
     return data.permissions[module]?.[action] ?? false;
   };
 
   const isReadOnly = (module: RbacModule): boolean => {
     if (!data) return true;
-    if (data.role === "admin") return false;
+    // Owner and Admin have full access - never read-only
+    if (data.role === "owner" || data.role === "admin") return false;
     
     const modulePerms = data.permissions[module];
     if (!modulePerms) return true;
@@ -52,7 +54,8 @@ export function usePermissions() {
     return modulePerms.read && !modulePerms.create && !modulePerms.update && !modulePerms.delete;
   };
 
-  const isAdmin = data?.role === "admin";
+  const isOwner = data?.role === "owner";
+  const isAdmin = data?.role === "admin" || data?.role === "owner";
   const isMember = data?.role === "member";
   const isGuest = data?.role === "guest";
 
@@ -62,6 +65,7 @@ export function usePermissions() {
     error,
     can,
     isReadOnly,
+    isOwner,
     isAdmin,
     isMember,
     isGuest,
