@@ -631,8 +631,8 @@ export function PermissionsTab() {
                           memberId={selectedMember.id}
                           memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
                           currentRole={selectedMember.role}
-                          onPackApplied={() => {
-                            queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
+                          onPackApplied={async () => {
+                            await queryClient.refetchQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
                           }}
                         />
                       </AccordionContent>

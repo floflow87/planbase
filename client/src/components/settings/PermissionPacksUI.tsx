@@ -73,26 +73,67 @@ const ACTION_LABELS: Record<string, string> = {
   delete: "Supprimer",
 };
 
+type PermissionMatrix = Record<string, Record<string, boolean>>;
+
+function detectAppliedPack(packs: PermissionPack[], permissions: PermissionMatrix | undefined): string | null {
+  if (!permissions || Object.keys(permissions).length === 0) return null;
+  
+  for (const pack of packs) {
+    let matches = true;
+    
+    // Build expected permissions from pack
+    const expectedPermissions: Record<string, Set<string>> = {};
+    for (const entry of pack.permissions) {
+      expectedPermissions[entry.module] = new Set(entry.actions);
+    }
+    
+    // Check if current permissions match pack
+    for (const [module, actions] of Object.entries(permissions)) {
+      const expectedActions = expectedPermissions[module] || new Set();
+      for (const [action, allowed] of Object.entries(actions)) {
+        const shouldBeAllowed = expectedActions.has(action);
+        if (allowed !== shouldBeAllowed) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) break;
+    }
+    
+    if (matches) return pack.id;
+  }
+  
+  return null;
+}
+
 export function PermissionPacksUI({ memberId, memberName, currentRole, currentPackId, onPackApplied }: PermissionPacksUIProps) {
   const { toast } = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{ pack: PermissionPack } | null>(null);
-  const [appliedPackId, setAppliedPackId] = useState<string | null>(currentPackId || null);
 
   const { data: packs = [], isLoading } = useQuery<PermissionPack[]>({
     queryKey: ["/api/permission-packs"],
   });
+
+  // Fetch member's current permissions to detect applied pack
+  const { data: memberPermissions } = useQuery<PermissionMatrix>({
+    queryKey: ["/api/rbac/members", memberId, "permissions"],
+    enabled: !!memberId,
+  });
+
+  // Detect which pack is currently applied based on permissions
+  const appliedPackId = detectAppliedPack(packs, memberPermissions);
 
   const applyMutation = useMutation({
     mutationFn: async (packId: string) => {
       const res = await apiRequest(`/api/permission-packs/${packId}/apply/${memberId}`, "POST", {});
       return res.json();
     },
-    onSuccess: (_, packId) => {
+    onSuccess: async (_, packId) => {
       const appliedPack = packs.find(p => p.id === packId);
-      setAppliedPackId(packId);
+      // Force immediate refetch of permissions (not just invalidation)
+      await queryClient.refetchQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
       toast({
         title: "Pack appliqué",
         description: `Pack "${appliedPack?.name || packId}" appliqué avec succès`,
