@@ -91,6 +91,7 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, onPackApp
       toast({
         title: "Pack appliqué",
         description: `Les permissions ont été mises à jour avec succès`,
+        className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800",
       });
       setConfirmDialog(null);
       onPackApplied?.();
