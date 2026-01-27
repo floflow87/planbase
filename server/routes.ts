@@ -10910,7 +10910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate module and action enums
-      const VALID_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability'];
+      const VALID_MODULES = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
       const VALID_ACTIONS = ['read', 'create', 'update', 'delete'];
       
       if (!VALID_MODULES.includes(module)) {
