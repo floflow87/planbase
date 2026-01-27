@@ -215,7 +215,22 @@ export const permissionService = {
     action: RbacAction,
     subviewKey?: string
   ): Promise<boolean> {
-    const perms = await this.getPermissionsForMember(memberId, organizationId, module);
+    let perms = await this.getPermissionsForMember(memberId, organizationId, module);
+    
+    // If no permissions exist, auto-initialize from role defaults
+    if (perms.length === 0) {
+      const [member] = await db
+        .select()
+        .from(organizationMembers)
+        .where(eq(organizationMembers.id, memberId))
+        .limit(1);
+      
+      if (member) {
+        console.log(`🔧 hasPermission: Auto-initializing permissions for member ${memberId} with role ${member.role}`);
+        await this.initializeDefaultPermissions(organizationId, memberId, member.role as RbacRole);
+        perms = await this.getPermissionsForMember(memberId, organizationId, module);
+      }
+    }
     
     if (subviewKey) {
       // Check subview-specific permission first
