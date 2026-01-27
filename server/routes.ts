@@ -11990,7 +11990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/permission-packs/:packId/apply/:memberId", requireAuth, requireOrgMember, requireOrgAdmin, async (req, res) => {
     try {
       const accountId = req.accountId!;
-      const actorMemberId = req.membership!.id;
+      const actorMemberId = req.memberId!;
       const { packId, memberId } = req.params;
 
       console.log("📦 Applying permission pack:", { packId, memberId, accountId });
