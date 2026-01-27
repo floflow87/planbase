@@ -1,6 +1,7 @@
 // Projects page with task management
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,8 @@ interface SortableTaskCardProps {
   onAssign: (task: Task, userId: string) => void;
   onMarkComplete: (task: Task) => void;
   onClick: (task: Task) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function SortableTaskCard({
@@ -149,6 +152,8 @@ function SortableTaskCard({
   onAssign,
   onMarkComplete,
   onClick,
+  canUpdate = true,
+  canDelete = true,
 }: SortableTaskCardProps) {
   const {
     attributes,
@@ -205,6 +210,8 @@ function SortableTaskCard({
                 onDelete={onDelete}
                 onAssign={onAssign}
                 onMarkComplete={onMarkComplete}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
               />
             </div>
           </div>
@@ -264,6 +271,8 @@ interface SortableColumnProps {
   onAssign: (task: Task, userId: string) => void;
   onMarkComplete: (task: Task) => void;
   onTaskClick: (task: Task) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function SortableColumn({
@@ -280,6 +289,8 @@ function SortableColumn({
   onAssign,
   onMarkComplete,
   onTaskClick,
+  canUpdate = true,
+  canDelete = true,
 }: SortableColumnProps) {
   const {
     attributes,
@@ -361,6 +372,8 @@ function SortableColumn({
                       onAssign={onAssign}
                       onMarkComplete={onMarkComplete}
                       onClick={onTaskClick}
+                      canUpdate={canUpdate}
+                      canDelete={canDelete}
                     />
                   ))
                 )}
@@ -1876,8 +1889,8 @@ function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }
 
 export default function Projects() {
   const [, setLocation] = useLocation();
-  const accountId = localStorage.getItem("demo_account_id");
-  const userId = localStorage.getItem("demo_user_id");
+  const { accountId, user } = useAuth();
+  const userId = user?.id || null;
   const { toast } = useToast();
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");

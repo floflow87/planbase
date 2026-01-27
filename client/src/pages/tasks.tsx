@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -436,6 +437,8 @@ interface SortableTaskCardProps{
   onAssign: (task: Task, userId: string) => void;
   onMarkComplete: (task: Task) => void;
   onClick: (task: Task) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function SortableTaskCard({
@@ -447,6 +450,8 @@ function SortableTaskCard({
   onAssign,
   onMarkComplete,
   onClick,
+  canUpdate = true,
+  canDelete = true,
 }: SortableTaskCardProps) {
   const {
     attributes,
@@ -506,6 +511,8 @@ function SortableTaskCard({
                 onDelete={onDelete}
                 onAssign={onAssign}
                 onMarkComplete={onMarkComplete}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
               />
             </div>
           </div>
@@ -566,6 +573,8 @@ interface SortableColumnProps {
   onMarkComplete: (task: Task) => void;
   onTaskClick: (task: Task) => void;
   dropIndicator: { columnId: string; position: 'before' | 'after'; type: 'task' | 'column' } | null;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function SortableColumn({
@@ -583,6 +592,8 @@ function SortableColumn({
   onMarkComplete,
   onTaskClick,
   dropIndicator,
+  canUpdate = true,
+  canDelete = true,
 }: SortableColumnProps) {
   const {
     attributes,
@@ -657,6 +668,8 @@ function SortableColumn({
                 onAssign={onAssign}
                 onMarkComplete={onMarkComplete}
                 onClick={onTaskClick}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
               />
             ))}
           </SortableContext>
@@ -677,8 +690,8 @@ function SortableColumn({
 }
 
 export default function Tasks() {
-  const accountId = localStorage.getItem("demo_account_id");
-  const userId = localStorage.getItem("demo_user_id");
+  const { accountId, user } = useAuth();
+  const userId = user?.id || null;
   const { toast } = useToast();
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("tasks");
   
@@ -1932,6 +1945,8 @@ export default function Tasks() {
                                 onMarkComplete={handleMarkComplete}
                                 onTaskClick={handleTaskClick}
                                 dropIndicator={dropIndicator}
+                                canUpdate={canUpdate}
+                                canDelete={canDelete}
                               />
                             </div>
                             {showAfterIndicator && (

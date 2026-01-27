@@ -27,6 +27,8 @@ interface TaskCardMenuProps {
   onDelete: (task: Task) => void;
   onAssign: (task: Task, userId: string) => void;
   onMarkComplete: (task: Task) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 export function TaskCardMenu({
@@ -37,6 +39,8 @@ export function TaskCardMenu({
   onDelete,
   onAssign,
   onMarkComplete,
+  canUpdate = true,
+  canDelete = true,
 }: TaskCardMenuProps) {
   return (
     <DropdownMenu>
@@ -58,61 +62,69 @@ export function TaskCardMenu({
           <Copy className="mr-2 h-4 w-4" />
           Dupliquer
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onEdit(task)}
-          data-testid="menu-item-edit"
-        >
-          <Edit className="mr-2 h-4 w-4" />
-          Modifier
-        </DropdownMenuItem>
+        {canUpdate && (
+          <DropdownMenuItem
+            onClick={() => onEdit(task)}
+            data-testid="menu-item-edit"
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Modifier
+          </DropdownMenuItem>
+        )}
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger data-testid="menu-item-assign">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Assigner à
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {users.map((user) => (
-              <DropdownMenuItem
-                key={user.id}
-                onClick={() => onAssign(task, user.id)}
-                data-testid={`menu-item-assign-${user.id}`}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">
-                    {user.firstName} {user.lastName}
-                  </span>
-                  {user.position && (
-                    <span className="text-xs text-muted-foreground">
-                      {user.position}
+        {canUpdate && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger data-testid="menu-item-assign">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Assigner à
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {users.map((user) => (
+                <DropdownMenuItem
+                  key={user.id}
+                  onClick={() => onAssign(task, user.id)}
+                  data-testid={`menu-item-assign-${user.id}`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {user.firstName} {user.lastName}
                     </span>
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+                    {user.position && (
+                      <span className="text-xs text-muted-foreground">
+                        {user.position}
+                      </span>
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         
-        <DropdownMenuItem
-          onClick={() => onMarkComplete(task)}
-          data-testid="menu-item-mark-complete"
-        >
-          <CheckCircle2 className="mr-2 h-4 w-4" />
-          Marquer comme terminé
-        </DropdownMenuItem>
+        {canUpdate && (
+          <DropdownMenuItem
+            onClick={() => onMarkComplete(task)}
+            data-testid="menu-item-mark-complete"
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Marquer comme terminé
+          </DropdownMenuItem>
+        )}
         
-        <DropdownMenuSeparator />
+        {canDelete && <DropdownMenuSeparator />}
         
-        <DropdownMenuItem
-          onClick={() => onDelete(task)}
-          className="text-destructive"
-          data-testid="menu-item-delete"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Supprimer
-        </DropdownMenuItem>
+        {canDelete && (
+          <DropdownMenuItem
+            onClick={() => onDelete(task)}
+            className="text-destructive"
+            data-testid="menu-item-delete"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
