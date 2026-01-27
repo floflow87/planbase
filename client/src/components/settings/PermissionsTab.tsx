@@ -703,7 +703,8 @@ export function PermissionsTab() {
         </Card>
       )}
 
-      <RoleViewConfig />
+      {/* TODO: RoleViewConfig masqué temporairement - fonctionnalité cosmétique non connectée au RBAC */}
+      {/* <RoleViewConfig /> */}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
