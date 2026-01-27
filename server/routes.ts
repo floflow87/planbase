@@ -11993,19 +11993,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const actorMemberId = req.membership!.id;
       const { packId, memberId } = req.params;
 
+      console.log("📦 Applying permission pack:", { packId, memberId, accountId });
+
       const { getPermissionPack } = await import("@shared/config/permissionPacks");
       const { logPackApplied } = await import("./services/auditService");
       const { RBAC_ACTIONS } = await import("@shared/schema");
 
       const pack = getPermissionPack(packId);
       if (!pack) {
+        console.log("❌ Permission pack not found:", packId);
         return res.status(404).json({ error: "Permission pack not found" });
       }
+
+      console.log("📦 Found pack:", pack.name, "with", pack.permissions.length, "permission entries");
 
       // Delete existing permissions for this member
       await db.execute(sql`
         DELETE FROM permissions WHERE organization_id = ${accountId} AND member_id = ${memberId}
       `);
+      console.log("🗑️ Deleted existing permissions");
 
       // Insert new permissions from pack
       for (const entry of pack.permissions) {
@@ -12017,6 +12023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `);
         }
       }
+      console.log("✅ Inserted new permissions");
 
       // Update module views with default subviews from pack
       for (const [module, subviews] of Object.entries(pack.defaultSubviews)) {
@@ -12025,17 +12032,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subviewsEnabled[sv] = true;
         }
         
+        console.log("📝 Inserting module view for:", module, subviewsEnabled);
         await db.execute(sql`
           INSERT INTO module_views (organization_id, member_id, module, subviews_enabled)
           VALUES (${accountId}, ${memberId}, ${module}, ${JSON.stringify(subviewsEnabled)}::jsonb)
           ON CONFLICT (member_id, module) DO UPDATE SET subviews_enabled = ${JSON.stringify(subviewsEnabled)}::jsonb
         `);
       }
+      console.log("✅ Updated module views");
 
-      await logPackApplied(accountId, actorMemberId, memberId, packId);
+      // Make audit logging non-blocking
+      logPackApplied(accountId, actorMemberId, memberId, packId).catch(err => {
+        console.error("⚠️ Audit log failed (non-blocking):", err.message);
+      });
 
+      console.log("✅ Pack applied successfully");
       res.json({ success: true, packId, memberId });
     } catch (error: any) {
+      console.error("❌ Error applying permission pack:", error);
       res.status(400).json({ error: error.message });
     }
   });
