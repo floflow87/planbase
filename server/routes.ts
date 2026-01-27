@@ -10936,15 +10936,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subviewKey,
       });
 
-      // Log permission update
-      const actorMemberId = req.membership!.id;
-      const { logPermissionUpdated } = await import("./services/auditService");
-      await logPermissionUpdated(accountId, actorMemberId, memberId, { module, action, allowed, subviewKey });
+      // Log permission update (non-blocking)
+      try {
+        const actorMemberId = req.membership!.id;
+        const { logPermissionUpdated } = await import("./services/auditService");
+        await logPermissionUpdated(accountId, actorMemberId, memberId, { module, action, allowed, subviewKey });
+      } catch (auditError) {
+        console.error("⚠️ Audit log failed (non-blocking):", auditError);
+      }
 
       res.json(permission);
     } catch (error: any) {
       console.error("❌ Permission update error:", error);
-      res.status(500).json({ error: error.message });
+      
+      // Check for foreign key violation
+      if (error.message?.includes('violates foreign key constraint')) {
+        return res.status(400).json({ 
+          error: "Le membre n'existe pas dans la table organization_members. Il faut d'abord l'ajouter correctement.",
+          details: error.message
+        });
+      }
+      
+      res.status(500).json({ error: error.message, stack: error.stack });
     }
   });
 
