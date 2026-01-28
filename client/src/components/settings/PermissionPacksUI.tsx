@@ -125,39 +125,71 @@ function detectAppliedPack(packs: PermissionPack[], permissions: PermissionMatri
 export function PermissionPacksUI({ memberId, memberName, currentRole, currentPackId, onPackApplied }: PermissionPacksUIProps) {
   const { toast } = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{ pack: PermissionPack } | null>(null);
-  // Force re-render counter for after pack application
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Local state for permissions to ensure immediate UI update
+  const [localPermissions, setLocalPermissions] = useState<PermissionMatrix | null>(null);
 
   const { data: packs = [], isLoading } = useQuery<PermissionPack[]>({
     queryKey: ["/api/permission-packs"],
   });
 
   // Fetch member's current permissions to detect applied pack
-  const { data: memberPermissions, refetch: refetchPermissions } = useQuery<PermissionMatrix>({
+  const { data: memberPermissions } = useQuery<PermissionMatrix>({
     queryKey: ["/api/rbac/members", memberId, "permissions"],
     enabled: !!memberId,
-    staleTime: 0, // Always consider data stale to force refetch
+    staleTime: 0,
   });
 
+  // Sync local state with server data when it changes
+  useEffect(() => {
+    if (memberPermissions) {
+      setLocalPermissions(memberPermissions);
+    }
+  }, [memberPermissions]);
+
+  // Use local permissions for immediate UI updates
+  const currentPermissions = localPermissions || memberPermissions;
+  
   // Detect which pack is currently applied based on permissions
-  const appliedPackId = detectAppliedPack(packs, memberPermissions);
+  const appliedPackId = detectAppliedPack(packs, currentPermissions);
 
   const applyMutation = useMutation({
     mutationFn: async (packId: string) => {
       const res = await apiRequest(`/api/permission-packs/${packId}/apply/${memberId}`, "POST", {});
       return res.json();
     },
-    onSuccess: async (_, packId) => {
+    onSuccess: async (data, packId) => {
       const appliedPack = packs.find(p => p.id === packId);
       setConfirmDialog(null);
       
-      // Use direct refetch from useQuery - most reliable method
-      await refetchPermissions();
+      // Build the new permissions matrix from the pack to update UI immediately
+      const newPermissions: PermissionMatrix = {};
+      const allModules = ['crm', 'projects', 'product', 'roadmap', 'tasks', 'notes', 'documents', 'profitability', 'whiteboards'];
+      const allActions = ['read', 'create', 'update', 'delete'];
       
-      // Force component re-render
-      setRefreshKey(prev => prev + 1);
+      // Initialize all to false
+      for (const module of allModules) {
+        newPermissions[module] = {};
+        for (const action of allActions) {
+          newPermissions[module][action] = false;
+        }
+      }
       
-      // Also invalidate member lists
+      // Set allowed actions from pack
+      if (appliedPack) {
+        for (const entry of appliedPack.permissions) {
+          if (newPermissions[entry.module]) {
+            for (const action of entry.actions) {
+              newPermissions[entry.module][action] = true;
+            }
+          }
+        }
+      }
+      
+      // Update local state immediately - this triggers re-render
+      setLocalPermissions(newPermissions);
+      
+      // Also invalidate cache for consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       
