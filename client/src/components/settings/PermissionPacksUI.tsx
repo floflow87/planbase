@@ -132,12 +132,21 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, currentPa
       const appliedPack = packs.find(p => p.id === packId);
       setConfirmDialog(null);
       
-      // Force immediate refetch of permissions to update both this component and parent
-      await queryClient.refetchQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
+      // First invalidate to mark cache as stale
+      await queryClient.invalidateQueries({ 
+        queryKey: ["/api/rbac/members", memberId, "permissions"],
+        exact: true 
+      });
+      
+      // Then force refetch to get fresh data
+      await queryClient.refetchQueries({ 
+        queryKey: ["/api/rbac/members", memberId, "permissions"],
+        exact: true 
+      });
       
       // Also invalidate member lists
-      queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       
       // Notify parent if callback provided
       if (onPackApplied) {
