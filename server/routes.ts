@@ -10887,6 +10887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { memberId } = req.params;
 
       const matrix = await permissionService.getFullPermissionMatrix(accountId, memberId);
+      // Disable cache to ensure fresh data after permission updates
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       res.json(matrix);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
