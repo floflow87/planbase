@@ -1564,6 +1564,7 @@ interface BacklogPoolProps {
   onCreateTicket: (type: TicketType, title: string) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
+  onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
   checkedTickets?: Set<string>;
@@ -1584,6 +1585,7 @@ export function BacklogPool({
   onCreateTicket,
   onUpdateState,
   onUpdateField,
+  onConvertType,
   onTicketAction,
   selectedTicketId,
   checkedTickets,

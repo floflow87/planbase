@@ -2122,6 +2122,7 @@ export default function BacklogDetail() {
                   onCreateTicket={handleCreateBacklogTicket}
                   onUpdateState={handleInlineStateUpdate}
                   onUpdateField={handleInlineFieldUpdate}
+                  onConvertType={handleConvertType}
                   onTicketAction={handleTicketAction}
                   selectedTicketId={selectedTicket?.id}
                   checkedTickets={checkedTickets}
