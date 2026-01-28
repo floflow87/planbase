@@ -159,9 +159,10 @@ export function PermissionsTab() {
     enabled: isAdmin,
   });
 
-  const { data: memberPermissions, isLoading: permissionsLoading } = useQuery<PermissionMatrix>({
+  const { data: memberPermissions, isLoading: permissionsLoading, refetch: refetchPermissions } = useQuery<PermissionMatrix>({
     queryKey: ["/api/rbac/members", selectedMemberId, "permissions"],
     enabled: !!selectedMemberId && isAdmin,
+    staleTime: 0, // Always consider data stale to force refetch
   });
 
   const updateRoleMutation = useMutation({
@@ -632,7 +633,8 @@ export function PermissionsTab() {
                           memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
                           currentRole={selectedMember.role}
                           onPackApplied={async () => {
-                            await queryClient.refetchQueries({ queryKey: ["/api/rbac/members", selectedMember.id, "permissions"] });
+                            // Force refetch to update the checkbox grid
+                            await refetchPermissions();
                           }}
                         />
                       </AccordionContent>
