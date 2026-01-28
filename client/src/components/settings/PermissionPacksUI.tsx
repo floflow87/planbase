@@ -76,10 +76,19 @@ const ACTION_LABELS: Record<string, string> = {
 type PermissionMatrix = Record<string, Record<string, boolean>>;
 
 function detectAppliedPack(packs: PermissionPack[], permissions: PermissionMatrix | undefined): string | null {
-  if (!permissions || Object.keys(permissions).length === 0) return null;
+  if (!permissions || Object.keys(permissions).length === 0) {
+    console.log('🔍 detectAppliedPack: No permissions data');
+    return null;
+  }
+  
+  console.log('🔍 detectAppliedPack: Checking permissions against packs', { 
+    permissionModules: Object.keys(permissions),
+    packCount: packs.length 
+  });
   
   for (const pack of packs) {
     let matches = true;
+    let mismatchInfo: { module: string; action: string; expected: boolean; actual: boolean } | null = null;
     
     // Build expected permissions from pack
     const expectedPermissions: Record<string, Set<string>> = {};
@@ -93,6 +102,7 @@ function detectAppliedPack(packs: PermissionPack[], permissions: PermissionMatri
       for (const [action, allowed] of Object.entries(actions)) {
         const shouldBeAllowed = expectedActions.has(action);
         if (allowed !== shouldBeAllowed) {
+          mismatchInfo = { module, action, expected: shouldBeAllowed, actual: allowed };
           matches = false;
           break;
         }
@@ -100,24 +110,33 @@ function detectAppliedPack(packs: PermissionPack[], permissions: PermissionMatri
       if (!matches) break;
     }
     
-    if (matches) return pack.id;
+    if (matches) {
+      console.log(`✅ Pack "${pack.id}" matches current permissions`);
+      return pack.id;
+    } else if (mismatchInfo) {
+      console.log(`❌ Pack "${pack.id}" mismatch:`, mismatchInfo);
+    }
   }
   
+  console.log('🔍 No pack matches current permissions');
   return null;
 }
 
 export function PermissionPacksUI({ memberId, memberName, currentRole, currentPackId, onPackApplied }: PermissionPacksUIProps) {
   const { toast } = useToast();
   const [confirmDialog, setConfirmDialog] = useState<{ pack: PermissionPack } | null>(null);
+  // Force re-render counter for after pack application
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { data: packs = [], isLoading } = useQuery<PermissionPack[]>({
     queryKey: ["/api/permission-packs"],
   });
 
   // Fetch member's current permissions to detect applied pack
-  const { data: memberPermissions } = useQuery<PermissionMatrix>({
+  const { data: memberPermissions, refetch: refetchPermissions } = useQuery<PermissionMatrix>({
     queryKey: ["/api/rbac/members", memberId, "permissions"],
     enabled: !!memberId,
+    staleTime: 0, // Always consider data stale to force refetch
   });
 
   // Detect which pack is currently applied based on permissions
@@ -132,21 +151,15 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, currentPa
       const appliedPack = packs.find(p => p.id === packId);
       setConfirmDialog(null);
       
-      // First invalidate to mark cache as stale
-      await queryClient.invalidateQueries({ 
-        queryKey: ["/api/rbac/members", memberId, "permissions"],
-        exact: true 
-      });
+      // Use direct refetch from useQuery - most reliable method
+      await refetchPermissions();
       
-      // Then force refetch to get fresh data
-      await queryClient.refetchQueries({ 
-        queryKey: ["/api/rbac/members", memberId, "permissions"],
-        exact: true 
-      });
+      // Force component re-render
+      setRefreshKey(prev => prev + 1);
       
       // Also invalidate member lists
-      await queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       
       // Notify parent if callback provided
       if (onPackApplied) {
