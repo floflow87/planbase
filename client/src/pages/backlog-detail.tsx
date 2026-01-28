@@ -226,6 +226,30 @@ export default function BacklogDetail() {
     enabled: !!backlog?.projectId && projectRoadmapsForEpic.length > 0,
   });
 
+  // Fetch all roadmap items for sprint linking badge
+  const { data: roadmapItemsData = [] } = useQuery<{ id: string; title: string; roadmapName: string }[]>({
+    queryKey: ["/api/projects", backlog?.projectId, "roadmap-items-for-sprint-badge"],
+    queryFn: async () => {
+      if (!backlog?.projectId || projectRoadmapsForEpic.length === 0) return [];
+      const allItems: { id: string; title: string; roadmapName: string }[] = [];
+      for (const roadmap of projectRoadmapsForEpic) {
+        try {
+          const res = await apiRequest(`/api/roadmaps/${roadmap.id}/items`, "GET");
+          const items = await res.json();
+          allItems.push(...items.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            roadmapName: roadmap.name
+          })));
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      return allItems;
+    },
+    enabled: !!backlog?.projectId && projectRoadmapsForEpic.length > 0,
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
