@@ -8719,6 +8719,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestBody.endDate = new Date(requestBody.endDate);
       }
       
+      // Generate sprint identifier: 3 first letters of name (uppercase) + incremental number
+      const sprintName = requestBody.name || "Sprint";
+      const prefix = sprintName
+        .replace(/[^a-zA-Z]/g, '') // Remove non-letters
+        .substring(0, 3)
+        .toUpperCase()
+        .padEnd(3, 'X'); // Pad with X if name too short
+      
+      // Count existing sprints in this backlog to get the next number
+      const existingSprintsCount = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(sprints)
+        .where(eq(sprints.backlogId, backlogId));
+      const nextNumber = (existingSprintsCount[0]?.count || 0) + 1;
+      const identifier = `${prefix}-${String(nextNumber).padStart(2, '0')}`;
+      
       const data = insertSprintSchema.parse({
         ...requestBody,
         accountId,
@@ -8726,7 +8742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
       
-      const [sprint] = await db.insert(sprints).values(data).returning();
+      const [sprint] = await db.insert(sprints).values({ ...data, identifier }).returning();
       res.status(201).json(sprint);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -39,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import type { Epic, UserStory, BacklogTask, Sprint, AppUser } from "@shared/schema";
+import type { Epic, UserStory, BacklogTask, Sprint, AppUser, RoadmapItem } from "@shared/schema";
 import { backlogItemStateOptions, backlogPriorityOptions } from "@shared/schema";
 
 export type TicketType = "epic" | "user_story" | "task" | "bug";
@@ -203,6 +203,7 @@ interface TicketRowProps {
   onSelect: (ticket: FlatTicket) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
+  onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
   onTicketAction?: (action: TicketAction) => void;
   isSelected?: boolean;
   isDraggable?: boolean;
@@ -211,7 +212,7 @@ interface TicketRowProps {
   showCheckbox?: boolean;
 }
 
-export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false }: TicketRowProps) {
+export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSelect, onUpdateState, onUpdateField, onConvertType, onTicketAction, isSelected, isDraggable = true, isChecked = false, onCheckChange, showCheckbox = false }: TicketRowProps) {
   const typeColor = ticketTypeColor(ticket.type, ticket.color);
   const assignee = users?.find(u => u.id === ticket.assigneeId);
   const ticketEpic = epics?.find(e => e.id === ticket.epicId);
@@ -221,6 +222,7 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
   const [priorityPopoverOpen, setPriorityPopoverOpen] = useState(false);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [epicPopoverOpen, setEpicPopoverOpen] = useState(false);
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
   
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `ticket-${ticket.type}-${ticket.id}`,
@@ -264,12 +266,64 @@ export function TicketRow({ ticket, users, sprints, epics, showEpicColumn, onSel
         <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 cursor-grab" />
       </div>
       
-      <div 
-        className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
-        style={{ backgroundColor: typeColor }}
-      >
-        <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
-      </div>
+      {onConvertType && !isCompleted && ticket.type !== "epic" ? (
+        <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <div 
+                  className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50"
+                  style={{ backgroundColor: typeColor }}
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  data-testid={`ticket-type-selector-${ticket.id}`}
+                >
+                  <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent className="bg-white text-gray-900 border shadow-md">
+              <p className="text-xs">Cliquez pour modifier le type</p>
+            </TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-36 p-2 bg-white" align="start" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-gray-700 mb-2">Type de ticket</p>
+              {(["user_story", "task", "bug"] as TicketType[]).map(t => (
+                <Button
+                  key={t}
+                  variant={ticket.type === t ? "default" : "ghost"}
+                  size="sm"
+                  className="w-full h-7 text-xs justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (t !== ticket.type) {
+                      onConvertType(ticket.id, ticket.type, t);
+                    }
+                    setTypePopoverOpen(false);
+                  }}
+                  data-testid={`type-option-${ticket.id}-${t}`}
+                >
+                  <div 
+                    className="flex items-center justify-center h-4 w-4 rounded"
+                    style={{ backgroundColor: ticketTypeColor(t) }}
+                  >
+                    <span className="text-white scale-75">{ticketTypeIcon(t)}</span>
+                  </div>
+                  {t === "user_story" ? "User Story" : t === "task" ? "Task" : "Bug"}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <div 
+          className="flex items-center justify-center h-5 w-5 rounded flex-shrink-0"
+          style={{ backgroundColor: typeColor }}
+        >
+          <span className="text-white">{ticketTypeIcon(ticket.type)}</span>
+        </div>
+      )}
       
       <span className="flex-1 truncate text-xs font-medium" data-testid={`ticket-title-${ticket.id}`}>
         {ticket.title}
@@ -1096,6 +1150,7 @@ interface SprintSectionProps {
   users?: AppUser[];
   sprints?: Sprint[];
   epics?: Epic[];
+  roadmapItems?: RoadmapItem[];
   showEpicColumn?: boolean;
   isExpanded: boolean;
   onToggle: () => void;
@@ -1107,6 +1162,7 @@ interface SprintSectionProps {
   onDeleteSprint?: (sprintId: string) => void;
   onUpdateState?: (ticketId: string, type: TicketType, state: string) => void;
   onUpdateField?: (ticketId: string, type: TicketType, field: string, value: any) => void;
+  onConvertType?: (ticketId: string, fromType: TicketType, toType: TicketType) => void;
   onTicketAction?: (action: TicketAction) => void;
   selectedTicketId?: string | null;
   onMoveSprintUp?: (sprintId: string) => void;
@@ -1125,6 +1181,7 @@ export function SprintSection({
   users,
   sprints,
   epics,
+  roadmapItems,
   showEpicColumn,
   isExpanded, 
   onToggle, 
@@ -1136,6 +1193,7 @@ export function SprintSection({
   onDeleteSprint,
   onUpdateState,
   onUpdateField,
+  onConvertType,
   onTicketAction,
   selectedTicketId,
   onMoveSprintUp,
@@ -1173,6 +1231,9 @@ export function SprintSection({
   const statusLabel = sprint.status === "en_cours" ? "En cours" :
                       sprint.status === "termine" ? "Terminé" : "En préparation";
   
+  // Find linked roadmap item
+  const linkedRoadmapItem = roadmapItems?.find(item => item.id === (sprint as any).roadmapItemId);
+  
   const { isOver, setNodeRef } = useDroppable({
     id: `sprint-${sprint.id}`,
     data: { type: "sprint", sprintId: sprint.id },
@@ -1207,11 +1268,32 @@ export function SprintSection({
             </Button>
           </CollapsibleTrigger>
           
-          <span className="font-semibold" data-testid={`sprint-name-${sprint.id}`}>{sprint.name}</span>
+          <span className="font-semibold" data-testid={`sprint-name-${sprint.id}`}>
+            {sprint.identifier && <span className="text-muted-foreground font-normal mr-2">{sprint.identifier}</span>}
+            {sprint.name}
+          </span>
           
           <Badge variant="outline" className={cn("text-xs", statusColor)}>
             {statusLabel}
           </Badge>
+          
+          {linkedRoadmapItem && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  className="text-xs cursor-default"
+                  style={{ backgroundColor: linkedRoadmapItem.color || '#7C3AED' }}
+                  data-testid={`badge-roadmap-link-${sprint.id}`}
+                >
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Roadmap
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="bg-popover text-popover-foreground border shadow-md">
+                <p className="text-xs font-medium">{linkedRoadmapItem.title}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
           
           {sprint.startDate && sprint.endDate && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1224,19 +1306,6 @@ export function SprintSection({
           
           <div className="flex-1" />
           
-          {!isTemporarySprint && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsCreating(true)}
-              className="border-primary text-primary"
-              data-testid={`button-add-ticket-header-${sprint.id}`}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Ajouter un ticket
-            </Button>
-          )}
-          
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
               {doneTickets}/{tickets.length} tickets | {donePoints}/{totalPoints} pts
@@ -1248,6 +1317,19 @@ export function SprintSection({
               />
             </div>
           </div>
+          
+          {!isTemporarySprint && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCreating(true)}
+              className="border-primary text-primary"
+              data-testid={`button-add-ticket-header-${sprint.id}`}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Ticket
+            </Button>
+          )}
           
           {sprint.status === "preparation" && onStartSprint && !isTemporarySprint && (
             <Button 
@@ -1363,6 +1445,7 @@ export function SprintSection({
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
                 onUpdateField={onUpdateField}
+                onConvertType={onConvertType}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
                 showCheckbox={true}
@@ -1600,6 +1683,7 @@ export function BacklogPool({
                 onSelect={onSelectTicket}
                 onUpdateState={onUpdateState}
                 onUpdateField={onUpdateField}
+                onConvertType={onConvertType}
                 onTicketAction={onTicketAction}
                 isSelected={selectedTicketId === ticket.id}
                 showCheckbox={true}

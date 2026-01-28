@@ -1455,6 +1455,7 @@ export const sprints = pgTable("sprints", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
   roadmapItemId: uuid("roadmap_item_id").references(() => roadmapItems.id, { onDelete: "set null" }), // Link to roadmap element
+  identifier: text("identifier"), // Auto-generated identifier: 3 letters from title + incremental number (e.g., "SPR-01")
   name: text("name").notNull(),
   goal: text("goal"), // Sprint goal
   startDate: timestamp("start_date", { withTimezone: true }),

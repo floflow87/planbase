@@ -1115,6 +1115,12 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Sprints position column added");
     
+    // Add identifier column to sprints (format: XXX-##)
+    await db.execute(sql`
+      ALTER TABLE sprints ADD COLUMN IF NOT EXISTS identifier text;
+    `);
+    console.log("✅ Sprints identifier column added");
+    
     // Add scope_item_id and task_id columns to time_entries for Module Temps V2
     await db.execute(sql`
       ALTER TABLE time_entries 

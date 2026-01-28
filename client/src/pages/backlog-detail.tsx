@@ -2083,6 +2083,7 @@ export default function BacklogDetail() {
                       onDeleteSprint={handleSprintDeleteAttempt}
                       onUpdateState={handleInlineStateUpdate}
                       onUpdateField={handleInlineFieldUpdate}
+                      onConvertType={handleConvertType}
                       onTicketAction={handleTicketAction}
                       selectedTicketId={selectedTicket?.id}
                       onMoveSprintUp={(sprintId) => moveSprintMutation.mutate({ sprintId, direction: 'up' })}

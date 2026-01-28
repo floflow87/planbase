@@ -129,7 +129,10 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const [hasAutoFitted, setHasAutoFitted] = useState(false);
   const justDraggedRef = useRef(false);
-  const [sortByDate, setSortByDate] = useState(true);
+  const [sortByDate, setSortByDate] = useState(() => {
+    const saved = localStorage.getItem("roadmap-sort-by-date");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
   const [customOrder, setCustomOrder] = useState<string[]>([]);
   const leftPanelRef = useRef<HTMLDivElement>(null);
@@ -909,12 +912,14 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
   }, [rowDragState, handleRowDragMove, handleRowDragEnd]);
 
   const toggleSortByDate = useCallback(() => {
-    setSortByDate(prev => {
-      if (!prev) {
+    setSortByDate((prev: boolean) => {
+      const newValue = !prev;
+      localStorage.setItem("roadmap-sort-by-date", JSON.stringify(newValue));
+      if (newValue) {
         // Re-enabling sort by date, clear custom order
         setCustomOrder([]);
       }
-      return !prev;
+      return newValue;
     });
   }, []);
 
