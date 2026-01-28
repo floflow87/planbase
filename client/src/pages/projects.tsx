@@ -115,6 +115,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
 import { ColorPicker } from "@/components/ColorPicker";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
+import { useReadOnlyMode } from "@/components/guards/PermissionGuard";
 
 
 // Helper function to calculate days overdue
@@ -842,14 +843,16 @@ function ListView({
                 Rattacher à un projet
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-destructive"
-                onClick={handleBulkDelete}
-                data-testid="button-bulk-delete"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
+              {canDelete && (
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onClick={handleBulkDelete}
+                  data-testid="button-bulk-delete"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1426,6 +1429,8 @@ interface KanbanStageColumnProps {
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
   onCompleteProject: (project: Project) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function KanbanStageColumn({
@@ -1437,6 +1442,8 @@ function KanbanStageColumn({
   onEditProject,
   onDeleteProject,
   onCompleteProject,
+  canUpdate = true,
+  canDelete = true,
 }: KanbanStageColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.value,
@@ -1485,6 +1492,8 @@ function KanbanStageColumn({
               onDelete={() => onDeleteProject(project)}
               onComplete={() => onCompleteProject(project)}
               cardColor={stage.headerBg}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
             />
           ))}
         </SortableContext>
@@ -1510,6 +1519,8 @@ interface DraggableProjectCardProps {
   onDelete: () => void;
   onComplete: () => void;
   cardColor?: string;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function DraggableProjectCard({
@@ -1521,6 +1532,8 @@ function DraggableProjectCard({
   onDelete,
   onComplete,
   cardColor,
+  canUpdate = true,
+  canDelete = true,
 }: DraggableProjectCardProps) {
   const {
     attributes,
@@ -1588,22 +1601,28 @@ function DraggableProjectCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={onEdit}>
-                <Edit className="h-3 w-3 mr-2" />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onComplete}>
-                <CheckCircle className="h-3 w-3 mr-2" />
-                Terminé
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={onDelete}
-              >
-                <Trash2 className="h-3 w-3 mr-2" />
-                Supprimer
-              </DropdownMenuItem>
+              {canUpdate && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Edit className="h-3 w-3 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+              )}
+              {canUpdate && (
+                <DropdownMenuItem onClick={onComplete}>
+                  <CheckCircle className="h-3 w-3 mr-2" />
+                  Terminé
+                </DropdownMenuItem>
+              )}
+              {(canUpdate || canDelete) && <DropdownMenuSeparator />}
+              {canDelete && (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-3 w-3 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1650,6 +1669,8 @@ interface ProjectKanbanViewProps {
   onCompleteProject: (project: Project) => void;
   updateProjectMutation: any;
   kanbanColumnVisibility: Record<string, boolean>;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 function ProjectKanbanView({
@@ -1662,6 +1683,8 @@ function ProjectKanbanView({
   onCompleteProject,
   updateProjectMutation,
   kanbanColumnVisibility,
+  canUpdate = true,
+  canDelete = true,
 }: ProjectKanbanViewProps) {
   const [activeKanbanProjectId, setActiveKanbanProjectId] = useState<string | null>(null);
   
@@ -1743,6 +1766,8 @@ function ProjectKanbanView({
               onEditProject={onEditProject}
               onDeleteProject={onDeleteProject}
               onCompleteProject={onCompleteProject}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
             />
           );
         })}
@@ -1892,6 +1917,7 @@ export default function Projects() {
   const { accountId, user } = useAuth();
   const userId = user?.id || null;
   const { toast } = useToast();
+  const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -3327,42 +3353,48 @@ export default function Projects() {
                                     Ouvrir
                                   </Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setEditingProject(project);
-                                    setProjectFormData({
-                                      name: project.name,
-                                      description: project.description || "",
-                                      clientId: project.clientId || "",
-                                      stage: project.stage || "prospection",
-                                      category: project.category || "",
-                                      startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                      endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                      budget: project.budget || "",
-                                    });
-                                    setIsEditProjectDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Modifier
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
-                                >
-                                  <Check className="w-4 h-4 mr-2" />
-                                  Terminer
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => {
-                                    setEditingProject(project);
-                                    setIsDeleteProjectDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Supprimer
-                                </DropdownMenuItem>
+                                {canUpdate && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setEditingProject(project);
+                                      setProjectFormData({
+                                        name: project.name,
+                                        description: project.description || "",
+                                        clientId: project.clientId || "",
+                                        stage: project.stage || "prospection",
+                                        category: project.category || "",
+                                        startDate: project.startDate ? new Date(project.startDate) : undefined,
+                                        endDate: project.endDate ? new Date(project.endDate) : undefined,
+                                        budget: project.budget || "",
+                                      });
+                                      setIsEditProjectDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Modifier
+                                  </DropdownMenuItem>
+                                )}
+                                {canUpdate && (
+                                  <DropdownMenuItem
+                                    onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
+                                  >
+                                    <Check className="w-4 h-4 mr-2" />
+                                    Terminer
+                                  </DropdownMenuItem>
+                                )}
+                                {(canUpdate || canDelete) && <DropdownMenuSeparator />}
+                                {canDelete && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => {
+                                      setEditingProject(project);
+                                      setIsDeleteProjectDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -3462,6 +3494,8 @@ export default function Projects() {
                         }}
                         updateProjectMutation={updateProjectMutation}
                         kanbanColumnVisibility={projectKanbanColumnVisibility}
+                        canUpdate={canUpdate}
+                        canDelete={canDelete}
                       />
                     </div>
                   </>
@@ -3528,45 +3562,51 @@ export default function Projects() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-popover">
-                                <DropdownMenuItem 
-                                  data-testid={`button-edit-project-${project.id}`}
-                                  onClick={() => {
-                                    setEditingProject(project);
-                                    setProjectFormData({
-                                      name: project.name,
-                                      description: project.description || "",
-                                      clientId: project.clientId || "",
-                                      stage: project.stage || "prospection",
-                                      category: project.category || "",
-                                      startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                      endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                      budget: project.budget || "",
-                                    });
-                                    setIsEditProjectDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Modifier
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  data-testid={`button-complete-project-${project.id}`}
-                                  onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Marquer comme terminé
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  data-testid={`button-delete-project-${project.id}`}
-                                  onClick={() => {
-                                    setEditingProject(project);
-                                    setIsDeleteProjectDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Supprimer
-                                </DropdownMenuItem>
+                                {canUpdate && (
+                                  <DropdownMenuItem 
+                                    data-testid={`button-edit-project-${project.id}`}
+                                    onClick={() => {
+                                      setEditingProject(project);
+                                      setProjectFormData({
+                                        name: project.name,
+                                        description: project.description || "",
+                                        clientId: project.clientId || "",
+                                        stage: project.stage || "prospection",
+                                        category: project.category || "",
+                                        startDate: project.startDate ? new Date(project.startDate) : undefined,
+                                        endDate: project.endDate ? new Date(project.endDate) : undefined,
+                                        budget: project.budget || "",
+                                      });
+                                      setIsEditProjectDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Modifier
+                                  </DropdownMenuItem>
+                                )}
+                                {canUpdate && (
+                                  <DropdownMenuItem 
+                                    data-testid={`button-complete-project-${project.id}`}
+                                    onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Marquer comme terminé
+                                  </DropdownMenuItem>
+                                )}
+                                {(canUpdate || canDelete) && <DropdownMenuSeparator />}
+                                {canDelete && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    data-testid={`button-delete-project-${project.id}`}
+                                    onClick={() => {
+                                      setEditingProject(project);
+                                      setIsDeleteProjectDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -4091,60 +4131,70 @@ export default function Projects() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="bg-popover">
-                                      <DropdownMenuItem 
-                                        data-testid={`button-edit-project-${project.id}`}
-                                        onClick={() => {
-                                          setEditingProject(project);
-                                          setProjectFormData({
-                                            name: project.name,
-                                            description: project.description || "",
-                                            clientId: project.clientId || "",
-                                            stage: project.stage || "prospection",
-                                            category: project.category || "",
-                                            startDate: project.startDate ? new Date(project.startDate) : undefined,
-                                            endDate: project.endDate ? new Date(project.endDate) : undefined,
-                                            budget: project.budget || "",
-                                          });
-                                          setIsEditProjectDialogOpen(true);
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4 mr-2" />
-                                        Modifier
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem 
-                                        data-testid={`button-complete-project-${project.id}`}
-                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Marquer comme terminé
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem 
-                                        data-testid={`button-mark-invoiced-${project.id}`}
-                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "facture" } })}
-                                      >
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        Marquer comme facturé
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem 
-                                        data-testid={`button-mark-paid-${project.id}`}
-                                        onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "paye" } })}
-                                      >
-                                        <Banknote className="h-4 w-4 mr-2" />
-                                        Marquer comme payé
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        className="text-destructive"
-                                        data-testid={`button-delete-project-${project.id}`}
-                                        onClick={() => {
-                                          setEditingProject(project);
-                                          setIsDeleteProjectDialogOpen(true);
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Supprimer
-                                      </DropdownMenuItem>
+                                      {canUpdate && (
+                                        <DropdownMenuItem 
+                                          data-testid={`button-edit-project-${project.id}`}
+                                          onClick={() => {
+                                            setEditingProject(project);
+                                            setProjectFormData({
+                                              name: project.name,
+                                              description: project.description || "",
+                                              clientId: project.clientId || "",
+                                              stage: project.stage || "prospection",
+                                              category: project.category || "",
+                                              startDate: project.startDate ? new Date(project.startDate) : undefined,
+                                              endDate: project.endDate ? new Date(project.endDate) : undefined,
+                                              budget: project.budget || "",
+                                            });
+                                            setIsEditProjectDialogOpen(true);
+                                          }}
+                                        >
+                                          <Edit className="h-4 w-4 mr-2" />
+                                          Modifier
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canUpdate && (
+                                        <DropdownMenuItem 
+                                          data-testid={`button-complete-project-${project.id}`}
+                                          onClick={() => updateProjectMutation.mutate({ id: project.id, data: { stage: "termine" } })}
+                                        >
+                                          <CheckCircle className="h-4 w-4 mr-2" />
+                                          Marquer comme terminé
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canUpdate && <DropdownMenuSeparator />}
+                                      {canUpdate && (
+                                        <DropdownMenuItem 
+                                          data-testid={`button-mark-invoiced-${project.id}`}
+                                          onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "facture" } })}
+                                        >
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          Marquer comme facturé
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canUpdate && (
+                                        <DropdownMenuItem 
+                                          data-testid={`button-mark-paid-${project.id}`}
+                                          onClick={() => updateProjectMutation.mutate({ id: project.id, data: { billingStatus: "paye" } })}
+                                        >
+                                          <Banknote className="h-4 w-4 mr-2" />
+                                          Marquer comme payé
+                                        </DropdownMenuItem>
+                                      )}
+                                      {(canUpdate || canDelete) && <DropdownMenuSeparator />}
+                                      {canDelete && (
+                                        <DropdownMenuItem
+                                          className="text-destructive"
+                                          data-testid={`button-delete-project-${project.id}`}
+                                          onClick={() => {
+                                            setEditingProject(project);
+                                            setIsDeleteProjectDialogOpen(true);
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Supprimer
+                                        </DropdownMenuItem>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </TableCell>

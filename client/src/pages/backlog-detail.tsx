@@ -105,6 +105,12 @@ export default function BacklogDetail() {
   const [editBacklogDescription, setEditBacklogDescription] = useState("");
   const [editBacklogProjectId, setEditBacklogProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("backlog");
+  
+  // Reset activeTab when navigating to a different backlog
+  useEffect(() => {
+    setActiveTab("backlog");
+  }, [id]);
+  
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [editingUserStory, setEditingUserStory] = useState<UserStory | null>(null);
