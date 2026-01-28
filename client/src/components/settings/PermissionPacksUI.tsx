@@ -44,7 +44,7 @@ interface PermissionPacksUIProps {
   memberName: string;
   currentRole: string;
   currentPackId?: string | null;
-  onPackApplied?: () => void;
+  onPackApplied?: () => Promise<void> | void;
 }
 
 const PACK_ICONS: Record<string, React.ReactNode> = {
@@ -130,17 +130,22 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, currentPa
     },
     onSuccess: async (_, packId) => {
       const appliedPack = packs.find(p => p.id === packId);
-      // Force immediate refetch of permissions (not just invalidation)
-      await queryClient.refetchQueries({ queryKey: ["/api/rbac/members", memberId, "permissions"] });
+      setConfirmDialog(null);
+      
+      // Notify parent to refetch permissions - this ensures parent re-renders with new data
+      if (onPackApplied) {
+        await onPackApplied();
+      }
+      
+      // Also invalidate member lists
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
+      
       toast({
         title: "Pack appliqué",
         description: `Pack "${appliedPack?.name || packId}" appliqué avec succès`,
         className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800",
       });
-      setConfirmDialog(null);
-      onPackApplied?.();
     },
     onError: (error: any) => {
       console.error("❌ Permission pack apply error:", error);
