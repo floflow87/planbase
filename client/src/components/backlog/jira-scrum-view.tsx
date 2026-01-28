@@ -1268,10 +1268,18 @@ export function SprintSection({
             </Button>
           </CollapsibleTrigger>
           
-          <span className="font-semibold" data-testid={`sprint-name-${sprint.id}`}>
-            {sprint.identifier && <span className="text-muted-foreground font-normal mr-2">{sprint.identifier}</span>}
-            {sprint.name}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="font-semibold cursor-default" data-testid={`sprint-name-${sprint.id}`}>
+                {sprint.name}
+              </span>
+            </TooltipTrigger>
+            {sprint.identifier && (
+              <TooltipContent className="bg-white text-black border shadow-md dark:bg-white dark:text-black">
+                <p className="text-xs font-mono">{sprint.identifier}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
           
           <Badge variant="outline" className={cn("text-xs", statusColor)}>
             {statusLabel}

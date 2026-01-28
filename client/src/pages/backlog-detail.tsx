@@ -3443,7 +3443,14 @@ function SprintSheet({
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="sm:max-w-md bg-white dark:bg-white">
         <SheetHeader className="border-b border-gray-200 pb-4">
-          <SheetTitle className="text-gray-900">{sprint ? "Modifier le Sprint" : "Nouveau Sprint"}</SheetTitle>
+          <SheetTitle className="text-gray-900 flex items-center gap-2">
+            {sprint ? "Modifier le Sprint" : "Nouveau Sprint"}
+            {sprint?.identifier && (
+              <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                {sprint.identifier}
+              </span>
+            )}
+          </SheetTitle>
         </SheetHeader>
         <div className="space-y-4 py-6">
           <div className="space-y-2">
