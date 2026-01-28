@@ -1281,15 +1281,14 @@ export function SprintSection({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge 
-                  className="text-xs cursor-default"
+                  className="text-xs cursor-default px-1.5"
                   style={{ backgroundColor: linkedRoadmapItem.color || '#7C3AED' }}
                   data-testid={`badge-roadmap-link-${sprint.id}`}
                 >
-                  <Link2 className="h-3 w-3 mr-1" />
-                  Roadmap
+                  <Link2 className="h-3 w-3" />
                 </Badge>
               </TooltipTrigger>
-              <TooltipContent className="bg-popover text-popover-foreground border shadow-md">
+              <TooltipContent className="bg-white text-black border shadow-md dark:bg-white dark:text-black">
                 <p className="text-xs font-medium">{linkedRoadmapItem.title}</p>
               </TooltipContent>
             </Tooltip>

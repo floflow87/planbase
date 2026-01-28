@@ -1119,6 +1119,29 @@ export async function runStartupMigrations() {
     await db.execute(sql`
       ALTER TABLE sprints ADD COLUMN IF NOT EXISTS identifier text;
     `);
+    
+    // Generate identifiers for existing sprints that don't have one
+    await db.execute(sql`
+      WITH numbered_sprints AS (
+        SELECT 
+          id, 
+          name, 
+          backlog_id,
+          ROW_NUMBER() OVER (PARTITION BY backlog_id ORDER BY created_at) as sprint_num
+        FROM sprints 
+        WHERE identifier IS NULL
+      )
+      UPDATE sprints s
+      SET identifier = UPPER(
+        RPAD(
+          SUBSTRING(REGEXP_REPLACE(ns.name, '[^a-zA-Z]', '', 'g'), 1, 3), 
+          3, 
+          'X'
+        )
+      ) || '-' || LPAD(ns.sprint_num::text, 2, '0')
+      FROM numbered_sprints ns
+      WHERE s.id = ns.id;
+    `);
     console.log("✅ Sprints identifier column added");
     
     // Add scope_item_id and task_id columns to time_entries for Module Temps V2
