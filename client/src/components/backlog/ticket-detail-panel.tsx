@@ -124,6 +124,7 @@ interface TicketDetailPanelProps {
   readOnly?: boolean;
   recipeInfo?: TicketRecipeInfo;
   onOpenRecipe?: (ticketId: string, sprintId: string) => void;
+  currentUserId?: string;
 }
 
 export function TicketDetailPanel({ 
@@ -143,6 +144,7 @@ export function TicketDetailPanel({
   readOnly = false,
   recipeInfo,
   onOpenRecipe,
+  currentUserId,
 }: TicketDetailPanelProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(ticket?.title || "");
@@ -1321,26 +1323,28 @@ export function TicketDetailPanel({
                           {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: fr })}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleEditComment(comment.id)}
-                          data-testid={`button-edit-comment-${comment.id}`}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => ticketId && ticketType && deleteCommentMutation.mutate({ commentId: comment.id, tId: ticketId, tType: ticketType })}
-                          data-testid={`button-delete-comment-${comment.id}`}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      {currentUserId && comment.authorId === currentUserId && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleEditComment(comment.id)}
+                            data-testid={`button-edit-comment-${comment.id}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => ticketId && ticketType && deleteCommentMutation.mutate({ commentId: comment.id, tId: ticketId, tType: ticketType })}
+                            data-testid={`button-delete-comment-${comment.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     
                     {isEditing ? (

@@ -93,7 +93,7 @@ export default function BacklogDetail() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { accountId } = useAuth();
+  const { accountId, user } = useAuth();
   
   const [showEpicDialog, setShowEpicDialog] = useState(false);
   const [showUserStoryDialog, setShowUserStoryDialog] = useState(false);
@@ -1033,6 +1033,8 @@ export default function BacklogDetail() {
       result.sort((a, b) => (a.estimatePoints || 0) - (b.estimatePoints || 0));
     } else if (sortBy === "title") {
       result.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    } else if (sortBy === "epic") {
+      result.sort((a, b) => (a.epicId || "zzz").localeCompare(b.epicId || "zzz"));
     }
     
     return result;
@@ -1979,6 +1981,7 @@ export default function BacklogDetail() {
                   <SelectItem value="points_desc">Points décroissants</SelectItem>
                   <SelectItem value="points_asc">Points croissants</SelectItem>
                   <SelectItem value="title">Titre (A-Z)</SelectItem>
+                  <SelectItem value="epic">Epic</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2154,6 +2157,7 @@ export default function BacklogDetail() {
                         setActiveTab("recette");
                         setSelectedTicket(null);
                       }}
+                      currentUserId={user?.id}
                     />
                   </div>
                 </>
@@ -2373,6 +2377,7 @@ export default function BacklogDetail() {
                       setActiveTab("recette");
                       setSelectedTicket(null);
                     }}
+                    currentUserId={user?.id}
                   />
                 </div>
               </>

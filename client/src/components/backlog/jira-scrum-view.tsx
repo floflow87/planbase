@@ -4,7 +4,7 @@ import {
   Flag, User, Calendar, GripVertical, Play, Pause,
   Check, Layers, BookOpen, ListTodo, AlertCircle, Pencil,
   ArrowUp, ArrowDown, Copy, Trash2, UserPlus, Hash, ExternalLink,
-  CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X
+  CheckSquare, Square, MoreHorizontal, Link2, Wrench, Tag, X, Bug
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -1224,6 +1224,19 @@ export function SprintSection({
           
           <div className="flex-1" />
           
+          {!isTemporarySprint && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCreating(true)}
+              className="border-primary text-primary"
+              data-testid={`button-add-ticket-header-${sprint.id}`}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Ajouter un ticket
+            </Button>
+          )}
+          
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
               {doneTickets}/{tickets.length} tickets | {donePoints}/{totalPoints} pts
@@ -1407,6 +1420,12 @@ export function SprintSection({
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>
                       Task
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-gray-900" data-testid="menu-item-type-bug">
+                      <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-destructive">
+                        <Bug className="h-3 w-3 text-white" />
+                      </div>
+                      Bug
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1632,6 +1651,12 @@ export function BacklogPool({
                         <ListTodo className="h-3 w-3 text-white" />
                       </div>
                       Task
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setNewTicketType("bug")} className="text-gray-900" data-testid="menu-item-type-bug">
+                      <div className="h-4 w-4 rounded flex items-center justify-center mr-2 bg-destructive">
+                        <Bug className="h-3 w-3 text-white" />
+                      </div>
+                      Bug
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

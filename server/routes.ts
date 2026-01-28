@@ -9265,40 +9265,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update comment
+  // Update comment (author only)
   app.patch("/api/ticket-comments/:commentId", requireAuth, requireOrgMember, requirePermission("product", "update"), async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const userId = req.userId!;
       const commentId = req.params.commentId;
       const data = updateTicketCommentSchema.parse(req.body);
+      
+      // First check if the comment exists and belongs to the user
+      const [existingComment] = await db.select()
+        .from(ticketComments)
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)));
+      
+      if (!existingComment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      
+      // Only the author can edit their own comments
+      if (existingComment.authorId !== userId) {
+        return res.status(403).json({ error: "Vous ne pouvez modifier que vos propres commentaires" });
+      }
       
       const [updated] = await db.update(ticketComments)
         .set({ ...data, updatedAt: new Date() })
         .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)))
         .returning();
       
-      if (!updated) {
-        return res.status(404).json({ error: "Comment not found" });
-      }
       res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  // Delete comment
+  // Delete comment (author only)
   app.delete("/api/ticket-comments/:commentId", requireAuth, requireOrgMember, requirePermission("product", "delete"), async (req, res) => {
     try {
       const accountId = req.accountId!;
+      const userId = req.userId!;
       const commentId = req.params.commentId;
+      
+      // First check if the comment exists and belongs to the user
+      const [existingComment] = await db.select()
+        .from(ticketComments)
+        .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)));
+      
+      if (!existingComment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      
+      // Only the author can delete their own comments
+      if (existingComment.authorId !== userId) {
+        return res.status(403).json({ error: "Vous ne pouvez supprimer que vos propres commentaires" });
+      }
       
       const [deleted] = await db.delete(ticketComments)
         .where(and(eq(ticketComments.id, commentId), eq(ticketComments.accountId, accountId)))
         .returning();
       
-      if (!deleted) {
-        return res.status(404).json({ error: "Comment not found" });
-      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
