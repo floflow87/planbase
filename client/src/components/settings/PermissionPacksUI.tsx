@@ -44,7 +44,7 @@ interface PermissionPacksUIProps {
   memberName: string;
   currentRole: string;
   currentPackId?: string | null;
-  onPackApplied?: () => Promise<void> | void;
+  onPackApplied?: (newPermissions: PermissionMatrix) => Promise<void> | void;
 }
 
 const PACK_ICONS: Record<string, React.ReactNode> = {
@@ -193,9 +193,9 @@ export function PermissionPacksUI({ memberId, memberName, currentRole, currentPa
       queryClient.invalidateQueries({ queryKey: ["/api/organization/members"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rbac/members"] });
       
-      // Notify parent if callback provided
+      // Notify parent with the new permissions so the grid can update immediately
       if (onPackApplied) {
-        await onPackApplied();
+        await onPackApplied(newPermissions);
       }
       
       toast({

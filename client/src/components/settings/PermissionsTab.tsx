@@ -112,6 +112,8 @@ export function PermissionsTab() {
   const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{ id: string; isPending: boolean } | null>(null);
+  // Local state for permissions to enable immediate UI updates when pack is applied
+  const [localPermissions, setLocalPermissions] = useState<PermissionMatrix | null>(null);
 
   const resendInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
@@ -165,6 +167,21 @@ export function PermissionsTab() {
     staleTime: 0, // Always consider data stale to force refetch
   });
 
+  // Sync local permissions with server data when it changes or when member selection changes
+  useEffect(() => {
+    if (memberPermissions) {
+      setLocalPermissions(memberPermissions);
+    }
+  }, [memberPermissions]);
+
+  // Reset local permissions when selected member changes
+  useEffect(() => {
+    setLocalPermissions(null);
+  }, [selectedMemberId]);
+
+  // Use local permissions for immediate UI updates, fall back to query data
+  const displayPermissions = localPermissions || memberPermissions;
+
   const updateRoleMutation = useMutation({
     mutationFn: async ({ memberId, role }: { memberId: string; role: RbacRole }) => {
       const response = await apiRequest(`/api/rbac/members/${memberId}/role`, "PATCH", { role });
@@ -214,7 +231,7 @@ export function PermissionsTab() {
   });
 
   const toggleColumnPermissions = (action: RbacAction, checked: boolean) => {
-    if (!selectedMemberId || !memberPermissions) return;
+    if (!selectedMemberId || !displayPermissions) return;
     const updates = RBAC_MODULES.map(module => ({
       module,
       action,
@@ -224,13 +241,13 @@ export function PermissionsTab() {
   };
 
   const isColumnAllChecked = (action: RbacAction): boolean => {
-    if (!memberPermissions) return false;
-    return RBAC_MODULES.every(module => memberPermissions[module]?.[action] === true);
+    if (!displayPermissions) return false;
+    return RBAC_MODULES.every(module => displayPermissions[module]?.[action] === true);
   };
 
   const isColumnSomeChecked = (action: RbacAction): boolean => {
-    if (!memberPermissions) return false;
-    const checkedCount = RBAC_MODULES.filter(module => memberPermissions[module]?.[action] === true).length;
+    if (!displayPermissions) return false;
+    const checkedCount = RBAC_MODULES.filter(module => displayPermissions[module]?.[action] === true).length;
     return checkedCount > 0 && checkedCount < RBAC_MODULES.length;
   };
 
@@ -632,9 +649,9 @@ export function PermissionsTab() {
                           memberId={selectedMember.id}
                           memberName={`${selectedMember.user?.firstName || ""} ${selectedMember.user?.lastName || ""}`}
                           currentRole={selectedMember.role}
-                          onPackApplied={async () => {
-                            // Force refetch to update the checkbox grid
-                            await refetchPermissions();
+                          onPackApplied={(newPermissions) => {
+                            // Update local state immediately for instant UI update
+                            setLocalPermissions(newPermissions);
                           }}
                         />
                       </AccordionContent>
@@ -673,7 +690,7 @@ export function PermissionsTab() {
                             {RBAC_ACTIONS.map((action) => (
                               <td key={action} className="text-center p-2">
                                 <Checkbox
-                                  checked={memberPermissions?.[module]?.[action] ?? false}
+                                  checked={displayPermissions?.[module]?.[action] ?? false}
                                   onCheckedChange={(checked) => {
                                     updatePermissionMutation.mutate({
                                       memberId: selectedMember.id,
