@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -16,6 +16,7 @@ import type { RoadmapItem } from "@shared/schema";
 
 interface OutputViewProps {
   items: RoadmapItem[];
+  roadmapId?: string;
   onItemClick?: (item: RoadmapItem) => void;
   onAddItem?: () => void;
   onItemMove?: (itemId: string, newStatus: string, newOrderIndex: number) => void;
@@ -228,9 +229,31 @@ function DroppableColumn({ column, items, onItemClick }: DroppableColumnProps) {
   );
 }
 
-export function OutputView({ items, onItemClick, onAddItem, onItemMove }: OutputViewProps) {
+export function OutputView({ items, roadmapId, onItemClick, onAddItem, onItemMove }: OutputViewProps) {
   const [activeItem, setActiveItem] = useState<RoadmapItem | null>(null);
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
+  const [customOrder, setCustomOrder] = useState<Record<string, string[]>>(() => {
+    if (!roadmapId) return {};
+    const saved = localStorage.getItem(`roadmap-output-order-${roadmapId}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+  
+  // Persist custom order to localStorage
+  useEffect(() => {
+    if (roadmapId && Object.keys(customOrder).length > 0) {
+      localStorage.setItem(`roadmap-output-order-${roadmapId}`, JSON.stringify(customOrder));
+    }
+  }, [customOrder, roadmapId]);
+  
+  // Load custom order when roadmapId changes
+  useEffect(() => {
+    if (roadmapId) {
+      const saved = localStorage.getItem(`roadmap-output-order-${roadmapId}`);
+      if (saved) {
+        setCustomOrder(JSON.parse(saved));
+      }
+    }
+  }, [roadmapId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -287,11 +310,24 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
     });
 
     Object.keys(grouped).forEach(status => {
-      grouped[status].sort((a, b) => a.orderIndex - b.orderIndex);
+      const statusOrder = customOrder[status];
+      if (statusOrder && statusOrder.length > 0) {
+        const orderMap = new Map(statusOrder.map((id, idx) => [id, idx]));
+        grouped[status].sort((a, b) => {
+          const aIdx = orderMap.get(a.id);
+          const bIdx = orderMap.get(b.id);
+          if (aIdx !== undefined && bIdx !== undefined) return aIdx - bIdx;
+          if (aIdx !== undefined) return -1;
+          if (bIdx !== undefined) return 1;
+          return a.orderIndex - b.orderIndex;
+        });
+      } else {
+        grouped[status].sort((a, b) => a.orderIndex - b.orderIndex);
+      }
     });
 
     return grouped;
-  }, [filteredItems]);
+  }, [filteredItems, customOrder]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const item = items.find(i => i.id === event.active.id);
@@ -324,6 +360,24 @@ export function OutputView({ items, onItemClick, onAddItem, onItemMove }: Output
     if (onItemMove && (newStatus !== activeItem.status || newOrderIndex !== activeItem.orderIndex)) {
       onItemMove(activeItem.id, newStatus, newOrderIndex);
     }
+    
+    // Update custom order for the target status column
+    const oldStatus = activeItem.status || "planned";
+    const currentItems = [...(itemsByStatus[newStatus] || [])];
+    const oldItems = newStatus !== oldStatus ? [...(itemsByStatus[oldStatus] || [])] : null;
+    
+    // Create new order for target column
+    const newOrder = currentItems.filter(i => i.id !== activeItem.id);
+    newOrder.splice(newOrderIndex, 0, activeItem);
+    
+    setCustomOrder(prev => {
+      const updated = { ...prev };
+      updated[newStatus] = newOrder.map(i => i.id);
+      if (oldItems) {
+        updated[oldStatus] = oldItems.filter(i => i.id !== activeItem.id).map(i => i.id);
+      }
+      return updated;
+    });
   };
 
   const handleDragOver = (event: DragOverEvent) => {

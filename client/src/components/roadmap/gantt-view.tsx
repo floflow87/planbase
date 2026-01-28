@@ -34,6 +34,7 @@ type DependencyType = "start_to_start" | "start_to_finish" | "finish_to_start" |
 interface GanttViewProps {
   items: RoadmapItem[];
   dependencies?: RoadmapDependency[];
+  roadmapId?: string;
   onItemClick?: (item: RoadmapItem) => void;
   onAddItem?: () => void;
   onCreateAtDate?: (startDate: Date, endDate: Date) => void;
@@ -116,7 +117,7 @@ interface HierarchicalItem extends RoadmapItem {
   childrenProgress?: number;
 }
 
-export function GanttView({ items, dependencies = [], onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems, hideTodayLine = false }: GanttViewProps) {
+export function GanttView({ items, dependencies = [], roadmapId, onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems, hideTodayLine = false }: GanttViewProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [viewStartDate, setViewStartDate] = useState(() => startOfMonth(new Date()));
   const [releaseTagFilter, setReleaseTagFilter] = useState<string>("all");
@@ -134,8 +135,29 @@ export function GanttView({ items, dependencies = [], onItemClick, onAddItem, on
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
-  const [customOrder, setCustomOrder] = useState<string[]>([]);
+  const [customOrder, setCustomOrder] = useState<string[]>(() => {
+    if (!roadmapId) return [];
+    const saved = localStorage.getItem(`roadmap-custom-order-${roadmapId}`);
+    return saved ? JSON.parse(saved) : [];
+  });
   const leftPanelRef = useRef<HTMLDivElement>(null);
+  
+  // Persist custom order to localStorage
+  useEffect(() => {
+    if (roadmapId && customOrder.length > 0) {
+      localStorage.setItem(`roadmap-custom-order-${roadmapId}`, JSON.stringify(customOrder));
+    }
+  }, [customOrder, roadmapId]);
+  
+  // Load custom order when roadmapId changes
+  useEffect(() => {
+    if (roadmapId) {
+      const saved = localStorage.getItem(`roadmap-custom-order-${roadmapId}`);
+      if (saved) {
+        setCustomOrder(JSON.parse(saved));
+      }
+    }
+  }, [roadmapId]);
 
   // Auto-fit view to show items with dates
   useEffect(() => {

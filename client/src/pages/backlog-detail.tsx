@@ -2073,6 +2073,7 @@ export default function BacklogDetail() {
                       sprints={backlog.sprints}
                       epics={backlog.epics}
                       showEpicColumn={showEpicColumn}
+                      roadmapItems={roadmapItemsData}
                       isExpanded={isSprintExpanded(sprint.id)}
                       onToggle={() => toggleSprint(sprint.id)}
                       onSelectTicket={handleSelectTicket}

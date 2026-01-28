@@ -707,6 +707,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             {viewMode === "gantt" ? (
               <GanttView 
                 items={filteredItems} 
+                roadmapId={activeRoadmapId || undefined}
                 onItemClick={handleOpenEditItem}
                 onAddItem={handleOpenAddItem}
                 onUpdateItemDates={handleUpdateItemDates}
@@ -714,6 +715,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             ) : (
               <OutputView 
                 items={filteredItems}
+                roadmapId={activeRoadmapId || undefined}
                 onItemClick={handleOpenEditItem}
                 onAddItem={handleOpenAddItem}
                 onItemMove={handleItemMove}

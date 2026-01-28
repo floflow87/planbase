@@ -1165,6 +1165,7 @@ export default function RoadmapPage() {
                     <GanttView 
                       items={filteredItems} 
                       dependencies={roadmapDependencies}
+                      roadmapId={activeRoadmapId || undefined}
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
                       onCreateAtDate={handleCreateAtDate}
@@ -1176,6 +1177,7 @@ export default function RoadmapPage() {
                   ) : (
                     <OutputView 
                       items={filteredItems}
+                      roadmapId={activeRoadmapId || undefined}
                       onItemClick={handleOpenEditItem}
                       onAddItem={handleOpenAddItem}
                       onItemMove={handleItemMove}
