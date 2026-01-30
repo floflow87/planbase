@@ -6408,14 +6408,20 @@ export default function ProjectDetail() {
                 onBlur={async () => {
                   if (!isNumberOfDaysOverridden) return;
                   const trimmedValue = numberOfDaysValue.trim();
-                  if (trimmedValue !== project?.numberOfDays) {
+                  const currentValue = project?.numberOfDays || "";
+                  // Ne pas appeler l'API si la valeur n'a pas changé
+                  if (trimmedValue === currentValue) return;
+                  // Ne pas appeler l'API si on passe de vide à vide
+                  if (trimmedValue === "" && !currentValue) return;
+                  // Ne faire l'appel que si on a une vraie valeur à sauvegarder
+                  if (trimmedValue !== "") {
                     try {
                       const numValue = parseFloat(trimmedValue);
-                      if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
+                      if (isNaN(numValue) || numValue < 0) {
                         throw new Error("Veuillez entrer un nombre valide");
                       }
                       await apiRequest(`/api/projects/${id}`, "PATCH", {
-                        numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                        numberOfDays: trimmedValue,
                       });
                       queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                       queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
