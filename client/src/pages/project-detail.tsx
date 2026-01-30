@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation, useSearch } from "wouter";
-import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Euro, Tag, Edit, Trash2, Users, Star, FileText, DollarSign, Timer, Clock, Check, ChevronsUpDown, Plus, FolderKanban, Play, Kanban, LayoutGrid, User, ChevronDown, ChevronLeft, ChevronRight, Flag, Layers, ListTodo, ExternalLink, MessageSquare, Phone, Mail, Video, StickyNote, MoreHorizontal, CheckCircle2, Briefcase, TrendingUp, TrendingDown, Info, List, RefreshCw, PlusCircle, XCircle, File, Map, Lock, Unlock, AlertTriangle, Trophy, Bell, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -3698,9 +3698,16 @@ export default function ProjectDetail() {
                 <Popover open={isBillingStatusPopoverOpen} onOpenChange={setIsBillingStatusPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Badge 
-                      variant="outline"
                       data-testid="badge-billing-status-budget"
-                      className={`${getBillingStatusColor(project.billingStatus)} shrink-0 cursor-pointer`}
+                      className={cn(
+                        "shrink-0 cursor-pointer border-transparent font-medium",
+                        ["devis_envoye", "annule"].includes(project.billingStatus || "brouillon") 
+                          ? "text-gray-800" 
+                          : "text-white"
+                      )}
+                      style={{ 
+                        backgroundColor: billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.color || "#C4B5FD"
+                      }}
                     >
                       {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
                       {project.billingStatus === "retard" && getBillingDaysOverdue(project.billingDueDate)}
