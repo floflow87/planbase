@@ -782,7 +782,7 @@ function AppLayout() {
 
   const style = {
     "--sidebar-width": "15.375rem",
-    "--sidebar-width-icon": "4.25rem",
+    "--sidebar-width-icon": "5rem",
   };
 
   const getPageTitle = (path: string) => {
