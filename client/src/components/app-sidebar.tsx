@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle } from "lucide-react";
+import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen, Users, TrendingUp, DollarSign, Settings, Network, HelpCircle, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -41,7 +41,7 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
   const { isAdmin, role, can } = usePermissions();
-  const { state, setOpenMobile, isMobile } = useSidebar();
+  const { state, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -97,16 +97,40 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      {!isCollapsed && (
-        <SidebarHeader className="p-4 border-b border-sidebar-border">
-          <Link href="/" onClick={handleNavigation}>
-            <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
-              <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
-              <span className="font-semibold text-base italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}>PlanBase</span>
-            </div>
-          </Link>
-        </SidebarHeader>
-      )}
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between gap-2">
+          {!isCollapsed ? (
+            <Link href="/" onClick={handleNavigation}>
+              <div className="flex items-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2 gap-2" data-testid="link-logo">
+                <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0 transition-all" />
+                <span className="font-semibold text-base italic bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text text-transparent" style={{ fontFamily: 'Futura, "Century Gothic", CenturyGothic, AppleGothic, sans-serif' }}>PlanBase</span>
+              </div>
+            </Link>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/" onClick={handleNavigation}>
+                  <div className="flex items-center justify-center cursor-pointer hover-elevate active-elevate-2 rounded-md p-2" data-testid="link-logo-collapsed">
+                    <img src={planbaseLogo} alt="PlanBase" className="w-8 h-8 rounded-md flex-shrink-0" />
+                  </div>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">PlanBase</TooltipContent>
+            </Tooltip>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-md hover-elevate active-elevate-2 text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
+            data-testid="button-sidebar-toggle"
+          >
+            {isCollapsed ? (
+              <ChevronsRight className="w-4 h-4" />
+            ) : (
+              <ChevronsLeft className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </SidebarHeader>
 
       <SidebarContent className={isCollapsed ? '' : ''}>
         <SidebarGroup>
