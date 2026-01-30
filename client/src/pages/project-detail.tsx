@@ -4037,56 +4037,56 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap min-h-[42px] h-[42px] p-0.5">
-            <TabsTrigger value="overview" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-overview">
+          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-9 p-0.5">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-overview">
               <Layers className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Vue générale</span>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-billing">
+            <TabsTrigger value="billing" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Facturation</span>
             </TabsTrigger>
-            <TabsTrigger value="time" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-time">
+            <TabsTrigger value="time" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-time">
               <Timer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Temps</span>
             </TabsTrigger>
-            <TabsTrigger value="resources" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-resources">
+            <TabsTrigger value="resources" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-resources">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Ressources</span>
             </TabsTrigger>
-            <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
+            <TabsTrigger value="activities" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-activities">
               <MessageSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Activités</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
                 {projectActivities.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
+            <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Roadmap</span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-1.5 text-xs h-9 px-3">
+            <TabsTrigger value="tasks" className="gap-1.5 text-xs h-8 px-3">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Tâches</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="tasks-count">
                 {projectTasks.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-1.5 text-xs h-9 px-3">
+            <TabsTrigger value="notes" className="gap-1.5 text-xs h-8 px-3">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Notes</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="notes-count">
                 {projectNotes.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1.5 text-xs h-9 px-3">
+            <TabsTrigger value="documents" className="gap-1.5 text-xs h-8 px-3">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Documents</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="documents-count">
                 {projectDocuments.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-backlogs">
+            <TabsTrigger value="backlogs" className="gap-1.5 text-xs h-8 px-3" data-testid="tab-backlogs">
               <FolderKanban className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Backlogs</span>
               <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="backlogs-count">
