@@ -4645,7 +4645,7 @@ export default function ProjectDetail() {
                 <div className="space-y-4 mb-4">
                   {/* Ligne 1: Montant facturé, Nombre de jours facturé, TJM facturé */}
                   <div className="grid grid-cols-3 gap-4">
-                    <Card className="bg-gradient-to-br from-violet-100 via-violet-50 to-purple-100 dark:from-violet-900/30 dark:via-violet-800/20 dark:to-purple-900/30 border-violet-200 dark:border-violet-700/50">
+                    <Card className="bg-violet-100 dark:bg-violet-900/20">
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
@@ -6303,7 +6303,7 @@ export default function ProjectDetail() {
             </div>
 
             {/* Montant total facturé */}
-            <div className="p-4 rounded-lg bg-gradient-to-br from-violet-100 via-violet-50 to-purple-100 dark:from-violet-900/30 dark:via-violet-800/20 dark:to-purple-900/30 border border-violet-200 dark:border-violet-700/50">
+            <div className="p-4 rounded-lg bg-violet-100 dark:bg-violet-900/20">
               <Label htmlFor="sheet-total-billed" className="text-sm font-medium">Montant total facturé (€)</Label>
               <Input
                 id="sheet-total-billed"
