@@ -2829,7 +2829,7 @@ export default function ProjectDetail() {
   const [activitiesDisplayCount, setActivitiesDisplayCount] = useState(5);
   
   // Tab state for controlled navigation
-  const [activeTab, setActiveTab] = useState("activities");
+  const [activeTab, setActiveTab] = useState("overview");
   const searchString = useSearch();
   
   // Read tab parameter from URL
@@ -3680,17 +3680,6 @@ export default function ProjectDetail() {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {project.client ? (
-                  <Link href={`/crm/${project.clientId}`}>
-                    <p className="text-muted-foreground text-sm hover:text-primary cursor-pointer hover:underline">
-                      {project.client.company || project.client.name}
-                    </p>
-                  </Link>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Client non défini
-                  </p>
-                )}
                 {(project.totalBilled || project.budget) && (
                   <Badge className="bg-budget text-budget-foreground shrink-0" data-testid="badge-budget">
                     <Euro className="h-3 w-3 mr-1" />
@@ -3775,6 +3764,17 @@ export default function ProjectDetail() {
                     </div>
                   </PopoverContent>
                 </Popover>
+                {project.client ? (
+                  <Link href={`/crm/${project.clientId}`}>
+                    <p className="text-muted-foreground text-sm hover:text-primary cursor-pointer hover:underline">
+                      {project.client.company || project.client.name}
+                    </p>
+                  </Link>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Client non défini
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -4038,12 +4038,9 @@ export default function ProjectDetail() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5">
-            <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Activités</span>
-              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
-                {projectActivities.length}
-              </Badge>
+            <TabsTrigger value="overview" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-overview">
+              <Layers className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Vue générale</span>
             </TabsTrigger>
             <TabsTrigger value="billing" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-billing">
               <DollarSign className="h-3.5 w-3.5" />
@@ -4056,6 +4053,13 @@ export default function ProjectDetail() {
             <TabsTrigger value="resources" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-resources">
               <Users className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Ressources</span>
+            </TabsTrigger>
+            <TabsTrigger value="activities" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-activities">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Activités</span>
+              <Badge variant="secondary" className="ml-0.5 text-[10px] h-4 px-1" data-testid="activities-count">
+                {projectActivities.length}
+              </Badge>
             </TabsTrigger>
             <TabsTrigger value="roadmap" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-roadmap">
               <Map className="h-3.5 w-3.5" />
@@ -4090,6 +4094,108 @@ export default function ProjectDetail() {
               </Badge>
             </TabsTrigger>
           </TabsList>
+
+          {/* Vue générale Tab */}
+          <TabsContent value="overview" className="mt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Description */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-semibold tracking-tight text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Description
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={cn(
+                    "text-sm leading-relaxed",
+                    project.description ? "text-foreground" : "text-muted-foreground italic"
+                  )} data-testid="project-description-overview">
+                    {project.description || "Aucune description renseignée"}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Période */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="tracking-tight font-semibold text-sm flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-cyan-500" />
+                    Période
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {/* Dates row */}
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Début:</span>
+                        <span className="font-medium" data-testid="project-start-date-overview">
+                          {project.startDate 
+                            ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
+                            : "Non définie"}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground">→</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">Fin:</span>
+                        <span className="font-medium" data-testid="project-end-date-overview">
+                          {project.endDate 
+                            ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
+                            : "Non définie"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Duration & Progress indicator */}
+                    {project.startDate && project.endDate && (() => {
+                      const start = new Date(project.startDate);
+                      const end = new Date(project.endDate);
+                      const today = new Date();
+                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                      const remainingDays = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+                      const progressPercent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+                      const isOverdue = today > end;
+                      const overdueDays = isOverdue ? Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                      
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Durée totale: <span className="font-medium text-foreground">{totalDays} jours</span></span>
+                            {isOverdue ? (
+                              <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
+                                +{overdueDays}j de retard
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                {elapsedDays}j écoulés / {remainingDays}j restants
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                isOverdue ? "bg-red-500" : progressPercent > 80 ? "bg-amber-500" : "bg-cyan-500"
+                              )}
+                              style={{ width: `${Math.min(100, progressPercent)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {(!project.startDate || !project.endDate) && (
+                      <p className="text-xs text-muted-foreground italic">
+                        Définissez les dates pour voir la progression
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <div className="space-y-4">
@@ -4506,11 +4612,12 @@ export default function ProjectDetail() {
               <h3 className="text-lg font-semibold">Budget et facturation</h3>
               <Button 
                 variant="default" 
-                className="bg-primary"
+                size="sm"
+                className="bg-primary text-xs"
                 onClick={() => setIsBillingSettingsOpen(true)}
                 data-testid="button-open-billing-settings"
               >
-                <Settings className="h-4 w-4 mr-2" />
+                <Settings className="h-3.5 w-3.5 mr-1.5" />
                 Facturation
               </Button>
             </div>
@@ -5158,104 +5265,6 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="activities" className="mt-0">
-            {/* Project Info Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-              <Card className="border-l-4 border-l-primary">
-                <CardHeader className="pb-2">
-                  <CardTitle className="font-semibold tracking-tight text-sm flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Description
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className={cn(
-                    "text-sm leading-relaxed",
-                    project.description ? "text-foreground" : "text-muted-foreground italic"
-                  )} data-testid="project-description-tab">
-                    {project.description || "Aucune description renseignée"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-l-4 border-l-cyan-500">
-                <CardHeader className="pb-2">
-                  <CardTitle className="tracking-tight font-semibold text-sm flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-cyan-500" />
-                    Période
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {/* Dates row */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Début:</span>
-                        <span className="font-medium" data-testid="project-start-date-tab">
-                          {project.startDate 
-                            ? format(new Date(project.startDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                      <span className="text-muted-foreground">→</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Fin:</span>
-                        <span className="font-medium" data-testid="project-end-date-tab">
-                          {project.endDate 
-                            ? format(new Date(project.endDate), "dd MMM yyyy", { locale: fr })
-                            : "Non définie"}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Duration & Progress indicator */}
-                    {project.startDate && project.endDate && (() => {
-                      const start = new Date(project.startDate);
-                      const end = new Date(project.endDate);
-                      const today = new Date();
-                      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                      const elapsedDays = Math.max(0, Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-                      const remainingDays = Math.max(0, Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-                      const progressPercent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
-                      const isOverdue = today > end;
-                      const overdueDays = isOverdue ? Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                      
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Durée totale: <span className="font-medium text-foreground">{totalDays} jours</span></span>
-                            {isOverdue ? (
-                              <Badge variant="outline" className="text-red-600 border-red-300 text-xs">
-                                +{overdueDays}j de retard
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {elapsedDays}j écoulés / {remainingDays}j restants
-                              </span>
-                            )}
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={cn(
-                                "h-full rounded-full transition-all",
-                                isOverdue ? "bg-red-500" : progressPercent > 80 ? "bg-amber-500" : "bg-cyan-500"
-                              )}
-                              style={{ width: `${Math.min(100, progressPercent)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    
-                    {(!project.startDate || !project.endDate) && (
-                      <p className="text-xs text-muted-foreground italic">
-                        Définissez les dates pour voir la progression
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Timeline unifiée - Activités et Historique */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
@@ -6151,7 +6160,7 @@ export default function ProjectDetail() {
 
       {/* Billing Settings Sheet */}
       <Sheet open={isBillingSettingsOpen} onOpenChange={setIsBillingSettingsOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" data-testid="sheet-billing-settings">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white dark:bg-card" data-testid="sheet-billing-settings">
           <SheetHeader className="mb-6">
             <SheetTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary" />
@@ -6294,7 +6303,7 @@ export default function ProjectDetail() {
             </div>
 
             {/* Montant total facturé */}
-            <div>
+            <div className="p-4 rounded-lg bg-violet-100 dark:bg-violet-900/20">
               <Label htmlFor="sheet-total-billed" className="text-sm font-medium">Montant total facturé (€)</Label>
               <Input
                 id="sheet-total-billed"
@@ -6322,47 +6331,90 @@ export default function ProjectDetail() {
                   }
                 }}
                 data-testid="input-sheet-total-billed"
+                className="bg-white dark:bg-card"
               />
             </div>
 
             {/* Nombre de jours */}
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Label htmlFor="sheet-number-of-days" className="text-sm font-medium">Nombre de jours</Label>
-                {isNumberOfDaysOverridden ? (
-                  <Badge variant="secondary" className="text-xs">Manuel</Badge>
-                ) : cdcEstimatedDays > 0 ? (
-                  <Badge variant="outline" className="text-xs">CDC: {cdcEstimatedDays}j</Badge>
-                ) : null}
-              </div>
-              <Input
-                id="sheet-number-of-days"
-                type="number"
-                step="0.5"
-                placeholder={cdcEstimatedDays > 0 ? `${cdcEstimatedDays} (auto CDC)` : "Ex: 5"}
-                value={numberOfDaysValue}
-                onChange={(e) => setNumberOfDaysValue(e.target.value)}
-                onBlur={async () => {
-                  const trimmedValue = numberOfDaysValue.trim();
-                  if (trimmedValue !== project?.numberOfDays) {
-                    try {
-                      const numValue = parseFloat(trimmedValue);
-                      if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
-                        throw new Error("Veuillez entrer un nombre valide");
+              <Label htmlFor="sheet-number-of-days" className="text-sm font-medium">Nombre de jours</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  id="sheet-number-of-days"
+                  type="number"
+                  step="0.5"
+                  placeholder={cdcEstimatedDays > 0 ? `${cdcEstimatedDays}` : "Ex: 5"}
+                  value={numberOfDaysValue}
+                  onChange={(e) => setNumberOfDaysValue(e.target.value)}
+                  onBlur={async () => {
+                    const trimmedValue = numberOfDaysValue.trim();
+                    if (trimmedValue !== project?.numberOfDays) {
+                      try {
+                        const numValue = parseFloat(trimmedValue);
+                        if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
+                          throw new Error("Veuillez entrer un nombre valide");
+                        }
+                        await apiRequest(`/api/projects/${id}`, "PATCH", {
+                          numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                      } catch (error: any) {
+                        toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                        setNumberOfDaysValue(project?.numberOfDays || "");
                       }
-                      await apiRequest(`/api/projects/${id}`, "PATCH", {
-                        numberOfDays: trimmedValue === "" ? null : trimmedValue,
-                      });
-                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
-                    } catch (error: any) {
-                      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-                      setNumberOfDaysValue(project?.numberOfDays || "");
                     }
-                  }
-                }}
-                data-testid="input-sheet-number-of-days"
-              />
+                  }}
+                  data-testid="input-sheet-number-of-days"
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={async () => {
+                        try {
+                          if (isNumberOfDaysOverridden) {
+                            // Revenir en mode automatique - remettre la valeur CDC
+                            const autoValue = cdcEstimatedDays > 0 ? cdcEstimatedDays.toString() : "";
+                            setNumberOfDaysValue(autoValue);
+                            await apiRequest(`/api/projects/${id}`, "PATCH", {
+                              numberOfDays: autoValue === "" ? null : autoValue,
+                              numberOfDaysOverride: false,
+                            });
+                          } else {
+                            // Passer en mode manuel - garder la valeur actuelle
+                            await apiRequest(`/api/projects/${id}`, "PATCH", {
+                              numberOfDaysOverride: true,
+                            });
+                          }
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                          toast({
+                            title: isNumberOfDaysOverridden ? "Mode automatique activé" : "Mode manuel activé",
+                            variant: "success",
+                          });
+                        } catch (error: any) {
+                          toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                        }
+                      }}
+                      data-testid="button-toggle-days-lock"
+                    >
+                      {isNumberOfDaysOverridden ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Unlock className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{isNumberOfDaysOverridden 
+                      ? "Mode manuel - Cliquer pour synchroniser avec le CDC" 
+                      : "Mode automatique - Cliquer pour forcer une valeur manuelle"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {isNumberOfDaysOverridden 
                   ? "Valeur manuelle (forçage actif)"
