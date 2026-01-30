@@ -5468,10 +5468,10 @@ export default function ProjectDetail() {
               </Card>
             </div>
 
-            {/* Activities Card */}
+            {/* Timeline unifiée - Activités et Historique */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
-                <CardTitle className="text-base">Activités</CardTitle>
+                <CardTitle className="text-base">Activités & Historique</CardTitle>
                 <Button 
                   size="sm" 
                   onClick={() => openActivityDialog()}
@@ -5482,266 +5482,269 @@ export default function ProjectDetail() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {projectActivities.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    Aucune activité enregistrée pour ce projet.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {projectActivities.slice(0, activitiesDisplayCount).map((activity) => {
-                      const user = users.find(u => u.id === activity.createdBy);
-                      const getKindLabel = (kind: string) => {
-                        const labels: Record<string, string> = {
-                          email: "Email",
-                          call: "Appel",
-                          meeting: "Réunion",
-                          note: "Note",
-                          task: "Tâche",
-                          created: "Création",
-                          updated: "Mise à jour du projet",
-                          deleted: "Suppression",
-                          file: "Fichier",
-                          time_tracked: "Temps",
-                          custom: "Autre",
-                        };
-                        return labels[kind] || kind;
+                {(() => {
+                  // Helper functions for activity display
+                  const getKindLabel = (kind: string) => {
+                    const labels: Record<string, string> = {
+                      email: "Email",
+                      call: "Appel",
+                      meeting: "Réunion",
+                      note: "Note",
+                      task: "Tâche",
+                      created: "Création",
+                      updated: "Mise à jour du projet",
+                      deleted: "Suppression",
+                      file: "Fichier",
+                      time_tracked: "Temps",
+                      custom: "Autre",
+                    };
+                    return labels[kind] || kind;
+                  };
+                  const getKindColor = (kind: string) => {
+                    const colors: Record<string, string> = {
+                      email: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                      call: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                      meeting: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+                      note: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                      task: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+                      created: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+                      updated: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+                      deleted: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                      file: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+                      time_tracked: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+                      custom: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+                      // System history types
+                      project_created: "bg-primary text-primary-foreground",
+                      task_created: "bg-violet-500 text-white",
+                      note_created: "bg-yellow-500 text-white",
+                      document_added: "bg-blue-500 text-white",
+                    };
+                    return colors[kind] || colors.custom;
+                  };
+                  const getKindIcon = (kind: string) => {
+                    switch (kind) {
+                      case "email": return <Mail className="h-3 w-3" />;
+                      case "call": return <Phone className="h-3 w-3" />;
+                      case "meeting": return <Video className="h-3 w-3" />;
+                      case "note": return <StickyNote className="h-3 w-3" />;
+                      case "task": return <CheckCircle2 className="h-3 w-3" />;
+                      case "created": return <PlusCircle className="h-3 w-3" />;
+                      case "updated": return <RefreshCw className="h-3 w-3" />;
+                      case "deleted": return <XCircle className="h-3 w-3" />;
+                      case "file": return <File className="h-3 w-3" />;
+                      case "time_tracked": return <Clock className="h-3 w-3" />;
+                      // System history icons
+                      case "project_created": return <Briefcase className="h-3 w-3" />;
+                      case "task_created": return <CheckCircle2 className="h-3 w-3" />;
+                      case "note_created": return <StickyNote className="h-3 w-3" />;
+                      case "document_added": return <FileText className="h-3 w-3" />;
+                      default: return <MoreHorizontal className="h-3 w-3" />;
+                    }
+                  };
+                  const getUpdateDetails = (activity: Activity) => {
+                    if (activity.kind !== 'updated' || !activity.payload) return null;
+                    const payload = activity.payload as Record<string, unknown>;
+                    const changes: string[] = [];
+                    if (payload.changedFields && Array.isArray(payload.changedFields)) {
+                      const fieldLabels: Record<string, string> = {
+                        name: "nom",
+                        title: "titre",
+                        description: "description",
+                        stage: "étape",
+                        status: "statut",
+                        priority: "priorité",
+                        dueDate: "date d'échéance",
+                        budget: "budget",
+                        billingStatus: "statut de facturation",
+                        assignedTo: "assignation",
                       };
-                      const getKindColor = (kind: string) => {
-                        const colors: Record<string, string> = {
-                          email: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                          call: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                          meeting: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-                          note: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                          task: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
-                          created: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-                          updated: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-                          deleted: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                          file: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-                          time_tracked: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-                          custom: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-                        };
-                        return colors[kind] || colors.custom;
-                      };
-                      const getKindIcon = (kind: string) => {
-                        switch (kind) {
-                          case "email": return <Mail className="h-3 w-3" />;
-                          case "call": return <Phone className="h-3 w-3" />;
-                          case "meeting": return <Video className="h-3 w-3" />;
-                          case "note": return <StickyNote className="h-3 w-3" />;
-                          case "task": return <CheckCircle2 className="h-3 w-3" />;
-                          case "created": return <PlusCircle className="h-3 w-3" />;
-                          case "updated": return <RefreshCw className="h-3 w-3" />;
-                          case "deleted": return <XCircle className="h-3 w-3" />;
-                          case "file": return <File className="h-3 w-3" />;
-                          case "time_tracked": return <Clock className="h-3 w-3" />;
-                          default: return <MoreHorizontal className="h-3 w-3" />;
-                        }
-                      };
-                      const getUpdateDetails = (activity: Activity) => {
-                        if (activity.kind !== 'updated' || !activity.payload) return null;
-                        const payload = activity.payload as Record<string, unknown>;
-                        const changes: string[] = [];
-                        if (payload.changedFields && Array.isArray(payload.changedFields)) {
-                          const fieldLabels: Record<string, string> = {
-                            name: "nom",
-                            title: "titre",
-                            description: "description",
-                            stage: "étape",
-                            status: "statut",
-                            priority: "priorité",
-                            dueDate: "date d'échéance",
-                            budget: "budget",
-                            billingStatus: "statut de facturation",
-                            assignedTo: "assignation",
-                          };
-                          payload.changedFields.forEach((field: string) => {
-                            changes.push(fieldLabels[field] || field);
-                          });
-                        }
-                        return changes.length > 0 ? changes.join(", ") : null;
-                      };
+                      payload.changedFields.forEach((field: string) => {
+                        changes.push(fieldLabels[field] || field);
+                      });
+                    }
+                    return changes.length > 0 ? changes.join(", ") : null;
+                  };
 
-                      return (
-                        <div 
-                          key={activity.id} 
-                          className="group flex items-start gap-3 p-2.5 rounded-md hover:bg-muted/50 transition-colors"
-                          data-testid={`activity-${activity.id}`}
-                        >
-                          {/* Icon indicator */}
-                          <div className={cn(
-                            "shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5",
-                            getKindColor(activity.kind)
-                          )}>
-                            {getKindIcon(activity.kind)}
-                          </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-medium">{getKindLabel(activity.kind)}</span>
-                              {activity.kind === 'updated' && getUpdateDetails(activity) && (
+                  // Build unified timeline
+                  type TimelineItem = 
+                    | { _type: 'activity'; _date: Date; data: Activity }
+                    | { _type: 'project_created'; _date: Date; data: typeof project }
+                    | { _type: 'task_created'; _date: Date; data: Task }
+                    | { _type: 'note_created'; _date: Date; data: Note }
+                    | { _type: 'document_added'; _date: Date; data: Document };
+
+                  const timelineItems: TimelineItem[] = [
+                    ...projectActivities.map(a => ({ 
+                      _type: 'activity' as const, 
+                      _date: new Date(a.occurredAt || a.createdAt), 
+                      data: a 
+                    })),
+                    ...(project ? [{ 
+                      _type: 'project_created' as const, 
+                      _date: new Date(project.createdAt), 
+                      data: project 
+                    }] : []),
+                    ...projectTasks.map(t => ({ 
+                      _type: 'task_created' as const, 
+                      _date: new Date(t.createdAt), 
+                      data: t 
+                    })),
+                    ...projectNotes.map(n => ({ 
+                      _type: 'note_created' as const, 
+                      _date: new Date(n.createdAt), 
+                      data: n 
+                    })),
+                    ...projectDocuments.map(d => ({ 
+                      _type: 'document_added' as const, 
+                      _date: new Date(d.createdAt), 
+                      data: d 
+                    })),
+                  ].sort((a, b) => b._date.getTime() - a._date.getTime());
+
+                  if (timelineItems.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        Aucune activité ou historique pour ce projet.
+                      </div>
+                    );
+                  }
+
+                  const displayedItems = timelineItems.slice(0, activitiesDisplayCount);
+                  const hasMore = timelineItems.length > activitiesDisplayCount;
+
+                  return (
+                    <div className="space-y-2">
+                      {displayedItems.map((item, index) => {
+                        if (item._type === 'activity') {
+                          const activity = item.data;
+                          const user = users.find(u => u.id === activity.createdBy);
+                          return (
+                            <div 
+                              key={`activity-${activity.id}`}
+                              className="group flex items-start gap-3 p-2.5 rounded-md hover:bg-muted/50 transition-colors"
+                              data-testid={`activity-${activity.id}`}
+                            >
+                              <div className={cn(
+                                "shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5",
+                                getKindColor(activity.kind)
+                              )}>
+                                {getKindIcon(activity.kind)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-medium">{getKindLabel(activity.kind)}</span>
+                                  {activity.kind === 'updated' && getUpdateDetails(activity) && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      · {getUpdateDetails(activity)}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-muted-foreground">
+                                    · {format(item._date, "dd MMM yyyy HH:mm", { locale: fr })}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{activity.description}</p>
+                                {user && (
+                                  <span className="text-[10px] text-muted-foreground/70 mt-1 block">
+                                    {user.firstName} {user.lastName}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => openActivityDialog(activity)}
+                                  data-testid={`button-edit-activity-${activity.id}`}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setDeleteActivityId(activity.id);
+                                    setIsDeleteActivityDialogOpen(true);
+                                  }}
+                                  data-testid={`button-delete-activity-${activity.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // System-generated history items (not editable)
+                        const author = users.find(u => u.id === item.data.createdBy);
+                        const getHistoryLabel = () => {
+                          switch (item._type) {
+                            case 'project_created': return 'Création du projet';
+                            case 'task_created': return 'Tâche créée';
+                            case 'note_created': return 'Note créée';
+                            case 'document_added': return 'Document ajouté';
+                            default: return '';
+                          }
+                        };
+                        const getHistoryDescription = () => {
+                          switch (item._type) {
+                            case 'project_created': return `Projet "${(item.data as typeof project)?.name}" créé`;
+                            case 'task_created': return (item.data as Task).title;
+                            case 'note_created': return (item.data as Note).title;
+                            case 'document_added': return (item.data as Document).name;
+                            default: return '';
+                          }
+                        };
+
+                        return (
+                          <div 
+                            key={`${item._type}-${item.data.id || index}`}
+                            className="flex items-start gap-3 p-2.5 rounded-md"
+                            data-testid={`history-${item._type}-${item.data.id || index}`}
+                          >
+                            <div className={cn(
+                              "shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5",
+                              getKindColor(item._type)
+                            )}>
+                              {getKindIcon(item._type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-medium">{getHistoryLabel()}</span>
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                                  Système
+                                </Badge>
                                 <span className="text-[10px] text-muted-foreground">
-                                  · {getUpdateDetails(activity)}
+                                  · {format(item._date, "dd MMM yyyy HH:mm", { locale: fr })}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{getHistoryDescription()}</p>
+                              {author && (
+                                <span className="text-[10px] text-muted-foreground/70 mt-1 block">
+                                  {author.firstName} {author.lastName}
                                 </span>
                               )}
-                              <span className="text-[10px] text-muted-foreground">
-                                · {activity.createdAt && format(new Date(activity.createdAt), "dd MMM HH:mm", { locale: fr })}
-                              </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{activity.description}</p>
-                            {user && (
-                              <span className="text-[10px] text-muted-foreground/70 mt-1 block">
-                                {user.firstName} {user.lastName}
-                              </span>
-                            )}
                           </div>
-                          
-                          {/* Actions - visible on hover */}
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => openActivityDialog(activity)}
-                              data-testid={`button-edit-activity-${activity.id}`}
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                setDeleteActivityId(activity.id);
-                                setIsDeleteActivityDialogOpen(true);
-                              }}
-                              data-testid={`button-delete-activity-${activity.id}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {projectActivities.length > activitiesDisplayCount && (
-                      <div className="flex justify-center pt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setActivitiesDisplayCount(prev => prev + 10)}
-                          className="text-muted-foreground"
-                          data-testid="button-load-more-activities"
-                        >
-                          Afficher plus ({projectActivities.length - activitiesDisplayCount} restantes)
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Historique - Timeline du projet */}
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle className="font-semibold tracking-tight text-[18px]">Historique</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {projectTasks.length === 0 && projectNotes.length === 0 && projectDocuments.length === 0 && !project ? (
-                  <div className="py-12 text-center text-muted-foreground">
-                    Aucun historique pour le moment
-                  </div>
-                ) : (
-                  <div className="relative space-y-6 pl-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-                    {[
-                      ...(project ? [{ ...project, _date: new Date(project.createdAt), _type: 'project_created' as const }] : []),
-                      ...projectTasks.map((t) => ({ ...t, _date: new Date(t.createdAt), _type: 'task' as const })),
-                      ...projectNotes.map((n) => ({ ...n, _date: new Date(n.createdAt), _type: 'note' as const })),
-                      ...projectDocuments.map((d) => ({ ...d, _date: new Date(d.createdAt), _type: 'document' as const })),
-                    ]
-                      .sort((a, b) => b._date.getTime() - a._date.getTime())
-                      .map((item) => {
-                        const author = users.find((u) => u.id === item.createdBy);
-                        
-                        if (item._type === 'project_created') {
-                          return (
-                            <div key="project-created" className="relative" data-testid="history-project-created">
-                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                                <Briefcase className="w-3 h-3 text-primary-foreground" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-foreground">
-                                  <span className="font-medium">
-                                    {author?.firstName} {author?.lastName}
-                                  </span>{" "}
-                                  a créé le projet
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        if (item._type === 'task') {
-                          return (
-                            <div key={`task-${item.id}`} className="relative" data-testid={`history-task-${item.id}`}>
-                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-                                <CheckCircle2 className="w-3 h-3 text-white" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-foreground">
-                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une tâche : {(item as Task).title}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        if (item._type === 'note') {
-                          return (
-                            <div key={`note-${item.id}`} className="relative" data-testid={`history-note-${item.id}`}>
-                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center">
-                                <StickyNote className="w-3 h-3 text-white" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-foreground">
-                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a créé une note : {(item as Note).title}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        if (item._type === 'document') {
-                          return (
-                            <div key={`document-${item.id}`} className="relative" data-testid={`history-document-${item.id}`}>
-                              <div className="absolute left-[-2rem] top-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                                <FileText className="w-3 h-3 text-white" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-foreground">
-                                  <span className="font-medium">{author?.firstName} {author?.lastName}</span> a ajouté un document : {(item as Document).name}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {format(item._date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return null;
+                        );
                       })}
-                  </div>
-                )}
+                      {hasMore && (
+                        <div className="flex justify-center pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActivitiesDisplayCount(prev => prev + 10)}
+                            className="text-muted-foreground"
+                            data-testid="button-load-more-activities"
+                          >
+                            Afficher plus ({timelineItems.length - activitiesDisplayCount} restants)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
