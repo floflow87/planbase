@@ -4645,7 +4645,7 @@ export default function ProjectDetail() {
                 <div className="space-y-4 mb-4">
                   {/* Ligne 1: Montant facturé, Nombre de jours facturé, TJM facturé */}
                   <div className="grid grid-cols-3 gap-4">
-                    <Card>
+                    <Card className="bg-violet-100 dark:bg-violet-900/20">
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
@@ -6346,35 +6346,36 @@ export default function ProjectDetail() {
                       size="icon"
                       className="h-6 w-6 shrink-0"
                       onClick={async () => {
-                        try {
-                          if (isNumberOfDaysOverridden) {
-                            // Revenir en mode automatique - remettre la valeur CDC
-                            const autoValue = cdcEstimatedDays > 0 ? cdcEstimatedDays.toString() : "";
-                            setNumberOfDaysValue(autoValue);
-                            await apiRequest(`/api/projects/${id}`, "PATCH", {
-                              numberOfDays: autoValue === "" ? null : autoValue,
-                              numberOfDaysOverride: false,
-                            });
-                            toast({
-                              title: "Mode automatique activé",
-                              description: "Le nombre de jours se synchronise maintenant avec le chiffrage CDC",
-                              variant: "success",
-                            });
-                          } else {
-                            // Passer en mode manuel - garder la valeur actuelle
-                            await apiRequest(`/api/projects/${id}`, "PATCH", {
-                              numberOfDaysOverride: true,
-                            });
-                            toast({
-                              title: "Mode manuel activé",
-                              description: "Vous pouvez maintenant saisir une valeur personnalisée",
-                              variant: "success",
-                            });
+                        if (isNumberOfDaysOverridden) {
+                          // Revenir en mode automatique - remettre la valeur CDC
+                          const autoValue = cdcEstimatedDays > 0 ? cdcEstimatedDays.toString() : "";
+                          setNumberOfDaysValue(autoValue);
+                          setIsNumberOfDaysOverridden(false);
+                          // Sauvegarder la valeur CDC si disponible
+                          if (cdcEstimatedDays > 0) {
+                            try {
+                              await apiRequest(`/api/projects/${id}`, "PATCH", {
+                                numberOfDays: autoValue,
+                              });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                            } catch (error: any) {
+                              console.error("Erreur lors de la mise à jour:", error);
+                            }
                           }
-                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                          queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
-                        } catch (error: any) {
-                          toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                          toast({
+                            title: "Mode automatique activé",
+                            description: "Le nombre de jours se synchronise maintenant avec le chiffrage CDC",
+                            variant: "success",
+                          });
+                        } else {
+                          // Passer en mode manuel - garder la valeur actuelle
+                          setIsNumberOfDaysOverridden(true);
+                          toast({
+                            title: "Mode manuel activé",
+                            description: "Vous pouvez maintenant saisir une valeur personnalisée",
+                            variant: "success",
+                          });
                         }
                       }}
                       data-testid="button-toggle-days-lock"
