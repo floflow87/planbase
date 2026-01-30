@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -1837,130 +1838,144 @@ function TimeTrackingTab({ projectId, project }: { projectId: string; project?: 
         );
       })()}
 
-      {/* Time by Scope Item (CDC) Table */}
+      {/* Time by Scope Item (CDC) Table - Collapsible */}
       {scopeItems.length > 0 && (
         <ScopeItemTimeTable 
           scopeItems={scopeItems}
           timeEntries={timeEntries}
           paceProjection={paceProjection}
           scopeItemProjections={scopeItemProjections}
+          isExpanded={isTimePerCdcExpanded}
+          onToggle={setIsTimePerCdcExpanded}
         />
       )}
 
-      {/* Time Entries List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sessions de temps</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {timeEntries.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Aucune session de temps enregistrée pour ce projet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {timeEntries.map((entry) => {
-                const user = users.find((u) => u.id === entry.userId);
-                const scopeItem = entry.scopeItemId ? scopeItems.find((s) => s.id === entry.scopeItemId) : null;
-                const task = entry.taskId ? projectTasks.find((t) => t.id === entry.taskId) : null;
-                const sprint = entry.sprintId ? projectSprints.find((s) => s.id === entry.sprintId) : null;
-                return (
-                  <div
-                    key={entry.id}
-                    className="p-3 border rounded-md hover-elevate"
-                    data-testid={`time-entry-${entry.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">
-                            {format(new Date(entry.startTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
-                          </span>
-                        </div>
-                        {entry.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
-                        )}
-                        <div className="flex items-center flex-wrap gap-2 mt-2">
-                          {user && (
-                            <Badge variant="outline" className="text-xs">
-                              <User className="h-3 w-3 mr-1" />
-                              {user.firstName} {user.lastName}
+      {/* Time Entries List - Collapsible */}
+      <Collapsible open={isTimeSessionsExpanded} onOpenChange={setIsTimeSessionsExpanded}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardTitle className="text-base flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  Sessions de temps
+                  <Badge variant="outline" className="text-xs">{timeEntries.length}</Badge>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", isTimeSessionsExpanded && "rotate-180")} />
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {timeEntries.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Aucune session de temps enregistrée pour ce projet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {timeEntries.map((entry) => {
+                    const user = users.find((u) => u.id === entry.userId);
+                    const scopeItem = entry.scopeItemId ? scopeItems.find((s) => s.id === entry.scopeItemId) : null;
+                    const task = entry.taskId ? projectTasks.find((t) => t.id === entry.taskId) : null;
+                    const sprint = entry.sprintId ? projectSprints.find((s) => s.id === entry.sprintId) : null;
+                    return (
+                      <div
+                        key={entry.id}
+                        className="p-3 border rounded-md hover-elevate"
+                        data-testid={`time-entry-${entry.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">
+                                {format(new Date(entry.startTime), "dd MMM yyyy 'à' HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                            {entry.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                            )}
+                            <div className="flex items-center flex-wrap gap-2 mt-2">
+                              {user && (
+                                <Badge variant="outline" className="text-xs">
+                                  <User className="h-3 w-3 mr-1" />
+                                  {user.firstName} {user.lastName}
+                                </Badge>
+                              )}
+                              {scopeItem && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className="text-xs cursor-pointer"
+                                  onClick={() => {
+                                    const element = document.getElementById('scope-section');
+                                    if (element) element.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  data-testid={`badge-scope-${entry.id}`}
+                                >
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  {scopeItem.label}
+                                </Badge>
+                              )}
+                              {task && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className="text-xs cursor-pointer"
+                                  onClick={() => {
+                                    const element = document.getElementById('tasks-section');
+                                    if (element) element.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  data-testid={`badge-task-${entry.id}`}
+                                >
+                                  <ListTodo className="h-3 w-3 mr-1" />
+                                  {task.title}
+                                </Badge>
+                              )}
+                              {sprint && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs"
+                                  data-testid={`badge-sprint-${entry.id}`}
+                                >
+                                  <Layers className="h-3 w-3 mr-1" />
+                                  {sprint.name}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge variant="secondary" data-testid={`duration-${entry.id}`}>
+                              {entry.duration ? formatDuration(entry.duration) : "En cours"}
                             </Badge>
-                          )}
-                          {scopeItem && (
-                            <Badge 
-                              variant="secondary" 
-                              className="text-xs cursor-pointer"
-                              onClick={() => {
-                                const element = document.getElementById('scope-section');
-                                if (element) element.scrollIntoView({ behavior: 'smooth' });
-                              }}
-                              data-testid={`badge-scope-${entry.id}`}
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              {scopeItem.label}
-                            </Badge>
-                          )}
-                          {task && (
-                            <Badge 
-                              variant="secondary" 
-                              className="text-xs cursor-pointer"
-                              onClick={() => {
-                                const element = document.getElementById('tasks-section');
-                                if (element) element.scrollIntoView({ behavior: 'smooth' });
-                              }}
-                              data-testid={`badge-task-${entry.id}`}
-                            >
-                              <ListTodo className="h-3 w-3 mr-1" />
-                              {task.title}
-                            </Badge>
-                          )}
-                          {sprint && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs"
-                              data-testid={`badge-sprint-${entry.id}`}
-                            >
-                              <Layers className="h-3 w-3 mr-1" />
-                              {sprint.name}
-                            </Badge>
-                          )}
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenEditSheet(entry)}
+                                data-testid={`button-edit-${entry.id}`}
+                                className="h-8 w-8"
+                              >
+                                <Edit className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeleteEntryId(entry.id)}
+                                data-testid={`button-delete-${entry.id}`}
+                                className="h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Badge variant="secondary" data-testid={`duration-${entry.id}`}>
-                          {entry.duration ? formatDuration(entry.duration) : "En cours"}
-                        </Badge>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEditSheet(entry)}
-                            data-testid={`button-edit-${entry.id}`}
-                            className="h-8 w-8"
-                          >
-                            <Edit className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteEntryId(entry.id)}
-                            data-testid={`button-delete-${entry.id}`}
-                            className="h-8 w-8"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteEntryId} onOpenChange={(open) => !open && setDeleteEntryId(null)}>
@@ -2439,9 +2454,11 @@ interface ScopeItemTimeTableProps {
   timeEntries: TimeEntry[];
   paceProjection: { available: boolean; alreadyExceeded: boolean } | null;
   scopeItemProjections: { item: ProjectScopeItem; projection: any }[];
+  isExpanded?: boolean;
+  onToggle?: (expanded: boolean) => void;
 }
 
-function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItemProjections }: ScopeItemTimeTableProps) {
+function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItemProjections, isExpanded = true, onToggle }: ScopeItemTimeTableProps) {
   const { toast } = useToast();
   const [confirmCompleteItem, setConfirmCompleteItem] = useState<ProjectScopeItem | null>(null);
   
@@ -2497,30 +2514,38 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
   
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <List className="h-4 w-4" />
-            Temps par étape CDC
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-2 font-medium">Étape</th>
-                  <th className="text-right py-2 px-2 font-medium">Prévu</th>
-                  <th className="text-right py-2 px-2 font-medium">Passé</th>
-                  <th className="text-right py-2 px-2 font-medium">Écart</th>
-                  <th className="text-right py-2 px-2 font-medium">Statut</th>
-                  {paceProjection?.available && !paceProjection.alreadyExceeded && (
-                    <th className="text-right py-2 px-2 font-medium">Projection</th>
-                  )}
-                  <th className="text-right py-2 px-2 font-medium w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
+      <Collapsible open={isExpanded} onOpenChange={onToggle}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardTitle className="text-base flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  Temps par étape CDC
+                  <Badge variant="outline" className="text-xs">{scopeItems.length}</Badge>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2 font-medium">Étape</th>
+                      <th className="text-right py-2 px-2 font-medium">Prévu</th>
+                      <th className="text-right py-2 px-2 font-medium">Passé</th>
+                      <th className="text-right py-2 px-2 font-medium">Écart</th>
+                      <th className="text-right py-2 px-2 font-medium">Statut</th>
+                      {paceProjection?.available && !paceProjection.alreadyExceeded && (
+                        <th className="text-right py-2 px-2 font-medium">Projection</th>
+                      )}
+                      <th className="text-right py-2 px-2 font-medium w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                 {scopeItems.map((item) => {
                   const itemTimeSeconds = timeEntries
                     .filter(e => e.scopeItemId === item.id)
@@ -2692,12 +2717,14 @@ function ScopeItemTimeTable({ scopeItems, timeEntries, paceProjection, scopeItem
             </table>
           </div>
           
-          {/* Explanatory micro-text */}
-          <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
-            Le statut indique la trajectoire réelle de chaque étape : OK (dans les temps), Critique (risque en cours) ou Dépassé (hors budget temps).
-          </p>
-        </CardContent>
-      </Card>
+              {/* Explanatory micro-text */}
+              <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
+                Le statut indique la trajectoire réelle de chaque étape : OK (dans les temps), Critique (risque en cours) ou Dépassé (hors budget temps).
+              </p>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
       
       {/* Confirmation dialog for completing critical items */}
       <AlertDialog open={!!confirmCompleteItem} onOpenChange={(open) => !open && setConfirmCompleteItem(null)}>
@@ -2734,6 +2761,11 @@ export default function ProjectDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
   const [isCdcWizardOpen, setIsCdcWizardOpen] = useState(false);
+  
+  // Expansion panel states (collapsed by default)
+  const [isCdcSectionExpanded, setIsCdcSectionExpanded] = useState(false);
+  const [isTimePerCdcExpanded, setIsTimePerCdcExpanded] = useState(false);
+  const [isTimeSessionsExpanded, setIsTimeSessionsExpanded] = useState(false);
   const [isTaskDetailDialogOpen, setIsTaskDetailDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
@@ -3594,11 +3626,9 @@ export default function ProjectDetail() {
     dataWarnings.push({ type: 'info', message: "Dates non définies" });
   }
   
-  // Check if project has tasks but no sprint
+  // Check if project has tasks but no sprint - this will be shown in Tasks tab
   const projectSprints = project.sprints || [];
-  if (projectTasks.length > 0 && projectSprints.length === 0) {
-    dataWarnings.push({ type: 'info', message: "Tâches sans sprint associé" });
-  }
+  const hasTasksWithoutSprint = projectTasks.length > 0 && projectSprints.length === 0;
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
@@ -4016,6 +4046,18 @@ export default function ProjectDetail() {
 
           <TabsContent value="tasks" id="tasks-section" className="mt-0">
             <div className="space-y-4">
+              {/* Warning: Tasks without sprint */}
+              {hasTasksWithoutSprint && (
+                <Badge 
+                  variant="outline"
+                  className="border-muted-foreground/30 text-muted-foreground text-xs"
+                  data-testid="warning-tasks-no-sprint"
+                >
+                  <Info className="h-3 w-3 mr-1" />
+                  Tâches sans sprint associé
+                </Badge>
+              )}
+              
               {/* Cross-module context: Link to Backlog */}
               {projectBacklogs.length > 0 && (
                 <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg border border-muted">
@@ -4970,18 +5012,40 @@ export default function ProjectDetail() {
               </CardContent>
             </Card>
 
-            {/* Project Scope Section - CDC avec allocation de temps */}
+            {/* Project Scope Section - CDC avec allocation de temps - Collapsible */}
             <div id="scope-section" className="mt-4">
-              <ProjectScopeSection
-                projectId={id!}
-                projectName={project?.name || 'Projet'}
-                dailyRate={effectiveTJMData?.effectiveTJM || 0}
-                internalDailyCost={effectiveTJMData?.effectiveInternalDailyCost || 0}
-                targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
-                budget={parseFloat(project?.totalBilled?.toString() || project?.budget?.toString() || "0")}
-                projectStage={project?.stage || 'prospection'}
-                tjmSource={effectiveTJMData?.source}
-              />
+              <Collapsible open={isCdcSectionExpanded} onOpenChange={setIsCdcSectionExpanded}>
+                <Card>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      <CardTitle className="text-base flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Cahier des charges - Chiffrage
+                          {projectScopeItems && projectScopeItems.length > 0 && (
+                            <Badge variant="outline" className="text-xs">{projectScopeItems.length}</Badge>
+                          )}
+                        </div>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", isCdcSectionExpanded && "rotate-180")} />
+                      </CardTitle>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <ProjectScopeSection
+                        projectId={id!}
+                        projectName={project?.name || 'Projet'}
+                        dailyRate={effectiveTJMData?.effectiveTJM || 0}
+                        internalDailyCost={effectiveTJMData?.effectiveInternalDailyCost || 0}
+                        targetMarginPercent={parseFloat(project?.targetMarginPercent?.toString() || "0")}
+                        budget={parseFloat(project?.totalBilled?.toString() || project?.budget?.toString() || "0")}
+                        projectStage={project?.stage || 'prospection'}
+                        tjmSource={effectiveTJMData?.source}
+                      />
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             </div>
 
             {/* Payment Tracking Section */}
