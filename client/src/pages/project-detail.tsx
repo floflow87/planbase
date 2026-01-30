@@ -6337,42 +6337,14 @@ export default function ProjectDetail() {
 
             {/* Nombre de jours */}
             <div>
-              <Label htmlFor="sheet-number-of-days" className="text-sm font-medium">Nombre de jours</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <Input
-                  id="sheet-number-of-days"
-                  type="number"
-                  step="0.5"
-                  placeholder={cdcEstimatedDays > 0 ? `${cdcEstimatedDays}` : "Ex: 5"}
-                  value={numberOfDaysValue}
-                  onChange={(e) => setNumberOfDaysValue(e.target.value)}
-                  onBlur={async () => {
-                    const trimmedValue = numberOfDaysValue.trim();
-                    if (trimmedValue !== project?.numberOfDays) {
-                      try {
-                        const numValue = parseFloat(trimmedValue);
-                        if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
-                          throw new Error("Veuillez entrer un nombre valide");
-                        }
-                        await apiRequest(`/api/projects/${id}`, "PATCH", {
-                          numberOfDays: trimmedValue === "" ? null : trimmedValue,
-                        });
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
-                      } catch (error: any) {
-                        toast({ title: "Erreur", description: error.message, variant: "destructive" });
-                        setNumberOfDaysValue(project?.numberOfDays || "");
-                      }
-                    }
-                  }}
-                  data-testid="input-sheet-number-of-days"
-                />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sheet-number-of-days" className="text-sm font-medium">Nombre de jours</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="shrink-0"
+                      className="h-6 w-6 shrink-0"
                       onClick={async () => {
                         try {
                           if (isNumberOfDaysOverridden) {
@@ -6383,18 +6355,24 @@ export default function ProjectDetail() {
                               numberOfDays: autoValue === "" ? null : autoValue,
                               numberOfDaysOverride: false,
                             });
+                            toast({
+                              title: "Mode automatique activé",
+                              description: "Le nombre de jours se synchronise maintenant avec le chiffrage CDC",
+                              variant: "success",
+                            });
                           } else {
                             // Passer en mode manuel - garder la valeur actuelle
                             await apiRequest(`/api/projects/${id}`, "PATCH", {
                               numberOfDaysOverride: true,
                             });
+                            toast({
+                              title: "Mode manuel activé",
+                              description: "Vous pouvez maintenant saisir une valeur personnalisée",
+                              variant: "success",
+                            });
                           }
                           queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                           queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
-                          toast({
-                            title: isNumberOfDaysOverridden ? "Mode automatique activé" : "Mode manuel activé",
-                            variant: "success",
-                          });
                         } catch (error: any) {
                           toast({ title: "Erreur", description: error.message, variant: "destructive" });
                         }
@@ -6402,19 +6380,53 @@ export default function ProjectDetail() {
                       data-testid="button-toggle-days-lock"
                     >
                       {isNumberOfDaysOverridden ? (
-                        <Lock className="h-4 w-4 text-muted-foreground" />
+                        <Unlock className="h-4 w-4 text-amber-500" />
                       ) : (
-                        <Unlock className="h-4 w-4 text-muted-foreground" />
+                        <Lock className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>{isNumberOfDaysOverridden 
-                      ? "Mode manuel - Cliquer pour synchroniser avec le CDC" 
-                      : "Mode automatique - Cliquer pour forcer une valeur manuelle"}</p>
+                  <TooltipContent side="left" className="bg-white dark:bg-card text-foreground border shadow-lg max-w-xs">
+                    <p className="font-medium mb-1">{isNumberOfDaysOverridden 
+                      ? "Mode manuel actif" 
+                      : "Mode automatique activé"}</p>
+                    <p className="text-xs text-muted-foreground">{isNumberOfDaysOverridden 
+                      ? "Cliquer pour synchroniser avec le chiffrage CDC" 
+                      : "Le nombre de jours se synchronise maintenant avec le chiffrage CDC"}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
+              <Input
+                id="sheet-number-of-days"
+                type="number"
+                step="0.5"
+                placeholder={cdcEstimatedDays > 0 ? `${cdcEstimatedDays}` : "Ex: 5"}
+                value={numberOfDaysValue}
+                onChange={(e) => setNumberOfDaysValue(e.target.value)}
+                disabled={!isNumberOfDaysOverridden}
+                onBlur={async () => {
+                  if (!isNumberOfDaysOverridden) return;
+                  const trimmedValue = numberOfDaysValue.trim();
+                  if (trimmedValue !== project?.numberOfDays) {
+                    try {
+                      const numValue = parseFloat(trimmedValue);
+                      if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
+                        throw new Error("Veuillez entrer un nombre valide");
+                      }
+                      await apiRequest(`/api/projects/${id}`, "PATCH", {
+                        numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                    } catch (error: any) {
+                      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                      setNumberOfDaysValue(project?.numberOfDays || "");
+                    }
+                  }
+                }}
+                className="mt-1"
+                data-testid="input-sheet-number-of-days"
+              />
               <p className="text-xs text-muted-foreground mt-1">
                 {isNumberOfDaysOverridden 
                   ? "Valeur manuelle (forçage actif)"
