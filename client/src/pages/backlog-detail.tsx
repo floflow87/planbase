@@ -1186,6 +1186,29 @@ export default function BacklogDetail() {
   };
 
   const handleUpdateTicket = async (ticketId: string, type: TicketType, data: Record<string, any>) => {
+    // Optimistic update - update UI immediately
+    const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+    
+    if (previousBacklog) {
+      queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+        ...previousBacklog,
+        epics: type === "epic" 
+          ? previousBacklog.epics.map(e => e.id === ticketId ? { ...e, ...data } : e)
+          : previousBacklog.epics,
+        userStories: type === "user_story"
+          ? previousBacklog.userStories.map(us => us.id === ticketId ? { ...us, ...data } : us)
+          : previousBacklog.userStories,
+        backlogTasks: type === "task"
+          ? previousBacklog.backlogTasks.map(t => t.id === ticketId ? { ...t, ...data } : t)
+          : previousBacklog.backlogTasks,
+      });
+    }
+    
+    // Update selected ticket with new data
+    if (selectedTicket && selectedTicket.id === ticketId) {
+      setSelectedTicket({ ...selectedTicket, ...data });
+    }
+    
     try {
       let endpoint = "";
       if (type === "epic") endpoint = `/api/epics/${ticketId}`;
@@ -1194,14 +1217,11 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "PATCH", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      
-      // Update selected ticket with new data
-      if (selectedTicket && selectedTicket.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, ...data });
-      }
-      
-      toastSuccess({ title: "Ticket mis à jour" });
     } catch (error: any) {
+      // Rollback on error
+      if (previousBacklog) {
+        queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
   };
