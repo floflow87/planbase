@@ -4037,7 +4037,7 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap h-10 p-0.5">
+          <TabsList className="w-full justify-start mb-3 overflow-x-auto overflow-y-hidden flex-nowrap min-h-[42px] h-[42px] p-0.5">
             <TabsTrigger value="overview" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-overview">
               <Layers className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Vue générale</span>
@@ -4645,7 +4645,7 @@ export default function ProjectDetail() {
                 <div className="space-y-4 mb-4">
                   {/* Ligne 1: Montant facturé, Nombre de jours facturé, TJM facturé */}
                   <div className="grid grid-cols-3 gap-4">
-                    <Card className="bg-violet-100 dark:bg-violet-900/20">
+                    <Card className="bg-violet-100 dark:bg-violet-900/20 border-2 border-violet-400 dark:border-violet-600">
                       <CardContent className="pt-4 pb-4">
                         <div className="text-xs text-muted-foreground mb-1">Montant facturé</div>
                         <div className="text-lg font-bold text-primary" data-testid="kpi-total-billed">
