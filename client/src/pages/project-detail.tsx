@@ -3403,8 +3403,9 @@ export default function ProjectDetail() {
       let occurredAtFull: string | null = null;
       if (data.occurredAt) {
         const [hours, minutes] = (data.occurredAtTime || "12:00").split(":").map(Number);
-        const dateObj = new Date(data.occurredAt);
-        dateObj.setHours(hours, minutes, 0, 0);
+        // Parse date components explicitly to avoid timezone issues with new Date("yyyy-MM-dd")
+        const [year, month, day] = data.occurredAt.split("-").map(Number);
+        const dateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
         occurredAtFull = dateObj.toISOString();
       }
       return await apiRequest("/api/activities", "POST", {
@@ -3431,8 +3432,9 @@ export default function ProjectDetail() {
       let occurredAtFull: string | null = null;
       if (data.occurredAt) {
         const [hours, minutes] = (data.occurredAtTime || "12:00").split(":").map(Number);
-        const dateObj = new Date(data.occurredAt);
-        dateObj.setHours(hours, minutes, 0, 0);
+        // Parse date components explicitly to avoid timezone issues with new Date("yyyy-MM-dd")
+        const [year, month, day] = data.occurredAt.split("-").map(Number);
+        const dateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
         occurredAtFull = dateObj.toISOString();
       }
       return await apiRequest(`/api/activities/${data.id}`, "PATCH", {
@@ -3720,6 +3722,17 @@ export default function ProjectDetail() {
                         <button
                           key={option.value}
                           onClick={async () => {
+                            // Capture current cache state for rollback
+                            const previousProject = queryClient.getQueryData(['/api/projects', id]);
+                            
+                            // Optimistic update - immediately update UI
+                            queryClient.setQueryData(['/api/projects', id], (old: any) => ({
+                              ...old,
+                              billingStatus: option.value,
+                              billingDueDate: option.value !== "retard" ? null : old?.billingDueDate,
+                            }));
+                            setIsBillingStatusPopoverOpen(false);
+                            
                             try {
                               const updateData: { billingStatus: string; billingDueDate?: string | null } = {
                                 billingStatus: option.value,
@@ -3728,15 +3741,17 @@ export default function ProjectDetail() {
                                 updateData.billingDueDate = null;
                               }
                               await apiRequest(`/api/projects/${id}`, "PATCH", updateData);
-                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              // Invalidate both project list and detail caches
                               queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-                              setIsBillingStatusPopoverOpen(false);
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
                               toast({
                                 title: "Statut de facturation mis à jour",
                                 description: option.label,
                                 variant: "success",
                               });
                             } catch (error: any) {
+                              // Rollback to previous cache state on error
+                              queryClient.setQueryData(['/api/projects', id], previousProject);
                               toast({
                                 title: "Erreur",
                                 description: error.message,
@@ -4486,6 +4501,20 @@ export default function ProjectDetail() {
               </div>
             )}
 
+            {/* Section Title: Budget et facturation */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Budget et facturation</h3>
+              <Button 
+                variant="default" 
+                className="bg-primary"
+                onClick={() => setIsBillingSettingsOpen(true)}
+                data-testid="button-open-billing-settings"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Facturation
+              </Button>
+            </div>
+
             {/* KPIs Facturation - 2 lignes de 3 cartes */}
             {(() => {
               // Use reactive state values for real-time KPI updates
@@ -4527,6 +4556,14 @@ export default function ProjectDetail() {
                         <div className="text-xs text-muted-foreground mb-1">Nombre de jours facturé</div>
                         <div className="text-lg font-bold" data-testid="kpi-number-of-days">
                           {numberOfDays > 0 ? `${numberOfDays} j` : "-"}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                            {isForfait ? "Forfait" : "Temps passé"}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                            {project?.billingUnit === "day" ? "Jour" : "Heure"}
+                          </Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -4698,39 +4735,6 @@ export default function ProjectDetail() {
                 </div>
               );
             })()}
-
-            {/* Billing Settings Summary with Button */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <Badge variant={project?.businessType === "internal" ? "secondary" : "outline"}>
-                      {project?.businessType === "internal" ? "Projet interne" : "Projet client"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {project?.billingType === "fixed" ? "Forfait" : "Temps passé"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {project?.billingUnit === "day" ? "Facturation au jour" : "Facturation à l'heure"}
-                    </Badge>
-                    {effectiveTJMData?.effectiveTJM && (
-                      <Badge variant="outline">
-                        TJM: {effectiveTJMData.effectiveTJM} €
-                      </Badge>
-                    )}
-                  </div>
-                  <Button 
-                    variant="default" 
-                    className="bg-violet-600 hover:bg-violet-700"
-                    onClick={() => setIsBillingSettingsOpen(true)}
-                    data-testid="button-open-billing-settings"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Facturation
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Project Scope Section - CDC avec allocation de temps - Collapsible */}
             <div id="scope-section" className="mt-4">
@@ -6141,6 +6145,232 @@ export default function ProjectDetail() {
                 </p>
               </div>
             )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Billing Settings Sheet */}
+      <Sheet open={isBillingSettingsOpen} onOpenChange={setIsBillingSettingsOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" data-testid="sheet-billing-settings">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Paramètres de facturation
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-6">
+            {/* Type de projet */}
+            <div>
+              <Label htmlFor="sheet-business-type" className="text-sm font-medium">Type de projet</Label>
+              <Select
+                value={project?.businessType || "client"}
+                onValueChange={async (value) => {
+                  try {
+                    await apiRequest(`/api/projects/${id}`, "PATCH", { businessType: value });
+                    queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                    toast({ title: "Type de projet mis à jour", variant: "success" });
+                  } catch (error: any) {
+                    toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <SelectTrigger id="sheet-business-type" data-testid="select-sheet-business-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Projet client</SelectItem>
+                  <SelectItem value="internal">Projet interne</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Les projets internes ne génèrent pas de revenus facturés.
+              </p>
+            </div>
+
+            {/* Type de facturation */}
+            <div>
+              <Label htmlFor="sheet-billing-type" className="text-sm font-medium">Type de facturation</Label>
+              <Select
+                value={project?.billingType || "time"}
+                onValueChange={async (value) => {
+                  try {
+                    await apiRequest(`/api/projects/${id}`, "PATCH", { billingType: value });
+                    queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                    toast({ title: "Type de facturation mis à jour", variant: "success" });
+                  } catch (error: any) {
+                    toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <SelectTrigger id="sheet-billing-type" data-testid="select-sheet-billing-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="time">Temps passé</SelectItem>
+                  <SelectItem value="fixed">Forfait</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {project?.billingType === "fixed" 
+                  ? "Facturation au forfait : montant total fixe"
+                  : "Facturation au temps passé : taux horaire ou journalier"}
+              </p>
+            </div>
+
+            {/* Unité de facturation */}
+            <div>
+              <Label htmlFor="sheet-billing-unit" className="text-sm font-medium">Unité de facturation</Label>
+              <Select
+                value={project?.billingUnit || "hour"}
+                onValueChange={async (value) => {
+                  try {
+                    await apiRequest(`/api/projects/${id}`, "PATCH", { billingUnit: value });
+                    queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                    toast({ title: "Unité de facturation mise à jour", variant: "success" });
+                  } catch (error: any) {
+                    toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                  }
+                }}
+              >
+                <SelectTrigger id="sheet-billing-unit" data-testid="select-sheet-billing-unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hour">À l'heure</SelectItem>
+                  <SelectItem value="day">À la journée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* TJM projet */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="sheet-billing-rate" className="text-sm font-medium">TJM projet</Label>
+                {effectiveTJMData?.source === 'global' && !billingRateValue && (
+                  <Badge variant="outline" className="text-xs">
+                    Global: {effectiveTJMData.globalTJM} €
+                  </Badge>
+                )}
+                {effectiveTJMData?.source === 'project' && (
+                  <Badge variant="secondary" className="text-xs">Personnalisé</Badge>
+                )}
+              </div>
+              <Input
+                id="sheet-billing-rate"
+                type="number"
+                placeholder={effectiveTJMData?.globalTJM ? `${effectiveTJMData.globalTJM} (global)` : "450"}
+                value={billingRateValue}
+                onChange={(e) => setBillingRateValue(e.target.value)}
+                onBlur={async () => {
+                  const trimmedValue = billingRateValue.trim();
+                  if (trimmedValue !== project?.billingRate) {
+                    try {
+                      const numValue = trimmedValue === "" ? null : parseFloat(trimmedValue);
+                      if (trimmedValue !== "" && (isNaN(numValue!) || numValue! < 0)) {
+                        throw new Error("Veuillez entrer un nombre valide");
+                      }
+                      await apiRequest(`/api/projects/${id}`, "PATCH", {
+                        billingRate: trimmedValue === "" ? null : trimmedValue,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'effective-tjm'] });
+                      queryClient.invalidateQueries({ queryKey: [`/api/projects/${id}/time-entries`] });
+                    } catch (error: any) {
+                      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                      setBillingRateValue(project?.billingRate || "");
+                    }
+                  }
+                }}
+                data-testid="input-sheet-billing-rate"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {!billingRateValue && effectiveTJMData?.globalTJM 
+                  ? "Laissez vide pour utiliser le TJM global"
+                  : "TJM spécifique à ce projet"}
+              </p>
+            </div>
+
+            {/* Montant total facturé */}
+            <div>
+              <Label htmlFor="sheet-total-billed" className="text-sm font-medium">Montant total facturé (€)</Label>
+              <Input
+                id="sheet-total-billed"
+                type="number"
+                placeholder="0"
+                value={totalBilledValue}
+                onChange={(e) => setTotalBilledValue(e.target.value)}
+                onBlur={async () => {
+                  const trimmedValue = totalBilledValue.trim();
+                  if (trimmedValue !== project?.totalBilled) {
+                    try {
+                      const numValue = parseFloat(trimmedValue);
+                      if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
+                        throw new Error("Veuillez entrer un nombre valide");
+                      }
+                      await apiRequest(`/api/projects/${id}`, "PATCH", {
+                        totalBilled: trimmedValue === "" ? null : trimmedValue,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                    } catch (error: any) {
+                      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                      setTotalBilledValue(project?.totalBilled || "");
+                    }
+                  }
+                }}
+                data-testid="input-sheet-total-billed"
+              />
+            </div>
+
+            {/* Nombre de jours */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label htmlFor="sheet-number-of-days" className="text-sm font-medium">Nombre de jours</Label>
+                {isNumberOfDaysOverridden ? (
+                  <Badge variant="secondary" className="text-xs">Manuel</Badge>
+                ) : cdcEstimatedDays > 0 ? (
+                  <Badge variant="outline" className="text-xs">CDC: {cdcEstimatedDays}j</Badge>
+                ) : null}
+              </div>
+              <Input
+                id="sheet-number-of-days"
+                type="number"
+                step="0.5"
+                placeholder={cdcEstimatedDays > 0 ? `${cdcEstimatedDays} (auto CDC)` : "Ex: 5"}
+                value={numberOfDaysValue}
+                onChange={(e) => setNumberOfDaysValue(e.target.value)}
+                onBlur={async () => {
+                  const trimmedValue = numberOfDaysValue.trim();
+                  if (trimmedValue !== project?.numberOfDays) {
+                    try {
+                      const numValue = parseFloat(trimmedValue);
+                      if (trimmedValue !== "" && (isNaN(numValue) || numValue < 0)) {
+                        throw new Error("Veuillez entrer un nombre valide");
+                      }
+                      await apiRequest(`/api/projects/${id}`, "PATCH", {
+                        numberOfDays: trimmedValue === "" ? null : trimmedValue,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'profitability'] });
+                    } catch (error: any) {
+                      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                      setNumberOfDaysValue(project?.numberOfDays || "");
+                    }
+                  }
+                }}
+                data-testid="input-sheet-number-of-days"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {isNumberOfDaysOverridden 
+                  ? "Valeur manuelle (forçage actif)"
+                  : cdcEstimatedDays > 0 
+                    ? `Synchronisé avec le chiffrage CDC (${cdcEstimatedDays} j)`
+                    : "Aucun chiffrage CDC - définir manuellement"}
+              </p>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
