@@ -4050,12 +4050,14 @@ function CompletedTicketsView({
         description: "Le patch note a été généré avec succès.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || error?.error || "Une erreur inconnue s'est produite.";
       toast({
         title: "Erreur",
-        description: "Impossible de créer le patch note.",
+        description: `Impossible de créer le patch note: ${errorMessage}`,
         variant: "destructive",
       });
+      console.error("Patch note creation error:", error);
     }
   });
   
@@ -4515,7 +4517,7 @@ function CompletedTicketsView({
                 <PopoverContent className="w-[300px] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Rechercher un sprint..." />
-                    <CommandList>
+                    <CommandList className="max-h-[200px] overflow-y-auto">
                       <CommandEmpty>Aucun sprint trouvé.</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
