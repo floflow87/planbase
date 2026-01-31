@@ -100,6 +100,9 @@ import {
   auditEvents,
   invitations,
   organizationMembers,
+  patchNotes,
+  insertPatchNoteSchema,
+  updatePatchNoteSchema,
 } from "@shared/schema";
 import { summarizeText, extractActions, classifyDocument, suggestNextActions } from "./lib/openai";
 import { requireAuth, requireRole, optionalAuth, requireOrgMember, requireOrgAdmin, requirePermission } from "./middleware/auth";
@@ -9945,6 +9948,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!deleted) {
         return res.status(404).json({ error: "Card not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // PATCH NOTES (Release notes)
+  // ============================================
+
+  // Get all patch notes for a backlog
+  app.get("/api/backlogs/:backlogId/patch-notes", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const backlogId = req.params.backlogId;
+      
+      const notes = await db.select()
+        .from(patchNotes)
+        .where(and(eq(patchNotes.accountId, accountId), eq(patchNotes.backlogId, backlogId)))
+        .orderBy(desc(patchNotes.createdAt));
+      
+      res.json(notes);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a patch note
+  app.post("/api/backlogs/:backlogId/patch-notes", requireAuth, requireOrgMember, requirePermission("product", "create", "product.backlog"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const userId = req.userId!;
+      const backlogId = req.params.backlogId;
+      
+      const validatedData = insertPatchNoteSchema.parse({
+        ...req.body,
+        accountId,
+        backlogId,
+        createdBy: userId,
+      });
+      
+      const [created] = await db.insert(patchNotes).values(validatedData).returning();
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get a single patch note
+  app.get("/api/patch-notes/:id", requireAuth, requireOrgMember, requirePermission("product", "read", "product.backlog"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [note] = await db.select()
+        .from(patchNotes)
+        .where(and(eq(patchNotes.id, id), eq(patchNotes.accountId, accountId)));
+      
+      if (!note) {
+        return res.status(404).json({ error: "Patch note not found" });
+      }
+      res.json(note);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a patch note
+  app.patch("/api/patch-notes/:id", requireAuth, requireOrgMember, requirePermission("product", "update", "product.backlog"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const validatedData = updatePatchNoteSchema.parse(req.body);
+      
+      const [updated] = await db.update(patchNotes)
+        .set({ ...validatedData, updatedAt: new Date() })
+        .where(and(eq(patchNotes.id, id), eq(patchNotes.accountId, accountId)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Patch note not found" });
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a patch note
+  app.delete("/api/patch-notes/:id", requireAuth, requireOrgMember, requirePermission("product", "delete", "product.backlog"), async (req, res) => {
+    try {
+      const accountId = req.accountId!;
+      const id = req.params.id;
+      
+      const [deleted] = await db.delete(patchNotes)
+        .where(and(eq(patchNotes.id, id), eq(patchNotes.accountId, accountId)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Patch note not found" });
       }
       res.json({ success: true });
     } catch (error: any) {

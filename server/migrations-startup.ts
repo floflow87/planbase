@@ -1007,6 +1007,51 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Retro cards column constraint updated");
     
+    // Create patch_notes table for release notes
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS patch_notes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        backlog_id uuid NOT NULL REFERENCES backlogs(id) ON DELETE CASCADE,
+        sprint_id uuid NOT NULL REFERENCES sprints(id) ON DELETE CASCADE,
+        title text NOT NULL,
+        version text NOT NULL,
+        ticket_types text[] NOT NULL DEFAULT ARRAY['task', 'bug', 'user_story']::text[],
+        ticket_ids text[] NOT NULL DEFAULT ARRAY[]::text[],
+        content text,
+        created_by uuid NOT NULL REFERENCES app_users(id) ON DELETE SET NULL,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS patch_notes_account_idx ON patch_notes(account_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS patch_notes_backlog_idx ON patch_notes(backlog_id);
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS patch_notes_sprint_idx ON patch_notes(sprint_id);
+    `);
+    console.log("✅ Patch notes table created");
+    
+    // Make sprint_id and version nullable in patch_notes (for "all sprints" option)
+    await db.execute(sql`
+      ALTER TABLE patch_notes 
+      ALTER COLUMN sprint_id DROP NOT NULL,
+      ALTER COLUMN version DROP NOT NULL;
+    `);
+    await db.execute(sql`
+      ALTER TABLE patch_notes 
+      DROP CONSTRAINT IF EXISTS patch_notes_sprint_id_fkey;
+    `);
+    await db.execute(sql`
+      ALTER TABLE patch_notes 
+      ADD CONSTRAINT patch_notes_sprint_id_fkey 
+      FOREIGN KEY (sprint_id) REFERENCES sprints(id) ON DELETE SET NULL;
+    `);
+    console.log("✅ Patch notes nullable columns updated");
+    
     // Add description and occurred_at columns to activities table
     await db.execute(sql`
       ALTER TABLE activities ADD COLUMN IF NOT EXISTS description text;

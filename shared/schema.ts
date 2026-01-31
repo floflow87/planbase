@@ -1614,6 +1614,26 @@ export const recipeConclusionOptions = [
 export type RecipeStatus = typeof recipeStatusOptions[number]["value"];
 export type RecipeConclusion = typeof recipeConclusionOptions[number]["value"];
 
+// Patch Notes table (Release notes / Change logs)
+export const patchNotes = pgTable("patch_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  backlogId: uuid("backlog_id").notNull().references(() => backlogs.id, { onDelete: "cascade" }),
+  sprintId: uuid("sprint_id").references(() => sprints.id, { onDelete: "set null" }), // Optional - null means all sprints
+  title: text("title").notNull(),
+  version: text("version"), // Optional version string
+  ticketTypes: text("ticket_types").array().notNull().default(sql`ARRAY['task', 'bug', 'user_story']::text[]`), // Types of tickets included
+  ticketIds: text("ticket_ids").array().notNull().default(sql`ARRAY[]::text[]`), // Snapshot of ticket IDs
+  content: text("content"), // Generated content (HTML or Markdown)
+  createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index().on(table.accountId),
+  backlogIdx: index().on(table.backlogId),
+  sprintIdx: index().on(table.sprintId),
+}));
+
 // ============================================
 // TYPE EXPORTS & ZOD SCHEMAS
 // ============================================
@@ -1807,6 +1827,10 @@ export const updateTicketAcceptanceCriteriaSchema = insertTicketAcceptanceCriter
 
 export const insertTicketRecipeSchema = createInsertSchema(ticketRecipes).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateTicketRecipeSchema = insertTicketRecipeSchema.omit({ accountId: true, backlogId: true, sprintId: true, ticketId: true, ticketType: true }).partial();
+
+export const insertPatchNoteSchema = createInsertSchema(patchNotes).omit({ id: true, createdAt: true, updatedAt: true });
+export const updatePatchNoteSchema = insertPatchNoteSchema.omit({ accountId: true, backlogId: true, createdBy: true }).partial();
+
 export const upsertTicketRecipeSchema = z.object({
   sprintId: z.string().uuid(),
   ticketId: z.string().uuid(),
@@ -1958,6 +1982,9 @@ export type InsertTicketAcceptanceCriteria = z.infer<typeof insertTicketAcceptan
 export type TicketRecipe = typeof ticketRecipes.$inferSelect;
 export type InsertTicketRecipe = z.infer<typeof insertTicketRecipeSchema>;
 export type UpsertTicketRecipe = z.infer<typeof upsertTicketRecipeSchema>;
+export type PatchNote = typeof patchNotes.$inferSelect;
+export type InsertPatchNote = z.infer<typeof insertPatchNoteSchema>;
+export type UpdatePatchNote = z.infer<typeof updatePatchNoteSchema>;
 
 // OKR Types
 export type OkrObjective = typeof okrObjectives.$inferSelect;

@@ -9,7 +9,8 @@ import {
   Play, Square, CheckCircle, Pencil, Trash2, GripVertical, Search, Check, Trophy,
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
-  Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle
+  Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
+  FileText, Eye
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,9 @@ import {
   SortableContext, 
   sortableKeyboardCoordinates, 
   verticalListSortingStrategy,
-  useSortable 
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -2394,6 +2397,7 @@ export default function BacklogDetail() {
               sprints={backlog.sprints}
               epics={backlog.epics}
               backlogName={backlog.name}
+              backlogId={backlog.id}
               onSelectTicket={handleSelectTicket}
               selectedTicketId={selectedTicket?.id}
             />
@@ -3887,6 +3891,18 @@ function KanbanStoryCard({
   );
 }
 
+// Column configuration for completed tickets table
+const COMPLETED_COLUMN_CONFIG: Record<string, { label: string; className: string }> = {
+  type: { label: "Type", className: "px-4 py-2" },
+  title: { label: "Titre", className: "px-4 py-2" },
+  priority: { label: "Priorité", className: "px-4 py-2 hidden sm:table-cell" },
+  sprint: { label: "Sprint", className: "px-4 py-2 hidden md:table-cell" },
+  assignee: { label: "Assigné à", className: "px-4 py-2 hidden md:table-cell" },
+  points: { label: "Points", className: "px-4 py-2 hidden lg:table-cell" },
+};
+
+const DEFAULT_COMPLETED_COLUMN_ORDER = ["type", "title", "priority", "sprint", "assignee", "points"];
+
 // Completed Tickets View Component
 function CompletedTicketsView({
   tickets,
@@ -3895,7 +3911,8 @@ function CompletedTicketsView({
   epics,
   backlogName,
   onSelectTicket,
-  selectedTicketId
+  selectedTicketId,
+  backlogId
 }: {
   tickets: FlatTicket[];
   users: AppUser[];
@@ -3904,6 +3921,7 @@ function CompletedTicketsView({
   backlogName: string;
   onSelectTicket: (ticket: FlatTicket) => void;
   selectedTicketId?: string;
+  backlogId: string;
 }) {
   // Generate ticket ID for search purposes
   const generateTicketDisplayId = (ticket: FlatTicket, index: number) => {
@@ -3921,6 +3939,166 @@ function CompletedTicketsView({
   const [filterSprint, setFilterSprint] = useState<string>("all");
   const [filterEpic, setFilterEpic] = useState<string>("all");
   const [filterVersion, setFilterVersion] = useState<string>("all");
+  
+  // Column order with localStorage persistence
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem("completed-tickets-column-order");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const validColumns = parsed.filter((col: string) => col in COMPLETED_COLUMN_CONFIG);
+        const missingColumns = DEFAULT_COMPLETED_COLUMN_ORDER.filter(col => !validColumns.includes(col));
+        return [...validColumns, ...missingColumns];
+      } catch {
+        return DEFAULT_COMPLETED_COLUMN_ORDER;
+      }
+    }
+    return DEFAULT_COMPLETED_COLUMN_ORDER;
+  });
+  
+  // Patch note panel state
+  const [showPatchNotePanel, setShowPatchNotePanel] = useState(false);
+  const [patchNoteSprint, setPatchNoteSprint] = useState<string>("all");
+  const [patchNoteTypes, setPatchNoteTypes] = useState<{ task: boolean; bug: boolean; user_story: boolean }>({
+    task: true,
+    bug: true,
+    user_story: true
+  });
+  const [patchNoteVersion, setPatchNoteVersion] = useState("");
+  const [patchNoteTitle, setPatchNoteTitle] = useState("");
+  const [showViewPatchNotes, setShowViewPatchNotes] = useState(false);
+  const [selectedPatchNote, setSelectedPatchNote] = useState<any>(null);
+  
+  // Fetch patch notes for this backlog
+  const { data: patchNotes = [], isLoading: patchNotesLoading } = useQuery<any[]>({
+    queryKey: [`/api/backlogs/${backlogId}/patch-notes`],
+    enabled: showViewPatchNotes && !!backlogId,
+  });
+  
+  const { toast } = useToast();
+  
+  // Generate formatted patch note content
+  const generatePatchNoteContent = (filteredTickets: FlatTicket[]) => {
+    const bugs = filteredTickets.filter(t => t.type === 'bug');
+    const tasks = filteredTickets.filter(t => t.type === 'task');
+    const userStories = filteredTickets.filter(t => t.type === 'user_story');
+    
+    let content = "";
+    
+    if (userStories.length > 0) {
+      content += "## Nouvelles fonctionnalités\n\n";
+      userStories.forEach(t => {
+        content += `- ${t.title}\n`;
+      });
+      content += "\n";
+    }
+    
+    if (bugs.length > 0) {
+      content += "## Corrections de bugs\n\n";
+      bugs.forEach(t => {
+        content += `- ${t.title}\n`;
+      });
+      content += "\n";
+    }
+    
+    if (tasks.length > 0) {
+      content += "## Améliorations techniques\n\n";
+      tasks.forEach(t => {
+        content += `- ${t.title}\n`;
+      });
+      content += "\n";
+    }
+    
+    return content.trim();
+  };
+  
+  // Create patch note mutation
+  const createPatchNoteMutation = useMutation({
+    mutationFn: async (data: { 
+      title: string; 
+      version: string | null; 
+      content: string; 
+      sprintId: string | null;
+      ticketIds: string[];
+      ticketTypes: string[];
+    }) => {
+      return apiRequest(`/api/backlogs/${backlogId}/patch-notes`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
+      setShowPatchNotePanel(false);
+      setPatchNoteTitle("");
+      setPatchNoteVersion("");
+      setPatchNoteSprint("all");
+      setPatchNoteTypes({ task: true, bug: true, user_story: true });
+      toast({
+        title: "Patch note créé",
+        description: "Le patch note a été généré avec succès.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer le patch note.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Handle patch note generation
+  const handleGeneratePatchNote = () => {
+    const filteredTickets = tickets.filter(t => {
+      if (patchNoteSprint !== "all" && t.sprintId !== patchNoteSprint) return false;
+      if (t.type === 'task' && !patchNoteTypes.task) return false;
+      if (t.type === 'bug' && !patchNoteTypes.bug) return false;
+      if (t.type === 'user_story' && !patchNoteTypes.user_story) return false;
+      return true;
+    });
+    
+    const content = generatePatchNoteContent(filteredTickets);
+    const ticketIds = filteredTickets.map(t => t.id);
+    const ticketTypes = Object.entries(patchNoteTypes)
+      .filter(([_, enabled]) => enabled)
+      .map(([type]) => type);
+    
+    createPatchNoteMutation.mutate({
+      title: patchNoteTitle.trim(),
+      version: patchNoteVersion.trim() || null,
+      content,
+      sprintId: patchNoteSprint === "all" ? null : patchNoteSprint,
+      ticketIds,
+      ticketTypes,
+    });
+  };
+  
+  // Persist column order changes
+  useEffect(() => {
+    localStorage.setItem("completed-tickets-column-order", JSON.stringify(columnOrder));
+  }, [columnOrder]);
+  
+  // DnD sensors for column drag
+  const columnSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+  
+  // Handle column drag end
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    setColumnOrder((items) => {
+      const oldIndex = items.indexOf(active.id as string);
+      const newIndex = items.indexOf(over.id as string);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
 
   // Collect all unique versions from tickets
   const uniqueVersions = useMemo(() => {
@@ -4027,21 +4205,129 @@ function CompletedTicketsView({
     });
   }, [tickets, sortColumn, sortDirection, searchQuery, filterSprint, filterEpic, filterVersion, backlogName, sprints]);
 
-  const SortableHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
-    <th 
-      className={cn("px-4 py-2 cursor-pointer select-none hover:bg-muted/80 transition-colors", className)}
-      onClick={() => handleSort(column)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortColumn === column ? (
-          sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-50" />
-        )}
-      </div>
-    </th>
-  );
+  // Draggable sortable header component
+  const DraggableSortableHeader = ({ columnId }: { columnId: string }) => {
+    const config = COMPLETED_COLUMN_CONFIG[columnId];
+    if (!config) return null;
+    
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: columnId });
+    
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+    
+    return (
+      <th
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        className={cn("cursor-pointer select-none hover:bg-muted/80 transition-colors", config.className)}
+        onClick={() => handleSort(columnId)}
+        data-testid={`th-completed-${columnId}`}
+      >
+        <div className="flex items-center gap-1">
+          <button
+            {...listeners}
+            className="cursor-grab hover:bg-accent p-0.5 rounded"
+            title="Glisser pour réorganiser"
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`drag-handle-column-${columnId}`}
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <span>{config.label}</span>
+          {sortColumn === columnId ? (
+            sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
+          )}
+        </div>
+      </th>
+    );
+  };
+  
+  // Render cell content based on column id
+  const renderCompletedCellContent = (columnId: string, ticket: FlatTicket) => {
+    switch (columnId) {
+      case "type":
+        return (
+          <td className="px-4 py-2" key={columnId}>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-[10px]",
+                ticket.type === 'epic' && "border-violet-300 bg-violet-50 text-violet-700",
+                ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700",
+                ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700",
+                ticket.type === 'bug' && "border-red-300 bg-red-50 text-red-700"
+              )}
+            >
+              {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'Story' : ticket.type === 'bug' ? 'Bug' : 'Task'}
+            </Badge>
+          </td>
+        );
+      case "title":
+        return (
+          <td className="px-4 py-2" key={columnId}>
+            <span className="text-xs text-gray-900">{ticket.title}</span>
+          </td>
+        );
+      case "priority":
+        return (
+          <td className="px-4 py-2 hidden sm:table-cell" key={columnId}>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-xs",
+                ticket.priority === 'critical' && "border-red-300 bg-red-50 text-red-700",
+                ticket.priority === 'high' && "border-orange-300 bg-orange-50 text-orange-700",
+                ticket.priority === 'medium' && "border-amber-300 bg-amber-50 text-amber-700",
+                ticket.priority === 'low' && "border-gray-300 bg-gray-50 text-gray-600"
+              )}
+            >
+              {ticket.priority === 'critical' ? 'Critique' : 
+               ticket.priority === 'high' ? 'Haute' : 
+               ticket.priority === 'medium' ? 'Moyenne' : 'Basse'}
+            </Badge>
+          </td>
+        );
+      case "sprint":
+        return (
+          <td className="px-4 py-2 hidden md:table-cell" key={columnId}>
+            <span className="text-xs text-gray-600">
+              {getSprintName(ticket.sprintId) || '-'}
+            </span>
+          </td>
+        );
+      case "assignee":
+        return (
+          <td className="px-4 py-2 hidden md:table-cell" key={columnId}>
+            <span className="text-xs text-gray-600">
+              {getAssigneeName(ticket.assigneeId) || '-'}
+            </span>
+          </td>
+        );
+      case "points":
+        return (
+          <td className="px-4 py-2 hidden lg:table-cell" key={columnId}>
+            <span className="text-xs text-gray-600">
+              {ticket.estimatePoints || '-'}
+            </span>
+          </td>
+        );
+      default:
+        return null;
+    }
+  };
 
   if (tickets.length === 0) {
     return (
@@ -4131,88 +4417,374 @@ function CompletedTicketsView({
           </Button>
         )}
         
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Badge variant="secondary" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
             {filteredAndSortedTickets.length} / {tickets.length} terminé{tickets.length > 1 ? 's' : ''}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setShowViewPatchNotes(true)}
+            data-testid="button-view-patch-notes"
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Voir les patch notes
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white"
+            onClick={() => setShowPatchNotePanel(true)}
+            data-testid="button-create-patch-note"
+          >
+            <FileText className="h-3 w-3 mr-1" />
+            Patch Note
+          </Button>
         </div>
       </div>
       
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr className="text-left text-xs font-medium text-muted-foreground">
-              <SortableHeader column="type">Type</SortableHeader>
-              <SortableHeader column="title">Titre</SortableHeader>
-              <SortableHeader column="priority" className="hidden sm:table-cell">Priorité</SortableHeader>
-              <SortableHeader column="sprint" className="hidden md:table-cell">Sprint</SortableHeader>
-              <SortableHeader column="assignee" className="hidden md:table-cell">Assigné à</SortableHeader>
-              <SortableHeader column="points" className="hidden lg:table-cell">Points</SortableHeader>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredAndSortedTickets.map(ticket => (
-              <tr
-                key={ticket.id}
-                className={cn(
-                  "cursor-pointer bg-white dark:bg-white hover:bg-gray-50 dark:hover:bg-gray-50",
-                  selectedTicketId === ticket.id && "bg-violet-50 dark:bg-violet-50"
+      {/* Patch Note Creation Panel */}
+      <Sheet open={showPatchNotePanel} onOpenChange={setShowPatchNotePanel}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-violet-600" />
+              Générer un Patch Note
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="space-y-6 py-6">
+            {/* Title Field */}
+            <div className="space-y-2">
+              <Label htmlFor="patch-note-title">Titre du patch note</Label>
+              <Input
+                id="patch-note-title"
+                placeholder="Ex: Release v1.2.0"
+                value={patchNoteTitle}
+                onChange={(e) => setPatchNoteTitle(e.target.value)}
+                data-testid="input-patch-note-title"
+              />
+            </div>
+            
+            {/* Version Field */}
+            <div className="space-y-2">
+              <Label htmlFor="patch-note-version">Version</Label>
+              <Input
+                id="patch-note-version"
+                placeholder="Ex: 1.2.0"
+                value={patchNoteVersion}
+                onChange={(e) => setPatchNoteVersion(e.target.value)}
+                data-testid="input-patch-note-version"
+              />
+            </div>
+            
+            {/* Sprint Selector */}
+            <div className="space-y-2">
+              <Label>Sprint</Label>
+              <Select value={patchNoteSprint} onValueChange={setPatchNoteSprint}>
+                <SelectTrigger data-testid="select-patch-note-sprint">
+                  <SelectValue placeholder="Sélectionner un sprint" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les sprints</SelectItem>
+                  {sprints.map(sprint => (
+                    <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Ticket Type Filters */}
+            <div className="space-y-2">
+              <Label>Types de tickets à inclure</Label>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={patchNoteTypes.task}
+                    onCheckedChange={(checked) => setPatchNoteTypes(prev => ({ ...prev, task: !!checked }))}
+                    data-testid="checkbox-patch-note-task"
+                  />
+                  <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700">
+                    <Wrench className="h-3 w-3 mr-1" />
+                    Task
+                  </Badge>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={patchNoteTypes.bug}
+                    onCheckedChange={(checked) => setPatchNoteTypes(prev => ({ ...prev, bug: !!checked }))}
+                    data-testid="checkbox-patch-note-bug"
+                  />
+                  <Badge variant="outline" className="border-red-300 bg-red-50 text-red-700">
+                    <Bug className="h-3 w-3 mr-1" />
+                    Bug
+                  </Badge>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={patchNoteTypes.user_story}
+                    onCheckedChange={(checked) => setPatchNoteTypes(prev => ({ ...prev, user_story: !!checked }))}
+                    data-testid="checkbox-patch-note-us"
+                  />
+                  <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    User Story
+                  </Badge>
+                </label>
+              </div>
+            </div>
+            
+            {/* Preview of tickets that will be included */}
+            <div className="space-y-2">
+              <Label>Aperçu des tickets</Label>
+              <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto bg-muted/30">
+                {tickets
+                  .filter(t => {
+                    if (patchNoteSprint !== "all" && t.sprintId !== patchNoteSprint) return false;
+                    if (t.type === 'task' && !patchNoteTypes.task) return false;
+                    if (t.type === 'bug' && !patchNoteTypes.bug) return false;
+                    if (t.type === 'user_story' && !patchNoteTypes.user_story) return false;
+                    return true;
+                  })
+                  .slice(0, 10)
+                  .map(ticket => (
+                    <div key={ticket.id} className="flex items-center gap-2 py-1 text-xs">
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-[10px]",
+                          ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700",
+                          ticket.type === 'bug' && "border-red-300 bg-red-50 text-red-700",
+                          ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700"
+                        )}
+                      >
+                        {ticket.type === 'task' ? 'Task' : ticket.type === 'bug' ? 'Bug' : 'US'}
+                      </Badge>
+                      <span className="truncate flex-1">{ticket.title}</span>
+                    </div>
+                  ))}
+                {tickets.filter(t => {
+                  if (patchNoteSprint !== "all" && t.sprintId !== patchNoteSprint) return false;
+                  if (t.type === 'task' && !patchNoteTypes.task) return false;
+                  if (t.type === 'bug' && !patchNoteTypes.bug) return false;
+                  if (t.type === 'user_story' && !patchNoteTypes.user_story) return false;
+                  return true;
+                }).length === 0 && (
+                  <p className="text-muted-foreground text-xs">Aucun ticket correspondant aux critères</p>
                 )}
-                onClick={() => onSelectTicket(ticket)}
-                data-testid={`row-completed-ticket-${ticket.id}`}
-              >
-                <td className="px-4 py-2">
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-[10px]",
-                      ticket.type === 'epic' && "border-violet-300 bg-violet-50 text-violet-700",
-                      ticket.type === 'user_story' && "border-green-300 bg-green-50 text-green-700",
-                      ticket.type === 'task' && "border-blue-300 bg-blue-50 text-blue-700",
-                      ticket.type === 'bug' && "border-red-300 bg-red-50 text-red-700"
-                    )}
-                  >
-                    {ticket.type === 'epic' ? 'Epic' : ticket.type === 'user_story' ? 'Story' : ticket.type === 'bug' ? 'Bug' : 'Task'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2">
-                  <span className="text-xs text-gray-900">{ticket.title}</span>
-                </td>
-                <td className="px-4 py-2 hidden sm:table-cell">
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-xs",
-                      ticket.priority === 'critical' && "border-red-300 bg-red-50 text-red-700",
-                      ticket.priority === 'high' && "border-orange-300 bg-orange-50 text-orange-700",
-                      ticket.priority === 'medium' && "border-amber-300 bg-amber-50 text-amber-700",
-                      ticket.priority === 'low' && "border-gray-300 bg-gray-50 text-gray-600"
-                    )}
-                  >
-                    {ticket.priority === 'critical' ? 'Critique' : 
-                     ticket.priority === 'high' ? 'Haute' : 
-                     ticket.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2 hidden md:table-cell">
-                  <span className="text-xs text-gray-600">
-                    {getSprintName(ticket.sprintId) || '-'}
-                  </span>
-                </td>
-                <td className="px-4 py-2 hidden md:table-cell">
-                  <span className="text-xs text-gray-600">
-                    {getAssigneeName(ticket.assigneeId) || '-'}
-                  </span>
-                </td>
-                <td className="px-4 py-2 hidden lg:table-cell">
-                  <span className="text-xs text-gray-600">
-                    {ticket.estimatePoints || '-'}
-                  </span>
-                </td>
+                {tickets.filter(t => {
+                  if (patchNoteSprint !== "all" && t.sprintId !== patchNoteSprint) return false;
+                  if (t.type === 'task' && !patchNoteTypes.task) return false;
+                  if (t.type === 'bug' && !patchNoteTypes.bug) return false;
+                  if (t.type === 'user_story' && !patchNoteTypes.user_story) return false;
+                  return true;
+                }).length > 10 && (
+                  <p className="text-muted-foreground text-xs pt-1">
+                    + {tickets.filter(t => {
+                      if (patchNoteSprint !== "all" && t.sprintId !== patchNoteSprint) return false;
+                      if (t.type === 'task' && !patchNoteTypes.task) return false;
+                      if (t.type === 'bug' && !patchNoteTypes.bug) return false;
+                      if (t.type === 'user_story' && !patchNoteTypes.user_story) return false;
+                      return true;
+                    }).length - 10} autres tickets
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <SheetFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPatchNotePanel(false)}
+              data-testid="button-cancel-patch-note"
+            >
+              Annuler
+            </Button>
+            <Button
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              disabled={!patchNoteTitle.trim() || createPatchNoteMutation.isPending}
+              onClick={handleGeneratePatchNote}
+              data-testid="button-generate-patch-note"
+            >
+              {createPatchNoteMutation.isPending ? (
+                <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <FileText className="h-4 w-4 mr-2" />
+              )}
+              Générer le patch note
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+      
+      {/* View Patch Notes Dialog */}
+      <Dialog open={showViewPatchNotes} onOpenChange={setShowViewPatchNotes}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-violet-600" />
+              Patch Notes
+            </DialogTitle>
+            <DialogDescription>
+              Liste des patch notes générés pour ce backlog
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto">
+            {patchNotesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin h-6 w-6 border-2 border-violet-600 border-t-transparent rounded-full" />
+              </div>
+            ) : patchNotes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Aucun patch note</h3>
+                <p className="text-sm text-muted-foreground">
+                  Créez votre premier patch note en utilisant le bouton "Patch Note".
+                </p>
+              </div>
+            ) : (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr className="text-left text-xs font-medium text-muted-foreground">
+                      <th className="px-4 py-2">Titre</th>
+                      <th className="px-4 py-2">Version</th>
+                      <th className="px-4 py-2">Sprint</th>
+                      <th className="px-4 py-2 hidden md:table-cell">Date</th>
+                      <th className="px-4 py-2 hidden md:table-cell">Tickets</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {patchNotes.map((pn: any) => (
+                      <tr
+                        key={pn.id}
+                        className="cursor-pointer bg-white hover:bg-gray-50"
+                        onClick={() => setSelectedPatchNote(pn)}
+                        data-testid={`row-patch-note-${pn.id}`}
+                      >
+                        <td className="px-4 py-2">
+                          <span className="text-sm font-medium">{pn.title}</span>
+                        </td>
+                        <td className="px-4 py-2">
+                          {pn.version && (
+                            <Badge variant="outline" className="text-xs">
+                              v{pn.version}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="text-xs text-muted-foreground">
+                            {pn.sprintId ? sprints.find(s => s.id === pn.sprintId)?.name || '-' : 'Tous'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 hidden md:table-cell">
+                          <span className="text-xs text-muted-foreground">
+                            {pn.createdAt ? format(new Date(pn.createdAt), "dd/MM/yyyy", { locale: fr }) : '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 hidden md:table-cell">
+                          <Badge variant="secondary" className="text-xs">
+                            {pn.ticketIds?.length || 0} tickets
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPatchNote(pn);
+                            }}
+                            data-testid={`button-view-patch-note-${pn.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* View Single Patch Note Dialog */}
+      <Dialog open={!!selectedPatchNote} onOpenChange={(open) => !open && setSelectedPatchNote(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-violet-600" />
+              {selectedPatchNote?.title}
+              {selectedPatchNote?.version && (
+                <Badge variant="outline" className="ml-2">v{selectedPatchNote.version}</Badge>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedPatchNote?.createdAt && 
+                `Créé le ${format(new Date(selectedPatchNote.createdAt), "dd MMMM yyyy à HH:mm", { locale: fr })}`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto py-4">
+            {selectedPatchNote?.content ? (
+              <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
+                {selectedPatchNote.content}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Pas de contenu</p>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedPatchNote(null)}
+            >
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <div className="border rounded-lg overflow-hidden">
+        <DndContext
+          sensors={columnSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleColumnDragEnd}
+        >
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr className="text-left text-xs font-medium text-muted-foreground">
+                <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                  {columnOrder.map(columnId => (
+                    <DraggableSortableHeader key={columnId} columnId={columnId} />
+                  ))}
+                </SortableContext>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y">
+              {filteredAndSortedTickets.map(ticket => (
+                <tr
+                  key={ticket.id}
+                  className={cn(
+                    "cursor-pointer bg-white dark:bg-white hover:bg-gray-50 dark:hover:bg-gray-50",
+                    selectedTicketId === ticket.id && "bg-violet-50 dark:bg-violet-50"
+                  )}
+                  onClick={() => onSelectTicket(ticket)}
+                  data-testid={`row-completed-ticket-${ticket.id}`}
+                >
+                  {columnOrder.map(columnId => renderCompletedCellContent(columnId, ticket))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DndContext>
       </div>
     </div>
   );
