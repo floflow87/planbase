@@ -4042,10 +4042,7 @@ function CompletedTicketsView({
       setPatchNoteVersion("");
       setPatchNoteSprint("all");
       setPatchNoteTypes({ task: true, bug: true, user_story: true });
-      toast({
-        title: "Patch note créé",
-        description: "Le patch note a été généré avec succès.",
-      });
+      toastSuccess(toast, "Patch note créé", "Le patch note a été généré avec succès.");
     },
     onError: (error: any) => {
       const errorMessage = error?.message || error?.error || "Une erreur inconnue s'est produite.";
