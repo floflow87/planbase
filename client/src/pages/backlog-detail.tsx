@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
 import { toastSuccess } from "@/design-system/feedback";
@@ -3968,12 +3969,22 @@ function CompletedTicketsView({
   const [patchNoteTitle, setPatchNoteTitle] = useState("");
   const [showViewPatchNotes, setShowViewPatchNotes] = useState(false);
   const [selectedPatchNote, setSelectedPatchNote] = useState<any>(null);
+  const [sprintComboOpen, setSprintComboOpen] = useState(false);
   
-  // Fetch patch notes for this backlog
+  // Fetch patch notes for this backlog (also used for previous version display)
   const { data: patchNotes = [], isLoading: patchNotesLoading } = useQuery<any[]>({
     queryKey: [`/api/backlogs/${backlogId}/patch-notes`],
-    enabled: showViewPatchNotes && !!backlogId,
+    enabled: (showViewPatchNotes || showPatchNotePanel) && !!backlogId,
   });
+  
+  // Get the most recent patch note version for this backlog
+  const previousVersion = useMemo(() => {
+    if (patchNotes.length === 0) return null;
+    const sorted = [...patchNotes].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    return sorted[0]?.version || null;
+  }, [patchNotes]);
   
   const { toast } = useToast();
   
@@ -4445,7 +4456,7 @@ function CompletedTicketsView({
       
       {/* Patch Note Creation Panel */}
       <Sheet open={showPatchNotePanel} onOpenChange={setShowPatchNotePanel}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
+        <SheetContent className="w-[400px] sm:w-[540px] bg-white dark:bg-gray-900">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-violet-600" />
@@ -4469,6 +4480,11 @@ function CompletedTicketsView({
             {/* Version Field */}
             <div className="space-y-2">
               <Label htmlFor="patch-note-version">Version</Label>
+              {previousVersion && (
+                <p className="text-xs text-muted-foreground italic">
+                  Version précédente : {previousVersion}
+                </p>
+              )}
               <Input
                 id="patch-note-version"
                 placeholder="Ex: 1.2.0"
@@ -4478,20 +4494,58 @@ function CompletedTicketsView({
               />
             </div>
             
-            {/* Sprint Selector */}
+            {/* Sprint Selector - Autocomplete */}
             <div className="space-y-2">
               <Label>Sprint</Label>
-              <Select value={patchNoteSprint} onValueChange={setPatchNoteSprint}>
-                <SelectTrigger data-testid="select-patch-note-sprint">
-                  <SelectValue placeholder="Sélectionner un sprint" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les sprints</SelectItem>
-                  {sprints.map(sprint => (
-                    <SelectItem key={sprint.id} value={sprint.id}>{sprint.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={sprintComboOpen} onOpenChange={setSprintComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={sprintComboOpen}
+                    className="w-full justify-between"
+                    data-testid="select-patch-note-sprint"
+                  >
+                    {patchNoteSprint === "all" 
+                      ? "Tous les sprints" 
+                      : sprints.find(s => s.id === patchNoteSprint)?.name || "Sélectionner un sprint"}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un sprint..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun sprint trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => {
+                            setPatchNoteSprint("all");
+                            setSprintComboOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", patchNoteSprint === "all" ? "opacity-100" : "opacity-0")} />
+                          Tous les sprints
+                        </CommandItem>
+                        {sprints.map(sprint => (
+                          <CommandItem
+                            key={sprint.id}
+                            value={sprint.name}
+                            onSelect={() => {
+                              setPatchNoteSprint(sprint.id);
+                              setSprintComboOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", patchNoteSprint === sprint.id ? "opacity-100" : "opacity-0")} />
+                            {sprint.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             {/* Ticket Type Filters */}
