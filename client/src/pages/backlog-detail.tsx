@@ -4033,10 +4033,7 @@ function CompletedTicketsView({
       ticketIds: string[];
       ticketTypes: string[];
     }) => {
-      return apiRequest(`/api/backlogs/${backlogId}/patch-notes`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest(`/api/backlogs/${backlogId}/patch-notes`, 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
@@ -4437,7 +4434,7 @@ function CompletedTicketsView({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="h-8 text-xs bg-white dark:bg-gray-900"
             onClick={() => setShowViewPatchNotes(true)}
             data-testid="button-view-patch-notes"
           >
