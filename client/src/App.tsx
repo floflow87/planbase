@@ -832,19 +832,19 @@ function AppLayout() {
     if (projectMatch) {
       const projectId = projectMatch[1];
       const project = projects?.find(p => p.id === projectId);
-      if (project) return truncateName(project.name) || "Projet";
-      return "Projet";
+      if (project) return `Pro-${truncateName(project.name) || "Projet"}`;
+      return "Pro-Projet";
     }
     
     // Notes - show note title on detail pages
-    if (path === "/notes/new") return "Nouvelle note";
+    if (path === "/notes/new") return "Not-Nouvelle";
     if (path === "/notes") return "Notes";
     const noteMatch = path.match(/^\/notes\/([^/]+)/);
     if (noteMatch) {
       const noteId = noteMatch[1];
       const note = notes?.find(n => n.id === noteId);
-      if (note) return truncateName(note.title) || "Note";
-      return "Note";
+      if (note) return `Not-${truncateName(note.title) || "Note"}`;
+      return "Not-Note";
     }
     
     // Backlogs - show backlog name on detail pages
@@ -852,10 +852,10 @@ function AppLayout() {
     if (backlogMatch && backlogMatch[1] !== "new") {
       const backlogId = backlogMatch[1];
       const backlog = backlogs?.find(b => b.id === backlogId);
-      if (backlog) return truncateName(backlog.name) || "Backlog";
-      return "Backlog";
+      if (backlog) return `Bac-${truncateName(backlog.name) || "Backlog"}`;
+      return "Bac-Backlog";
     }
-    if (path === "/product/backlog/new") return "Nouveau backlog";
+    if (path === "/product/backlog/new") return "Bac-Nouveau";
     if (path === "/product") return "Produits";
     
     // Clients - show client name on detail pages
@@ -863,8 +863,8 @@ function AppLayout() {
     if (clientMatch) {
       const clientId = clientMatch[1];
       const client = clients?.find(c => c.id === clientId);
-      if (client) return truncateName(client.name) || "Client";
-      return "Client";
+      if (client) return `Cli-${truncateName(client.name) || "Client"}`;
+      return "Cli-Client";
     }
     
     // Mindmaps - show mindmap name on detail pages
@@ -873,19 +873,19 @@ function AppLayout() {
     if (mindmapMatch) {
       const mindmapId = mindmapMatch[1];
       const mindmap = mindmaps?.find(m => m.id === mindmapId);
-      if (mindmap) return truncateName(mindmap.name) || "Mindmap";
-      return "Mindmap";
+      if (mindmap) return `Min-${truncateName(mindmap.name) || "Mindmap"}`;
+      return "Min-Mindmap";
     }
     
     // Documents - show document title on detail pages
     if (path === "/documents") return "Documents";
-    if (path.startsWith("/documents/templates")) return "Modèles";
+    if (path.startsWith("/documents/templates")) return "Doc-Modèles";
     const documentMatch = path.match(/^\/documents\/([^/]+)/);
     if (documentMatch && !path.includes("/templates")) {
       const documentId = documentMatch[1];
       const document = documents?.find(d => d.id === documentId);
-      if (document) return truncateName(document.title) || "Document";
-      return "Document";
+      if (document) return `Doc-${truncateName(document.title) || "Document"}`;
+      return "Doc-Document";
     }
     
     if (path === "/tasks") return "Tâches";
