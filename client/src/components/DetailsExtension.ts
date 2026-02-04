@@ -4,6 +4,7 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     details: {
       toggleDetailsOpen: () => ReturnType;
+      setDetails: () => ReturnType;
     };
   }
 }
@@ -13,7 +14,6 @@ export const Details = Node.create({
   group: 'block',
   content: 'detailsSummary detailsContent',
   defining: true,
-  isolating: true,
 
   addAttributes() {
     return {
@@ -58,59 +58,16 @@ export const Details = Node.create({
         }
         return false;
       },
-    };
-  },
-
-  addNodeView() {
-    return ({ node, getPos, editor }) => {
-      if (typeof document === 'undefined') {
-        return {};
-      }
-      
-      const dom = document.createElement('details');
-      dom.classList.add('collapsible-section');
-      if (node.attrs.open) {
-        dom.setAttribute('open', '');
-      }
-
-      const contentDOM = document.createElement('div');
-      contentDOM.style.display = 'contents';
-      dom.appendChild(contentDOM);
-
-      dom.addEventListener('toggle', () => {
-        if (typeof getPos === 'function') {
-          const pos = getPos();
-          if (pos !== undefined) {
-            const currentNode = editor.state.doc.nodeAt(pos);
-            if (currentNode && currentNode.attrs.open !== dom.open) {
-              editor.view.dispatch(
-                editor.state.tr.setNodeMarkup(pos, undefined, {
-                  ...currentNode.attrs,
-                  open: dom.open,
-                })
-              );
-            }
-          }
-        }
-      });
-
-      return {
-        dom,
-        contentDOM,
-        update: (updatedNode) => {
-          if (updatedNode.type.name !== 'details') {
-            return false;
-          }
-          if (updatedNode.attrs.open !== dom.open) {
-            if (updatedNode.attrs.open) {
-              dom.setAttribute('open', '');
-            } else {
-              dom.removeAttribute('open');
-            }
-          }
-          return true;
-        },
-      };
+      setDetails: () => ({ commands }) => {
+        return commands.insertContent({
+          type: 'details',
+          attrs: { open: true },
+          content: [
+            { type: 'detailsSummary', content: [{ type: 'text', text: 'Cliquez pour modifier le titre' }] },
+            { type: 'detailsContent', content: [{ type: 'paragraph' }] }
+          ]
+        });
+      },
     };
   },
 });
@@ -123,7 +80,6 @@ export const DetailsSummary = Node.create({
   parseHTML() {
     return [
       { tag: 'summary' },
-      { tag: 'details > summary' },
     ];
   },
 
@@ -136,12 +92,10 @@ export const DetailsContent = Node.create({
   name: 'detailsContent',
   content: 'block+',
   defining: true,
-  isolating: true,
 
   parseHTML() {
     return [
       { tag: 'div.details-content' },
-      { tag: 'details > div:not(:first-child)', priority: 50 },
     ];
   },
 

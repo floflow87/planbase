@@ -1047,37 +1047,18 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        const { from, to } = editor.state.selection;
-                        const selectedText = editor.state.doc.textBetween(from, to, ' ');
-                        
-                        if (selectedText.trim()) {
-                          // Create details with selected text as content
-                          editor.chain()
-                            .focus()
-                            .deleteSelection()
-                            .insertContent({
-                              type: 'details',
-                              attrs: { open: true },
-                              content: [
-                                { type: 'detailsSummary', content: [{ type: 'text', text: 'Section déroulante' }] },
-                                { type: 'detailsContent', content: [{ type: 'paragraph', content: [{ type: 'text', text: selectedText }] }] }
-                              ]
-                            })
-                            .run();
-                        } else {
-                          // Insert empty details block
-                          editor.chain()
-                            .focus()
-                            .insertContent({
-                              type: 'details',
-                              attrs: { open: true },
-                              content: [
-                                { type: 'detailsSummary', content: [{ type: 'text', text: 'Titre de la section' }] },
-                                { type: 'detailsContent', content: [{ type: 'paragraph' }] }
-                              ]
-                            })
-                            .run();
-                        }
+                        // Insert a collapsible section - title is editable
+                        editor.chain()
+                          .focus()
+                          .insertContent({
+                            type: 'details',
+                            attrs: { open: true },
+                            content: [
+                              { type: 'detailsSummary', content: [{ type: 'text', text: 'Titre (cliquez pour modifier)' }] },
+                              { type: 'detailsContent', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Contenu de la section...' }] }] }
+                            ]
+                          })
+                          .run();
                       }}
                       data-testid="button-expansion-panel"
                     >
