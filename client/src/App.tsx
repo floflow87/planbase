@@ -737,6 +737,37 @@ function AppLayout() {
   const isStandalone = useIsStandalone();
   const { user } = useAuth();
   
+  // Fetch data for dynamic tab titles
+  const { data: projects } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/projects"],
+    enabled: !isAuthPage,
+  });
+  
+  const { data: notes } = useQuery<{ id: string; title: string }[]>({
+    queryKey: ["/api/notes"],
+    enabled: !isAuthPage,
+  });
+  
+  const { data: backlogs } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/backlogs"],
+    enabled: !isAuthPage,
+  });
+  
+  const { data: clients } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/clients"],
+    enabled: !isAuthPage,
+  });
+  
+  const { data: mindmaps } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/mindmaps"],
+    enabled: !isAuthPage,
+  });
+  
+  const { data: documents } = useQuery<{ id: string; title: string }[]>({
+    queryKey: ["/api/documents"],
+    enabled: !isAuthPage,
+  });
+  
   // Get account ID for multi-tenant tab storage
   const accountId = user?.user_metadata?.account_id;
   
@@ -785,21 +816,80 @@ function AppLayout() {
     "--sidebar-width-icon": "5rem",
   };
 
+  const truncateName = (name: string | undefined | null, maxLength: number = 15) => {
+    if (!name || name.length === 0) return null;
+    if (name.length <= maxLength) return name;
+    return name.substring(0, maxLength) + "…";
+  };
+
   const getPageTitle = (path: string) => {
     if (path === "/" || path === "/home") return "Tableau de bord";
     if (path === "/crm") return "CRM";
-    if (path === "/projects" || path.startsWith("/projects/")) return "Projets";
-    if (path === "/tasks") return "Tâches";
+    
+    // Projects - show project name on detail pages
+    if (path === "/projects") return "Projets";
+    const projectMatch = path.match(/^\/projects\/([^/]+)/);
+    if (projectMatch) {
+      const projectId = projectMatch[1];
+      const project = projects?.find(p => p.id === projectId);
+      if (project) return truncateName(project.name) || "Projet";
+      return "Projet";
+    }
+    
+    // Notes - show note title on detail pages
     if (path === "/notes/new") return "Nouvelle note";
-    if (path.startsWith("/notes/")) return "Note";
     if (path === "/notes") return "Notes";
+    const noteMatch = path.match(/^\/notes\/([^/]+)/);
+    if (noteMatch) {
+      const noteId = noteMatch[1];
+      const note = notes?.find(n => n.id === noteId);
+      if (note) return truncateName(note.title) || "Note";
+      return "Note";
+    }
+    
+    // Backlogs - show backlog name on detail pages
+    const backlogMatch = path.match(/^\/product\/backlog\/([^/]+)/);
+    if (backlogMatch && backlogMatch[1] !== "new") {
+      const backlogId = backlogMatch[1];
+      const backlog = backlogs?.find(b => b.id === backlogId);
+      if (backlog) return truncateName(backlog.name) || "Backlog";
+      return "Backlog";
+    }
+    if (path === "/product/backlog/new") return "Nouveau backlog";
+    if (path === "/product") return "Produits";
+    
+    // Clients - show client name on detail pages
+    const clientMatch = path.match(/^\/crm\/([^/]+)/);
+    if (clientMatch) {
+      const clientId = clientMatch[1];
+      const client = clients?.find(c => c.id === clientId);
+      if (client) return truncateName(client.name) || "Client";
+      return "Client";
+    }
+    
+    // Mindmaps - show mindmap name on detail pages
+    if (path === "/mindmaps") return "Mindmaps";
+    const mindmapMatch = path.match(/^\/mindmaps\/([^/]+)/);
+    if (mindmapMatch) {
+      const mindmapId = mindmapMatch[1];
+      const mindmap = mindmaps?.find(m => m.id === mindmapId);
+      if (mindmap) return truncateName(mindmap.name) || "Mindmap";
+      return "Mindmap";
+    }
+    
+    // Documents - show document title on detail pages
     if (path === "/documents") return "Documents";
     if (path.startsWith("/documents/templates")) return "Modèles";
-    if (path.startsWith("/documents/")) return "Document";
-    if (path.startsWith("/mindmaps/")) return "Mindmap";
-    if (path === "/mindmaps") return "Mindmaps";
+    const documentMatch = path.match(/^\/documents\/([^/]+)/);
+    if (documentMatch && !path.includes("/templates")) {
+      const documentId = documentMatch[1];
+      const document = documents?.find(d => d.id === documentId);
+      if (document) return truncateName(document.title) || "Document";
+      return "Document";
+    }
+    
+    if (path === "/tasks") return "Tâches";
     if (path === "/roadmap") return "Roadmap";
-    if (path === "/product") return "Produits";
     if (path === "/marketing") return "Marketing";
     if (path === "/finance") return "Finance";
     if (path === "/commercial") return "Commercial";
@@ -835,7 +925,7 @@ function AppLayout() {
         return updatedTabs;
       });
     }
-  }, [location, isAuthPage, tabsStorageKey]);
+  }, [location, isAuthPage, tabsStorageKey, projects, notes, backlogs, clients, mindmaps, documents]);
 
   // Save active tab ID to localStorage
   useEffect(() => {

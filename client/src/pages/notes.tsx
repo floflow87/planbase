@@ -1520,7 +1520,7 @@ export default function Notes() {
                     </div>
                   ),
                   tag: (
-                    <div key="tag" className="flex-1 min-w-0 flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <div key="tag" className="flex-1 min-w-0 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Popover>
                         <PopoverTrigger asChild>
                           {note.categoryId && noteCategories.find(c => c.id === note.categoryId) ? (
@@ -1572,6 +1572,21 @@ export default function Notes() {
                           </div>
                         </PopoverContent>
                       </Popover>
+                      {note.categoryId && (
+                        <span
+                          className="inline-flex items-center justify-center cursor-pointer text-muted-foreground hover-elevate active-elevate-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateNoteCategoryMutation.mutate({
+                              noteId: note.id,
+                              categoryId: null
+                            });
+                          }}
+                          data-testid={`button-remove-tag-${note.id}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </span>
+                      )}
                     </div>
                   ),
                   status: (
