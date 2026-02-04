@@ -1,91 +1,148 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    details: {
+      toggleDetailsOpen: () => ReturnType;
+    };
+  }
+}
+
 export const Details = Node.create({
   name: 'details',
   group: 'block',
   content: 'detailsSummary detailsContent',
   defining: true,
+  isolating: true,
+
+  addAttributes() {
+    return {
+      open: {
+        default: true,
+        parseHTML: element => element.hasAttribute('open'),
+        renderHTML: attributes => {
+          return attributes.open ? { open: '' } : {};
+        },
+      },
+    };
+  },
 
   parseHTML() {
     return [{ tag: 'details' }];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['details', mergeAttributes(HTMLAttributes, { open: true, class: 'collapsible-section' }), 0];
+    return ['details', mergeAttributes(HTMLAttributes, { class: 'collapsible-section' }), 0];
   },
 
-  addKeyboardShortcuts() {
+  addCommands() {
     return {
-      'Enter': ({ editor }) => {
-        const { selection } = editor.state;
+      toggleDetailsOpen: () => ({ tr, state, dispatch }) => {
+        const { selection } = state;
         const { $from } = selection;
         
-        const detailsContent = $from.node($from.depth - 1);
-        if (detailsContent?.type.name === 'detailsContent') {
-          const currentNode = $from.parent;
-          const isEmptyParagraph = currentNode.type.name === 'paragraph' && currentNode.textContent === '';
-          
-          if (isEmptyParagraph) {
-            const $beforePrevPos = $from.before($from.depth - 1);
-            if ($beforePrevPos > 0) {
-              const prevNode = editor.state.doc.resolve($beforePrevPos - 1).parent;
-              if (prevNode.type.name === 'paragraph' && prevNode.textContent === '') {
-                editor.chain()
-                  .deleteRange({ from: $from.pos - 2, to: $from.pos })
-                  .insertContentAt($from.pos - 2, { type: 'paragraph' })
-                  .focus()
-                  .run();
-                return true;
-              }
+        let depth = $from.depth;
+        while (depth > 0) {
+          const node = $from.node(depth);
+          if (node.type.name === 'details') {
+            if (dispatch) {
+              const pos = $from.before(depth);
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                open: !node.attrs.open,
+              });
             }
+            return true;
           }
+          depth--;
         }
         return false;
       },
+    };
+  },
+
+  addNodeView() {
+    return ({ node, getPos, editor }) => {
+      if (typeof document === 'undefined') {
+        return {};
+      }
+      
+      const dom = document.createElement('details');
+      dom.classList.add('collapsible-section');
+      if (node.attrs.open) {
+        dom.setAttribute('open', '');
+      }
+
+      const contentDOM = document.createElement('div');
+      contentDOM.style.display = 'contents';
+      dom.appendChild(contentDOM);
+
+      dom.addEventListener('toggle', () => {
+        if (typeof getPos === 'function') {
+          const pos = getPos();
+          if (pos !== undefined) {
+            const currentNode = editor.state.doc.nodeAt(pos);
+            if (currentNode && currentNode.attrs.open !== dom.open) {
+              editor.view.dispatch(
+                editor.state.tr.setNodeMarkup(pos, undefined, {
+                  ...currentNode.attrs,
+                  open: dom.open,
+                })
+              );
+            }
+          }
+        }
+      });
+
+      return {
+        dom,
+        contentDOM,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== 'details') {
+            return false;
+          }
+          if (updatedNode.attrs.open !== dom.open) {
+            if (updatedNode.attrs.open) {
+              dom.setAttribute('open', '');
+            } else {
+              dom.removeAttribute('open');
+            }
+          }
+          return true;
+        },
+      };
     };
   },
 });
 
 export const DetailsSummary = Node.create({
   name: 'detailsSummary',
-  group: 'block',
   content: 'inline*',
   defining: true,
 
   parseHTML() {
-    return [{ tag: 'summary' }];
+    return [
+      { tag: 'summary' },
+      { tag: 'details > summary' },
+    ];
   },
 
   renderHTML({ HTMLAttributes }) {
     return ['summary', mergeAttributes(HTMLAttributes, { class: 'collapsible-summary' }), 0];
   },
-
-  addKeyboardShortcuts() {
-    return {
-      'Enter': ({ editor }) => {
-        const { selection } = editor.state;
-        const { $from } = selection;
-        
-        if ($from.parent.type.name === 'detailsSummary') {
-          const detailsPos = $from.after($from.depth);
-          
-          editor.commands.setTextSelection(detailsPos + 2);
-          return true;
-        }
-        return false;
-      },
-    };
-  },
 });
 
 export const DetailsContent = Node.create({
   name: 'detailsContent',
-  group: 'block',
   content: 'block+',
   defining: true,
+  isolating: true,
 
   parseHTML() {
-    return [{ tag: 'div.details-content' }];
+    return [
+      { tag: 'div.details-content' },
+      { tag: 'details > div:not(:first-child)', priority: 50 },
+    ];
   },
 
   renderHTML({ HTMLAttributes }) {
