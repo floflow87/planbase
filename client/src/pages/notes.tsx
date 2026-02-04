@@ -18,7 +18,9 @@ import { apiRequest, optimisticAdd, optimisticUpdate, optimisticDelete, rollback
 import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import type { Note, AppUser, Project, NoteLink } from "@shared/schema";
+import type { Note, AppUser, Project, NoteLink, NoteCategory } from "@shared/schema";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tag } from "lucide-react";
 import { PermissionGuard, Can, ReadOnlyBadge } from "@/components/Can";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatDistanceToNow, format } from "date-fns";
@@ -146,22 +148,27 @@ export default function Notes() {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Group by state with localStorage persistence
-  const [groupBy, setGroupBy] = useState<"none" | "project" | "status" | "visibility" | "favorite">(() => {
+  const [groupBy, setGroupBy] = useState<"none" | "project" | "status" | "visibility" | "favorite" | "tag">(() => {
     const saved = localStorage.getItem('noteListGroupBy');
-    return (saved as "none" | "project" | "status" | "visibility" | "favorite") || "none";
+    return (saved as "none" | "project" | "status" | "visibility" | "favorite" | "tag") || "none";
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   
   // Column order and sorting state with localStorage persistence
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('noteListColumnOrder');
-    const defaultOrder = ['checkbox', 'favorite', 'title', 'status', 'visibility', 'createdAt', 'updatedAt', 'project', 'actions'];
+    const defaultOrder = ['checkbox', 'favorite', 'title', 'tag', 'status', 'visibility', 'createdAt', 'updatedAt', 'project', 'actions'];
     if (saved) {
       const parsed = JSON.parse(saved);
       // Ensure 'favorite' is included for existing users
       if (!parsed.includes('favorite')) {
         const checkboxIdx = parsed.indexOf('checkbox');
         parsed.splice(checkboxIdx + 1, 0, 'favorite');
+      }
+      // Ensure 'tag' is included for existing users
+      if (!parsed.includes('tag')) {
+        const titleIdx = parsed.indexOf('title');
+        parsed.splice(titleIdx + 1, 0, 'tag');
       }
       return parsed;
     }
@@ -181,12 +188,21 @@ export default function Notes() {
   // Column visibility state with localStorage persistence
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('noteColumnVisibility');
-    return saved ? JSON.parse(saved) : {
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure 'tag' is included for existing users, default hidden createdAt
+      if (parsed.tag === undefined) {
+        parsed.tag = true;
+      }
+      return parsed;
+    }
+    return {
       favorite: true,
       title: true,
+      tag: true,
       status: true,
       visibility: true,
-      createdAt: true,
+      createdAt: false, // Hidden by default
       updatedAt: true,
       project: true,
     };
@@ -249,6 +265,32 @@ export default function Notes() {
 
   const { data: noteLinks = [] } = useQuery<NoteLink[]>({
     queryKey: ["/api/note-links"],
+  });
+
+  const { data: noteCategories = [] } = useQuery<NoteCategory[]>({
+    queryKey: ["/api/note-categories"],
+  });
+
+  // Update note category mutation
+  const updateNoteCategoryMutation = useMutation({
+    mutationFn: async ({ noteId, categoryId }: { noteId: string; categoryId: string | null }) => {
+      const response = await apiRequest(`/api/notes/${noteId}`, "PATCH", { categoryId });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+    },
+  });
+
+  // Create note category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("/api/note-categories", "POST", { name });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/note-categories"] });
+    },
   });
 
   // Save pageSize to localStorage when it changes
@@ -325,6 +367,11 @@ export default function Notes() {
         case 'visibility':
           comparison = (a.visibility || '').localeCompare(b.visibility || '');
           break;
+        case 'tag':
+          const tagA = a.categoryId ? noteCategories.find(c => c.id === a.categoryId)?.name || '' : '';
+          const tagB = b.categoryId ? noteCategories.find(c => c.id === b.categoryId)?.name || '' : '';
+          comparison = tagA.localeCompare(tagB);
+          break;
         case 'createdAt':
           comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           break;
@@ -399,6 +446,13 @@ export default function Notes() {
           name: isFav ? "Favoris" : "Autres notes",
         };
       }
+      case "tag": {
+        const category = note.categoryId ? noteCategories.find(c => c.id === note.categoryId) : null;
+        return {
+          key: category?.id || "no-tag",
+          name: category?.name || "Sans tag",
+        };
+      }
       case "none":
         // "none" means no grouping - return generic key
         return { key: "all", name: "" };
@@ -437,6 +491,9 @@ export default function Notes() {
       }
       if (groupBy === "favorite") {
         return key === "favorite" ? 0 : 1;
+      }
+      if (groupBy === "tag") {
+        return key === "no-tag" ? 999 : 0;
       }
       return 0;
     };
@@ -839,6 +896,7 @@ export default function Notes() {
               <option value="status">Par statut</option>
               <option value="visibility">Par visibilité</option>
               <option value="favorite">Par favoris</option>
+              <option value="tag">Par tag</option>
             </select>
           </div>
           
@@ -1121,6 +1179,7 @@ export default function Notes() {
                   ).map((columnId) => {
                     const columnConfig: Record<string, { label: string; isSortable: boolean; isDraggable: boolean }> = {
                       title: { label: 'Titre', isSortable: true, isDraggable: true },
+                      tag: { label: 'Tag', isSortable: true, isDraggable: true },
                       status: { label: 'Statut', isSortable: true, isDraggable: true },
                       visibility: { label: 'Visibilité', isSortable: true, isDraggable: true },
                       createdAt: { label: 'Date de création', isSortable: true, isDraggable: true },
@@ -1203,6 +1262,61 @@ export default function Notes() {
                           <span className="truncate">{note.summary}</span>
                         </div>
                       )}
+                    </div>
+                  ),
+                  tag: (
+                    <div key="tag" className="flex-1 min-w-0 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          {note.categoryId && noteCategories.find(c => c.id === note.categoryId) ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] cursor-pointer hover-elevate bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700"
+                              data-testid={`badge-tag-${note.id}`}
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              {noteCategories.find(c => c.id === note.categoryId)?.name}
+                            </Badge>
+                          ) : (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 px-2 text-[10px] text-muted-foreground"
+                              data-testid={`button-add-tag-${note.id}`}
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              Ajouter
+                            </Button>
+                          )}
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-2 bg-white dark:bg-gray-900" align="start">
+                          <div className="space-y-1">
+                            {noteCategories.map((category) => (
+                              <Button
+                                key={category.id}
+                                variant={note.categoryId === category.id ? "secondary" : "ghost"}
+                                size="sm"
+                                className="w-full justify-start text-[11px] h-7"
+                                onClick={() => {
+                                  updateNoteCategoryMutation.mutate({
+                                    noteId: note.id,
+                                    categoryId: note.categoryId === category.id ? null : category.id
+                                  });
+                                }}
+                                data-testid={`button-select-tag-${category.id}`}
+                              >
+                                <Tag className="w-3 h-3 mr-2" />
+                                {category.name}
+                              </Button>
+                            ))}
+                            {noteCategories.length === 0 && (
+                              <div className="text-[11px] text-muted-foreground text-center py-2">
+                                Aucun tag disponible
+                              </div>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   ),
                   status: (
@@ -1673,6 +1787,7 @@ export default function Notes() {
             {[
               { id: "favorite", label: "Favoris" },
               { id: "title", label: "Titre", disabled: true },
+              { id: "tag", label: "Tag" },
               { id: "status", label: "Statut" },
               { id: "visibility", label: "Visibilité" },
               { id: "createdAt", label: "Date de création" },

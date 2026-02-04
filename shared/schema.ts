@@ -688,6 +688,18 @@ export const activities = pgTable("activities", {
 // NOTES (Notion-like editor) + AI
 // ============================================
 
+// Note categories (like project_categories - predefined + custom tags stored as enum)
+export const noteCategories = pgTable("note_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color"), // optional color for the tag
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountNameIdx: uniqueIndex().on(table.accountId, table.name), // Ensure unique category names per account
+}));
+
 export const notes = pgTable("notes", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
@@ -699,10 +711,13 @@ export const notes = pgTable("notes", {
   status: text("status").notNull().default("active"), // 'draft', 'active', 'archived'
   visibility: text("visibility").notNull().default("private"), // 'private', 'account', 'client_ro'
   isFavorite: boolean("is_favorite").notNull().default(false), // favorites appear at top
+  categoryId: uuid("category_id").references(() => noteCategories.id, { onDelete: "set null" }), // note tag/category
+  noteDate: date("note_date"), // optional custom date for the note
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   accountVisibilityIdx: index().on(table.accountId, table.visibility),
+  categoryIdx: index().on(table.categoryId),
 }));
 
 export const noteLinks = pgTable("note_links", {
@@ -1724,6 +1739,7 @@ export const updateTimeEntrySchema = z.object({
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertNoteCategorySchema = createInsertSchema(noteCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({ id: true, createdAt: true, updatedAt: true }).extend({
   accountId: z.string().nullable().optional(), // System templates have null accountId
@@ -1945,6 +1961,8 @@ export type TimeEntry = typeof timeEntries.$inferSelect;
 export type Deal = typeof deals.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Note = typeof notes.$inferSelect;
+export type NoteCategory = typeof noteCategories.$inferSelect;
+export type InsertNoteCategory = z.infer<typeof insertNoteCategorySchema>;
 export type Tag = typeof tags.$inferSelect;
 export type DocumentTemplate = typeof documentTemplates.$inferSelect;
 export type Document = typeof documents.$inferSelect;

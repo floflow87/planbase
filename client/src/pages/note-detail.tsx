@@ -32,7 +32,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, optimisticUpdate, optimisticUpdateSingle, rollbackOptimistic, queryClient as qc } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/Loader";
-import type { Note, InsertNote, Project, NoteLink, Client, Epic, UserStory, BacklogTask } from "@shared/schema";
+import type { Note, InsertNote, Project, NoteLink, Client, Epic, UserStory, BacklogTask, NoteCategory } from "@shared/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tag, Plus, Calendar } from "lucide-react";
 
 // Combined ticket type for note linking
 interface TicketItem {
@@ -232,6 +235,15 @@ export default function NoteDetail() {
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
   });
+
+  // Fetch note categories
+  const { data: noteCategories = [] } = useQuery<NoteCategory[]>({
+    queryKey: ["/api/note-categories"],
+  });
+
+  // State for new category creation
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
   // Fetch all backlogs with their tickets for linking
   interface BacklogWithItems {
@@ -751,6 +763,64 @@ export default function NoteDetail() {
   }, [unlinkProjectMutation]);
 
   // Client link mutation
+  // Create note category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("/api/note-categories", "POST", { name });
+      return await response.json();
+    },
+    onSuccess: (newCategory) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/note-categories"] });
+      // Also update the note with this category
+      updateNoteCategoryMutation.mutate(newCategory.id);
+      setCategoryPopoverOpen(false);
+      setNewCategoryName("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer la catégorie",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update note category mutation
+  const updateNoteCategoryMutation = useMutation({
+    mutationFn: async (categoryId: string | null) => {
+      const response = await apiRequest(`/api/notes/${id}`, "PATCH", { categoryId });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour la catégorie",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update note date mutation
+  const updateNoteDateMutation = useMutation({
+    mutationFn: async (noteDate: string | null) => {
+      const response = await apiRequest(`/api/notes/${id}`, "PATCH", { noteDate });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de mettre à jour la date",
+        variant: "destructive",
+      });
+    },
+  });
+
   const linkClientMutation = useMutation({
     mutationFn: async (clientId: string) => {
       const response = await apiRequest(`/api/notes/${id}/links`, "POST", {
@@ -1263,6 +1333,136 @@ export default function NoteDetail() {
                         </Button>
                       )}
                     </div>
+                    
+                    {/* Tag/Category selector */}
+                    <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
+                          data-testid="button-category-selector"
+                        >
+                          <Tag className="w-3 h-3 text-violet-500" />
+                          <span className="truncate max-w-[100px]">
+                            {note?.categoryId 
+                              ? noteCategories.find(c => c.id === note.categoryId)?.name || "Tag"
+                              : "Tag"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2 bg-white dark:bg-gray-900" align="start">
+                        <div className="flex flex-col gap-2">
+                          <div className="text-xs font-medium text-muted-foreground px-1">Choisir un tag</div>
+                          <div className="flex flex-col gap-1 max-h-[200px] overflow-y-auto">
+                            {/* No tag option */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`justify-start h-7 px-2 text-xs ${!note?.categoryId ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                              onClick={() => {
+                                updateNoteCategoryMutation.mutate(null);
+                                setCategoryPopoverOpen(false);
+                              }}
+                              data-testid="button-category-none"
+                            >
+                              <span className="text-muted-foreground">Aucun</span>
+                              {!note?.categoryId && <Check className="w-3 h-3 ml-auto" />}
+                            </Button>
+                            {noteCategories.map((category) => (
+                              <Button
+                                key={category.id}
+                                variant="ghost"
+                                size="sm"
+                                className={`justify-start h-7 px-2 text-xs ${note?.categoryId === category.id ? 'bg-violet-100 dark:bg-violet-900/30' : ''}`}
+                                onClick={() => {
+                                  updateNoteCategoryMutation.mutate(category.id);
+                                  setCategoryPopoverOpen(false);
+                                }}
+                                data-testid={`button-category-${category.id}`}
+                              >
+                                {category.name}
+                                {note?.categoryId === category.id && <Check className="w-3 h-3 ml-auto" />}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="border-t pt-2 mt-1">
+                            <div className="flex gap-1">
+                              <Input
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="Nouveau tag..."
+                                className="h-7 text-xs bg-white dark:bg-gray-800"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newCategoryName.trim()) {
+                                    createCategoryMutation.mutate(newCategoryName.trim());
+                                  }
+                                }}
+                                data-testid="input-new-category"
+                              />
+                              <Button
+                                size="sm"
+                                className="h-7 px-2"
+                                disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+                                onClick={() => {
+                                  if (newCategoryName.trim()) {
+                                    createCategoryMutation.mutate(newCategoryName.trim());
+                                  }
+                                }}
+                                data-testid="button-create-category"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Date picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
+                          data-testid="button-date-selector"
+                        >
+                          <Calendar className="w-3 h-3 text-amber-500" />
+                          <span className="truncate">
+                            {note?.noteDate 
+                              ? new Date(note.noteDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                              : "Date"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-2 bg-white dark:bg-gray-900" align="start">
+                        <div className="flex flex-col gap-2">
+                          <div className="text-xs font-medium text-muted-foreground px-1">Date de la note</div>
+                          <Input
+                            type="date"
+                            value={note?.noteDate || ""}
+                            onChange={(e) => {
+                              updateNoteDateMutation.mutate(e.target.value || null);
+                            }}
+                            className="h-8 text-sm bg-white dark:bg-gray-800"
+                            data-testid="input-note-date"
+                          />
+                          {note?.noteDate && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-muted-foreground"
+                              onClick={() => updateNoteDateMutation.mutate(null)}
+                              data-testid="button-clear-date"
+                            >
+                              Effacer la date
+                            </Button>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
                     {isSaving ? (
                       <span className="text-xs text-muted-foreground">Sauvegarde...</span>
                     ) : lastSaved ? (

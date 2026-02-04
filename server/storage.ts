@@ -18,6 +18,7 @@ import {
   type TaskColumn, type InsertTaskColumn,
   type Task, type InsertTask,
   type Note, type InsertNote,
+  type NoteCategory, type InsertNoteCategory,
   type NoteLink, type InsertNoteLink,
   type DocumentTemplate, type InsertDocumentTemplate,
   type Document, type InsertDocument,
@@ -41,7 +42,7 @@ import {
   type EntityLink, type InsertEntityLink,
   type Settings, type InsertSettings,
   accounts, appUsers, clients, contacts, clientComments, clientCustomTabs, clientCustomFields, clientCustomFieldValues,
-  projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
+  projects, projectCategories, projectPayments, cdcSessions, projectBaselines, projectScopeItems, recommendationActions, taskColumns, tasks, notes, noteCategories, noteLinks, documentTemplates, documents, documentLinks, folders, files, activities,
   deals, products, features, roadmaps, roadmapItems, roadmapItemLinks, roadmapDependencies,
   appointments, googleCalendarTokens, timeEntries,
   mindmaps, mindmapNodes, mindmapEdges, entityLinks, settings,
@@ -188,6 +189,13 @@ export interface IStorage {
   createNote(note: InsertNote): Promise<Note>;
   updateNote(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<boolean>;
+
+  // Note Categories
+  getNoteCategoriesByAccountId(accountId: string): Promise<NoteCategory[]>;
+  getNoteCategoryByNormalizedName(accountId: string, name: string): Promise<NoteCategory | undefined>;
+  createNoteCategory(category: InsertNoteCategory): Promise<NoteCategory>;
+  updateNoteCategory(id: string, accountId: string, updates: { name?: string; color?: string | null }): Promise<NoteCategory | undefined>;
+  deleteNoteCategory(id: string): Promise<boolean>;
 
   // Note Links
   getNoteLinksByNoteId(noteId: string): Promise<NoteLink[]>;
@@ -1121,6 +1129,50 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNote(id: string): Promise<boolean> {
     const result = await db.delete(notes).where(eq(notes.id, id));
+    return result.length > 0;
+  }
+
+  // Note Categories
+  async getNoteCategoriesByAccountId(accountId: string): Promise<NoteCategory[]> {
+    return await db.select().from(noteCategories).where(eq(noteCategories.accountId, accountId));
+  }
+
+  async getNoteCategoryByNormalizedName(accountId: string, name: string): Promise<NoteCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(noteCategories)
+      .where(
+        and(
+          eq(noteCategories.accountId, accountId),
+          sql`LOWER(${noteCategories.name}) = LOWER(${name})`
+        )
+      )
+      .limit(1);
+    return category || undefined;
+  }
+
+  async createNoteCategory(insertCategory: InsertNoteCategory): Promise<NoteCategory> {
+    const [category] = await db
+      .insert(noteCategories)
+      .values(insertCategory)
+      .returning();
+    return category;
+  }
+
+  async updateNoteCategory(id: string, accountId: string, updates: { name?: string; color?: string | null }): Promise<NoteCategory | undefined> {
+    const [category] = await db
+      .update(noteCategories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(noteCategories.id, id),
+        eq(noteCategories.accountId, accountId)
+      ))
+      .returning();
+    return category || undefined;
+  }
+
+  async deleteNoteCategory(id: string): Promise<boolean> {
+    const result = await db.delete(noteCategories).where(eq(noteCategories.id, id));
     return result.length > 0;
   }
 

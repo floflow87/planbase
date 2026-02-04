@@ -87,6 +87,8 @@ import {
   resourceTemplates,
   projectResources,
   projectCategories,
+  noteCategories,
+  insertNoteCategorySchema,
   okrObjectives,
   okrKeyResults,
   okrLinks,
@@ -3822,6 +3824,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   // NOTES - Protected Routes
   // ============================================
+
+  // ============================================
+  // NOTE CATEGORIES - Protected Routes
+  // ============================================
+  
+  app.get("/api/note-categories", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
+    try {
+      const categories = await storage.getNoteCategoriesByAccountId(req.accountId!);
+      res.json(categories);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a new note category (or return existing one if name already exists)
+  app.post("/api/note-categories", requireAuth, requireOrgMember, requirePermission("notes", "create"), async (req, res) => {
+    try {
+      const { name, color } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: "Category name is required" });
+      }
+
+      const trimmedName = name.trim();
+
+      // Try to create new category, let database handle uniqueness
+      try {
+        const category = await storage.createNoteCategory({
+          accountId: req.accountId!,
+          name: trimmedName,
+          color: color || null,
+        });
+        res.json(category);
+      } catch (dbError: any) {
+        // If unique constraint violation, fetch the existing category by normalized name
+        if (dbError.code === '23505' || dbError.message?.includes('duplicate')) {
+          const existing = await storage.getNoteCategoryByNormalizedName(req.accountId!, trimmedName);
+          if (existing) {
+            return res.json(existing);
+          }
+        }
+        throw dbError;
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a note category
+  app.patch("/api/note-categories/:categoryId", requireAuth, requireOrgMember, requirePermission("notes", "update"), async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const accountId = req.accountId!;
+      
+      const updateSchema = z.object({
+        name: z.string().optional(),
+        color: z.string().nullable().optional(),
+      });
+      const parsed = updateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      
+      const updated = await storage.updateNoteCategory(categoryId, accountId, {
+        name: parsed.data.name,
+        color: parsed.data.color ?? null,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a note category
+  app.delete("/api/note-categories/:categoryId", requireAuth, requireOrgMember, requirePermission("notes", "delete"), async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const success = await storage.deleteNoteCategory(categoryId);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 
   app.get("/api/notes", requireAuth, requireOrgMember, requirePermission("notes", "read"), async (req, res) => {
     try {

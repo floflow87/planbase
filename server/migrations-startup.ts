@@ -1892,6 +1892,39 @@ export async function runStartupMigrations() {
     console.log("✅ Invitations email_bounced column added");
 
     // ============================================
+    // Note categories table (like project_categories)
+    // ============================================
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS note_categories (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        color text,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    
+    // Create unique index on account_id and name for note_categories
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS note_categories_account_name_idx 
+      ON note_categories(account_id, name);
+    `);
+    console.log("✅ Note categories table created");
+    
+    // Add category_id and note_date columns to notes table
+    await db.execute(sql`
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES note_categories(id) ON DELETE SET NULL;
+    `);
+    await db.execute(sql`
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS note_date date;
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS notes_category_idx ON notes(category_id);
+    `);
+    console.log("✅ Notes category_id and note_date columns added");
+
+    // ============================================
     // Initialize permissions for members without any permissions
     // ============================================
     const DEFAULT_PERMISSIONS_BY_ROLE: Record<string, Record<string, string[]>> = {
