@@ -784,7 +784,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Paintbrush className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
                     {copiedFormat ? 'Cliquez pour appliquer le style' : 'Copier le style'}
                   </TooltipContent>
                 </Tooltip>
@@ -805,7 +805,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <Undo className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Annuler</TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Annuler</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -820,7 +820,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <Redo className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Rétablir</TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Rétablir</TooltipContent>
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1" />
@@ -841,7 +841,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Niveau de titre</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Niveau de titre</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="start" className="bg-popover">
                 <DropdownMenuItem
@@ -899,7 +899,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <Bold className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Gras</TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Gras</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -913,7 +913,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <Italic className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Italique</TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Italique</TooltipContent>
             </Tooltip>
 
             {/* Underline, Strike, Code - hidden on mobile */}
@@ -930,7 +930,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <UnderlineIcon className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Souligner</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Souligner</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -944,7 +944,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Strikethrough className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Barrer</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Barrer</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -958,7 +958,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Code className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Code inline</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Code inline</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -972,7 +972,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <FileCode2 className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Bloc de code</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Bloc de code</TooltipContent>
                 </Tooltip>
 
                 <Separator orientation="vertical" className="h-6 mx-1" />
@@ -998,7 +998,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         </Button>
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>Alignement du texte</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Alignement du texte</TooltipContent>
                   </Tooltip>
                   <DropdownMenuContent align="start" className="bg-popover">
                     <DropdownMenuItem
@@ -1051,7 +1051,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         </Button>
                       </PopoverTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>Couleur du texte</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Couleur du texte</TooltipContent>
                   </Tooltip>
                   <PopoverContent 
                     className="w-auto p-3 bg-card"
@@ -1102,7 +1102,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         </Button>
                       </PopoverTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>Surligner</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Surligner</TooltipContent>
                   </Tooltip>
                   <PopoverContent 
                     className="w-auto p-3 bg-card"
@@ -1160,7 +1160,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     </Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Type de liste</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Type de liste</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="start" className="bg-popover">
                 <DropdownMenuItem
@@ -1206,7 +1206,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Quote className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Citation</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Citation</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -1220,7 +1220,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Minus className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Séparateur</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Séparateur</TooltipContent>
                 </Tooltip>
               </>
             )}
@@ -1239,7 +1239,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                   <LinkIcon className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Ajouter un lien</TooltipContent>
+              <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Ajouter un lien</TooltipContent>
             </Tooltip>
 
             {/* Upload, Emoji, Entity links - Hidden on mobile */}
@@ -1257,7 +1257,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       {uploading ? <Upload className="w-4 h-4 animate-pulse" /> : <Upload className="w-4 h-4" />}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{uploading ? 'Upload en cours...' : 'Upload image'}</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">{uploading ? 'Upload en cours...' : 'Upload image'}</TooltipContent>
                 </Tooltip>
 
                 <Popover>
@@ -1274,7 +1274,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                         </Button>
                       </PopoverTrigger>
                     </TooltipTrigger>
-                    <TooltipContent>Ajouter un emoji</TooltipContent>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Ajouter un emoji</TooltipContent>
                   </Tooltip>
                   <PopoverContent 
                     className="w-auto p-0 bg-white dark:bg-card"
@@ -1297,7 +1297,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <FolderKanban className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Lier à un projet</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Lier à un projet</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -1311,7 +1311,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <ListTodo className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Lier à une tâche</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Lier à une tâche</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -1325,7 +1325,7 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                       <Users className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Lier à un client</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Lier à un client</TooltipContent>
                 </Tooltip>
               </>
             )}

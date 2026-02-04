@@ -3969,6 +3969,11 @@ function CompletedTicketsView({
   const [patchNoteTitle, setPatchNoteTitle] = useState("");
   const [showViewPatchNotes, setShowViewPatchNotes] = useState(false);
   const [selectedPatchNote, setSelectedPatchNote] = useState<any>(null);
+  const [editingPatchNote, setEditingPatchNote] = useState<any>(null);
+  const [patchNoteToDelete, setPatchNoteToDelete] = useState<any>(null);
+  const [editPatchNoteTitle, setEditPatchNoteTitle] = useState("");
+  const [editPatchNoteVersion, setEditPatchNoteVersion] = useState("");
+  const [editPatchNoteContent, setEditPatchNoteContent] = useState("");
   const [sprintComboOpen, setSprintComboOpen] = useState(false);
   
   // Fetch patch notes for this backlog (also used for previous version display)
@@ -4052,6 +4057,46 @@ function CompletedTicketsView({
         variant: "destructive",
       });
       console.error("Patch note creation error:", error);
+    }
+  });
+
+  // Update patch note mutation
+  const updatePatchNoteMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title?: string; version?: string | null; content?: string } }) => {
+      const response = await apiRequest(`/api/patch-notes/${id}`, 'PATCH', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
+      setEditingPatchNote(null);
+      toastSuccess(toast, "Patch note modifié", "Le patch note a été mis à jour.");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de modifier le patch note",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete patch note mutation
+  const deletePatchNoteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/patch-notes/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
+      setSelectedPatchNote(null);
+      setPatchNoteToDelete(null);
+      toastSuccess(toast, "Patch note supprimé", "Le patch note a été supprimé.");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer le patch note",
+        variant: "destructive",
+      });
     }
   });
   
@@ -4741,17 +4786,45 @@ function CompletedTicketsView({
                           </Badge>
                         </td>
                         <td className="px-4 py-2 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPatchNote(pn);
-                            }}
-                            data-testid={`button-view-patch-note-${pn.id}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPatchNote(pn);
+                              }}
+                              data-testid={`button-view-patch-note-${pn.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditPatchNoteTitle(pn.title || "");
+                                setEditPatchNoteVersion(pn.version || "");
+                                setEditPatchNoteContent(pn.content || "");
+                                setEditingPatchNote(pn);
+                              }}
+                              data-testid={`button-edit-patch-note-${pn.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPatchNoteToDelete(pn);
+                              }}
+                              data-testid={`button-delete-patch-note-${pn.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -4801,6 +4874,106 @@ function CompletedTicketsView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Patch Note Dialog */}
+      <Dialog open={!!editingPatchNote} onOpenChange={(open) => !open && setEditingPatchNote(null)}>
+        <DialogContent className="max-w-lg bg-white dark:bg-gray-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-violet-600" />
+              Modifier le patch note
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Titre</Label>
+              <Input
+                value={editPatchNoteTitle}
+                onChange={(e) => setEditPatchNoteTitle(e.target.value)}
+                placeholder="Titre du patch note"
+                className="bg-white dark:bg-gray-800"
+                data-testid="input-edit-patch-note-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Version</Label>
+              <Input
+                value={editPatchNoteVersion}
+                onChange={(e) => setEditPatchNoteVersion(e.target.value)}
+                placeholder="ex: 1.0.0"
+                className="bg-white dark:bg-gray-800"
+                data-testid="input-edit-patch-note-version"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contenu</Label>
+              <Textarea
+                value={editPatchNoteContent}
+                onChange={(e) => setEditPatchNoteContent(e.target.value)}
+                placeholder="Contenu du patch note..."
+                rows={10}
+                className="bg-white dark:bg-gray-800"
+                data-testid="textarea-edit-patch-note-content"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingPatchNote(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={() => {
+                if (editingPatchNote) {
+                  updatePatchNoteMutation.mutate({
+                    id: editingPatchNote.id,
+                    data: {
+                      title: editPatchNoteTitle,
+                      version: editPatchNoteVersion || null,
+                      content: editPatchNoteContent
+                    }
+                  });
+                }
+              }}
+              disabled={updatePatchNoteMutation.isPending || !editPatchNoteTitle.trim()}
+              data-testid="button-save-edit-patch-note"
+            >
+              {updatePatchNoteMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Patch Note Confirmation */}
+      <AlertDialog open={!!patchNoteToDelete} onOpenChange={(open) => !open && setPatchNoteToDelete(null)}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le patch note ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le patch note "{patchNoteToDelete?.title}" ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (patchNoteToDelete) {
+                  deletePatchNoteMutation.mutate(patchNoteToDelete.id);
+                }
+              }}
+              data-testid="button-confirm-delete-patch-note"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <div className="border rounded-lg overflow-hidden">
         <DndContext

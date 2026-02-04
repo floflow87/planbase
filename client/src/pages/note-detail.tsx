@@ -35,7 +35,8 @@ import { Loader } from "@/components/Loader";
 import type { Note, InsertNote, Project, NoteLink, Client, Epic, UserStory, BacklogTask, NoteCategory } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tag, Plus, Calendar } from "lucide-react";
+import { Tag, Plus, Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 
 // Combined ticket type for note linking
 interface TicketItem {
@@ -1428,7 +1429,7 @@ export default function NoteDetail() {
                           className="h-6 px-2 text-xs gap-1 bg-white dark:bg-gray-900"
                           data-testid="button-date-selector"
                         >
-                          <Calendar className="w-3 h-3 text-amber-500" />
+                          <CalendarIcon className="w-3 h-3 text-amber-500" />
                           <span className="truncate">
                             {note?.noteDate 
                               ? new Date(note.noteDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
@@ -1436,30 +1437,31 @@ export default function NoteDetail() {
                           </span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-2 bg-white dark:bg-gray-900" align="start">
-                        <div className="flex flex-col gap-2">
-                          <div className="text-xs font-medium text-muted-foreground px-1">Date de la note</div>
-                          <Input
-                            type="date"
-                            value={note?.noteDate || ""}
-                            onChange={(e) => {
-                              updateNoteDateMutation.mutate(e.target.value || null);
-                            }}
-                            className="h-8 text-sm bg-white dark:bg-gray-800"
-                            data-testid="input-note-date"
-                          />
-                          {note?.noteDate && (
+                      <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={note?.noteDate ? new Date(note.noteDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              updateNoteDateMutation.mutate(date.toISOString().split('T')[0]);
+                            }
+                          }}
+                          initialFocus
+                          locale={fr}
+                        />
+                        {note?.noteDate && (
+                          <div className="p-2 border-t">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-xs text-muted-foreground"
+                              className="w-full text-xs text-muted-foreground"
                               onClick={() => updateNoteDateMutation.mutate(null)}
                               data-testid="button-clear-date"
                             >
                               Effacer la date
                             </Button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </PopoverContent>
                     </Popover>
 
@@ -1493,7 +1495,7 @@ export default function NoteDetail() {
                       </Label>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Auto-sauvegarde {autoSaveEnabled ? "activée" : "désactivée"}</TooltipContent>
                 </Tooltip>
                 
                 {/* Save button */}
@@ -1509,7 +1511,7 @@ export default function NoteDetail() {
                       <Save className="w-4 h-4" />
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Enregistrer</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Enregistrer</TooltipContent>
               </Tooltip>
               
               {/* Delete button - always visible */}
@@ -1525,7 +1527,7 @@ export default function NoteDetail() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Supprimer</TooltipContent>
+                <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Supprimer</TooltipContent>
               </Tooltip>
               
               {/* Actions dropdown */}
