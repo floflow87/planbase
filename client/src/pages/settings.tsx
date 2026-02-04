@@ -19,11 +19,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { 
   Loader2, User, Mail, Briefcase, UserCircle, Phone, Building2, Lock, Eye, EyeOff, 
   Settings as SettingsIcon, Puzzle, Shield, Clock, AlertTriangle, Save, RotateCcw, 
-  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2
+  DollarSign, Info, HelpCircle, Hash, Target, Palette, FolderKanban, Code, Terminal, Check, Users, Trash2, CreditCard
 } from "lucide-react";
 import { PermissionsTab } from "@/components/settings/PermissionsTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 import { AuditTab } from "@/components/settings/AuditTab";
+import { SubscriptionTab } from "@/components/settings/SubscriptionTab";
 import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
@@ -995,6 +996,10 @@ export default function Settings() {
               <Shield className="w-3.5 h-3.5" />
               Sécurité
             </TabsTrigger>
+            <TabsTrigger value="subscription" className="gap-1.5 text-xs h-9 px-3" data-testid="tab-subscription">
+              <CreditCard className="w-3.5 h-3.5" />
+              Abonnement
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="informations" className="space-y-4">
@@ -1598,6 +1603,10 @@ export default function Settings() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="space-y-6">
+            <SubscriptionTab />
           </TabsContent>
         </Tabs>
       </div>
