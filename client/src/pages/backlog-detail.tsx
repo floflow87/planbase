@@ -4069,7 +4069,7 @@ function CompletedTicketsView({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
       setEditingPatchNote(null);
-      toastSuccess(toast, "Patch note modifié", "Le patch note a été mis à jour.");
+      toastSuccess({ title: "Patch note modifié", description: "Le patch note a été mis à jour." });
     },
     onError: (error: any) => {
       toast({
@@ -4089,7 +4089,7 @@ function CompletedTicketsView({
       queryClient.invalidateQueries({ queryKey: [`/api/backlogs/${backlogId}/patch-notes`] });
       setSelectedPatchNote(null);
       setPatchNoteToDelete(null);
-      toastSuccess(toast, "Patch note supprimé", "Le patch note a été supprimé.");
+      toastSuccess({ title: "Patch note supprimé", description: "Le patch note a été supprimé." });
     },
     onError: (error: any) => {
       toast({

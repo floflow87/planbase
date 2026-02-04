@@ -3430,7 +3430,7 @@ export default function Projects() {
                           {projectTasks.length > 0 && (
                             <div className="mt-3">
                               <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                                <span>Progression</span>
+                                <span>Progression tâches</span>
                                 <span>{progress}%</span>
                               </div>
                               <Progress value={progress} className="h-1.5" />
@@ -3692,7 +3692,7 @@ export default function Projects() {
                                   name: "Projet",
                                   client: "Client",
                                   stage: "Étape",
-                                  progress: "Progression",
+                                  progress: "Progression tâches",
                                   category: "Catégorie",
                                   startDate: "Début",
                                   budget: "Facturé",
@@ -4362,7 +4362,7 @@ export default function Projects() {
               { id: "name", label: "Projet", disabled: true },
               { id: "client", label: "Client" },
               { id: "stage", label: "Étape" },
-              { id: "progress", label: "Progression" },
+              { id: "progress", label: "Progression tâches" },
               { id: "category", label: "Catégorie" },
               { id: "startDate", label: "Début" },
               { id: "budget", label: "Facturé" },

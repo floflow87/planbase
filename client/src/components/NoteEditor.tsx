@@ -16,6 +16,7 @@ import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import ResizableImageExtension from 'tiptap-extension-resize-image';
 import { SlashCommands } from '@/components/SlashCommands';
+import { Details, DetailsSummary, DetailsContent } from '@/components/DetailsExtension';
 import { 
   Bold, 
   Italic, 
@@ -223,6 +224,9 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
         allowBase64: true,
       }),
       SlashCommands,
+      Details,
+      DetailsSummary,
+      DetailsContent,
     ],
     content,
     editable,

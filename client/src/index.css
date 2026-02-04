@@ -313,6 +313,70 @@
     padding-left: 1.5rem;
   }
 
+  /* Collapsible sections (Details/Summary) - Notion-style */
+  details.collapsible-section {
+    margin: 0.75rem 0;
+    border-radius: 0.375rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    overflow: hidden;
+  }
+
+  details.collapsible-section > summary.collapsible-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    background: hsl(var(--muted) / 0.3);
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s ease;
+    list-style: none;
+  }
+
+  details.collapsible-section > summary.collapsible-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.collapsible-section > summary.collapsible-summary::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  details.collapsible-section[open] > summary.collapsible-summary::before {
+    transform: rotate(90deg);
+  }
+
+  details.collapsible-section > summary.collapsible-summary:hover {
+    background: hsl(var(--muted) / 0.5);
+  }
+
+  details.collapsible-section[open] > summary.collapsible-summary {
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  details.collapsible-section > .details-content {
+    padding: 1rem;
+    min-height: 2rem;
+  }
+
+  details.collapsible-section > .details-content > p:first-child {
+    margin-top: 0;
+  }
+
+  details.collapsible-section > .details-content > p:last-child {
+    margin-bottom: 0;
+  }
+
   /* Style the checkbox */
   ul[data-type="taskList"] input[type="checkbox"] {
     width: 1rem;

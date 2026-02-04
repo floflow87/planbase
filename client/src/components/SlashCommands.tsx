@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Users,
   ListTree,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface SlashCommand {
@@ -68,6 +69,27 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: Heading4,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run();
+    },
+  },
+  {
+    id: 'toggle',
+    label: 'Titre déroulant',
+    description: 'Section repliable style Notion',
+    icon: ChevronDown,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertContent({
+        type: 'details',
+        content: [
+          {
+            type: 'detailsSummary',
+            content: [{ type: 'text', text: 'Titre de la section' }],
+          },
+          {
+            type: 'detailsContent',
+            content: [{ type: 'paragraph' }],
+          },
+        ],
+      }).run();
     },
   },
   {

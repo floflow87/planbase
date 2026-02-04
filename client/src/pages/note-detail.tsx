@@ -804,21 +804,33 @@ export default function NoteDetail() {
     },
   });
 
-  // Update note date mutation
+  // Update note date mutation with optimistic update
   const updateNoteDateMutation = useMutation({
     mutationFn: async (noteDate: string | null) => {
       const response = await apiRequest(`/api/notes/${id}`, "PATCH", { noteDate });
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+    onMutate: async (noteDate) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/notes", id] });
+      const previousNote = queryClient.getQueryData<Note>(["/api/notes", id]);
+      queryClient.setQueryData<Note>(["/api/notes", id], (old) => 
+        old ? { ...old, noteDate } : old
+      );
+      return { previousNote };
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousNote) {
+        queryClient.setQueryData(["/api/notes", id], context.previousNote);
+      }
       toast({
         title: "Erreur",
         description: error.message || "Impossible de mettre à jour la date",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notes", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
 
@@ -1448,6 +1460,10 @@ export default function NoteDetail() {
                           }}
                           initialFocus
                           locale={fr}
+                          classNames={{
+                            day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
+                            day_today: "bg-accent text-accent-foreground",
+                          }}
                         />
                         {note?.noteDate && (
                           <div className="p-2 border-t">
