@@ -1,0 +1,83 @@
+Tu es un développeur senior full-stack. Dans PlanBase (React + TS côté front, API Node/Express côté back, Postgres), implémente une nouvelle page Paramètres : onglet "Abonnement".
+
+Objectif
+- Ajouter un onglet "Abonnement" dans la page Paramètres, au même niveau que les autres onglets existants.
+- Afficher 2 cartes de plans : 
+  1) "Solo starter" (Free)
+  2) "Freelance pro" (19,99€ / mois) avec badge "Populaire"
+- Prévoir un état "plan actuel" (mock) et une UX cohérente (bouton, texte, avantages, etc.)
+- Pour l’instant : pas de Stripe, pas de vraie subscription. Tout est piloté par des données mock propres et typées.
+
+Contraintes UI/UX
+- Design cohérent avec le style PlanBase (cards, boutons violets, badges, layout aéré).
+- Mobile responsive.
+- Le plan actuel doit être clairement identifiable (badge "Actuel" + bouton désactivé ou remplacé).
+- Si l’utilisateur est sur Free : bouton "Passer à Freelance pro".
+- Si l’utilisateur est sur Pro : bouton "Gérer mon abonnement" (désactivé ou placeholder "Bientôt" tant que Stripe n’est pas branché).
+- Ajouter une section FAQ courte en bas (3 questions/réponses) : facturation, annulation, différence Free/Pro.
+
+Contenu plans (à afficher)
+Solo starter (Free)
+- 1 utilisateur
+- 1 projet actif
+- Roadmap & OKR : lecture (ou limité à 1 objectif si déjà supporté, sinon texte "limité")
+- Notes & tâches : basique
+- Support : email
+
+Freelance pro (19,99€/mois) — Populaire
+- 1 utilisateur
+- Projets illimités
+- Roadmap & OKR complets
+- Rentabilité & recommandations activées
+- Notifications email + in-app
+- Support prioritaire
+
+Implémentation technique attendue
+
+1) Routing / navigation
+- Ajouter une entrée "Abonnement" dans les onglets de Paramètres.
+- Route : /settings/subscription (ou le pattern existant de tes settings).
+- L’onglet doit être visible pour Admin et Member (si RBAC existe), et en lecture seule pour Guest (si guest existe).
+
+2) Types & données mock
+- Créer un type Plan :
+  - id: "free" | "pro"
+  - name, priceLabel, isPopular, features: string[]
+- Créer un mock "currentSubscription" :
+  - currentPlanId: "free" par défaut
+  - status: "active" | "none" (mock)
+  - renewalDate?: string (mock)
+- Stocker ces mocks dans un fichier dédié (ex: /src/data/subscriptionMock.ts) pour pouvoir brancher l’API ensuite.
+
+3) Page UI (component)
+- Créer un composant SettingsSubscriptionPage :
+  - Header : "Abonnement"
+  - sous-texte : "Choisissez le plan adapté à votre activité."
+  - 2 plan cards côte à côte (desktop) / stack (mobile)
+  - CTA buttons selon plan actuel
+  - mini panneau "Votre plan actuel" avec :
+    - nom du plan
+    - statut (actif)
+    - prochaine échéance (mock si pro, sinon vide)
+- Ajouter un encart info discret : "Le paiement par carte arrive bientôt. Pour l’instant, la montée en gamme est simulée."
+
+4) Interaction (simulation)
+- Si l’utilisateur clique "Passer à Freelance pro", simuler le changement :
+  - mettre currentPlanId="pro" en state local (React state) + toast "Plan mis à jour (simulation)".
+- Ajouter un bouton "Revenir à Free" caché derrière un menu "…" (debug) OU visible en dev uniquement (process.env.NODE_ENV === 'development').
+
+5) Qualité
+- Code TypeScript strict
+- Composants réutilisables si tu as déjà des <Card>, <Badge>, <Button>, <Tabs> dans ton design system.
+- Ajouter tests légers si tu en as (optionnel).
+
+Livrables
+- Nouveau fichier page Abonnement + intégration dans les onglets Paramètres
+- Fichier mock data
+- Styles cohérents
+- Simulation de changement de plan (local)
+
+Important
+- Ne pas intégrer Stripe maintenant.
+- Ne pas créer d’admin backoffice maintenant.
+- Fais une implémentation propre prête à brancher sur une future API /api/billing/subscription.
