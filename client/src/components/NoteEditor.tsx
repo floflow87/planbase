@@ -64,7 +64,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Type, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, Type, MoreHorizontal, PanelTopOpen } from 'lucide-react';
 import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQuery } from '@tanstack/react-query';
@@ -1039,6 +1039,53 @@ const NoteEditor = forwardRef<NoteEditorRef, NoteEditorProps>((props, ref) => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Expansion Panel Button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const { from, to } = editor.state.selection;
+                        const selectedText = editor.state.doc.textBetween(from, to, ' ');
+                        
+                        if (selectedText.trim()) {
+                          // Create details with selected text as content
+                          editor.chain()
+                            .focus()
+                            .deleteSelection()
+                            .insertContent({
+                              type: 'details',
+                              attrs: { open: true },
+                              content: [
+                                { type: 'detailsSummary', content: [{ type: 'text', text: 'Section déroulante' }] },
+                                { type: 'detailsContent', content: [{ type: 'paragraph', content: [{ type: 'text', text: selectedText }] }] }
+                              ]
+                            })
+                            .run();
+                        } else {
+                          // Insert empty details block
+                          editor.chain()
+                            .focus()
+                            .insertContent({
+                              type: 'details',
+                              attrs: { open: true },
+                              content: [
+                                { type: 'detailsSummary', content: [{ type: 'text', text: 'Titre de la section' }] },
+                                { type: 'detailsContent', content: [{ type: 'paragraph' }] }
+                              ]
+                            })
+                            .run();
+                        }
+                      }}
+                      data-testid="button-expansion-panel"
+                    >
+                      <PanelTopOpen className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">Section déroulante</TooltipContent>
+                </Tooltip>
 
                 <Separator orientation="vertical" className="h-6 mx-1" />
 

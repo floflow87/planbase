@@ -2,7 +2,7 @@ import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -899,6 +899,78 @@ function AppLayout() {
     return "Page";
   };
 
+  // Get full page title without truncation for tooltips
+  const getFullPageTitle = (path: string): string => {
+    if (path === "/" || path === "/home") return "Tableau de bord";
+    if (path === "/crm") return "CRM";
+    
+    const projectMatch = path.match(/^\/projects\/([^/]+)/);
+    if (projectMatch) {
+      const projectId = projectMatch[1];
+      const project = projects?.find(p => p.id === projectId);
+      if (project) return project.name || "Projet";
+      return "Projet";
+    }
+    if (path === "/projects") return "Projets";
+    
+    if (path === "/notes/new") return "Nouvelle note";
+    const noteMatch = path.match(/^\/notes\/([^/]+)/);
+    if (noteMatch) {
+      const noteId = noteMatch[1];
+      const note = notes?.find(n => n.id === noteId);
+      if (note) return note.title || "Note";
+      return "Note";
+    }
+    if (path === "/notes") return "Notes";
+    
+    const backlogMatch = path.match(/^\/product\/backlog\/([^/]+)/);
+    if (backlogMatch && backlogMatch[1] !== "new") {
+      const backlogId = backlogMatch[1];
+      const backlog = backlogs?.find(b => b.id === backlogId);
+      if (backlog) return backlog.name || "Backlog";
+      return "Backlog";
+    }
+    if (path === "/product/backlog/new") return "Nouveau backlog";
+    if (path === "/product") return "Produits";
+    
+    const clientMatch = path.match(/^\/crm\/([^/]+)/);
+    if (clientMatch) {
+      const clientId = clientMatch[1];
+      const client = clients?.find(c => c.id === clientId);
+      if (client) return client.name || "Client";
+      return "Client";
+    }
+    
+    const mindmapMatch = path.match(/^\/mindmaps\/([^/]+)/);
+    if (mindmapMatch) {
+      const mindmapId = mindmapMatch[1];
+      const mindmap = mindmaps?.find(m => m.id === mindmapId);
+      if (mindmap) return mindmap.name || "Mindmap";
+      return "Mindmap";
+    }
+    if (path === "/mindmaps") return "Mindmaps";
+    
+    if (path.startsWith("/documents/templates")) return "Modèles de documents";
+    const documentMatch = path.match(/^\/documents\/([^/]+)/);
+    if (documentMatch && !path.includes("/templates")) {
+      const documentId = documentMatch[1];
+      const document = documents?.find(d => d.id === documentId);
+      if (document) return document.title || "Document";
+      return "Document";
+    }
+    if (path === "/documents") return "Documents";
+    
+    if (path === "/tasks") return "Tâches";
+    if (path === "/roadmap") return "Roadmap";
+    if (path === "/marketing") return "Marketing";
+    if (path === "/finance") return "Finance";
+    if (path === "/commercial") return "Commercial";
+    if (path === "/legal") return "Légal";
+    if (path === "/calendar") return "Calendrier";
+    if (path === "/settings") return "Paramètres";
+    return "Page";
+  };
+
   // Sync tabs with navigation - update active tab's content when location changes
   useEffect(() => {
     if (isAuthPage) return;
@@ -1006,33 +1078,39 @@ function AppLayout() {
               {/* Tab System */}
               <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
                 {tabs.map((tab) => (
-                  <div
-                    key={tab.id}
-                    onClick={() => handleTabClick(tab)}
-                    className={`
-                      group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
-                      transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
-                      ${activeTabId === tab.id 
-                        ? 'bg-primary/10 text-primary border border-primary/20' 
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }
-                    `}
-                    data-testid={`tab-${tab.id}`}
-                  >
-                    <span className="truncate">{tab.title}</span>
-                    {tabs.length > 1 && (
-                      <button
-                        onClick={(e) => handleCloseTab(e, tab.id)}
+                  <Tooltip key={tab.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={() => handleTabClick(tab)}
                         className={`
-                          flex-shrink-0 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive
-                          ${activeTabId === tab.id ? 'visible' : 'invisible group-hover:visible'}
+                          group flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-medium 
+                          transition-colors min-w-0 max-w-[120px] sm:max-w-[160px] flex-shrink-0 cursor-pointer
+                          ${activeTabId === tab.id 
+                            ? 'bg-primary/10 text-primary border border-primary/20' 
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }
                         `}
-                        data-testid={`close-tab-${tab.id}`}
+                        data-testid={`tab-${tab.id}`}
                       >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
+                        <span className="truncate">{tab.title}</span>
+                        {tabs.length > 1 && (
+                          <button
+                            onClick={(e) => handleCloseTab(e, tab.id)}
+                            className={`
+                              flex-shrink-0 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive
+                              ${activeTabId === tab.id ? 'visible' : 'invisible group-hover:visible'}
+                            `}
+                            data-testid={`close-tab-${tab.id}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-white dark:bg-gray-900 text-foreground border">
+                      {getFullPageTitle(tab.path)}
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
                 
                 {/* Add Tab Button */}

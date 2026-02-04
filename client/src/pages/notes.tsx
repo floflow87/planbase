@@ -1015,7 +1015,7 @@ export default function Notes() {
               size="sm"
               onClick={() => setShowFilterPanel(!showFilterPanel)}
               data-testid="button-advanced-filters"
-              className="gap-1"
+              className={`gap-1 ${!showFilterPanel ? 'bg-white dark:bg-gray-800 border-border' : ''}`}
             >
               <Filter className="w-4 h-4" />
               Filtres
