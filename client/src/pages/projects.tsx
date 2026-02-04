@@ -1449,9 +1449,10 @@ function KanbanStageColumn({
     id: stage.value,
   });
 
-  // Calculate total budget for this column
-  const totalBudget = projects.reduce((sum, p) => {
-    return sum + (parseFloat(p.budget || "0") || 0);
+  // Calculate total billed amount for this column (excluding internal projects)
+  const totalBilled = projects.reduce((sum, p) => {
+    if (p.businessType === 'internal') return sum;
+    return sum + (parseFloat(p.totalBilled || "0") || 0);
   }, 0);
 
   return (
@@ -1466,9 +1467,9 @@ function KanbanStageColumn({
             {projects.length}
           </Badge>
         </div>
-        {totalBudget > 0 && (
+        {totalBilled > 0 && (
           <div className={`text-xs mt-1 font-medium ${stage.textColor}`}>
-            {totalBudget.toLocaleString("fr-FR", {
+            {totalBilled.toLocaleString("fr-FR", {
               style: "currency",
               currency: "EUR",
               minimumFractionDigits: 0,
@@ -1642,7 +1643,7 @@ function DraggableProjectCard({
           </Badge>
         </div>
         
-        {project.totalBilled && (
+        {project.totalBilled && project.businessType !== 'internal' && (
           <div className="text-[10px] mt-2 flex items-center gap-1">
             <span className="font-medium text-primary">
               {parseFloat(project.totalBilled).toLocaleString("fr-FR", {

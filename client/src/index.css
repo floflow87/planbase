@@ -322,7 +322,7 @@
     overflow: hidden;
   }
 
-  details.collapsible-section > summary.collapsible-summary {
+  details.collapsible-section summary.collapsible-summary {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -336,11 +336,11 @@
     list-style: none;
   }
 
-  details.collapsible-section > summary.collapsible-summary::-webkit-details-marker {
+  details.collapsible-section summary.collapsible-summary::-webkit-details-marker {
     display: none;
   }
 
-  details.collapsible-section > summary.collapsible-summary::before {
+  details.collapsible-section summary.collapsible-summary::before {
     content: '';
     display: inline-block;
     width: 0;
@@ -352,28 +352,28 @@
     flex-shrink: 0;
   }
 
-  details.collapsible-section[open] > summary.collapsible-summary::before {
+  details.collapsible-section[open] summary.collapsible-summary::before {
     transform: rotate(90deg);
   }
 
-  details.collapsible-section > summary.collapsible-summary:hover {
+  details.collapsible-section summary.collapsible-summary:hover {
     background: hsl(var(--muted) / 0.5);
   }
 
-  details.collapsible-section[open] > summary.collapsible-summary {
+  details.collapsible-section[open] summary.collapsible-summary {
     border-bottom: 1px solid hsl(var(--border));
   }
 
-  details.collapsible-section > .details-content {
+  details.collapsible-section .details-content {
     padding: 1rem;
     min-height: 2rem;
   }
 
-  details.collapsible-section > .details-content > p:first-child {
+  details.collapsible-section .details-content p:first-child {
     margin-top: 0;
   }
 
-  details.collapsible-section > .details-content > p:last-child {
+  details.collapsible-section .details-content p:last-child {
     margin-bottom: 0;
   }
 

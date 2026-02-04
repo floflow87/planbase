@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Lock, LockOpen, Globe, ChevronDown, Star, MoreVertical, FolderKanban, Users, Menu, Share2, FileDown, History, Settings2, Eye, EyeOff, Ticket, ExternalLink } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1287,7 +1287,7 @@ export default function NoteDetail() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-r-none border-r-0' : ''}`}
+                        className={`h-6 px-2 text-xs gap-1 ${currentProject ? 'rounded-none border-r-0' : ''}`}
                         onClick={() => {
                           setEntitySelectorTab("project");
                           setEntitySelectorOpen(true);
@@ -1300,18 +1300,30 @@ export default function NoteDetail() {
                         </span>
                       </Button>
                       {currentProject && linkedProject && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            unlinkProjectMutation.mutate();
-                          }}
-                          data-testid="button-unlink-project"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
+                        <>
+                          <Link href={`/projects/${currentProject.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 w-6 p-0 rounded-none border-r-0 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 dark:hover:bg-violet-950"
+                              data-testid="button-go-to-project"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 p-0 rounded-l-none hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              unlinkProjectMutation.mutate();
+                            }}
+                            data-testid="button-unlink-project"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </>
                       )}
                     </div>
                     {/* Client selector */}

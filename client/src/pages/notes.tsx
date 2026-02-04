@@ -1,4 +1,4 @@
-import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, Filter, Settings as SettingsIcon, Download, LayoutGrid, List, Table2, Plus, Sparkles, File, FileText, Trash2, MoreVertical, CheckCircle2, Copy, Globe, GripVertical, ArrowUp, ArrowDown, ArrowUpDown, Star, Settings2, FolderKanban, ChevronDown, ChevronRight, ChevronsUpDown, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/Loader";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1104,9 +1105,9 @@ export default function Notes() {
               </SheetTitle>
             </SheetHeader>
             
-            <div className="space-y-6 mt-6">
+            <div className="space-y-4 mt-4">
               {/* Filter by Tag */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Tag</Label>
                 <Select
                   value={filterByTag || "all"}
@@ -1132,29 +1133,61 @@ export default function Notes() {
                 </Select>
               </div>
               
-              {/* Filter by Project */}
-              <div className="space-y-2">
+              {/* Filter by Project with Autocomplete */}
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Projet</Label>
-                <Select
-                  value={filterByProject || "all"}
-                  onValueChange={(value) => setFilterByProject(value === "all" ? null : value)}
-                >
-                  <SelectTrigger className="w-full bg-white dark:bg-gray-900" data-testid="select-filter-project">
-                    <SelectValue placeholder="Tous les projets" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-900">
-                    <SelectItem value="all">Tous les projets</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between bg-white dark:bg-gray-900 font-normal"
+                      data-testid="select-filter-project"
+                    >
+                      <span className="truncate">
+                        {filterByProject 
+                          ? projects.find(p => p.id === filterByProject)?.name || "Tous les projets"
+                          : "Tous les projets"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0 bg-white dark:bg-gray-900" align="start">
+                    <Command className="bg-white dark:bg-gray-900">
+                      <CommandInput placeholder="Rechercher un projet..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="all"
+                            onSelect={() => {
+                              setFilterByProject(null);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${!filterByProject ? "opacity-100" : "opacity-0"}`} />
+                            Tous les projets
+                          </CommandItem>
+                          {projects.map((project) => (
+                            <CommandItem
+                              key={project.id}
+                              value={project.name}
+                              onSelect={() => {
+                                setFilterByProject(project.id);
+                              }}
+                            >
+                              <Check className={`mr-2 h-4 w-4 ${filterByProject === project.id ? "opacity-100" : "opacity-0"}`} />
+                              {project.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               
               {/* Filter by Visibility */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Visibilité</Label>
                 <Select
                   value={filterByVisibility}
@@ -1171,78 +1204,75 @@ export default function Notes() {
                 </Select>
               </div>
               
-              {/* Filter by Date From */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Date de début</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-white dark:bg-gray-900"
-                      data-testid="button-filter-date-from"
-                    >
-                      {filterDateFrom ? format(filterDateFrom, "dd MMM yyyy", { locale: fr }) : "Sélectionner..."}
-                      {filterDateFrom && (
-                        <X 
-                          className="w-3 h-3 ml-auto" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFilterDateFrom(undefined);
-                          }}
-                        />
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={filterDateFrom}
-                      onSelect={setFilterDateFrom}
-                      locale={fr}
-                      classNames={{
-                        day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
-                        day_today: "bg-accent text-accent-foreground",
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              {/* Filter by Date To */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Date de fin</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-white dark:bg-gray-900"
-                      data-testid="button-filter-date-to"
-                    >
-                      {filterDateTo ? format(filterDateTo, "dd MMM yyyy", { locale: fr }) : "Sélectionner..."}
-                      {filterDateTo && (
-                        <X 
-                          className="w-3 h-3 ml-auto" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFilterDateTo(undefined);
-                          }}
-                        />
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={filterDateTo}
-                      onSelect={setFilterDateTo}
-                      locale={fr}
-                      classNames={{
-                        day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
-                        day_today: "bg-accent text-accent-foreground",
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
+              {/* Filter by Date Range - Same line */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Période</Label>
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex-1 justify-start text-left font-normal bg-white dark:bg-gray-900 text-xs px-2"
+                        data-testid="button-filter-date-from"
+                      >
+                        {filterDateFrom ? format(filterDateFrom, "dd/MM/yy", { locale: fr }) : "Début"}
+                        {filterDateFrom && (
+                          <X 
+                            className="w-3 h-3 ml-auto" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFilterDateFrom(undefined);
+                            }}
+                          />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filterDateFrom}
+                        onSelect={setFilterDateFrom}
+                        locale={fr}
+                        classNames={{
+                          day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
+                          day_today: "bg-accent text-accent-foreground",
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex-1 justify-start text-left font-normal bg-white dark:bg-gray-900 text-xs px-2"
+                        data-testid="button-filter-date-to"
+                      >
+                        {filterDateTo ? format(filterDateTo, "dd/MM/yy", { locale: fr }) : "Fin"}
+                        {filterDateTo && (
+                          <X 
+                            className="w-3 h-3 ml-auto" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFilterDateTo(undefined);
+                            }}
+                          />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={filterDateTo}
+                        onSelect={setFilterDateTo}
+                        locale={fr}
+                        classNames={{
+                          day_selected: "bg-violet-600 text-white hover:bg-violet-700 focus:bg-violet-700",
+                          day_today: "bg-accent text-accent-foreground",
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           </SheetContent>
