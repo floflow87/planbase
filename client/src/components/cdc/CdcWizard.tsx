@@ -414,15 +414,15 @@ export function CdcWizard({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-2 py-2 border-b gap-1 overflow-hidden">
           {STEPS.map((step, index) => {
             const Icon = step.icon;
             const isCompleted = currentStep > step.id;
             const isCurrent = currentStep === step.id;
             return (
-              <div key={step.id} className="flex items-center gap-2">
+              <div key={step.id} className="flex items-center gap-1 min-w-0">
                 <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                  className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 ${
                     isCompleted
                       ? 'bg-emerald-500 text-white'
                       : isCurrent
@@ -430,13 +430,13 @@ export function CdcWizard({
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  {isCompleted ? <CheckCircle2 className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
                 </div>
-                <span className={`text-sm font-medium ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
+                <span className={`text-xs font-medium truncate ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {step.title}
                 </span>
                 {index < STEPS.length - 1 && (
-                  <div className="w-8 h-px bg-border mx-2" />
+                  <div className="w-4 h-px bg-border shrink-0 ml-1" />
                 )}
               </div>
             );
