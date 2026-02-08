@@ -343,8 +343,10 @@ export function CdcWizard({
   const handleNext = async () => {
     if (currentStep === 1 && selectedProjectType) {
       try {
+        const typeLabel = PROJECT_TYPES.find(t => t.value === selectedProjectType)?.label || selectedProjectType;
         await apiRequest(`/api/projects/${projectId}`, 'PATCH', {
           projectTypeInferred: selectedProjectType,
+          category: typeLabel,
         });
         queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId] });
       } catch (error) {

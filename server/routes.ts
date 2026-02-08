@@ -5026,6 +5026,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/roadmaps", requireAuth, requireOrgMember, requirePermission("roadmap", "read"), async (req, res) => {
     try {
+      const { unlinked } = req.query;
+      if (unlinked === 'true') {
+        const allRoadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
+        const unlinkedRoadmaps = allRoadmaps.filter(r => !r.projectId);
+        return res.json(unlinkedRoadmaps);
+      }
       const roadmaps = await storage.getRoadmapsByAccountId(req.accountId!);
       res.json(roadmaps);
     } catch (error: any) {
@@ -8321,6 +8327,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
+      }
+      
+      // Sync roadmap item color if EPIC has a linked roadmap item and color changed
+      if (updated.roadmapItemId && data.color !== undefined && data.color !== existingEpic.color) {
+        await db.update(roadmapItems)
+          .set({ color: data.color || null })
+          .where(eq(roadmapItems.id, updated.roadmapItemId));
       }
       
       // Sync roadmap item status if EPIC has a linked roadmap item and state changed

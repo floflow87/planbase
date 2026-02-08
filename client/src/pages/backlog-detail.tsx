@@ -1231,6 +1231,26 @@ export default function BacklogDetail() {
   };
 
   const handleDeleteTicket = async (ticketId: string, type: TicketType) => {
+    const previousBacklog = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+    
+    if (previousBacklog) {
+      queryClient.setQueryData<BacklogData>(["/api/backlogs", id], {
+        ...previousBacklog,
+        epics: type === "epic"
+          ? previousBacklog.epics.filter(e => e.id !== ticketId)
+          : previousBacklog.epics,
+        userStories: type === "user_story"
+          ? previousBacklog.userStories.filter(us => us.id !== ticketId)
+          : type === "epic"
+            ? previousBacklog.userStories.filter(us => us.epicId !== ticketId)
+            : previousBacklog.userStories,
+        backlogTasks: type === "task"
+          ? previousBacklog.backlogTasks.filter(t => t.id !== ticketId)
+          : previousBacklog.backlogTasks,
+      });
+    }
+    setSelectedTicket(null);
+
     try {
       let endpoint = "";
       if (type === "epic") endpoint = `/api/epics/${ticketId}`;
@@ -1239,10 +1259,12 @@ export default function BacklogDetail() {
       
       await apiRequest(endpoint, "DELETE");
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
-      setSelectedTicket(null);
-      
       toastSuccess({ title: "Ticket supprimé" });
     } catch (error: any) {
+      if (previousBacklog) {
+        queryClient.setQueryData(["/api/backlogs", id], previousBacklog);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
   };

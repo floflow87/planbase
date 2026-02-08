@@ -151,8 +151,13 @@ export default function RoadmapPage() {
     queryKey: ["/api/projects"],
   });
 
+  const isUnlinkedMode = selectedProjectId === "__unlinked__";
+
   const { data: roadmaps = [], isLoading: isLoadingRoadmaps } = useQuery<Roadmap[]>({
-    queryKey: [`/api/projects/${selectedProjectId}/roadmaps`],
+    queryKey: isUnlinkedMode ? ['/api/roadmaps', { unlinked: true }] : [`/api/projects/${selectedProjectId}/roadmaps`],
+    queryFn: isUnlinkedMode 
+      ? async () => { const res = await apiRequest('/api/roadmaps?unlinked=true', 'GET'); return res.json(); }
+      : undefined,
     enabled: !!selectedProjectId,
   });
 
@@ -184,7 +189,7 @@ export default function RoadmapPage() {
   
   const { data: phasesData } = useQuery<PhaseInfo>({
     queryKey: [`/api/projects/${selectedProjectId}/roadmap/phases`],
-    enabled: !!selectedProjectId,
+    enabled: !!selectedProjectId && !isUnlinkedMode,
   });
 
   // Calculate phase for an item based on its dates (aligned with roadmap-tab)
@@ -209,7 +214,7 @@ export default function RoadmapPage() {
 
   const { data: backlogs = [] } = useQuery<{ id: string }[]>({
     queryKey: [`/api/projects/${selectedProjectId}/backlogs`],
-    enabled: !!selectedProjectId,
+    enabled: !!selectedProjectId && !isUnlinkedMode,
   });
 
   const backlogId = backlogs.length > 0 ? backlogs[0].id : null;
@@ -298,7 +303,7 @@ export default function RoadmapPage() {
     mutationFn: async (data: { name: string; horizon?: string; importEpics?: boolean; importTickets?: boolean }) => {
       return apiRequest('/api/roadmaps', 'POST', {
         accountId,
-        projectId: selectedProjectId,
+        projectId: isUnlinkedMode ? null : selectedProjectId,
         name: data.name,
         horizon: data.horizon || null,
         importEpics: data.importEpics || false,
@@ -314,7 +319,11 @@ export default function RoadmapPage() {
       setImportTickets(false);
     },
     onSuccess: (newRoadmap: Roadmap) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
       setSelectedRoadmapId(newRoadmap.id);
       toast({
         title: "Roadmap créée",
@@ -336,7 +345,11 @@ export default function RoadmapPage() {
       return apiRequest(`/api/roadmaps/${id}`, 'PATCH', { name });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
       setIsRenameDialogOpen(false);
       setRoadmapToManage(null);
       toast({
@@ -359,7 +372,11 @@ export default function RoadmapPage() {
       return apiRequest(`/api/roadmaps/${id}`, 'DELETE');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
       setIsDeleteDialogOpen(false);
       setRoadmapToManage(null);
       if (selectedRoadmapId === roadmapToManage?.id) {
@@ -447,7 +464,7 @@ export default function RoadmapPage() {
     mutationFn: async (data: typeof itemForm) => {
       return apiRequest('/api/roadmap-items', 'POST', {
         roadmapId: activeRoadmapId,
-        projectId: selectedProjectId,
+        projectId: isUnlinkedMode ? null : selectedProjectId,
         title: data.title,
         type: data.type,
         priority: data.priority,
@@ -838,7 +855,7 @@ export default function RoadmapPage() {
                     className="w-[280px] justify-between"
                     data-testid="select-project"
                   >
-                    {selectedProject ? selectedProject.name : "Sélectionner un projet..."}
+                    {isUnlinkedMode ? "Sans projet" : selectedProject ? selectedProject.name : "Sélectionner un projet..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -853,12 +870,31 @@ export default function RoadmapPage() {
                     <CommandList>
                       <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                          key="__unlinked__"
+                          value="__unlinked__"
+                          onSelect={() => {
+                            setSelectedProjectId("__unlinked__");
+                            setSelectedRoadmapId(null);
+                            setProjectSearchOpen(false);
+                            setProjectSearchValue("");
+                          }}
+                          data-testid="select-project-unlinked"
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              isUnlinkedMode ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          Sans projet
+                        </CommandItem>
                         {filteredProjects.map((project) => (
                           <CommandItem
                             key={project.id}
                             value={project.id}
                             onSelect={() => {
                               setSelectedProjectId(project.id);
+                              setSelectedRoadmapId(null);
                               setProjectSearchOpen(false);
                               setProjectSearchValue("");
                             }}
