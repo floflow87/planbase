@@ -52,7 +52,7 @@ const STATUS_LABELS: { [key: string]: string } = {
 
 const TYPE_LABELS: { [key: string]: string } = {
   deliverable: "Livrable",
-  milestone: "Jalon",
+  milestone: "Milestone",
   initiative: "Initiative",
   feature: "Fonctionnalité",
   all: "Tous les types",
@@ -741,18 +741,28 @@ export default function RoadmapPage() {
   };
 
   const handleUpdateItemDates = async (itemId: string, startDate: Date, endDate: Date) => {
+    const queryKey = [`/api/roadmaps/${activeRoadmapId}/items`];
+    const previousItems = queryClient.getQueryData<RoadmapItem[]>(queryKey);
+
+    queryClient.setQueryData<RoadmapItem[]>(queryKey, (old) => {
+      if (!old) return old;
+      return old.map(item => 
+        item.id === itemId 
+          ? { ...item, startDate: format(startDate, 'yyyy-MM-dd'), endDate: format(endDate, 'yyyy-MM-dd') }
+          : item
+      );
+    });
+
     try {
       await apiRequest(`/api/roadmap-items/${itemId}`, 'PATCH', {
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${activeRoadmapId}/items`] });
-      toast({
-        title: "Dates mises à jour",
-        description: "Les dates de l'élément ont été modifiées.",
-        className: "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800",
-      });
+      queryClient.invalidateQueries({ queryKey });
     } catch {
+      if (previousItems) {
+        queryClient.setQueryData(queryKey, previousItems);
+      }
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour les dates.",
@@ -909,7 +919,7 @@ export default function RoadmapPage() {
                 <Map className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Aucune roadmap pour ce projet</h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-md">
-                  Créez une roadmap pour planifier et suivre les livrables, jalons et initiatives de "{selectedProject?.name}".
+                  Créez une roadmap pour planifier et suivre les livrables, milestones et initiatives de "{selectedProject?.name}".
                 </p>
                 {canCreate && (
                   <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-roadmap">
@@ -1365,7 +1375,7 @@ export default function RoadmapPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="deliverable">Livrable</SelectItem>
-                    <SelectItem value="milestone">Jalon</SelectItem>
+                    <SelectItem value="milestone">Milestone</SelectItem>
                     <SelectItem value="initiative">Initiative</SelectItem>
                     <SelectItem value="free_block">Bloc libre</SelectItem>
                   </SelectContent>

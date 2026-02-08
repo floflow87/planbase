@@ -1039,7 +1039,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="deliverable">Livrable</SelectItem>
-                <SelectItem value="milestone">Jalon</SelectItem>
+                <SelectItem value="milestone">Milestone</SelectItem>
                 <SelectItem value="initiative">Initiative</SelectItem>
                 <SelectItem value="free_block">Bloc libre</SelectItem>
               </SelectContent>
@@ -1228,7 +1228,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", typeColors.text, typeColors.border)}>
                         {item.type === "deliverable" ? "Livrable" :
-                         item.type === "milestone" ? "Jalon" :
+                         item.type === "milestone" ? "Milestone" :
                          item.type === "initiative" ? "Initiative" : "Bloc"}
                       </Badge>
                       {item.releaseTag && RELEASE_TAG_COLORS[item.releaseTag] && (
@@ -1326,6 +1326,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                 {columns.map((col, idx) => {
                   const isCurrentMonth = isSameMonth(col, new Date());
                   const isCurrentDay = zoom === "day" && isToday(col);
+                  const isMonthBoundary = zoom === "week" && idx > 0 && !isSameMonth(col, columns[idx - 1]);
                   
                   return (
                     <div
@@ -1333,7 +1334,8 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                       className={cn(
                         "flex-shrink-0 border-r flex items-center justify-center text-xs font-medium",
                         zoom !== "day" && isCurrentMonth && "bg-violet-50 dark:bg-violet-900/20",
-                        isCurrentDay && "bg-violet-100 dark:bg-violet-900/40"
+                        isCurrentDay && "bg-violet-100 dark:bg-violet-900/40",
+                        isMonthBoundary && "border-l-2 border-l-muted-foreground/30"
                       )}
                       style={{ width: columnWidth, height: zoom === "day" ? HEADER_HEIGHT / 2 : HEADER_HEIGHT }}
                     >
@@ -1368,13 +1370,19 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                     style={{ height: ROW_HEIGHT }}
                   >
                     <div className="absolute inset-0 flex">
-                      {columns.map((_, colIdx) => (
-                        <div
-                          key={colIdx}
-                          className="flex-shrink-0 border-r border-dashed border-muted-foreground/10"
-                          style={{ width: columnWidth }}
-                        />
-                      ))}
+                      {columns.map((col, colIdx) => {
+                        const isRowMonthBoundary = zoom === "week" && colIdx > 0 && !isSameMonth(col, columns[colIdx - 1]);
+                        return (
+                          <div
+                            key={colIdx}
+                            className={cn(
+                              "flex-shrink-0 border-r border-dashed border-muted-foreground/10",
+                              isRowMonthBoundary && "border-l-2 border-l-muted-foreground/30"
+                            )}
+                            style={{ width: columnWidth }}
+                          />
+                        );
+                      })}
                     </div>
 
                     {position && (
@@ -1382,22 +1390,37 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "absolute rounded-md border-2 group/bar",
-                              isParent 
-                                ? "bg-amber-100 dark:bg-amber-900/30 border-amber-400 top-3 bottom-3" 
-                                : cn(typeColors.bg, typeColors.border, "top-2 bottom-2"),
-                              item.type === "milestone" && "rounded-full",
+                              "absolute group/bar",
+                              item.type === "milestone" 
+                                ? "" 
+                                : cn(
+                                    "rounded-md border-2",
+                                    isParent 
+                                      ? "bg-amber-100 dark:bg-amber-900/30 border-amber-400 top-3 bottom-3" 
+                                      : cn(typeColors.bg, typeColors.border, "top-2 bottom-2")
+                                  ),
                               dragState?.itemId === item.id && "opacity-50",
-                              onUpdateItemDates && "cursor-grab hover:shadow-md hover:bg-white dark:hover:bg-gray-800"
+                              onUpdateItemDates && item.type !== "milestone" && "cursor-grab"
                             )}
                             style={{
                               left: dragState?.itemId === item.id && dragPreview ? dragPreview.left : position.left,
-                              width: item.type === "milestone" ? ROW_HEIGHT - 16 : (dragState?.itemId === item.id && dragPreview ? dragPreview.width : position.width),
+                              width: item.type === "milestone" ? ROW_HEIGHT - 8 : (dragState?.itemId === item.id && dragPreview ? dragPreview.width : position.width),
+                              ...(item.type === "milestone" ? { top: 4, bottom: 4, display: "flex", alignItems: "center", justifyContent: "center" } : {}),
                             }}
                             onClick={() => !dragState && !justDraggedRef.current && onItemClick?.(item)}
                             onMouseDown={(e) => item.type !== "milestone" && handleDragStart(e, item, "move")}
                             data-testid={`gantt-bar-${item.id}`}
                           >
+                            {item.type === "milestone" && (
+                              <div 
+                                className={cn(
+                                  "border-2 rotate-45",
+                                  typeColors.bg, typeColors.border,
+                                  "cursor-pointer"
+                                )}
+                                style={{ width: 20, height: 20 }}
+                              />
+                            )}
                             {item.type !== "milestone" && onUpdateItemDates && (
                               <>
                                 {/* Resize handle - left */}

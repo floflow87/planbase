@@ -89,7 +89,7 @@ const STATUS_LABELS: { [key: string]: string } = {
 
 const TYPE_LABELS: { [key: string]: string } = {
   deliverable: "Livrable",
-  milestone: "Jalon",
+  milestone: "Milestone",
   initiative: "Initiative",
   feature: "Fonctionnalité",
   all: "Tous les types",
@@ -454,7 +454,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
             <Map className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Aucune roadmap</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-md">
-              Créez une roadmap pour planifier et suivre les livrables, jalons et initiatives de ce projet.
+              Créez une roadmap pour planifier et suivre les livrables, milestones et initiatives de ce projet.
             </p>
             <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-roadmap">
               <Plus className="h-4 w-4 mr-2" />
@@ -801,7 +801,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="deliverable">Livrable</SelectItem>
-                    <SelectItem value="milestone">Jalon</SelectItem>
+                    <SelectItem value="milestone">Milestone</SelectItem>
                     <SelectItem value="initiative">Initiative</SelectItem>
                     <SelectItem value="free_block">Bloc libre</SelectItem>
                   </SelectContent>
@@ -844,12 +844,12 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
               <div className="border rounded-md p-4 space-y-4 bg-muted/30">
                 <div className="flex items-center gap-2">
                   <Flag className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Paramètres du jalon</span>
+                  <span className="text-sm font-medium">Paramètres du milestone</span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="milestone-type">Type de jalon</Label>
+                    <Label htmlFor="milestone-type">Type de milestone</Label>
                     <Select value={itemForm.milestoneType} onValueChange={(v) => setItemForm(prev => ({ ...prev, milestoneType: v }))}>
                       <SelectTrigger id="milestone-type" data-testid="select-milestone-type">
                         <SelectValue />
@@ -879,7 +879,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="is-critical" className="text-sm">Jalon critique</Label>
+                    <Label htmlFor="is-critical" className="text-sm">Milestone critique</Label>
                     <p className="text-xs text-muted-foreground">Bloque la progression du projet si en retard</p>
                   </div>
                   <Switch

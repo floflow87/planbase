@@ -161,12 +161,12 @@ export const MODULE_HELP: Record<string, ModuleHelp> = {
   roadmap: {
     id: "roadmap",
     title: "Roadmap",
-    summary: "Visualise ta planification dans le temps. Place tes jalons, épics et dépendances sur une timeline.",
+    summary: "Visualise ta planification dans le temps. Place tes milestones, épics et dépendances sur une timeline.",
     avatarMessage: "Je te réponds ici.",
     faqs: [
       {
         question: "Comment ajouter un élément à la roadmap ?",
-        answer: "Clique sur '+ Élément' ou double-clique sur la timeline. Tu peux ajouter des jalons, des épics ou des blocs libres.",
+        answer: "Clique sur '+ Élément' ou double-clique sur la timeline. Tu peux ajouter des milestones, des épics ou des blocs libres.",
       },
       {
         question: "Comment créer une dépendance ?",

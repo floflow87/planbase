@@ -102,7 +102,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
 
   if (isLoadingPhases || isLoadingMilestones) {
     return (
-      <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="bg-card/50 animate-pulse">
             <CardContent className="pt-4 pb-3 px-4">
@@ -117,7 +117,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
 
   if (!phasesData) {
     return (
-      <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-card/50 col-span-full">
           <CardContent className="pt-4 pb-3 px-4 text-center text-muted-foreground text-sm">
             Impossible de charger les indicateurs de phase
@@ -139,7 +139,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
   const nextMilestoneDate = nextMilestone?.targetDate || nextMilestone?.endDate;
 
   return (
-    <div className="mb-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <Card className="bg-card/50">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
@@ -179,7 +179,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
                 <Flag className={`h-3.5 w-3.5 ${nextMilestone?.isCritical ? "text-orange-500" : ""}`} />
-                {nextMilestone?.isCritical ? "Prochain jalon critique" : "Prochain jalon"}
+                {nextMilestone?.isCritical ? "Prochain milestone critique" : "Prochain milestone"}
               </div>
               {nextMilestone ? (
                 <div className="flex items-center gap-1.5">
@@ -194,7 +194,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground italic">
-                  Aucun jalon planifié
+                  Aucun milestone planifié
                 </div>
               )}
             </div>

@@ -111,7 +111,7 @@ Chaque ticket peut être relié au projet, au temps passé et aux tâches.`,
     text: `Ici, tu prends de la hauteur.
 Tu visualises les grandes étapes, les priorités et les dépendances dans le temps.
 
-Ta roadmap peut connecter des épics, des tickets ou des jalons projet.`,
+Ta roadmap peut connecter des épics, des tickets ou des milestones projet.`,
     link: "Elle t'aide à décider ce que tu fais maintenant… et ce que tu assumes de faire plus tard.",
     actions: [
       { label: "Voir la rentabilité", action: "navigate", target: "finance", primary: true },

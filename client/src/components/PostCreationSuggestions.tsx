@@ -123,7 +123,7 @@ export function PostCreationSuggestions({
               </div>
               <div>
                 <div className="font-medium text-sm text-white">Roadmap</div>
-                <div className="text-xs text-white/80 mt-1">Visualiser les phases et jalons du projet</div>
+                <div className="text-xs text-white/80 mt-1">Visualiser les phases et milestones du projet</div>
               </div>
             </button>
 

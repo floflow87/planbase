@@ -1090,7 +1090,7 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                   <SelectItem value="task">Tâche</SelectItem>
                   <SelectItem value="epic">Epic</SelectItem>
                   <SelectItem value="sprint">Sprint</SelectItem>
-                  <SelectItem value="roadmap_milestone">Jalon Roadmap</SelectItem>
+                  <SelectItem value="roadmap_milestone">Milestone Roadmap</SelectItem>
                   <SelectItem value="roadmap_rubrique">Rubrique Roadmap</SelectItem>
                 </SelectContent>
               </Select>

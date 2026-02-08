@@ -88,17 +88,17 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
             <div className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-primary" />
               <CardTitle className="text-sm font-medium">
-                Jalons
+                Milestones
               </CardTitle>
             </div>
             <Badge variant="outline" className="text-xs text-muted-foreground">
-              Aucun jalon
+              Aucun milestone
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="pt-0 pb-3">
           <p className="text-sm text-muted-foreground text-center py-2">
-            Ajoutez des éléments de type "Jalon" pour suivre vos objectifs clés
+            Ajoutez des éléments de type "Milestone" pour suivre vos objectifs clés
           </p>
         </CardContent>
       </Card>
@@ -140,7 +140,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                 )}
                 <Flag className="h-4 w-4 text-primary" />
                 <CardTitle className="text-sm font-medium">
-                  Jalons ({milestonesData.upcomingCount} à venir)
+                  Milestones ({milestonesData.upcomingCount} à venir)
                 </CardTitle>
               </div>
               <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                       onClick={() => onMilestoneClick?.(milestone)}
                       data-testid={`milestone-item-${milestone.id}`}
                     >
-                      <div className={`absolute left-1.5 top-3 w-3 h-3 rounded-full border-2 bg-background
+                      <div className={`absolute left-1.5 top-3 w-3 h-3 rotate-45 border-2 bg-background
                         ${milestone.status === "done" ? "border-green-500 bg-green-500" : ""}
                         ${milestone.status === "in_progress" ? "border-blue-500" : ""}
                         ${milestone.status === "planned" ? "border-muted-foreground" : ""}
@@ -238,7 +238,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                     data-testid="button-show-completed-milestones"
                   >
                     <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Afficher {completedMilestones.length} jalon(s) atteint(s)
+                    Afficher {completedMilestones.length} milestone(s) atteint(s)
                   </Button>
                 </div>
               )}
@@ -255,7 +255,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                     className="h-7 text-xs text-muted-foreground"
                     data-testid="button-hide-completed-milestones"
                   >
-                    Masquer les jalons atteints
+                    Masquer les milestones atteints
                   </Button>
                 </div>
               )}

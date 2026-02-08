@@ -40,7 +40,7 @@ const STATUS_COLUMNS: StatusColumn[] = [
 
 const ITEM_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   deliverable: { label: "Livrable", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
-  milestone: { label: "Jalon", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
+  milestone: { label: "Milestone", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
   initiative: { label: "Initiative", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
   free_block: { label: "Bloc", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
 };

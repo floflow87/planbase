@@ -1579,10 +1579,41 @@ export default function BacklogDetail() {
   };
 
   const handleCreateSprintTicket = async (sprintId: string, type: TicketType, title: string) => {
+    const tempId = crypto.randomUUID();
+    const previousData = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+
+    if (previousData) {
+      const newData = { ...previousData };
+      if (type === "user_story") {
+        newData.userStories = [...newData.userStories, {
+          id: tempId, title, sprintId, priority: "medium", state: "a_faire",
+          backlogId: id!, epicId: null, description: null, acceptanceCriteria: null,
+          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          order: newData.userStories.length, version: null, createdAt: new Date().toISOString(),
+          tasks: [], checklistItems: []
+        } as any];
+      } else if (type === "epic") {
+        newData.epics = [...newData.epics, {
+          id: tempId, title, sprintId, priority: "medium", state: "a_faire",
+          backlogId: id!, description: null, roadmapItemId: null, cdcSessionId: null,
+          order: newData.epics.length, createdAt: new Date().toISOString()
+        } as any];
+      } else {
+        newData.backlogTasks = [...newData.backlogTasks, {
+          id: tempId, title, sprintId, priority: "medium", state: "a_faire",
+          backlogId: id!, userStoryId: null, epicId: null, description: null,
+          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          order: newData.backlogTasks.length, version: null, taskType: "task",
+          createdAt: new Date().toISOString()
+        } as any];
+      }
+      queryClient.setQueryData(["/api/backlogs", id], newData);
+    }
+
     try {
       let endpoint = "";
       let data: Record<string, any> = { title, sprintId };
-      
+
       if (type === "epic") {
         endpoint = `/api/backlogs/${id}/epics`;
         data = { title, sprintId, priority: "medium", state: "a_faire" };
@@ -1593,20 +1624,54 @@ export default function BacklogDetail() {
         endpoint = `/api/backlogs/${id}/tasks`;
         data = { title, sprintId, priority: "medium", state: "a_faire", order: 0 };
       }
-      
+
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Ticket créé" });
     } catch (error: any) {
+      if (previousData) {
+        queryClient.setQueryData(["/api/backlogs", id], previousData);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
   };
 
   const handleCreateBacklogTicket = async (type: TicketType, title: string) => {
+    const tempId = crypto.randomUUID();
+    const previousData = queryClient.getQueryData<BacklogData>(["/api/backlogs", id]);
+
+    if (previousData) {
+      const newData = { ...previousData };
+      if (type === "user_story") {
+        newData.userStories = [...newData.userStories, {
+          id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
+          backlogId: id!, epicId: null, description: null, acceptanceCriteria: null,
+          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          order: newData.userStories.length, version: null, createdAt: new Date().toISOString(),
+          tasks: [], checklistItems: []
+        } as any];
+      } else if (type === "epic") {
+        newData.epics = [...newData.epics, {
+          id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
+          backlogId: id!, description: null, roadmapItemId: null, cdcSessionId: null,
+          order: newData.epics.length, createdAt: new Date().toISOString()
+        } as any];
+      } else {
+        newData.backlogTasks = [...newData.backlogTasks, {
+          id: tempId, title, sprintId: null, priority: "medium", state: "a_faire",
+          backlogId: id!, userStoryId: null, epicId: null, description: null,
+          estimatePoints: null, complexity: null, assigneeId: null, reporterId: null,
+          order: newData.backlogTasks.length, version: null, taskType: "task",
+          createdAt: new Date().toISOString()
+        } as any];
+      }
+      queryClient.setQueryData(["/api/backlogs", id], newData);
+    }
+
     try {
       let endpoint = "";
       let data: Record<string, any> = { title };
-      
+
       if (type === "epic") {
         endpoint = `/api/backlogs/${id}/epics`;
         data = { title, priority: "medium", state: "a_faire" };
@@ -1617,11 +1682,14 @@ export default function BacklogDetail() {
         endpoint = `/api/backlogs/${id}/tasks`;
         data = { title, priority: "medium", state: "a_faire", order: 0 };
       }
-      
+
       await apiRequest(endpoint, "POST", data);
       queryClient.invalidateQueries({ queryKey: ["/api/backlogs", id] });
       toastSuccess({ title: "Ticket créé" });
     } catch (error: any) {
+      if (previousData) {
+        queryClient.setQueryData(["/api/backlogs", id], previousData);
+      }
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
   };
@@ -3572,7 +3640,7 @@ function SprintSheet({
                     <SelectItem key={item.id} value={item.id}>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px] px-1">
-                          {item.type === 'milestone' ? 'Jalon' : 
+                          {item.type === 'milestone' ? 'Milestone' : 
                            item.type === 'epic_group' ? 'Rubrique' : 
                            item.type === 'deliverable' ? 'Livrable' : item.type}
                         </Badge>

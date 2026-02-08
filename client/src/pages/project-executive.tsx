@@ -147,7 +147,7 @@ export default function ProjectExecutive() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Prochain jalon
+                Prochain milestone
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -166,7 +166,7 @@ export default function ProjectExecutive() {
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">Aucun jalon à venir</p>
+                <p className="text-muted-foreground">Aucun milestone à venir</p>
               )}
             </CardContent>
           </Card>

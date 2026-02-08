@@ -129,7 +129,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     route: "/roadmap",
     highlightSelector: "[data-testid='roadmap-view'], .roadmap-container, main",
     placement: "top-left",
-    copy: "Ici, je te fais prendre de la hauteur. Tu visualises les etapes, les priorites et les dependances dans le temps. Ta roadmap peut connecter des epics, des tickets, des jalons projet... ou des blocs libres.",
+    copy: "Ici, je te fais prendre de la hauteur. Tu visualises les etapes, les priorites et les dependances dans le temps. Ta roadmap peut connecter des epics, des tickets, des milestones projet... ou des blocs libres.",
     ctaPrimaryLabel: "Suivant",
     ctaSecondaryLabel: "Passer",
   },

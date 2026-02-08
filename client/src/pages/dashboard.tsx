@@ -71,7 +71,7 @@ const translateSubjectType = (subjectType: string) => {
     backlog: "backlog",
     roadmap: "roadmap",
     roadmap_item: "élément roadmap",
-    milestone: "jalon",
+    milestone: "milestone",
     rubrique: "rubrique",
   };
   return translations[subjectType] || subjectType;
