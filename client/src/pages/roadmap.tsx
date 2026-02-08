@@ -758,14 +758,14 @@ export default function RoadmapPage() {
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
       });
-    } catch (error) {
-      console.error("Roadmap drag error:", error);
+    } catch (error: any) {
+      console.error("Roadmap drag error:", error?.message || error);
       if (previousItems) {
         queryClient.setQueryData(queryKey, previousItems);
       }
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour les dates.",
+        description: error?.message || "Impossible de mettre à jour les dates.",
         variant: "destructive",
       });
     } finally {

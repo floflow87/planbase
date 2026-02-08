@@ -5343,18 +5343,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const item = await storage.updateRoadmapItem(req.params.id, updateData);
       
-      // Log activity - determine subject type based on item type
-      const subjectType = item!.type === "milestone" ? "milestone" : (item!.type === "epic_group" || item!.isGroup) ? "rubrique" : "roadmap_item";
-      const typeLabel = item!.type === "milestone" ? "Jalon" : (item!.type === "epic_group" || item!.isGroup) ? "Rubrique" : "Élément roadmap";
-      if (req.userId) {
+      if (!item) {
+        return res.status(404).json({ error: "Roadmap item not found after update" });
+      }
+      
+      // Log activity only for non-date-only updates to avoid noise from drag & drop
+      const isDateOnlyUpdate = Object.keys(req.body).every(k => k === 'startDate' || k === 'endDate');
+      if (req.userId && !isDateOnlyUpdate) {
+        const subjectType = item.type === "milestone" ? "milestone" : (item.type === "epic_group" || item.isGroup) ? "rubrique" : "roadmap_item";
+        const typeLabel = item.type === "milestone" ? "Jalon" : (item.type === "epic_group" || item.isGroup) ? "Rubrique" : "Élément roadmap";
         await storage.createActivity({
           accountId: req.accountId!,
           subjectType,
-          subjectId: item!.id,
+          subjectId: item.id,
           kind: "updated",
-          description: `${typeLabel} mis à jour : ${item!.title}`,
+          description: `${typeLabel} mis à jour : ${item.title}`,
           occurredAt: new Date(),
-          payload: { description: `${typeLabel} mis à jour : ${item!.title}`, roadmapId: item!.roadmapId },
+          payload: { description: `${typeLabel} mis à jour : ${item.title}`, roadmapId: item.roadmapId },
           createdBy: req.userId,
         });
       }
@@ -5980,6 +5985,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const SCOPE_TYPE_COLORS_MAP: Record<string, string> = {
+        'functional': '#8B5CF6',
+        'technical': '#06B6D4',
+        'design': '#F59E0B',
+        'gestion': '#10B981',
+        'strategy': '#3B82F6',
+        'autre': '#6B7280',
+      };
+
       // Create roadmap items for each scope item
       console.log("🔨 Creating roadmap items for roadmap:", roadmap.id);
       const createdItems: any[] = [];
@@ -5997,6 +6011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startDate: startDate.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
           progress: 0,
+          color: SCOPE_TYPE_COLORS_MAP[scopeItem.scopeType] || '#6B7280',
           sourceType: 'cdc',
           sourceId: scopeItem.id,
         });
@@ -8490,13 +8505,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accountId = req.accountId!;
       const id = req.params.id;
       
-      const [deleted] = await db.delete(userStories)
-        .where(and(eq(userStories.id, id), eq(userStories.accountId, accountId)))
-        .returning();
+      const [existing] = await db.select({ id: userStories.id, accountId: userStories.accountId })
+        .from(userStories).where(eq(userStories.id, id));
       
-      if (!deleted) {
+      if (!existing) {
         return res.status(404).json({ error: "User story not found" });
       }
+      if (existing.accountId !== accountId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      await db.delete(userStories)
+        .where(and(eq(userStories.id, id), eq(userStories.accountId, accountId)));
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

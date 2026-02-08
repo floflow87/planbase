@@ -36,6 +36,16 @@ import {
   Target,
   TrendingUp,
   BarChart3,
+  FolderKanban,
+  Monitor,
+  Palette,
+  MessageSquare,
+  ShoppingCart,
+  Globe,
+  Plug,
+  GraduationCap,
+  Briefcase,
+  MoreHorizontal,
 } from "lucide-react";
 import type { ProjectScopeItem, CdcSession, ProjectBaseline } from "@shared/schema";
 
@@ -78,12 +88,27 @@ const PHASES: { value: Phase; label: string }[] = [
   { value: 'LT', label: 'LT - Long terme' },
 ];
 
+type ProjectType = 'dev_saas' | 'ecommerce' | 'site_vitrine' | 'design' | 'conseil' | 'integration' | 'formation' | 'cpo' | 'autre';
+
+const PROJECT_TYPES: { value: ProjectType; label: string; description: string; icon: typeof Monitor }[] = [
+  { value: 'dev_saas', label: 'Application SaaS', description: 'Plateforme web avec abonnement', icon: Monitor },
+  { value: 'ecommerce', label: 'E-commerce', description: 'Boutique en ligne et vente', icon: ShoppingCart },
+  { value: 'site_vitrine', label: 'Site vitrine', description: 'Site web institutionnel', icon: Globe },
+  { value: 'design', label: 'Design', description: 'UI/UX, identité visuelle', icon: Palette },
+  { value: 'conseil', label: 'Conseil', description: 'Accompagnement stratégique', icon: MessageSquare },
+  { value: 'integration', label: 'Intégration', description: 'Connexion de systèmes', icon: Plug },
+  { value: 'formation', label: 'Formation', description: 'Programmes de formation', icon: GraduationCap },
+  { value: 'cpo', label: 'CPO / Product', description: 'Pilotage produit externalisé', icon: Briefcase },
+  { value: 'autre', label: 'Autre', description: 'Type de projet personnalisé', icon: MoreHorizontal },
+];
+
 const STEPS = [
-  { id: 1, title: 'Périmètre', icon: FileText },
-  { id: 2, title: 'Estimation', icon: Clock },
-  { id: 3, title: 'Phase', icon: Layers },
-  { id: 4, title: 'Génération', icon: Wand2 },
-  { id: 5, title: 'Confirmation', icon: CheckCircle2 },
+  { id: 1, title: 'Projet', icon: FolderKanban },
+  { id: 2, title: 'Périmètre', icon: FileText },
+  { id: 3, title: 'Estimation', icon: Clock },
+  { id: 4, title: 'Phase', icon: Layers },
+  { id: 5, title: 'Génération', icon: Wand2 },
+  { id: 6, title: 'Confirmation', icon: CheckCircle2 },
 ];
 
 const emptyForm: ScopeItemForm = {
@@ -107,6 +132,7 @@ export function CdcWizard({
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [selectedProjectType, setSelectedProjectType] = useState<ProjectType | null>(null);
   const [newItemForm, setNewItemForm] = useState<ScopeItemForm>({ ...emptyForm });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
@@ -297,7 +323,7 @@ export function CdcWizard({
         queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${result.generatedRoadmapId}/items`] });
         queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${result.generatedRoadmapId}/dependencies`] });
       }
-      setCurrentStep(5);
+      setCurrentStep(6);
     },
     onError: (error: any) => {
       setIsGenerating(false);
@@ -314,8 +340,22 @@ export function CdcWizard({
     addScopeItemMutation.mutate(newItemForm);
   };
 
-  const handleNext = () => {
-    if (currentStep < 4) {
+  const handleNext = async () => {
+    if (currentStep === 1 && selectedProjectType) {
+      try {
+        await apiRequest(`/api/projects/${projectId}`, 'PATCH', {
+          projectTypeInferred: selectedProjectType,
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId] });
+      } catch (error) {
+        toast({
+          title: "Avertissement",
+          description: "Le type de projet n'a pas pu être sauvegardé, mais vous pouvez continuer.",
+          variant: "destructive",
+        });
+      }
+    }
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -333,6 +373,7 @@ export function CdcWizard({
   const handleClose = () => {
     setCurrentStep(1);
     setSessionId(null);
+    setSelectedProjectType(null);
     setNewItemForm({ ...emptyForm });
     setGenerationResult(null);
     onClose();
@@ -353,8 +394,10 @@ export function CdcWizard({
   const totalPrice = totalDays * dailyRate;
 
   const canProceed = currentStep === 1 
+    ? !!selectedProjectType
+    : currentStep === 2
     ? scopeItems.length > 0
-    : currentStep === 2 
+    : currentStep === 3 
     ? scopeItems.every(item => parseFloat(item.estimatedDays?.toString() || '0') > 0)
     : true;
 
@@ -367,7 +410,7 @@ export function CdcWizard({
             Session CDC - {projectName}
           </DialogTitle>
           <DialogDescription>
-            Structurez le périmètre de votre projet en 5 étapes
+            Structurez le périmètre de votre projet en 6 étapes
           </DialogDescription>
         </DialogHeader>
 
@@ -402,6 +445,47 @@ export function CdcWizard({
 
         <ScrollArea className="flex-1 px-4">
           {currentStep === 1 && (
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Sélectionnez le type de projet pour adapter le périmètre et les recommandations.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                {PROJECT_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = selectedProjectType === type.value;
+                  return (
+                    <Card
+                      key={type.value}
+                      className={`cursor-pointer transition-all hover-elevate ${
+                        isSelected 
+                          ? 'border-primary bg-primary/5' 
+                          : ''
+                      }`}
+                      onClick={() => setSelectedProjectType(type.value)}
+                      data-testid={`card-project-type-${type.value}`}
+                    >
+                      <CardContent className="py-4 flex flex-col items-center text-center gap-2">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                          isSelected 
+                            ? 'bg-primary/10' 
+                            : 'bg-muted'
+                        }`}>
+                          <Icon className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium" data-testid={`text-project-type-label-${type.value}`}>{type.label}</h4>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-project-type-desc-${type.value}`}>{type.description}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {currentStep === 2 && (
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
                 Listez les rubriques du périmètre du projet. Vous pourrez les estimer à l'étape suivante.
@@ -472,7 +556,7 @@ export function CdcWizard({
             </div>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 3 && (
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
                 Estimez le temps nécessaire pour chaque rubrique et indiquez si elle est facturable.
@@ -553,7 +637,7 @@ export function CdcWizard({
             </div>
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <div className="space-y-4 py-4">
               <p className="text-sm text-muted-foreground">
                 Attribuez une phase temporelle à chaque rubrique pour la planification de la roadmap.
@@ -597,7 +681,7 @@ export function CdcWizard({
             </div>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 5 && (
             <div className="space-y-6 py-4">
               <p className="text-xs text-muted-foreground">
                 Choisissez ce que vous souhaitez générer à partir du périmètre défini.
@@ -702,7 +786,7 @@ export function CdcWizard({
             </div>
           )}
 
-          {currentStep === 5 && generationResult && (
+          {currentStep === 6 && generationResult && (
             <div className="space-y-6 py-4">
               <div className="text-center space-y-2">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950">
@@ -844,7 +928,7 @@ export function CdcWizard({
         </ScrollArea>
 
         <div className="flex items-center justify-between pt-4 border-t">
-          {currentStep < 5 && (
+          {currentStep < 6 && (
             <Button
               variant="outline"
               onClick={handleBack}
@@ -856,14 +940,14 @@ export function CdcWizard({
             </Button>
           )}
 
-          {currentStep === 5 && <div />}
+          {currentStep === 6 && <div />}
 
           <div className="flex items-center gap-2">
-            <Progress value={(currentStep / 5) * 100} className="w-24 h-2" />
-            <span className="text-sm text-muted-foreground">{currentStep}/5</span>
+            <Progress value={(currentStep / 6) * 100} className="w-24 h-2" />
+            <span className="text-sm text-muted-foreground">{currentStep}/6</span>
           </div>
 
-          {currentStep < 4 ? (
+          {currentStep < 5 ? (
             <Button
               onClick={handleNext}
               disabled={!canProceed}
@@ -872,7 +956,7 @@ export function CdcWizard({
               Suivant
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-          ) : currentStep === 4 ? (
+          ) : currentStep === 5 ? (
             <Button
               onClick={handleComplete}
               disabled={isGenerating || (!generateBacklog && !generateRoadmap && !generateOkr && !generateResources)}

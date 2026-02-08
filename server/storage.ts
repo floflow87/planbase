@@ -497,7 +497,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteContact(accountId: string, id: string): Promise<boolean> {
-    const result = await db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
+    const result = await db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.accountId, accountId))).returning();
     return result.length > 0;
   }
 
@@ -655,7 +655,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const result = await db.delete(projects).where(eq(projects.id, id));
+    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
     return result.length > 0;
   }
 
@@ -741,7 +741,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePayment(id: string): Promise<boolean> {
-    const result = await db.delete(projectPayments).where(eq(projectPayments.id, id));
+    const result = await db.delete(projectPayments).where(eq(projectPayments.id, id)).returning();
     return result.length > 0;
   }
 
@@ -789,7 +789,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCdcSession(id: string): Promise<boolean> {
-    const result = await db.delete(cdcSessions).where(eq(cdcSessions.id, id));
+    const result = await db.delete(cdcSessions).where(eq(cdcSessions.id, id)).returning();
     return result.length > 0;
   }
 
@@ -878,7 +878,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteScopeItem(id: string): Promise<boolean> {
-    const result = await db.delete(projectScopeItems).where(eq(projectScopeItems.id, id));
+    const result = await db.delete(projectScopeItems).where(eq(projectScopeItems.id, id)).returning();
     return result.length > 0;
   }
 
@@ -938,7 +938,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRecommendationAction(id: string): Promise<boolean> {
-    const result = await db.delete(recommendationActions).where(eq(recommendationActions.id, id));
+    const result = await db.delete(recommendationActions).where(eq(recommendationActions.id, id)).returning();
     return result.length > 0;
   }
 
@@ -990,7 +990,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTaskColumn(id: string): Promise<boolean> {
-    const result = await db.delete(taskColumns).where(eq(taskColumns.id, id));
+    const result = await db.delete(taskColumns).where(eq(taskColumns.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1040,7 +1040,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: string): Promise<boolean> {
-    const result = await db.delete(tasks).where(eq(tasks.id, id));
+    const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1128,7 +1128,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteNote(id: string): Promise<boolean> {
-    const result = await db.delete(notes).where(eq(notes.id, id));
+    const result = await db.delete(notes).where(eq(notes.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1172,7 +1172,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteNoteCategory(id: string): Promise<boolean> {
-    const result = await db.delete(noteCategories).where(eq(noteCategories.id, id));
+    const result = await db.delete(noteCategories).where(eq(noteCategories.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1286,7 +1286,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDocumentTemplate(id: string): Promise<boolean> {
-    const result = await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
+    const result = await db.delete(documentTemplates).where(eq(documentTemplates.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1330,7 +1330,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDocument(id: string): Promise<boolean> {
-    const result = await db.delete(documents).where(eq(documents.id, id));
+    const result = await db.delete(documents).where(eq(documents.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1459,7 +1459,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFolder(id: string): Promise<boolean> {
-    const result = await db.delete(folders).where(eq(folders.id, id));
+    const result = await db.delete(folders).where(eq(folders.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1495,7 +1495,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFile(id: string): Promise<boolean> {
-    const result = await db.delete(files).where(eq(files.id, id));
+    const result = await db.delete(files).where(eq(files.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1546,7 +1546,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteActivity(id: string): Promise<boolean> {
-    const result = await db.delete(activities).where(eq(activities.id, id));
+    const result = await db.delete(activities).where(eq(activities.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1572,7 +1572,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDeal(id: string): Promise<boolean> {
-    const result = await db.delete(deals).where(eq(deals.id, id));
+    const result = await db.delete(deals).where(eq(deals.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1598,7 +1598,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(id: string): Promise<boolean> {
-    const result = await db.delete(products).where(eq(products.id, id));
+    const result = await db.delete(products).where(eq(products.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1624,7 +1624,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFeature(id: string): Promise<boolean> {
-    const result = await db.delete(features).where(eq(features.id, id));
+    const result = await db.delete(features).where(eq(features.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1656,7 +1656,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRoadmap(id: string): Promise<boolean> {
-    const result = await db.delete(roadmaps).where(eq(roadmaps.id, id));
+    const result = await db.delete(roadmaps).where(eq(roadmaps.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1682,7 +1682,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRoadmapItem(id: string): Promise<boolean> {
-    const result = await db.delete(roadmapItems).where(eq(roadmapItems.id, id));
+    const result = await db.delete(roadmapItems).where(eq(roadmapItems.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1699,7 +1699,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRoadmapItemLink(id: string): Promise<boolean> {
-    const result = await db.delete(roadmapItemLinks).where(eq(roadmapItemLinks.id, id));
+    const result = await db.delete(roadmapItemLinks).where(eq(roadmapItemLinks.id, id)).returning();
     return result.length > 0;
   }
 
@@ -1725,7 +1725,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRoadmapDependency(id: string): Promise<boolean> {
-    const result = await db.delete(roadmapDependencies).where(eq(roadmapDependencies.id, id));
+    const result = await db.delete(roadmapDependencies).where(eq(roadmapDependencies.id, id)).returning();
     return result.length > 0;
   }
 
