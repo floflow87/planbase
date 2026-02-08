@@ -486,13 +486,13 @@ export function CdcWizard({
                     data-testid={`estimate-item-${item.id}`}
                   >
                     <div className={`w-2 h-2 rounded-full ${SCOPE_TYPES.find(t => t.value === item.scopeType)?.color || 'bg-gray-500'}`} />
-                    <span className="flex-1 min-w-0 truncate">{item.label}</span>
+                    <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         step="0.5"
                         min="0"
-                        className="w-20"
+                        className="w-20 text-sm"
                         placeholder="jours"
                         defaultValue={item.estimatedDays?.toString() || ''}
                         onBlur={(e) => {
@@ -504,7 +504,7 @@ export function CdcWizard({
                         }}
                         data-testid={`input-days-${item.id}`}
                       />
-                      <span className="text-sm text-muted-foreground">j</span>
+                      <span className="text-xs text-muted-foreground">j</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground">Facturable</Label>
@@ -541,11 +541,11 @@ export function CdcWizard({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-violet-600" />
-                      <span className="font-medium">Total estimé</span>
+                      <span className="text-sm font-medium">Total estimé</span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-lg font-semibold">{totalDays.toFixed(1)} jours</span>
-                      <span className="text-lg font-semibold text-violet-600">{totalPrice.toFixed(0)} €</span>
+                      <span className="text-sm font-semibold">{totalDays.toFixed(1)} jours</span>
+                      <span className="text-sm font-semibold text-violet-600">{totalPrice.toFixed(0)} €</span>
                     </div>
                   </div>
                 </CardContent>
@@ -567,7 +567,7 @@ export function CdcWizard({
                     data-testid={`phase-item-${item.id}`}
                   >
                     <div className={`w-2 h-2 rounded-full ${SCOPE_TYPES.find(t => t.value === item.scopeType)?.color || 'bg-gray-500'}`} />
-                    <span className="flex-1 min-w-0 truncate">{item.label}</span>
+                    <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
                     <Badge variant="outline" className="text-xs">
                       {item.estimatedDays || 0}j
                     </Badge>
@@ -580,7 +580,7 @@ export function CdcWizard({
                         });
                       }}
                     >
-                      <SelectTrigger className="w-48" data-testid={`select-phase-${item.id}`}>
+                      <SelectTrigger className="w-48 text-sm" data-testid={`select-phase-${item.id}`}>
                         <SelectValue placeholder="Sélectionner une phase" />
                       </SelectTrigger>
                       <SelectContent>

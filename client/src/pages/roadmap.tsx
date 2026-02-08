@@ -758,8 +758,8 @@ export default function RoadmapPage() {
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
       });
-      queryClient.invalidateQueries({ queryKey });
-    } catch {
+    } catch (error) {
+      console.error("Roadmap drag error:", error);
       if (previousItems) {
         queryClient.setQueryData(queryKey, previousItems);
       }
@@ -768,6 +768,8 @@ export default function RoadmapPage() {
         description: "Impossible de mettre à jour les dates.",
         variant: "destructive",
       });
+    } finally {
+      queryClient.invalidateQueries({ queryKey });
     }
   };
 

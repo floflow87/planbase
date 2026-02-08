@@ -65,8 +65,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { PROJECT_STAGES } from "@shared/config";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarWidget } from "@/components/ui/calendar";
+import { format as formatDate } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
 
 function Router() {
   return (
@@ -236,11 +242,16 @@ const clientSchema = z.object({
   phone: z.string().optional(),
 });
 
+const projectStageKeys = PROJECT_STAGES.map(s => s.key) as [string, ...string[]];
 const projectSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   description: z.string().optional(),
   clientId: z.string().optional(),
-  stage: z.enum(["prospection", "proposal", "negotiation", "signed", "in_progress", "completed", "lost"]),
+  stage: z.enum(projectStageKeys),
+  category: z.string().optional(),
+  startDate: z.date().optional().nullable(),
+  endDate: z.date().optional().nullable(),
+  budget: z.string().optional(),
 });
 
 const taskSchema = z.object({
@@ -287,7 +298,7 @@ function QuickCreateMenu() {
 
   const projectForm = useForm({
     resolver: zodResolver(projectSchema),
-    defaultValues: { name: "", description: "", clientId: "", stage: "prospection" as const },
+    defaultValues: { name: "", description: "", clientId: "", stage: "prospection" as const, category: "", startDate: null as Date | null, endDate: null as Date | null, budget: "" },
   });
 
   const taskForm = useForm({
@@ -303,13 +314,10 @@ function QuickCreateMenu() {
   // Mutations - Server adds accountId and createdBy from auth context
   const createClientMutation = useMutation({
     mutationFn: async (data: z.infer<typeof clientSchema>) => {
-      return apiRequest("/api/clients", {
-        method: "POST",
-        body: JSON.stringify({ 
-          name: data.name,
-          type: data.type,
-          contacts: data.email || data.phone ? [{ name: "", email: data.email || "", phone: data.phone || "", role: "" }] : [],
-        }),
+      return apiRequest("/api/clients", "POST", { 
+        name: data.name,
+        type: data.type,
+        contacts: data.email || data.phone ? [{ name: "", email: data.email || "", phone: data.phone || "", role: "" }] : [],
       });
     },
     onSuccess: () => {
@@ -325,21 +333,26 @@ function QuickCreateMenu() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: z.infer<typeof projectSchema>) => {
-      return apiRequest("/api/projects", {
-        method: "POST",
-        body: JSON.stringify({ 
-          name: data.name,
-          description: data.description || null,
-          stage: data.stage,
-          clientId: data.clientId || null,
-        }),
+      const res = await apiRequest("/api/projects", "POST", { 
+        name: data.name,
+        description: data.description || null,
+        stage: data.stage,
+        clientId: data.clientId || null,
+        category: data.category?.trim() || null,
+        startDate: data.startDate ? formatDateForStorage(data.startDate) : null,
+        endDate: data.endDate ? formatDateForStorage(data.endDate) : null,
+        budget: data.budget?.trim() || null,
       });
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (newProject: any) => {
       toast({ title: "Projet créé avec succès" });
       setIsProjectSheetOpen(false);
       projectForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      if (newProject?.id) {
+        setLocation(`/projects/${newProject.id}?openCdc=true`);
+      }
     },
     onError: () => {
       toast({ title: "Erreur lors de la création", variant: "destructive" });
@@ -348,14 +361,11 @@ function QuickCreateMenu() {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: z.infer<typeof taskSchema>) => {
-      return apiRequest("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify({ 
-          title: data.title,
-          description: data.description || null,
-          priority: data.priority,
-          projectId: data.projectId || null,
-        }),
+      return apiRequest("/api/tasks", "POST", { 
+        title: data.title,
+        description: data.description || null,
+        priority: data.priority,
+        projectId: data.projectId || null,
       });
     },
     onSuccess: () => {
@@ -504,18 +514,18 @@ function QuickCreateMenu() {
 
       {/* Project Sheet */}
       <Sheet open={isProjectSheetOpen} onOpenChange={setIsProjectSheetOpen}>
-        <SheetContent className="sm:max-w-md" data-testid="sheet-create-project">
+        <SheetContent className="sm:max-w-2xl w-full overflow-y-auto flex flex-col" data-testid="sheet-create-project">
           <SheetHeader>
-            <SheetTitle>Nouveau projet</SheetTitle>
+            <SheetTitle>Créer un nouveau projet</SheetTitle>
           </SheetHeader>
           <Form {...projectForm}>
-            <form onSubmit={projectForm.handleSubmit((data) => createProjectMutation.mutate(data))} className="space-y-4 mt-4">
+            <form onSubmit={projectForm.handleSubmit((data) => createProjectMutation.mutate(data))} className="space-y-4 mt-4 flex-1">
               <FormField
                 control={projectForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nom</FormLabel>
+                    <Label className="text-[12px]">Nom du projet *</Label>
                     <FormControl>
                       <Input {...field} data-testid="input-project-name" />
                     </FormControl>
@@ -528,9 +538,9 @@ function QuickCreateMenu() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <Label className="text-[12px]">Description</Label>
                     <FormControl>
-                      <Textarea {...field} data-testid="input-project-description" />
+                      <Textarea {...field} rows={3} data-testid="input-project-description" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -541,16 +551,16 @@ function QuickCreateMenu() {
                 name="clientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Client</FormLabel>
+                    <Label className="text-[12px]">Client</Label>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-project-client">
                           <SelectValue placeholder="Sélectionner un client" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-popover">
                         {clients.map((client: any) => (
-                          <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                          <SelectItem key={client.id} value={client.id} className="cursor-pointer">{client.company || client.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -558,28 +568,112 @@ function QuickCreateMenu() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={projectForm.control}
+                  name="stage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Label className="text-[12px]">Étape</Label>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-stage">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-popover">
+                          {PROJECT_STAGES.map((stage) => (
+                            <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
+                              {stage.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={projectForm.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Label className="text-[12px]">Catégorie</Label>
+                      <FormControl>
+                        <Input {...field} placeholder="Ex: Site web, Application..." data-testid="input-project-category" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-[12px]">Date de début</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-project-start-date"
+                        type="button"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {projectForm.watch("startDate") ? (
+                          formatDate(projectForm.watch("startDate")!, "PPP", { locale: fr })
+                        ) : (
+                          <span className="text-muted-foreground">Choisir une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarWidget
+                        mode="single"
+                        selected={projectForm.watch("startDate") || undefined}
+                        onSelect={(date) => projectForm.setValue("startDate", date || null)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-[12px]">Date de fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-project-end-date"
+                        type="button"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {projectForm.watch("endDate") ? (
+                          formatDate(projectForm.watch("endDate")!, "PPP", { locale: fr })
+                        ) : (
+                          <span className="text-muted-foreground">Choisir une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarWidget
+                        mode="single"
+                        selected={projectForm.watch("endDate") || undefined}
+                        onSelect={(date) => projectForm.setValue("endDate", date || null)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
               <FormField
                 control={projectForm.control}
-                name="stage"
+                name="budget"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Étape</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-project-stage">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="prospection">Prospection</SelectItem>
-                        <SelectItem value="proposal">Proposition</SelectItem>
-                        <SelectItem value="negotiation">Négociation</SelectItem>
-                        <SelectItem value="signed">Signé</SelectItem>
-                        <SelectItem value="in_progress">En cours</SelectItem>
-                        <SelectItem value="completed">Terminé</SelectItem>
-                        <SelectItem value="lost">Perdu</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-[12px]">Budget (€)</Label>
+                    <FormControl>
+                      <Input type="number" {...field} data-testid="input-project-budget" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -589,7 +683,7 @@ function QuickCreateMenu() {
                   Annuler
                 </Button>
                 <Button type="submit" disabled={createProjectMutation.isPending} className="flex-1" data-testid="button-submit-project">
-                  Créer
+                  Créer le projet
                 </Button>
               </div>
             </form>

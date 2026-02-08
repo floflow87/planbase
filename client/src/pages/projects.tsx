@@ -1670,6 +1670,7 @@ interface ProjectKanbanViewProps {
   onCompleteProject: (project: Project) => void;
   updateProjectMutation: any;
   kanbanColumnVisibility: Record<string, boolean>;
+  stageFilters?: string[];
   canUpdate?: boolean;
   canDelete?: boolean;
 }
@@ -1684,6 +1685,7 @@ function ProjectKanbanView({
   onCompleteProject,
   updateProjectMutation,
   kanbanColumnVisibility,
+  stageFilters = [],
   canUpdate = true,
   canDelete = true,
 }: ProjectKanbanViewProps) {
@@ -1742,8 +1744,11 @@ function ProjectKanbanView({
     ? clients.find(c => c.id === activeKanbanProject.clientId)
     : undefined;
   
-  // Filter stages by visibility
-  const visibleStages = stages.filter(stage => kanbanColumnVisibility[stage.value] !== false);
+  const visibleStages = stages.filter(stage => {
+    if (kanbanColumnVisibility[stage.value] === false) return false;
+    if (stageFilters.length > 0 && !stageFilters.includes(stage.value)) return false;
+    return true;
+  });
 
   return (
     <DndContext
@@ -3495,6 +3500,7 @@ export default function Projects() {
                         }}
                         updateProjectMutation={updateProjectMutation}
                         kanbanColumnVisibility={projectKanbanColumnVisibility}
+                        stageFilters={projectStageFilters}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
                       />

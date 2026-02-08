@@ -2764,7 +2764,14 @@ export default function ProjectDetail() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
-  const [isCdcWizardOpen, setIsCdcWizardOpen] = useState(false);
+  const [isCdcWizardOpen, setIsCdcWizardOpen] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openCdc') === 'true') {
+      window.history.replaceState({}, '', window.location.pathname);
+      return true;
+    }
+    return false;
+  });
   const [isBillingSettingsOpen, setIsBillingSettingsOpen] = useState(false);
   
   // Expansion panel states (collapsed by default)

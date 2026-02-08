@@ -74,11 +74,11 @@ interface DragState {
 
 type ZoomLevel = "day" | "week" | "month";
 
-const ITEM_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  deliverable: { bg: "bg-violet-100 dark:bg-violet-900/30", border: "border-violet-400", text: "text-violet-700 dark:text-violet-300" },
-  milestone: { bg: "bg-cyan-100 dark:bg-cyan-900/30", border: "border-cyan-400", text: "text-cyan-700 dark:text-cyan-300" },
-  initiative: { bg: "bg-purple-100 dark:bg-purple-900/30", border: "border-purple-400", text: "text-purple-700 dark:text-purple-300" },
-  free_block: { bg: "bg-gray-100 dark:bg-gray-800/50", border: "border-gray-400", text: "text-gray-700 dark:text-gray-300" },
+const ITEM_TYPE_COLORS: Record<string, { bg: string; border: string; text: string; badgeBg: string; badgeText: string }> = {
+  deliverable: { bg: "bg-violet-100 dark:bg-violet-900/30", border: "border-violet-400", text: "text-violet-700 dark:text-violet-300", badgeBg: "bg-blue-500", badgeText: "text-white" },
+  milestone: { bg: "bg-cyan-100 dark:bg-cyan-900/30", border: "border-cyan-400", text: "text-cyan-700 dark:text-cyan-300", badgeBg: "bg-amber-400", badgeText: "text-amber-950" },
+  initiative: { bg: "bg-purple-100 dark:bg-purple-900/30", border: "border-purple-400", text: "text-purple-700 dark:text-purple-300", badgeBg: "bg-violet-500", badgeText: "text-white" },
+  free_block: { bg: "bg-gray-100 dark:bg-gray-800/50", border: "border-gray-400", text: "text-gray-700 dark:text-gray-300", badgeBg: "bg-orange-500", badgeText: "text-white" },
 };
 
 const STATUS_ICONS: Record<string, { icon: typeof Circle; color: string }> = {
@@ -115,6 +115,7 @@ interface HierarchicalItem extends RoadmapItem {
   depth: number;
   hasChildren: boolean;
   childrenProgress?: number;
+  epicColor?: string | null;
 }
 
 export function GanttView({ items, dependencies = [], roadmapId, onItemClick, onAddItem, onCreateAtDate, onUpdateItemDates, onCreateDependency, onBulkDelete, onBulkUpdate, onReorderItems, hideTodayLine = false }: GanttViewProps) {
@@ -332,26 +333,28 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
     
     const result: HierarchicalItem[] = [];
     
-    const traverse = (parentId: string | null, depth: number) => {
+    const traverse = (parentId: string | null, depth: number, inheritedColor?: string | null) => {
       const children = childrenMap.get(parentId) || [];
       children.forEach(item => {
         const hasChildren = childrenMap.has(item.id) && (childrenMap.get(item.id)?.length || 0) > 0;
         const childrenProgress = hasChildren ? calculateChildrenProgress(item.id) : undefined;
+        const epicColor = item.color || inheritedColor || null;
         
         result.push({
           ...item,
           depth,
           hasChildren,
           childrenProgress,
+          epicColor,
         });
         
         if (hasChildren && !collapsedIds.has(item.id)) {
-          traverse(item.id, depth + 1);
+          traverse(item.id, depth + 1, epicColor);
         }
       });
     };
     
-    traverse(null, 0);
+    traverse(null, 0, null);
     
     return result;
   }, [items, releaseTagFilter, collapsedIds]);
@@ -1218,6 +1221,14 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                     <StatusIcon className={cn("h-4 w-4 flex-shrink-0", statusInfo.color)} />
                   )}
                   
+                  {item.epicColor && (
+                    <div 
+                      className="w-2 h-6 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: item.epicColor }}
+                      data-testid={`epic-color-${item.id}`}
+                    />
+                  )}
+                  
                   <div className="flex-1 min-w-0">
                     <p className={cn(
                       "text-sm truncate",
@@ -1226,7 +1237,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                       {item.title}
                     </p>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", typeColors.text, typeColors.border)}>
+                      <Badge className={cn("text-[10px] px-1.5 py-0 border-0 no-default-hover-elevate no-default-active-elevate", typeColors.badgeBg, typeColors.badgeText)}>
                         {item.type === "deliverable" ? "Livrable" :
                          item.type === "milestone" ? "Milestone" :
                          item.type === "initiative" ? "Initiative" : "Bloc"}
@@ -1396,8 +1407,8 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                                 : cn(
                                     "rounded-md border-2",
                                     isParent 
-                                      ? "bg-amber-100 dark:bg-amber-900/30 border-amber-400 top-3 bottom-3" 
-                                      : cn(typeColors.bg, typeColors.border, "top-2 bottom-2")
+                                      ? cn("top-3 bottom-3", !item.epicColor && "bg-amber-100 dark:bg-amber-900/30 border-amber-400")
+                                      : !item.epicColor ? cn(typeColors.bg, typeColors.border, "top-2 bottom-2") : "top-2 bottom-2"
                                   ),
                               dragState?.itemId === item.id && "opacity-50",
                               onUpdateItemDates && item.type !== "milestone" && "cursor-grab"
@@ -1406,6 +1417,10 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                               left: dragState?.itemId === item.id && dragPreview ? dragPreview.left : position.left,
                               width: item.type === "milestone" ? ROW_HEIGHT - 8 : (dragState?.itemId === item.id && dragPreview ? dragPreview.width : position.width),
                               ...(item.type === "milestone" ? { top: 4, bottom: 4, display: "flex", alignItems: "center", justifyContent: "center" } : {}),
+                              ...(item.epicColor && item.type !== "milestone" ? { 
+                                backgroundColor: isParent ? `${item.epicColor}30` : `${item.epicColor}25`, 
+                                borderColor: item.epicColor 
+                              } : {}),
                             }}
                             onClick={() => !dragState && !justDraggedRef.current && onItemClick?.(item)}
                             onMouseDown={(e) => item.type !== "milestone" && handleDragStart(e, item, "move")}

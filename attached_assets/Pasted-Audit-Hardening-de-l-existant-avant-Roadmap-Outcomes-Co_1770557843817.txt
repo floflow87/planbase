@@ -1,0 +1,246 @@
+Audit & Hardening de l’existant (avant Roadmap Outcomes)
+
+Contexte :
+PlanBase est un outil de pilotage projet interconnecté (CDC, Backlog, Roadmap, Rentabilité, OKR en cours).
+Avant d’implémenter une Roadmap par Outcomes, je veux m’assurer que l’existant est sain, cohérent et prêt à supporter une couche stratégique supplémentaire.
+
+🎯 OBJECTIF GLOBAL
+
+Vérifier, corriger et consolider l’ensemble des fondations existantes, afin de garantir que :
+
+chaque entité a un rôle clair
+
+chaque lien est cohérent
+
+chaque calcul est fiable
+
+aucune dette structurelle ne bloquera la suite
+
+Aucune nouvelle feature majeure ne doit être ajoutée dans cette phase.
+Uniquement audit, nettoyage, standardisation et sécurisation.
+
+1️⃣ AUDIT DES ENTITÉS CŒUR
+Vérifier et documenter clairement :
+📄 CDC (Cahier des Charges)
+
+Champs obligatoires :
+
+type (Produit / Tech / Marketing / Business / Gestion)
+
+phase (T1 / T2 / T3 / LT)
+
+estimé (jours)
+
+facturable (bool)
+
+Vérifier :
+
+cohérence des enums
+
+valeurs nulles ou incohérentes
+
+compatibilité avec génération backlog / roadmap
+
+S’assurer que :
+
+le CDC est une base d’estimation, jamais un engagement figé
+
+👉 Livrable : CDC = source de vérité propre et stable
+
+🧩 Backlog / Epics / Tickets
+
+Vérifier :
+
+relations Epic → Tickets
+
+présence systématique des champs :
+
+statut
+
+priorité
+
+estimate points
+
+responsable
+
+cohérence Scrum (sprint / backlog)
+
+Vérifier que :
+
+les Epics ne dépendent PAS directement des jalons
+
+un ticket peut être rattaché à :
+
+une Epic
+
+une rubrique CDC (optionnel)
+
+👉 Livrable : exécution fiable et exploitable par d’autres modules
+
+🗺 Roadmap (actuelle)
+
+Vérifier :
+
+types existants (gantt / par étape / manuel)
+
+structure des blocs roadmap
+
+jalons (milestones) :
+
+ont-ils une date ?
+
+un statut ?
+
+un lien réel ou juste visuel ?
+
+Vérifier que :
+
+une roadmap peut exister sans CDC
+
+une roadmap peut être générée depuis le CDC
+
+aucune hypothèse “outcome” n’est codée en dur
+
+👉 Livrable : roadmap neutre, prête à être étendue
+
+💰 Rentabilité & Temps
+
+Vérifier les calculs :
+
+coût projet
+
+CA facturé
+
+marge
+
+Vérifier que :
+
+chaque temps saisi peut être rattaché à :
+
+un ticket
+
+une Epic
+
+une rubrique CDC
+
+Vérifier que :
+
+les projections excluent les rubriques CDC terminées
+
+les alertes ne remontent que sur les éléments actifs
+
+👉 Livrable : chiffres fiables, pas d’alertes fantômes
+
+2️⃣ AUDIT DES LIENS & DÉPENDANCES
+Vérifier que les liens sont :
+
+bidirectionnels
+
+non obligatoires mais recommandés
+
+non redondants
+
+Points de contrôle :
+
+CDC ↔ Epic
+
+CDC ↔ Roadmap
+
+Epic ↔ Roadmap
+
+Epic ↔ Tickets
+
+Tickets ↔ Temps
+
+👉 Identifier :
+
+liens manquants
+
+liens implicites non formalisés
+
+liens inutiles à supprimer
+
+3️⃣ AUDIT DES ENUMS & CONFIGS
+Centralisation obligatoire
+
+Vérifier que tous les enums sont :
+
+centralisés (Config Registry / DB-first)
+
+versionnés
+
+modifiables sans casser le produit
+
+À auditer :
+
+types CDC
+
+phases (T1–LT)
+
+statuts tickets
+
+priorités
+
+types de roadmap
+
+types de ressources
+
+👉 Livrable : aucune valeur métier codée en dur dans l’UI
+
+4️⃣ AUDIT UX & PARCOURS UTILISATEUR
+
+Vérifier que :
+
+création projet → compréhensible sans roadmap avancée
+
+CDC → lisible même sans wizard
+
+roadmap actuelle → compréhensible sans OKR
+
+rentabilité → pas une usine à gaz
+
+Identifier :
+
+écrans confus
+
+infos redondantes
+
+endroits où l’utilisateur peut se perdre
+
+👉 Livrable : liste d’ajustements UX mineurs avant outcomes
+
+5️⃣ AUDIT TECHNIQUE & SÉCURITÉ
+
+Vérifier :
+
+isolation multi-tenant partout
+
+permissions (Admin / Member / Guest)
+
+absence de calculs côté client non sécurisés
+
+Vérifier la cohérence :
+
+API ↔ Front
+
+optimistic updates ↔ rollback
+
+👉 Livrable : base solide pour logique stratégique
+
+6️⃣ DOCUMENTATION (OBLIGATOIRE)
+
+Créer / mettre à jour dans /docs :
+
+project-foundations.md
+
+rôle de chaque entité
+
+relations autorisées
+
+data-flow.md
+
+comment le temps, les coûts et la marge circulent
+
+pre-outcomes-checklist.md
+
+checklist validée avant Roadmap Outcomes
