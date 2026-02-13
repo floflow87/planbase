@@ -1,0 +1,363 @@
+Tu travailles dans le repo PlanBase (monorepo Node/Express + React + Strapi).
+Objectif : réorganiser la racine du projet SANS RIEN CASSER (aucun import à modifier, aucun build à modifier). Utiliser git mv quand c’est possible.
+
+Étape 0 — Sécurité
+
+Vérifie l’état Git : git status.
+
+Si des fichiers non committés existent, ne supprime rien et n’écrase rien.
+
+Ne touche pas à client/, server/, shared/, planbase-admin/, package.json, package-lock.json, dist/, node_modules/.
+
+Étape 1 — Créer la doc Strapi
+
+Créer le dossier docs/ s’il n’existe pas, puis créer le fichier :
+
+docs/strapi.md
+
+Contenu exact à mettre dans docs/strapi.md :
+(Important : remplacer uniquement les endpoints /config/all par /api/config/all et /config/feature-flags par /api/config/feature-flags et /config/ping par /api/config/ping si présent)
+
+📘 PlanBase — Architecture Config & Strapi
+🎯 Objectif
+
+PlanBase utilise Strapi comme back-office dynamique pour :
+
+Feature flags
+
+Enums (valeurs de select)
+
+Templates (CDC, Roadmap, OKR…)
+
+Registry global (config métier)
+
+Plans & pricing
+
+L’objectif est de ne plus redeployer l’application pour modifier des valeurs de configuration.
+
+🧠 Architecture globale
+Strapi (admin.planbase.io)
+        ↓ (API token sécurisé)
+Express backend (/api/config/*)
+        ↓
+React frontend (useConfig hook)
+
+
+Strapi = source de vérité
+Backend = couche d’agrégation + fallback
+Frontend = consommation via hooks
+
+🔐 Variables d’environnement requises (Render)
+Backend (planbase)
+STRAPI_URL=https://admin.planbase.io
+STRAPI_API_TOKEN=xxxxxxxxxxxxxxxx
+
+Strapi (planbase-admin)
+
+Configurer normalement Supabase + DB Postgres.
+
+🌍 Endpoints backend importants
+Sanity check
+GET /api/config/ping
+
+
+Doit retourner :
+
+{ "ok": true }
+
+Configuration complète
+GET /api/config/all
+
+
+Retourne :
+
+{
+  "plans": [],
+  "featureFlags": [],
+  "featureFlagsMap": {},
+  "registry": [],
+  "registryMap": {},
+  "cdcTemplates": [],
+  "roadmapTemplates": [],
+  "okrTemplates": [],
+  "resourceTemplates": [],
+  "faq": [],
+  "onboarding": [],
+  "accountActions": []
+}
+
+
+⚠️ Si 404 :
+
+Vérifier que le backend est bien déployé
+
+Vérifier que Render pointe vers le bon repo (planbase)
+
+Vérifier que le build a bien généré dist/index.js
+
+🏗️ Strapi — Structure attendue
+1️⃣ Feature Flags
+
+Content-type : feature-flags
+
+Champs :
+
+key (string, unique)
+
+enabled (boolean)
+
+description (optional)
+
+Exemple :
+
+key: okr_tree_view
+enabled: true
+
+2️⃣ Config Registry (Enums dynamiques)
+
+Content-type : configs
+
+Champs :
+
+key (string)
+
+value (JSON)
+
+is_active (boolean)
+
+🎛️ Enums dynamiques supportés
+Key	Description
+project.stages	Étapes projet
+task.priorities	Priorités tâche
+task.statuses	Statuts tâche
+billing.statuses	Statuts facturation
+time.categories	Catégories temps
+thresholds	Seuils métier
+📌 Exemple JSON — project.stages
+[
+  { "key": "prospection", "label": "Prospection", "order": 10 },
+  { "key": "in_progress", "label": "En cours", "order": 20 },
+  { "key": "delivered", "label": "Livré", "order": 30 }
+]
+
+⚙️ Frontend — Consommation
+
+Hook principal :
+
+useConfig()
+
+
+Retourne :
+
+{
+  projectStages,
+  taskPriorities,
+  taskStatuses,
+  billingStatuses,
+  timeCategories,
+  thresholds
+}
+
+
+Toujours fallback sur valeurs hardcodées si Strapi est indisponible.
+
+🛡️ Sécurité & Bonnes pratiques
+
+Toujours Save + Publish dans Strapi
+
+Ne pas exposer les endpoints publics inutiles
+
+Utiliser API Token Read Only
+
+Ne jamais supprimer les fallbacks hardcodés
+
+Toujours valider le type JSON côté backend
+
+🧪 Scénario de test rapide
+1️⃣ Vérifier connexion
+https://app.planbase.io/api/config/all
+
+2️⃣ Vérifier config
+https://app.planbase.io/api/config/all
+
+3️⃣ Modifier un enum
+
+Strapi → Configs
+
+Modifier project.stages
+
+Publish
+
+Refresh PlanBase
+
+Vérifier changement sans redeploy
+
+🚨 Problèmes connus
+❌ 404 sur /api/config/all
+
+Cause probable :
+
+Mauvais start command Render
+
+dist/index.js non généré
+
+Mauvais repo branché
+
+Route définie après serveStatic() (ordre middleware)
+
+❌ Création projets [Recovered]
+
+Cause :
+
+Script de restauration ou fallback interne
+Solution :
+
+Validation en POST/PATCH sur /api/projects
+
+Bloquer noms contenant [Recovered], Projet manquant, etc.
+
+🧭 Workflow recommandé
+Quand tu modifies Strapi :
+
+→ Pas besoin de redeployer PlanBase
+
+Quand tu modifies backend Express :
+
+→ push sur repo planbase
+→ Render redeploy
+
+Quand tu modifies Strapi code :
+
+→ push sur repo planbase-admin
+→ Render redeploy
+
+🏁 État actuel
+
+Si :
+
+/api/config/all fonctionne
+
+Les enums changent dynamiquement
+
+Feature flags remontent
+
+Aucun projet [Recovered] ne se recrée
+
+👉 Alors Strapi est correctement intégré.
+
+🌟 Prochaine étape recommandée
+
+Ajouter versioning des configs
+
+Ajouter audit log sur changements Strapi
+
+Ajouter environnement staging
+
+Ajouter cache Redis pour config
+
+Étape 2 — Réorganisation SAFE de la racine (uniquement rangement)
+
+Créer ces dossiers s’ils n’existent pas :
+
+docs/
+
+database/migrations/
+
+infra/render/
+
+infra/dns/
+
+infra/storage/
+
+Ensuite déplacer (avec git mv):
+
+Vers docs/
+
+Déplacer ces fichiers s’ils existent :
+
+DEPLOYMENT.md
+
+DOCUMENTATION.md
+
+SECURITY_MULTI_TENANT.md
+
+KPIS_BILLING_PAYMENTS.md
+
+TECHNICAL_DEBT.md
+
+CHANGELOG_SESSION.md
+
+PATCH_NOTES.md
+
+design_guidelines.md
+
+CRITICAL_SECURITY_TODO.md
+
+Note : ne pas déplacer README.md.
+
+Vers database/migrations/
+
+Déplacer tous les fichiers SQL qui commencent par supabase- et se terminent par .sql
+Exemples : supabase-schema.sql, supabase-add-documents.sql, etc.
+
+Vers infra/render/
+
+Déplacer :
+
+render-build.sh
+
+render-start.sh
+
+RENDER_DEPLOYMENT.md (si présent)
+
+Vers infra/dns/
+
+Déplacer :
+
+DNS-CONFIGURATION-OVH.md
+
+Vers infra/storage/
+
+Déplacer :
+
+STORAGE_SETUP.md
+
+Étape 3 — Ne pas casser le build
+
+Ne pas déplacer :
+
+vite.config.ts
+
+tsconfig.json
+
+postcss.config.js
+
+tailwind.config.ts
+
+vitest.config.ts
+
+drizzle.config.ts
+
+(les laisser à la racine pour éviter tout risque)
+
+Étape 4 — Mise à jour des liens doc
+
+Si des fichiers doc déplacés contiennent des liens relatifs, les corriger si nécessaire (sans toucher au code applicatif).
+
+Étape 5 — Vérification
+
+Lancer npm run build pour s’assurer que tout compile.
+
+Lancer npm run dev pour s’assurer que l’app démarre.
+
+Vérifier que client/, server/, planbase-admin/, shared/ n’ont pas été modifiés.
+
+Étape 6 — Résultat
+
+À la fin :
+
+me donner la liste des fichiers déplacés
+
+me donner git status
+
+ne pas committer automatiquement (je déciderai)
