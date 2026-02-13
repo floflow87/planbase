@@ -190,7 +190,11 @@ app.get("/api/config/all", async (_req, res) => {
   }
 });
 
-app.get("/config/ping", (_req, res) => {
+app.get("/config/all", (_req, res) => res.redirect(301, "/api/config/all"));
+app.get("/config/ping", (_req, res) => res.redirect(301, "/api/config/ping"));
+app.get("/config/feature-flags", (_req, res) => res.redirect(301, "/api/config/feature-flags"));
+
+app.get("/api/config/ping", (_req, res) => {
   return res.json({ ok: true, file: import.meta.url });
 });
 
