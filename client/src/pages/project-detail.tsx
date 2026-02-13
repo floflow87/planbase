@@ -36,7 +36,8 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { cn } from "@/lib/utils";
-import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass, PROJECT_STAGES } from "@shared/config";
+import { useConfig } from "@/hooks/useConfig";
+import { getProjectStageColorClass, getProjectStageLabel, getBillingStatusColorClass } from "@shared/config";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -2761,6 +2762,7 @@ export default function ProjectDetail() {
   const [, setLocation] = useLocation();
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
+  const { projectStages } = useConfig();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
@@ -5607,7 +5609,7 @@ export default function ProjectDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-card">
-                  {PROJECT_STAGES.map((stage) => (
+                  {projectStages.map((stage: any) => (
                     <SelectItem key={stage.key} value={stage.key}>
                       {stage.label}
                     </SelectItem>

@@ -317,6 +317,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       
       res.json({
         effective: config.effective,
+        sources: config.sources,
         meta: config.meta,
       });
     } catch (error: any) {

@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfig } from "@/hooks/useConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,8 +103,6 @@ import type {
   InsertTaskColumn,
 } from "@shared/schema";
 import {
-  PROJECT_STAGES,
-  projectStageKeys,
   getProjectStageLabel,
   getProjectStageColorClass,
   billingStatusOptions,
@@ -1699,7 +1698,7 @@ function ProjectKanbanView({
     })
   );
   
-  const stages = PROJECT_STAGES.map(s => ({
+  const stages = projectStages.map((s: any) => ({
     value: s.key,
     label: s.label,
     color: `${s.colorClass} ${s.darkColorClass}`,
@@ -1707,7 +1706,7 @@ function ProjectKanbanView({
     textColor: s.textColorClass,
   }));
   
-  const validStages = projectStageKeys;
+  const validStages = projectStages.map((s: any) => s.key);
   
   const handleKanbanDragStart = (event: DragStartEvent) => {
     setActiveKanbanProjectId(event.active.id as string);
@@ -1924,6 +1923,7 @@ export default function Projects() {
   const userId = user?.id || null;
   const { toast } = useToast();
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
+  const { projectStages } = useConfig();
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -3146,7 +3146,7 @@ export default function Projects() {
                     <PopoverContent className="w-56 bg-card" align="end">
                       <div className="space-y-2">
                         <p className="text-sm font-medium mb-3">Colonnes visibles</p>
-                        {PROJECT_STAGES.map(stage => (
+                        {projectStages.map((stage: any) => (
                           <div key={stage.key} className="flex items-center gap-2">
                             <Checkbox 
                               id={`project-kanban-col-${stage.key}`}
@@ -3792,7 +3792,7 @@ export default function Projects() {
                                     </PopoverTrigger>
                                     <PopoverContent className="w-56 p-2 bg-white dark:bg-card" align="start">
                                       <div className="space-y-1">
-                                        {PROJECT_STAGES.map((stage) => (
+                                        {projectStages.map((stage: any) => (
                                           <button
                                             key={stage.key}
                                             onClick={() => {
@@ -4408,7 +4408,7 @@ export default function Projects() {
             <div>
               <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>
               <div className="space-y-2">
-                {PROJECT_STAGES.map((stage) => (
+                {projectStages.map((stage: any) => (
                   <div 
                     key={stage.key} 
                     className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
@@ -4541,7 +4541,7 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-card">
-                    {PROJECT_STAGES.map((stage) => (
+                    {projectStages.map((stage: any) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
                       </SelectItem>
@@ -4755,7 +4755,7 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-card">
-                    {PROJECT_STAGES.map((stage) => (
+                    {projectStages.map((stage: any) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
                       </SelectItem>

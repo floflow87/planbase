@@ -1,11 +1,13 @@
 /**
- * Config Service - DB-first configuration resolution
+ * Config Service - Layered configuration resolution
  * 
- * This service loads default configurations from shared/config
- * and overlays them with DB-stored settings based on scope hierarchy:
- * SYSTEM -> ACCOUNT -> USER -> PROJECT
+ * Resolution order (each layer overrides the previous):
+ * 1. Hardcoded defaults (@shared/config)
+ * 2. Strapi registryMap (if available)
+ * 3. DB settings (scope hierarchy: SYSTEM -> ACCOUNT -> USER -> PROJECT)
  * 
- * Lower scopes override higher scopes.
+ * If Strapi is unavailable, falls back to defaults + DB.
+ * Never returns null: always provides default values.
  */
 
 import { db } from "../db";
@@ -15,29 +17,50 @@ import { getAllDefaultConfigs, type ConfigKey } from "@shared/config";
 
 export type SettingsScope = "SYSTEM" | "ACCOUNT" | "USER" | "PROJECT";
 
+type ConfigSource = "default" | "strapi" | "db";
+
+interface SourceInfo {
+  source: ConfigSource;
+  resolvedAt: string;
+}
+
 interface ResolvedConfig {
   defaults: ReturnType<typeof getAllDefaultConfigs>;
   overrides: Record<string, unknown>;
   effective: Record<string, unknown>;
+  sources: Record<string, SourceInfo>;
   meta: {
     resolvedAt: string;
     accountId?: string;
     userId?: string;
     projectId?: string;
+    strapiAvailable: boolean;
   };
 }
 
+const ENUM_KEYS: ConfigKey[] = [
+  "project.stages",
+  "task.priorities",
+  "task.statuses",
+  "billing.statuses",
+  "time.categories",
+];
+
+const OBJECT_KEYS: ConfigKey[] = [
+  "thresholds",
+];
+
 class ConfigService {
   private cache: Map<string, { config: ResolvedConfig; expiresAt: number }> = new Map();
-  private cacheTTL = 60000; // 1 minute cache TTL
+  private cacheTTL = 60000;
+
+  private strapiCache: { data: Record<string, unknown>; expiresAt: number } | null = null;
+  private strapiCacheTTL = 60000;
 
   private getCacheKey(accountId?: string, userId?: string, projectId?: string): string {
     return `${accountId || "system"}:${userId || "none"}:${projectId || "none"}`;
   }
 
-  /**
-   * Deep merge two objects, with source overriding target
-   */
   private deepMerge<T extends Record<string, unknown>>(target: T, source: Record<string, unknown>): T {
     const result = { ...target } as Record<string, unknown>;
     
@@ -56,9 +79,69 @@ class ConfigService {
     return result as T;
   }
 
-  /**
-   * Get configuration for a specific key at a given scope
-   */
+  private validateConfigValue(key: ConfigKey, value: unknown): boolean {
+    if (value === null || value === undefined) return false;
+
+    if (ENUM_KEYS.includes(key)) {
+      if (!Array.isArray(value)) {
+        console.warn(`[ConfigService] Invalid type for "${key}": expected array, got ${typeof value}. Using fallback.`);
+        return false;
+      }
+      return true;
+    }
+
+    if (OBJECT_KEYS.includes(key)) {
+      if (typeof value !== "object" || Array.isArray(value)) {
+        console.warn(`[ConfigService] Invalid type for "${key}": expected object, got ${Array.isArray(value) ? "array" : typeof value}. Using fallback.`);
+        return false;
+      }
+      return true;
+    }
+
+    return true;
+  }
+
+  private async fetchStrapiRegistry(): Promise<Record<string, unknown>> {
+    if (this.strapiCache && this.strapiCache.expiresAt > Date.now()) {
+      return this.strapiCache.data;
+    }
+
+    const baseUrl = process.env.STRAPI_URL;
+    const token = process.env.STRAPI_API_TOKEN;
+
+    if (!baseUrl || !token) {
+      return {};
+    }
+
+    try {
+      const res = await fetch(`${baseUrl}/api/configs?pagination[pageSize]=200`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) {
+        console.warn(`[ConfigService] Strapi returned ${res.status}, using fallback`);
+        return this.strapiCache?.data ?? {};
+      }
+
+      const json = await res.json();
+      const registry: Record<string, unknown> = {};
+
+      for (const rawItem of (json?.data ?? [])) {
+        const item = rawItem.attributes ?? rawItem;
+        if (item.key && item.value !== null && item.value !== undefined && item.is_active !== false) {
+          registry[item.key] = item.value;
+        }
+      }
+
+      this.strapiCache = { data: registry, expiresAt: Date.now() + this.strapiCacheTTL };
+      return registry;
+    } catch (error: any) {
+      console.warn(`[ConfigService] Strapi unavailable: ${error.message}. Using fallback.`);
+      return this.strapiCache?.data ?? {};
+    }
+  }
+
   async getSettingByKey(
     key: ConfigKey,
     scope: SettingsScope,
@@ -86,9 +169,6 @@ class ConfigService {
     }
   }
 
-  /**
-   * Get all settings for a given scope
-   */
   async getSettingsByScope(scope: SettingsScope, scopeId?: string): Promise<Record<string, unknown>> {
     try {
       const conditions = [eq(settings.scope, scope)];
@@ -116,10 +196,6 @@ class ConfigService {
     }
   }
 
-  /**
-   * Resolve effective configuration by merging defaults with DB overrides
-   * Follows scope hierarchy: SYSTEM -> ACCOUNT -> USER -> PROJECT
-   */
   async resolveConfig(
     accountId?: string,
     userId?: string,
@@ -135,54 +211,90 @@ class ConfigService {
     const defaults = getAllDefaultConfigs();
     let effective: Record<string, unknown> = { ...defaults };
     const overrides: Record<string, unknown> = {};
+    const sources: Record<string, SourceInfo> = {};
+    let strapiAvailable = false;
+    const now = new Date().toISOString();
+
+    for (const key of Object.keys(defaults)) {
+      sources[key] = { source: "default", resolvedAt: now };
+    }
 
     try {
-      // 1. Apply SYSTEM overrides
-      const systemSettings = await this.getSettingsByScope("SYSTEM");
-      if (Object.keys(systemSettings).length > 0) {
-        Object.assign(overrides, systemSettings);
-        effective = this.deepMerge(effective, systemSettings);
-      }
+      const strapiRegistry = await this.fetchStrapiRegistry();
+      strapiAvailable = Object.keys(strapiRegistry).length > 0;
 
-      // 2. Apply ACCOUNT overrides (if accountId provided)
-      if (accountId) {
-        const accountSettings = await this.getSettingsByScope("ACCOUNT", accountId);
-        if (Object.keys(accountSettings).length > 0) {
-          Object.assign(overrides, accountSettings);
-          effective = this.deepMerge(effective, accountSettings);
-        }
-      }
-
-      // 3. Apply USER overrides (if userId provided)
-      if (userId) {
-        const userSettings = await this.getSettingsByScope("USER", userId);
-        if (Object.keys(userSettings).length > 0) {
-          Object.assign(overrides, userSettings);
-          effective = this.deepMerge(effective, userSettings);
-        }
-      }
-
-      // 4. Apply PROJECT overrides (if projectId provided)
-      if (projectId) {
-        const projectSettings = await this.getSettingsByScope("PROJECT", projectId);
-        if (Object.keys(projectSettings).length > 0) {
-          Object.assign(overrides, projectSettings);
-          effective = this.deepMerge(effective, projectSettings);
+      const allConfigKeys = [...ENUM_KEYS, ...OBJECT_KEYS] as string[];
+      for (const key of allConfigKeys) {
+        if (key in strapiRegistry) {
+          const val = strapiRegistry[key];
+          if (this.validateConfigValue(key as ConfigKey, val)) {
+            overrides[key] = val;
+            effective[key] = val;
+            sources[key] = { source: "strapi", resolvedAt: now };
+          }
         }
       }
     } catch (error) {
-      console.error("Error resolving config, using defaults:", error);
+      console.warn("[ConfigService] Strapi fetch failed during resolve, continuing with defaults:", error);
+    }
+
+    try {
+      const systemSettings = await this.getSettingsByScope("SYSTEM");
+      for (const [key, val] of Object.entries(systemSettings)) {
+        if (this.validateConfigValue(key as ConfigKey, val)) {
+          overrides[key] = val;
+          effective = this.deepMerge(effective as Record<string, unknown>, { [key]: val });
+          sources[key] = { source: "db", resolvedAt: now };
+        }
+      }
+
+      if (accountId) {
+        const accountSettings = await this.getSettingsByScope("ACCOUNT", accountId);
+        for (const [key, val] of Object.entries(accountSettings)) {
+          if (this.validateConfigValue(key as ConfigKey, val)) {
+            overrides[key] = val;
+            effective = this.deepMerge(effective as Record<string, unknown>, { [key]: val });
+            sources[key] = { source: "db", resolvedAt: now };
+          }
+        }
+      }
+
+      if (userId) {
+        const userSettings = await this.getSettingsByScope("USER", userId);
+        for (const [key, val] of Object.entries(userSettings)) {
+          if (this.validateConfigValue(key as ConfigKey, val)) {
+            overrides[key] = val;
+            effective = this.deepMerge(effective as Record<string, unknown>, { [key]: val });
+            sources[key] = { source: "db", resolvedAt: now };
+          }
+        }
+      }
+
+      if (projectId) {
+        const projectSettings = await this.getSettingsByScope("PROJECT", projectId);
+        for (const [key, val] of Object.entries(projectSettings)) {
+          if (this.validateConfigValue(key as ConfigKey, val)) {
+            overrides[key] = val;
+            effective = this.deepMerge(effective as Record<string, unknown>, { [key]: val });
+            sources[key] = { source: "db", resolvedAt: now };
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error resolving DB config, using defaults + strapi:", error);
     }
 
     const config: ResolvedConfig = {
       defaults,
       overrides,
       effective,
+      sources,
       meta: {
-        resolvedAt: new Date().toISOString(),
+        resolvedAt: now,
         accountId,
         userId,
         projectId,
+        strapiAvailable,
       },
     };
 
@@ -191,9 +303,6 @@ class ConfigService {
     return config;
   }
 
-  /**
-   * Update a configuration setting
-   */
   async updateSetting(
     key: ConfigKey,
     value: unknown,
@@ -235,18 +344,11 @@ class ConfigService {
       });
     }
 
-    // Invalidate cache with proper scope
     this.invalidateCache(scope, scopeId || undefined);
   }
 
-  /**
-   * Invalidate cached configurations
-   * For account-level changes, clears all user caches within that account
-   * For user-level changes, clears all caches for that user
-   */
   invalidateCache(scope: SettingsScope = "SYSTEM", scopeId?: string): void {
     if (!scopeId || scope === "SYSTEM") {
-      // System-level changes invalidate everything
       this.cache.clear();
       return;
     }
@@ -256,22 +358,21 @@ class ConfigService {
       const [cacheAccountId] = key.split(":");
       
       if (scope === "ACCOUNT" && cacheAccountId === scopeId) {
-        // Account changes invalidate all users in that account
         keysToDelete.push(key);
       } else if (scope === "USER" && key.includes(scopeId)) {
-        // User changes invalidate that user's caches
         keysToDelete.push(key);
       } else if (scope === "PROJECT" && key.includes(scopeId)) {
-        // Project changes invalidate project-specific caches
         keysToDelete.push(key);
       }
     });
     keysToDelete.forEach(key => this.cache.delete(key));
   }
 
-  /**
-   * Get just the effective config (convenience method)
-   */
+  invalidateStrapiCache(): void {
+    this.strapiCache = null;
+    this.cache.clear();
+  }
+
   async getEffectiveConfig(
     accountId?: string,
     userId?: string,

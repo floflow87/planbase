@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useConfig } from "@/hooks/useConfig";
 import { queryClient, apiRequest, formatDateForStorage, optimisticUpdate, optimisticDelete, rollbackOptimistic } from "@/lib/queryClient";
 import {
   DndContext,
@@ -99,11 +100,9 @@ import { ColorPicker } from "@/components/ColorPicker";
 import { ListView } from "@/components/ListView";
 import { LoadingState, EmptyState } from "@/design-system/patterns";
 import {
-  TASK_PRIORITIES,
   getTaskPriorityLabel,
   getTaskPriorityColorClass,
   getTaskPriorityBadgeClass,
-  TASK_STATUSES,
   getTaskStatusLabel,
   getTaskStatusColorClass,
 } from "@shared/config";
@@ -694,6 +693,7 @@ export default function Tasks() {
   const userId = user?.id || null;
   const { toast } = useToast();
   const { readOnly, canCreate, canUpdate, canDelete } = useReadOnlyMode("tasks");
+  const { taskPriorities, taskStatuses } = useConfig();
   
   // Main states - Load from localStorage if available (multi-select)
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>(() => {
@@ -2088,7 +2088,7 @@ export default function Tasks() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="">
-                      {TASK_PRIORITIES.map((p) => (
+                      {taskPriorities.map((p: any) => (
                         <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
                       ))}
                     </SelectContent>

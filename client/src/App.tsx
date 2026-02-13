@@ -1,5 +1,7 @@
 import TestEnums from "@/pages/test-enums";
+import ConfigDebug from "@/pages/config-debug";
 import { useConfigAll } from "@/hooks/useConfigAll";
+import { useConfig } from "@/hooks/useConfig";
 import { getEnum } from "@/lib/enums";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -86,6 +88,9 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/test-enums">
         <ProtectedRoute><TestEnums /></ProtectedRoute>
+      </Route>
+      <Route path="/config-debug">
+        <ProtectedRoute><ConfigDebug /></ProtectedRoute>
       </Route>
       <Route path="/accept-invitation" component={AcceptInvitation} />
       <Route path="/">
@@ -297,6 +302,7 @@ function QuickCreateMenu() {
 
   // Fetch projects for task form
   const { data: configAll } = useConfigAll();
+  const { projectStages: dynamicProjectStages } = useConfig();
 
   const projectTypes = getEnum<string>(configAll, "project_types", []);
   const projectCategories = getEnum<Category>(configAll, "project_categories", []);
@@ -608,7 +614,7 @@ function QuickCreateMenu() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-popover">
-                          {PROJECT_STAGES.map((stage) => (
+                          {dynamicProjectStages.map((stage: any) => (
                             <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                               {stage.label}
                             </SelectItem>

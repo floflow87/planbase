@@ -1,0 +1,82 @@
+Tu travailles sur PlanBase (Node/Express + React + Supabase + Strapi).
+Objectif : rendre les “enums” (valeurs de select) dynamiques et administrables via Strapi, sans redeploy.
+
+Contexte :
+
+Un endpoint existe déjà : GET /config/all qui renvoie registryMap (Record<string, any>) + featureFlagsMap + plans, templates, etc.
+
+Le front a déjà un hook useConfig() qui consomme /api/config et renvoie des arrays projectStages, taskPriorities, taskStatuses, etc. (actuellement hardcodés depuis @shared/config).
+
+Travail demandé (implémentation complète) :
+
+Côté Strapi : utiliser le content-type configs (registry) comme source de vérité des enums.
+
+Les clés à supporter :
+
+project.stages
+
+task.priorities
+
+task.statuses
+
+billing.statuses
+
+time.categories
+
+thresholds
+
+Chaque valeur doit être stockée en JSON dans le champ value (array d’objets ou objet), ex :
+
+project.stages = [{ key, label, color?, order? }, ...]
+
+Côté backend Express :
+
+Exposer un endpoint GET /api/config qui renvoie :
+
+{
+  "effective": {
+    "project.stages": ...,
+    "task.priorities": ...,
+    ...
+  },
+  "meta": { "resolvedAt": "...", "accountId": "...", "userId": "...", "projectId": "..." }
+}
+
+
+La logique de résolution :
+
+Base = valeurs hardcodées existantes (@shared/config) comme fallback
+
+Override = si registryMap[key] existe dans Strapi, on remplace
+
+Toujours valider le type (array vs object). Si invalide : log + fallback hardcodé.
+
+Ajouter un cache mémoire 60s (par clé + projectId si présent) pour éviter d’appeler Strapi à chaque hit.
+
+Côté front React :
+
+Modifier useConfig() pour qu’il continue de fonctionner mais prenne les valeurs dynamiques renvoyées par /api/config.
+
+Dans les composants où on utilise des enums, remplacer les imports directs de @shared/config par useConfig() (au moins pour : Project stage select, Task priority select, Task status select).
+
+Ajoute une petite page / outil admin interne “Config Debug” accessible en dev (ou derrière un feature flag) qui affiche :
+
+resolved config
+
+source (fallback vs strapi) par clé
+
+Ajouter une documentation courte dans README.md :
+
+Comment créer/modifier un enum dans Strapi (clé + JSON)
+
+Exemple JSON pour chaque clé
+
+Contraintes :
+
+Ne casse pas l’existant : si Strapi est down, tout continue avec le fallback.
+
+Ne jamais retourner null : toujours fournir des valeurs par défaut.
+
+TypeScript strict si possible.
+
+Donne-moi les fichiers modifiés et les nouveaux fichiers créés.

@@ -3,9 +3,10 @@
  * 
  * Fetches resolved configuration from the Config Registry API.
  * Uses React Query for caching and automatic refetching.
+ * Supports dynamic enums from Strapi with hardcoded fallbacks.
  * 
  * Usage:
- *   const { config, isLoading, projectStages, taskPriorities, thresholds } = useConfig();
+ *   const { config, isLoading, projectStages, taskPriorities, thresholds, sources } = useConfig();
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -18,11 +19,19 @@ import type {
   THRESHOLDS 
 } from "@shared/config";
 
+type ConfigSource = "default" | "strapi" | "db";
+
+interface SourceInfo {
+  source: ConfigSource;
+  resolvedAt: string;
+}
+
 interface ConfigMeta {
   resolvedAt: string;
   accountId?: string;
   userId?: string;
   projectId?: string;
+  strapiAvailable: boolean;
 }
 
 interface EffectiveConfig {
@@ -36,6 +45,7 @@ interface EffectiveConfig {
 
 interface ConfigResponse {
   effective: EffectiveConfig;
+  sources: Record<string, SourceInfo>;
   meta: ConfigMeta;
 }
 
@@ -47,7 +57,6 @@ interface UseConfigOptions {
 export function useConfig(options: UseConfigOptions = {}) {
   const { projectId, enabled = true } = options;
 
-  // Build URL with query params for projectId if provided
   const url = projectId 
     ? `/api/config?projectId=${encodeURIComponent(projectId)}`
     : "/api/config";
@@ -55,18 +64,18 @@ export function useConfig(options: UseConfigOptions = {}) {
   const { data, isLoading, error, refetch } = useQuery<ConfigResponse>({
     queryKey: [url],
     enabled,
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 60000,
     refetchOnWindowFocus: false,
   });
 
   return {
     config: data?.effective,
+    sources: data?.sources,
     meta: data?.meta,
     isLoading,
     error,
     refetch,
     
-    // Convenience accessors for commonly used configs
     projectStages: data?.effective?.["project.stages"] ?? [],
     taskPriorities: data?.effective?.["task.priorities"] ?? [],
     taskStatuses: data?.effective?.["task.statuses"] ?? [],
@@ -76,4 +85,4 @@ export function useConfig(options: UseConfigOptions = {}) {
   };
 }
 
-export type { ConfigResponse, EffectiveConfig, ConfigMeta };
+export type { ConfigResponse, EffectiveConfig, ConfigMeta, SourceInfo, ConfigSource };
