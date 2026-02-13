@@ -1507,6 +1507,11 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.post("/api/projects", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
     try {
+      const forbiddenPatterns = /\[Recovered\]|\[Restauré\]|Projet manquant/i;
+      if (req.body.name && forbiddenPatterns.test(req.body.name)) {
+        return res.status(400).json({ error: "Nom de projet invalide : les noms contenant '[Recovered]', '[Restauré]' ou 'Projet manquant' sont interdits." });
+      }
+
       console.log("[DEBUG] Creating project - req.userId:", req.userId, "req.accountId:", req.accountId);
       console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
       
@@ -1636,6 +1641,11 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
       if (existing.accountId !== req.accountId) {
         return res.status(403).json({ error: "Access denied" });
+      }
+
+      const forbiddenPatterns = /\[Recovered\]|\[Restauré\]|Projet manquant/i;
+      if (req.body.name && forbiddenPatterns.test(req.body.name)) {
+        return res.status(400).json({ error: "Nom de projet invalide : les noms contenant '[Recovered]', '[Restauré]' ou 'Projet manquant' sont interdits." });
       }
 
       // Validate update data (allow any subset of fields)
