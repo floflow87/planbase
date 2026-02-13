@@ -1,3 +1,12 @@
+import dotenv from "dotenv";
+
+dotenv.config({ path: "F:\\Projets\\planbase\\server\\.env" });
+
+console.log("db.ts sees SUPABASE_URL?", !!process.env.SUPABASE_URL);
+
+console.log("db.ts sees SUPABASE_URL?", !!process.env.SUPABASE_URL);
+
+
 // Supabase PostgreSQL connection with Drizzle ORM
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';

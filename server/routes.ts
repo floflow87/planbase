@@ -195,6 +195,59 @@ function getDefaultViewConfig(module: string): any {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+app.get("/config/plans", async (_req, res) => {
+  try {
+    const baseUrl = process.env.STRAPI_URL;
+    const token = process.env.STRAPI_API_TOKEN;
+
+    if (!baseUrl || !token) {
+      return res.status(500).json({ error: "Missing STRAPI_URL or STRAPI_API_TOKEN" });
+    }
+
+    const r = await fetch(`${baseUrl}/api/plans?pagination[pageSize]=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!r.ok) {
+      const text = await r.text();
+      return res.status(r.status).json({ error: "Strapi error", details: text });
+    }
+
+    const json: any = await r.json();
+    const plans = (json?.data ?? []).map((item: any) => ({
+      id: item.id,
+      ...item.attributes,
+    }));
+
+    return res.json({ plans });
+  } catch (e: any) {
+    return res.status(500).json({ error: "Server error", message: e?.message ?? String(e) });
+  }
+});
+
+app.get("/config/feature-flags", async (_req, res) => {
+  try {
+    const baseUrl = process.env.STRAPI_URL;
+    const token = process.env.STRAPI_API_TOKEN;
+    if (!baseUrl || !token) return res.status(500).json({ error: "Missing STRAPI_URL or STRAPI_API_TOKEN" });
+
+    const r = await fetch(`${baseUrl}/api/feature-flags?pagination[pageSize]=200`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json: any = await r.json();
+
+    const flags = (json?.data ?? []).map((f: any) => ({
+      key: f.key,
+      enabled: !!f.enabled,
+      description: f.description ?? null,
+    }));
+
+    return res.json({ flags });
+  } catch (e: any) {
+    return res.status(500).json({ error: "Server error", message: e?.message ?? String(e) });
+  }
+});
+
   // ============================================
   // HEALTH CHECK - Keep app awake
   // ============================================

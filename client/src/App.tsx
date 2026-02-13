@@ -1,3 +1,6 @@
+import TestEnums from "@/pages/test-enums";
+import { useConfigAll } from "@/hooks/useConfigAll";
+import { getEnum } from "@/lib/enums";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -74,11 +77,16 @@ import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 
+type Category = { key: string; label: string };
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/test-enums">
+        <ProtectedRoute><TestEnums /></ProtectedRoute>
+      </Route>
       <Route path="/accept-invitation" component={AcceptInvitation} />
       <Route path="/">
         <ProtectedRoute><Dashboard /></ProtectedRoute>
@@ -248,7 +256,10 @@ const projectSchema = z.object({
   description: z.string().optional(),
   clientId: z.string().optional(),
   stage: z.enum(projectStageKeys),
+
+  type: z.string().optional(),      
   category: z.string().optional(),
+
   startDate: z.date().optional().nullable(),
   endDate: z.date().optional().nullable(),
   budget: z.string().optional(),
@@ -285,6 +296,10 @@ function QuickCreateMenu() {
   });
 
   // Fetch projects for task form
+  const { data: configAll } = useConfigAll();
+
+  const projectTypes = getEnum<string>(configAll, "project_types", []);
+  const projectCategories = getEnum<Category>(configAll, "project_categories", []);
   const { data: projects = [] } = useQuery<any[]>({
     queryKey: ["/api/projects"],
     enabled: !!accountId,
@@ -298,12 +313,22 @@ function QuickCreateMenu() {
 
   const projectForm = useForm({
     resolver: zodResolver(projectSchema),
-    defaultValues: { name: "", description: "", clientId: "", stage: "prospection" as const, category: "", startDate: null as Date | null, endDate: null as Date | null, budget: "" },
+    defaultValues: {
+      name: "",
+      description: "",
+      clientId: "",
+      stage: "prospection" as const,
+      type: "",          
+      category: "",
+      startDate: null as Date | null,
+      endDate: null as Date | null,
+      budget: "",
+    },
   });
 
   const taskForm = useForm({
     resolver: zodResolver(taskSchema),
-    defaultValues: { title: "", description: "", priority: "medium" as const, projectId: "" },
+    defaultValues: { title: "", type: "", description: "", priority: "medium" as const, projectId: "" },
   });
 
   const noteForm = useForm({
@@ -338,6 +363,7 @@ function QuickCreateMenu() {
         description: data.description || null,
         stage: data.stage,
         clientId: data.clientId || null,
+        type: data.type?.trim() || null,
         category: data.category?.trim() || null,
         startDate: data.startDate ? formatDateForStorage(data.startDate) : null,
         endDate: data.endDate ? formatDateForStorage(data.endDate) : null,
@@ -458,7 +484,7 @@ function QuickCreateMenu() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-client-type">
                           <SelectValue />
@@ -595,13 +621,54 @@ function QuickCreateMenu() {
                 />
                 <FormField
                   control={projectForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Label className="text-[12px]">Type</Label>
+
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-type">
+                            <SelectValue placeholder="Choisir un type" />
+                          </SelectTrigger>
+                        </FormControl>
+
+                        <SelectContent className="bg-popover">
+                          {projectTypes.map((t) => (
+                            <SelectItem key={t} value={t} className="cursor-pointer">
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={projectForm.control}
                   name="category"
                   render={({ field }) => (
                     <FormItem>
                       <Label className="text-[12px]">Catégorie</Label>
-                      <FormControl>
-                        <Input {...field} placeholder="Ex: Site web, Application..." data-testid="input-project-category" />
-                      </FormControl>
+
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-project-category">
+                            <SelectValue placeholder="Choisir une catégorie" />
+                          </SelectTrigger>
+                        </FormControl>
+
+                        <SelectContent className="bg-popover">
+                          {projectCategories.map((cat) => (
+                            <SelectItem key={cat.key} value={cat.key} className="cursor-pointer">
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
                       <FormMessage />
                     </FormItem>
                   )}

@@ -446,6 +446,7 @@ export const projects = pgTable("projects", {
   stage: text("stage").default("prospection"), // 'prospection', 'en_cours', 'termine'
   priority: text("priority").default("normal"), // 'low', 'normal', 'high', 'strategic' - Priorité/importance du projet
   businessType: text("business_type").default("client"), // 'client' (projet client facturable) or 'internal' (projet interne non facturable)
+  type: text("type"),
   category: text("category"),
   startDate: date("start_date"),
   endDate: date("end_date"),
@@ -593,7 +594,7 @@ export const recommendationActions = pgTable("recommendation_actions", {
 export const taskColumns = pgTable("task_columns", {
   id: uuid("id").primaryKey().defaultRandom(),
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }), // Now nullable - allows global columns for tasks without a project
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }), // Now nullable - allows global columns for tasks without a project
   name: text("name").notNull(),
   color: text("color").notNull().default("#e5e7eb"), // Pastel color hex code
   order: integer("order").notNull().default(0), // For ordering columns
@@ -705,6 +706,7 @@ export const notes = pgTable("notes", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   title: text("title").notNull().default(""),
+  type: text("type"),
   content: jsonb("content").notNull().default([]), // blocks
   plainText: text("plain_text"), // for FTS
   summary: text("summary"),
@@ -1680,15 +1682,18 @@ export const insertClientCustomFieldSchema = createInsertSchema(clientCustomFiel
 export const updateClientCustomFieldSchema = insertClientCustomFieldSchema.omit({ accountId: true, tabId: true, createdBy: true });
 export const insertClientCustomFieldValueSchema = createInsertSchema(clientCustomFieldValues).omit({ id: true, createdAt: true, updatedAt: true });
 export const updateClientCustomFieldValueSchema = insertClientCustomFieldValueSchema.omit({ accountId: true, clientId: true, fieldId: true });
-export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, updatedAt: true }).extend({
-  budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
-  billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
-  totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
-  numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
-  businessType: z.enum(['client', 'internal']).default('client').optional(),
-  expectedPhases: z.array(z.string()).optional().nullable(),
-  expectedScopeTypes: z.array(z.string()).optional().nullable(),
-});
+export const insertProjectSchema = createInsertSchema(projects)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    type: z.string().optional().nullable(),
+    budget: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+    billingRate: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+    totalBilled: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+    numberOfDays: z.union([z.string(), z.number(), z.null()]).transform((val) => val?.toString()).optional().nullable(),
+    businessType: z.enum(['client', 'internal']).default('client').optional(),
+    expectedPhases: z.array(z.string()).optional().nullable(),
+    expectedScopeTypes: z.array(z.string()).optional().nullable(),
+  });
 // Update schema for PATCH operations - all fields optional
 export const updateProjectSchema = insertProjectSchema.omit({ accountId: true, createdBy: true }).partial().extend({
   onboardingSuggestionsShown: z.union([z.number(), z.boolean()]).transform((val) => typeof val === 'boolean' ? (val ? 1 : 0) : val).optional(),
@@ -1738,7 +1743,7 @@ export const updateTimeEntrySchema = z.object({
 });
 export const insertDealSchema = createInsertSchema(deals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
-export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true }).extend({ type: z.string().optional().nullable(), });
 export const insertNoteCategorySchema = createInsertSchema(noteCategories).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({ id: true, createdAt: true, updatedAt: true }).extend({
