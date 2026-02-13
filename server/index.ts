@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import path from "node:path";
-import { strapiGet } from "./lib/Strapi";
+import { strapiGet } from "./lib/strapi";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
