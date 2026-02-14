@@ -999,11 +999,14 @@ export async function runStartupMigrations() {
     
     // Update retro_cards column check constraint to use new values
     await db.execute(sql`
-      ALTER TABLE retro_cards DROP CONSTRAINT IF EXISTS retro_cards_column_check;
-    `);
-    await db.execute(sql`
-      ALTER TABLE retro_cards ADD CONSTRAINT retro_cards_column_check 
-        CHECK ("column" IN ('worked', 'not_worked', 'to_improve'));
+      DO $$
+      BEGIN
+        ALTER TABLE retro_cards DROP CONSTRAINT IF EXISTS retro_cards_column_check;
+        ALTER TABLE retro_cards ADD CONSTRAINT retro_cards_column_check 
+          CHECK ("column" IN ('worked', 'not_worked', 'to_improve'));
+      EXCEPTION WHEN duplicate_object THEN
+        NULL;
+      END $$;
     `);
     console.log("✅ Retro cards column constraint updated");
     
