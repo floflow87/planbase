@@ -34,8 +34,25 @@ interface ConfigMeta {
   strapiAvailable: boolean;
 }
 
+interface StageMeta {
+  key: string;
+  label: string;
+  colorClass?: string;
+  textColorClass?: string;
+  darkColorClass?: string;
+  order?: number;
+  isTerminal?: boolean;
+  isVisible?: boolean;
+}
+
+interface StagesUIConfig {
+  stages: StageMeta[];
+  visibleKeys?: string[];
+}
+
 interface EffectiveConfig {
   "project.stages": typeof PROJECT_STAGES;
+  "project.stages.ui"?: StagesUIConfig;
   "task.priorities": typeof TASK_PRIORITIES;
   "task.statuses": typeof TASK_STATUSES;
   "billing.statuses": typeof BILLING_STATUSES;
@@ -77,6 +94,7 @@ export function useConfig(options: UseConfigOptions = {}) {
     refetch,
     
     projectStages: data?.effective?.["project.stages"] ?? [],
+    stagesUI: data?.effective?.["project.stages.ui"] ?? null,
     taskPriorities: data?.effective?.["task.priorities"] ?? [],
     taskStatuses: data?.effective?.["task.statuses"] ?? [],
     billingStatuses: data?.effective?.["billing.statuses"] ?? [],
@@ -85,4 +103,4 @@ export function useConfig(options: UseConfigOptions = {}) {
   };
 }
 
-export type { ConfigResponse, EffectiveConfig, ConfigMeta, SourceInfo, ConfigSource };
+export type { ConfigResponse, EffectiveConfig, ConfigMeta, SourceInfo, ConfigSource, StageMeta, StagesUIConfig };

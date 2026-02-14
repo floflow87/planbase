@@ -103,12 +103,11 @@ import type {
   InsertTaskColumn,
 } from "@shared/schema";
 import {
-  getProjectStageLabel,
-  getProjectStageColorClass,
   billingStatusOptions,
   getBillingStatusColorClass,
   getStatusFromColumnName,
 } from "@shared/config";
+import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
@@ -1924,6 +1923,7 @@ export default function Projects() {
   const { toast } = useToast();
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
   const { projectStages } = useConfig();
+  const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -3406,8 +3406,8 @@ export default function Projects() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-3">
-                            <Badge variant="outline" className={`text-[10px] ${getProjectStageColorClass(project.stage)}`}>
-                              {getProjectStageLabel(project.stage)}
+                            <Badge variant="outline" className={`text-[10px] ${getStageColor(project.stage)}`}>
+                              {getStageLabel(project.stage)}
                             </Badge>
                             {project.category && (
                               <div className="flex items-center gap-1">
@@ -3620,8 +3620,8 @@ export default function Projects() {
 
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`${getProjectStageColorClass(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
-                                {getProjectStageLabel(project.stage)}
+                              <Badge className={`${getStageColor(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
+                                {getStageLabel(project.stage)}
                               </Badge>
                               {project.category && (
                                 <>
@@ -3785,14 +3785,14 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-stage-${project.id}`}
                                       >
-                                        <Badge className={`${getProjectStageColorClass(project.stage)} cursor-pointer text-[10px]`}>
-                                          {getProjectStageLabel(project.stage)}
+                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-[10px]`}>
+                                          {getStageLabel(project.stage)}
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-56 p-2 bg-white dark:bg-card" align="start">
                                       <div className="space-y-1">
-                                        {projectStages.map((stage: any) => (
+                                        {visibleStages.map((stage) => (
                                           <button
                                             key={stage.key}
                                             onClick={() => {
@@ -3806,7 +3806,7 @@ export default function Projects() {
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
                                             data-testid={`item-stage-${stage.key}`}
                                           >
-                                            <Badge className={`${getProjectStageColorClass(stage.key)} text-[10px]`}>
+                                            <Badge className={`${getStageColor(stage.key)} text-[10px]`}>
                                               {stage.label}
                                             </Badge>
                                           </button>

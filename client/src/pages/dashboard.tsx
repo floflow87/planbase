@@ -32,12 +32,9 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { Loader } from "@/components/Loader";
 import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
-import { getProjectStageColorClass, getProjectStageLabel, getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
+import { getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
+import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
 import { DASHBOARD_CONFIG_BY_PROFILE, type UserProfileType, type DashboardBlockId as ProfileBlockId } from "@shared/userProfiles";
-
-// Use centralized config for stage colors and labels
-const getStageColor = (stage: string) => getProjectStageColorClass(stage);
-const getStageLabel = (stage: string) => getProjectStageLabel(stage);
 
 // Fonction pour traduire les types d'activités
 const translateActivityKind = (kind: string) => {
@@ -421,6 +418,7 @@ const formatCurrency = (value: number) => {
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);

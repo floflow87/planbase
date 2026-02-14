@@ -28,12 +28,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "@/components/Loader";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { getProjectStageColorClass, getProjectStageLabel } from "@shared/config";
+import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isDeleteContactDialogOpen, setIsDeleteContactDialogOpen] = useState(false);
@@ -1873,8 +1874,8 @@ export default function ClientDetail() {
                                   </p>
                                 )}
                                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                                  <Badge className={getProjectStageColorClass(project.stage)}>
-                                    {getProjectStageLabel(project.stage)}
+                                  <Badge className={getStageColor(project.stage)}>
+                                    {getStageLabel(project.stage)}
                                   </Badge>
                                   {project.category && (
                                     <Badge variant="outline">{project.category}</Badge>

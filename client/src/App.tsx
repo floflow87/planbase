@@ -1,7 +1,6 @@
 import TestEnums from "@/pages/test-enums";
 import ConfigDebug from "@/pages/config-debug";
 import { useConfigAll } from "@/hooks/useConfigAll";
-import { useConfig } from "@/hooks/useConfig";
 import { getEnum } from "@/lib/enums";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -72,7 +71,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { PROJECT_STAGES } from "@shared/config";
+import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { format as formatDate } from "date-fns";
@@ -255,12 +254,11 @@ const clientSchema = z.object({
   phone: z.string().optional(),
 });
 
-const projectStageKeys = PROJECT_STAGES.map(s => s.key) as [string, ...string[]];
 const projectSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   description: z.string().optional(),
   clientId: z.string().optional(),
-  stage: z.enum(projectStageKeys),
+  stage: z.string().min(1, "Le stage est requis"),
 
   type: z.string().optional(),      
   category: z.string().optional(),
@@ -302,7 +300,7 @@ function QuickCreateMenu() {
 
   // Fetch projects for task form
   const { data: configAll } = useConfigAll();
-  const { projectStages: dynamicProjectStages } = useConfig();
+  const { visibleStages: dynamicProjectStages } = useAllProjectStages();
 
   const projectTypes = getEnum<string>(configAll, "project_types", []);
   const projectCategories = getEnum<Category>(configAll, "project_categories", []);

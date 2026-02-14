@@ -50,6 +50,10 @@ const OBJECT_KEYS: ConfigKey[] = [
   "thresholds",
 ];
 
+const PASSTHROUGH_KEYS = [
+  "project.stages.ui",
+] as const;
+
 class ConfigService {
   private cache: Map<string, { config: ResolvedConfig; expiresAt: number }> = new Map();
   private cacheTTL = 60000;
@@ -232,6 +236,14 @@ class ConfigService {
             effective[key] = val;
             sources[key] = { source: "strapi", resolvedAt: now };
           }
+        }
+      }
+
+      for (const key of PASSTHROUGH_KEYS) {
+        if (key in strapiRegistry) {
+          overrides[key] = strapiRegistry[key];
+          effective[key] = strapiRegistry[key];
+          sources[key] = { source: "strapi", resolvedAt: now };
         }
       }
     } catch (error) {
