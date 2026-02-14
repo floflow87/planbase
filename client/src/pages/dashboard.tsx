@@ -33,7 +33,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Loader } from "@/components/Loader";
 import astronautAvatar from "@assets/E2C9617D-45A3-4B6C-AAFC-BE05B63ADC44_1764889729769.png";
 import { getStatusFromColumnName as getStatusFromColumnNameConfig } from "@shared/config";
-import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { DASHBOARD_CONFIG_BY_PROFILE, type UserProfileType, type DashboardBlockId as ProfileBlockId } from "@shared/userProfiles";
 
 // Fonction pour traduire les types d'activités
@@ -418,7 +418,7 @@ const formatCurrency = (value: number) => {
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
+  const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isCreateClientDialogOpen, setIsCreateClientDialogOpen] = useState(false);
   const [isCreateProjectDialogOpen, setIsCreateProjectDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);

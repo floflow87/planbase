@@ -9,7 +9,7 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { type ProjectStageKey } from "@shared/config";
 import { getProjectStageIntent } from "@shared/design/semantics";
-import { useProjectStageMeta } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
 
 export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
@@ -30,7 +30,8 @@ export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDi
  */
 export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgeProps>(
   ({ stageKey, size = "md", dotOnly = false, tone = "soft", className, ...props }, ref) => {
-    const { label } = useProjectStageMeta(stageKey);
+    const { getLabel } = useProjectStagesUI();
+    const label = getLabel(stageKey);
     const intent = getProjectStageIntent(stageKey) as Intent;
 
     if (dotOnly) {

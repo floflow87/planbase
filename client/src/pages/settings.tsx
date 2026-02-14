@@ -29,6 +29,8 @@ import { USER_PROFILES, type UserProfileType } from "@shared/userProfiles";
 import { LoadingState } from "@/design-system/patterns/LoadingState";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useConfig, type ConfigResponse } from "@/hooks/useConfig";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { useConfigAll } from "@/hooks/useConfigAll";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { appUsers } from "@shared/schema";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -1609,7 +1611,58 @@ export default function Settings() {
             <SubscriptionTab />
           </TabsContent>
         </Tabs>
+
+        <ConfigDebugPanel />
       </div>
+    </div>
+  );
+}
+
+function ConfigDebugPanel() {
+  const showDebug = useFeatureFlag("ui_debug_config", false);
+  const { data: configAll } = useConfigAll();
+
+  if (!showDebug) return null;
+
+  const featureFlagsMap = configAll?.featureFlagsMap ?? {};
+  const stagesUI = configAll?.registryMap?.["project.stages.ui"] ?? null;
+
+  return (
+    <div className="mt-8 space-y-4" data-testid="section-config-debug">
+      <div className="flex items-center gap-2">
+        <Terminal className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Debug Config (Strapi)</h3>
+      </div>
+
+      <Card data-testid="card-debug-feature-flags">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-mono">featureFlagsMap</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {Object.keys(featureFlagsMap).length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun feature flag chargé</p>
+          ) : (
+            <pre className="p-3 bg-muted rounded-md text-xs overflow-x-auto max-h-48 overflow-y-auto" data-testid="text-debug-feature-flags">
+              {JSON.stringify(featureFlagsMap, null, 2)}
+            </pre>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card data-testid="card-debug-stages-ui">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-mono">project.stages.ui</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stagesUI === null ? (
+            <p className="text-xs text-muted-foreground">Non défini (fallback hardcodé actif)</p>
+          ) : (
+            <pre className="p-3 bg-muted rounded-md text-xs overflow-x-auto max-h-64 overflow-y-auto" data-testid="text-debug-stages-ui">
+              {JSON.stringify(stagesUI, null, 2)}
+            </pre>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

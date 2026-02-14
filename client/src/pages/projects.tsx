@@ -107,7 +107,7 @@ import {
   getBillingStatusColorClass,
   getStatusFromColumnName,
 } from "@shared/config";
-import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { TaskCardMenu } from "@/components/TaskCardMenu";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { ColumnHeaderMenu } from "@/components/ColumnHeaderMenu";
@@ -1923,7 +1923,7 @@ export default function Projects() {
   const { toast } = useToast();
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
   const { projectStages } = useConfig();
-  const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
+  const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");

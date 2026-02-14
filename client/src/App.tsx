@@ -71,7 +71,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, formatDateForStorage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { format as formatDate } from "date-fns";
@@ -300,7 +300,7 @@ function QuickCreateMenu() {
 
   // Fetch projects for task form
   const { data: configAll } = useConfigAll();
-  const { visibleStages: dynamicProjectStages } = useAllProjectStages();
+  const { visibleStages: dynamicProjectStages } = useProjectStagesUI();
 
   const projectTypes = getEnum<string>(configAll, "project_types", []);
   const projectCategories = getEnum<Category>(configAll, "project_categories", []);

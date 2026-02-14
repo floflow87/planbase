@@ -38,7 +38,7 @@ import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/hooks/useConfig";
 import { getBillingStatusColorClass } from "@shared/config";
-import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 
 interface ProjectWithRelations extends Project {
   client?: Client;
@@ -2764,7 +2764,7 @@ export default function ProjectDetail() {
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
   const { projectStages } = useConfig();
-  const { getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
+  const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);

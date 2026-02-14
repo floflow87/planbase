@@ -28,13 +28,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader } from "@/components/Loader";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { useAllProjectStages } from "@/hooks/useProjectStageMeta";
+import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { getLabel: getStageLabel, getColor: getStageColor } = useAllProjectStages();
+  const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isDeleteContactDialogOpen, setIsDeleteContactDialogOpen] = useState(false);

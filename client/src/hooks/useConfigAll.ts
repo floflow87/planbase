@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchConfigAll, type ConfigAll } from "../lib/config"; // adapte le chemin
+import { fetchConfigAll, type ConfigAll } from "@/lib/config";
 
 export function useConfigAll() {
   return useQuery<ConfigAll>({
     queryKey: ["config-all"],
     queryFn: fetchConfigAll,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
