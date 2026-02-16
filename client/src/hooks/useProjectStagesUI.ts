@@ -20,6 +20,9 @@ interface StageUIOverride {
 interface StagesUIPayload {
   stages?: StageUIOverride[];
   visibleKeys?: string[];
+  labels?: Record<string, string>;
+  colors?: Record<string, string>;
+  order?: Record<string, number>;
 }
 
 export interface ResolvedStage {
@@ -42,8 +45,8 @@ export function useProjectStagesUI() {
 
   const result = useMemo(() => {
     const payload: StagesUIPayload | undefined = data?.registryMap?.["project.stages.ui"];
-    const overrideMap = new Map<string, StageUIOverride>();
 
+    const overrideMap = new Map<string, StageUIOverride>();
     if (payload?.stages && Array.isArray(payload.stages)) {
       for (const s of payload.stages) {
         if (s && typeof s.key === "string") {
@@ -52,6 +55,10 @@ export function useProjectStagesUI() {
       }
     }
 
+    const flatLabels = (payload?.labels && typeof payload.labels === "object") ? payload.labels : {};
+    const flatColors = (payload?.colors && typeof payload.colors === "object") ? payload.colors : {};
+    const flatOrder = (payload?.order && typeof payload.order === "object") ? payload.order : {};
+
     const visibleKeysRaw = payload?.visibleKeys;
     const hasVisibleKeys = Array.isArray(visibleKeysRaw) && visibleKeysRaw.length > 0;
     const visibleKeysSet = hasVisibleKeys ? new Set(visibleKeysRaw) : null;
@@ -59,15 +66,23 @@ export function useProjectStagesUI() {
     const allKeys = new Set<string>();
     for (const s of PROJECT_STAGES) allKeys.add(s.key);
     for (const k of overrideMap.keys()) allKeys.add(k);
+    if (hasVisibleKeys) {
+      for (const k of visibleKeysRaw!) allKeys.add(k);
+    }
+    for (const k of Object.keys(flatLabels)) allKeys.add(k);
+    for (const k of Object.keys(flatColors)) allKeys.add(k);
+    for (const k of Object.keys(flatOrder)) allKeys.add(k);
 
     const resolveStage = (key: string): ResolvedStage => {
       const override = overrideMap.get(key);
       const hardcoded = projectStageByKey[key as ProjectStageKey];
 
-      const label = override?.label ?? hardcoded?.label ?? key;
+      const label = override?.label ?? flatLabels[key] ?? hardcoded?.label ?? key;
 
       let colorClass: string;
-      if (override?.colorClass && override?.textColorClass) {
+      if (flatColors[key]) {
+        colorClass = flatColors[key];
+      } else if (override?.colorClass && override?.textColorClass) {
         colorClass = `${override.colorClass} ${override.textColorClass} ${override.darkColorClass ?? ""}`;
       } else if (hardcoded) {
         colorClass = buildFullColor(hardcoded);
@@ -75,7 +90,7 @@ export function useProjectStagesUI() {
         colorClass = DEFAULT_COLOR;
       }
 
-      const order = override?.order ?? hardcoded?.order ?? 999;
+      const order = override?.order ?? flatOrder[key] ?? hardcoded?.order ?? 999;
       const isTerminal = override?.isTerminal ?? (hardcoded as any)?.isTerminal === true;
 
       return { key, label, colorClass, order, isTerminal };

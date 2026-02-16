@@ -1,0 +1,24 @@
+Objectif : faire apparaître dans l’app les nouvelles étapes définies uniquement dans Strapi (ex: beta_test) dans les selects “Étape”, via project.stages.ui.
+
+Contexte :
+- Le JSON Strapi registryMap["project.stages.ui"] est bien présent dans /api/config/all.
+- J’ai ajouté "beta_test" dans visibleKeys, et je le vois bien dans /api/config/all, MAIS il n’apparaît pas dans les dropdowns du front.
+- Cause probable : le front filtre une liste canonique hardcodée (PROJECT_STAGES) avec visibleKeys, mais ne fait pas l’UNION avec les keys venant de Strapi, donc une key inconnue (beta_test) n’est jamais ajoutée à la liste.
+
+Tâches :
+1) Trouver le hook qui gère les étapes UI (useProjectStagesUI / useAllProjectStages / useProjectStageMeta ou équivalent).
+2) Modifier la construction des listes pour :
+   - construire une liste `allStages` = UNION(PROJECT_STAGES keys + keys venant de Strapi)
+     où les keys Strapi = union de visibleKeys + Object.keys(labels/colors/order)
+   - construire `visibleStages` = filtre de allStages par visibleKeys (si visibleKeys vide -> allStages)
+   - garder le fallback : si Strapi absent -> comportement actuel (PROJECT_STAGES)
+3) Vérifier que les composants de dropdown “Étape” utilisent bien visibleStages (ou visibleKeys) du hook, et pas PROJECT_STAGES directement. Si certains écrans utilisent encore PROJECT_STAGES, les migrer sans casser.
+4) Ajouter un label/couleur par défaut si une key Strapi n’a pas de label/couleur (label = key, color = gray).
+5) Ajouter un mini log/debug (optionnel) ou utiliser le ConfigDebugPanel existant pour vérifier que visibleKeys contient beta_test et que visibleStages le contient après merge.
+6) Tests attendus :
+   - en local : ajouter beta_test dans visibleKeys + labels/colors/order => beta_test apparaît dans le select.
+   - en prod : même résultat après déploiement, avec cache React Query 60s (forcer Ctrl+F5 si besoin).
+
+Livrable :
+- patch complet + fichiers modifiés listés
+- aucune régression sur les stages existants
