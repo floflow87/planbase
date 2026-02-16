@@ -1,22 +1,25 @@
 import type { Config } from "tailwindcss";
-import { PROJECT_STAGES } from "./shared/config/projectStages";
-import { BILLING_STATUSES } from "./shared/config/billingStatuses";
 
-function extractClasses(...sources: readonly { colorClass: string; textColorClass: string; darkColorClass: string }[][]): string[] {
-  const classes = new Set<string>();
-  for (const arr of sources) {
-    for (const item of arr) {
-      for (const val of [item.colorClass, item.textColorClass, item.darkColorClass]) {
-        if (val) val.split(/\s+/).forEach(c => c && classes.add(c));
-      }
-    }
-  }
-  return Array.from(classes);
-}
-
-const dynamicSafelist = extractClasses(PROJECT_STAGES as any, BILLING_STATUSES as any);
-
-const extraColorSafelist = [
+const stageSafelist = [
+  "bg-yellow-100", "border-yellow-200", "text-yellow-700",
+  "dark:bg-yellow-900/30", "dark:text-yellow-300", "dark:border-yellow-800",
+  "bg-purple-100", "border-purple-200", "text-purple-700",
+  "dark:bg-purple-900/30", "dark:text-purple-300", "dark:border-purple-800",
+  "bg-blue-100", "border-blue-200", "text-blue-700",
+  "dark:bg-blue-900/30", "dark:text-blue-300", "dark:border-blue-800",
+  "bg-cyan-100", "border-cyan-200", "text-cyan-700",
+  "dark:bg-cyan-900/30", "dark:text-cyan-300", "dark:border-cyan-800",
+  "bg-green-100", "border-green-200", "text-green-700",
+  "dark:bg-green-900/30", "dark:text-green-300", "dark:border-green-800",
+  "bg-red-100", "border-red-200", "text-red-600", "text-red-500", "text-red-700",
+  "dark:bg-red-900/30", "dark:bg-red-900/20", "dark:text-red-300", "dark:text-red-400", "dark:border-red-800",
+  "bg-red-50",
+  "bg-gray-100", "border-gray-200", "text-gray-500", "text-gray-700",
+  "dark:bg-gray-800/50", "dark:bg-gray-800/30", "dark:text-gray-300", "dark:text-gray-400", "dark:border-gray-700",
+  "bg-violet-100", "border-violet-200", "text-violet-700",
+  "dark:bg-violet-900/30", "dark:text-violet-300", "dark:border-violet-800",
+  "bg-teal-100", "border-teal-200", "text-teal-700",
+  "dark:bg-teal-900/30", "dark:text-teal-300", "dark:border-teal-800",
   "bg-orange-100", "border-orange-200", "text-orange-700",
   "dark:bg-orange-900/30", "dark:text-orange-300", "dark:border-orange-800",
   "bg-pink-100", "border-pink-200", "text-pink-700",
@@ -36,8 +39,6 @@ const extraColorSafelist = [
   "bg-fuchsia-100", "border-fuchsia-200", "text-fuchsia-700",
   "dark:bg-fuchsia-900/30", "dark:text-fuchsia-300", "dark:border-fuchsia-800",
 ];
-
-const stageSafelist = [...new Set([...dynamicSafelist, ...extraColorSafelist])];
 
 export default {
   darkMode: ["class"],

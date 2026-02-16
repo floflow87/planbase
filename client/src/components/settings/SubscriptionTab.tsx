@@ -4,8 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Crown, Sparkles, HelpCircle, MoreHorizontal, CreditCard, Calendar, Info } from "lucide-react";
-import { PLANS, FAQ_ITEMS, DEFAULT_SUBSCRIPTION, type PlanId, type Subscription } from "@/data/subscriptionMock";
+import { Check, Crown, Sparkles, HelpCircle, MoreHorizontal, CreditCard, Calendar, Info, X } from "lucide-react";
+import { FAQ_ITEMS } from "@/data/subscriptionMock";
+import { useConfigAll } from "@/hooks/useConfigAll";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,43 +14,105 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface StrapiFeature {
+  key: string;
+  label: string;
+  order: number;
+  included: boolean;
+}
+
+interface StrapiPlan {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+  price_monthly: number | null;
+  stripe_price_id: string | null;
+  features: {
+    ui?: { highlight?: boolean; cardVariant?: string };
+    cta?: { type?: string; label?: string; disabled?: boolean };
+    badge?: { text?: string; variant?: string };
+    price?: { amount?: number; period?: string; currency?: string; formatted?: string };
+    limits?: Record<string, number>;
+    modules?: Record<string, boolean>;
+    features?: StrapiFeature[];
+    is_default?: boolean;
+    sort_order?: number;
+  };
+}
+
 export function SubscriptionTab() {
   const { toast } = useToast();
-  const [subscription, setSubscription] = useState<Subscription>(DEFAULT_SUBSCRIPTION);
+  const { data: configAll, isLoading: isConfigLoading } = useConfigAll();
   const isDev = import.meta.env.DEV;
 
-  const handleUpgrade = (planId: PlanId) => {
-    setSubscription({
-      currentPlanId: planId,
-      status: "active",
-      renewalDate: planId === "pro" 
-        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        : undefined
-    });
-    
+  const strapiPlans: StrapiPlan[] = (configAll?.plans ?? [])
+    .filter((p: StrapiPlan) => p.is_active)
+    .sort((a: StrapiPlan, b: StrapiPlan) => (a.features?.sort_order ?? 0) - (b.features?.sort_order ?? 0));
+
+  const [currentPlanCode, setCurrentPlanCode] = useState<string | null>(null);
+
+  const activePlanCode = currentPlanCode ?? strapiPlans.find(p => p.features?.is_default)?.code ?? strapiPlans[0]?.code ?? null;
+  const currentPlan = strapiPlans.find(p => p.code === activePlanCode);
+
+  const handleUpgrade = (planCode: string) => {
+    setCurrentPlanCode(planCode);
+    const plan = strapiPlans.find(p => p.code === planCode);
     toast({
-      title: planId === "pro" ? "Bienvenue sur Freelance pro !" : "Plan modifié",
-      description: planId === "pro" 
-        ? "Votre abonnement a été mis à jour (simulation). Profitez de toutes les fonctionnalités !"
-        : "Vous êtes revenu au plan gratuit (simulation).",
+      title: plan ? `Bienvenue sur ${plan.name} !` : "Plan modifie",
+      description: "Votre abonnement a ete mis a jour (simulation).",
       variant: "success",
     });
   };
 
   const handleDowngrade = () => {
-    setSubscription({
-      currentPlanId: "free",
-      status: "active",
-      renewalDate: undefined
-    });
-    
-    toast({
-      title: "Plan modifié",
-      description: "Vous êtes revenu au plan gratuit (simulation).",
-    });
+    const defaultPlan = strapiPlans.find(p => p.features?.is_default) ?? strapiPlans[0];
+    if (defaultPlan) {
+      setCurrentPlanCode(defaultPlan.code);
+      toast({
+        title: "Plan modifie",
+        description: `Vous etes revenu au plan ${defaultPlan.name} (simulation).`,
+      });
+    }
   };
 
-  const currentPlan = PLANS.find(p => p.id === subscription.currentPlanId);
+  const getFormattedPrice = (plan: StrapiPlan): string => {
+    if (plan.features?.price?.formatted) return plan.features.price.formatted;
+    if (plan.price_monthly != null && plan.price_monthly > 0) return `${plan.price_monthly}€ / mois`;
+    return "Gratuit";
+  };
+
+  if (isConfigLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-subscription-title">
+            <CreditCard className="w-5 h-5" />
+            Abonnement
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Chargement des plans...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (strapiPlans.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-subscription-title">
+            <CreditCard className="w-5 h-5" />
+            Abonnement
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Aucun plan disponible pour le moment.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -59,7 +122,7 @@ export function SubscriptionTab() {
           Abonnement
         </h3>
         <p className="text-sm text-muted-foreground mt-1" data-testid="text-subscription-subtitle">
-          Choisissez le plan adapté à votre activité.
+          Choisissez le plan adapte a votre activite.
         </p>
       </div>
 
@@ -67,7 +130,7 @@ export function SubscriptionTab() {
         <CardContent className="py-3">
           <p className="text-xs text-muted-foreground flex items-center gap-2" data-testid="text-info-payment">
             <Info className="w-4 h-4 flex-shrink-0" />
-            Le paiement par carte arrive bientôt. Pour l'instant, la montée en gamme est simulée.
+            Le paiement par carte arrive bientot. Pour l'instant, la montee en gamme est simulee.
           </p>
         </CardContent>
       </Card>
@@ -82,7 +145,7 @@ export function SubscriptionTab() {
               <div>
                 <CardTitle className="text-sm">Votre plan actuel</CardTitle>
                 <CardDescription className="text-xs" data-testid="text-current-plan-name">
-                  {currentPlan?.name} - {currentPlan?.priceLabel}
+                  {currentPlan?.name ?? "Aucun"} - {currentPlan ? getFormattedPrice(currentPlan) : ""}
                 </CardDescription>
               </div>
             </div>
@@ -91,50 +154,43 @@ export function SubscriptionTab() {
             </Badge>
           </div>
         </CardHeader>
-        {subscription.currentPlanId === "pro" && subscription.renewalDate && (
-          <CardContent className="pt-0 pb-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="text-renewal-date">
-              <Calendar className="w-3.5 h-3.5" />
-              Prochaine échéance : {new Date(subscription.renewalDate).toLocaleDateString('fr-FR', { 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
-              })}
-            </div>
-          </CardContent>
-        )}
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {PLANS.map((plan) => {
-          const isCurrent = subscription.currentPlanId === plan.id;
+      <div className={`grid grid-cols-1 ${strapiPlans.length >= 2 ? "md:grid-cols-2" : ""} ${strapiPlans.length >= 3 ? "lg:grid-cols-3" : ""} gap-4`}>
+        {strapiPlans.map((plan) => {
+          const isCurrent = plan.code === activePlanCode;
+          const isHighlight = plan.features?.ui?.highlight === true;
+          const badgeText = plan.features?.badge?.text;
+          const cta = plan.features?.cta;
+          const planFeatures: StrapiFeature[] = (plan.features?.features ?? [])
+            .sort((a: StrapiFeature, b: StrapiFeature) => (a.order ?? 0) - (b.order ?? 0));
           
           return (
             <Card 
               key={plan.id} 
               className={`relative transition-all ${
                 isCurrent 
-                  ? 'ring-2 ring-primary' 
-                  : plan.isPopular 
-                    ? 'ring-1 ring-accent' 
-                    : ''
+                  ? "ring-2 ring-primary" 
+                  : isHighlight 
+                    ? "ring-1 ring-accent" 
+                    : ""
               }`}
-              data-testid={`card-plan-${plan.id}`}
+              data-testid={`card-plan-${plan.code}`}
             >
-              {plan.isPopular && (
+              {badgeText && !isCurrent && (
                 <Badge 
                   className="absolute -top-2.5 left-4"
-                  data-testid={`badge-popular-${plan.id}`}
+                  data-testid={`badge-popular-${plan.code}`}
                 >
                   <Sparkles className="w-3 h-3 mr-1" />
-                  Populaire
+                  {badgeText}
                 </Badge>
               )}
               {isCurrent && (
                 <Badge 
                   variant="secondary"
                   className="absolute -top-2.5 right-4"
-                  data-testid={`badge-current-${plan.id}`}
+                  data-testid={`badge-current-${plan.code}`}
                 >
                   <Check className="w-3 h-3 mr-1" />
                   Actuel
@@ -143,8 +199,8 @@ export function SubscriptionTab() {
               
               <CardHeader className="pb-3 pt-6">
                 <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base" data-testid={`text-plan-name-${plan.id}`}>{plan.name}</CardTitle>
-                  {isDev && isCurrent && subscription.currentPlanId === "pro" && (
+                  <CardTitle className="text-base" data-testid={`text-plan-name-${plan.code}`}>{plan.name}</CardTitle>
+                  {isDev && isCurrent && !plan.features?.is_default && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" data-testid="button-dev-menu">
@@ -153,26 +209,34 @@ export function SubscriptionTab() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={handleDowngrade} data-testid="button-dev-downgrade">
-                          Revenir à Free (dev)
+                          Revenir au plan par defaut (dev)
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
                 </div>
-                <div className="mt-2" data-testid={`text-plan-price-${plan.id}`}>
-                  <span className="text-2xl font-bold">{plan.priceLabel}</span>
+                <div className="mt-2" data-testid={`text-plan-price-${plan.code}`}>
+                  <span className="text-2xl font-bold">{getFormattedPrice(plan)}</span>
                 </div>
               </CardHeader>
               
               <CardContent className="space-y-4">
-                <ul className="space-y-2">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm" data-testid={`text-feature-${plan.id}-${index}`}>
-                      <Check className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+                {planFeatures.length > 0 && (
+                  <ul className="space-y-2">
+                    {planFeatures.map((feature, index) => (
+                      <li key={feature.key} className="flex items-start gap-2 text-sm" data-testid={`text-feature-${plan.code}-${index}`}>
+                        {feature.included ? (
+                          <Check className="w-4 h-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <X className="w-4 h-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+                        )}
+                        <span className={feature.included ? "" : "text-muted-foreground/60 line-through"}>
+                          {feature.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 
                 <div className="pt-2">
                   {isCurrent ? (
@@ -180,27 +244,29 @@ export function SubscriptionTab() {
                       variant="outline" 
                       className="w-full" 
                       disabled
-                      data-testid={`button-plan-${plan.id}-current`}
+                      data-testid={`button-plan-${plan.code}-current`}
                     >
                       Plan actuel
                     </Button>
-                  ) : plan.id === "pro" ? (
+                  ) : cta?.type === "upgrade" ? (
                     <Button 
                       className="w-full"
-                      onClick={() => handleUpgrade("pro")}
-                      data-testid="button-upgrade-pro"
+                      onClick={() => handleUpgrade(plan.code)}
+                      disabled={cta.disabled === true}
+                      data-testid={`button-upgrade-${plan.code}`}
                     >
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Passer à Freelance pro
+                      {cta.label ?? `Passer a ${plan.name}`}
                     </Button>
                   ) : (
                     <Button 
                       variant="outline" 
                       className="w-full"
-                      onClick={() => handleUpgrade("free")}
-                      data-testid="button-downgrade-free"
+                      onClick={() => handleUpgrade(plan.code)}
+                      disabled={cta?.disabled === true}
+                      data-testid={`button-select-${plan.code}`}
                     >
-                      Revenir à Free
+                      {cta?.label ?? `Choisir ${plan.name}`}
                     </Button>
                   )}
                 </div>
@@ -214,7 +280,7 @@ export function SubscriptionTab() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <HelpCircle className="w-4 h-4" />
-            Questions fréquentes
+            Questions frequentes
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -302,6 +302,9 @@ function QuickCreateMenu() {
   const { data: configAll } = useConfigAll();
   const { visibleStages: dynamicProjectStages } = useProjectStagesUI();
 
+  const featureFlags = configAll?.featureFlagsMap ?? {};
+  const isTimeTrackingEnabled = featureFlags["time_tracking_module"] !== false;
+
   const projectTypes = getEnum<string>(configAll, "project_types", []);
   const projectCategories = getEnum<Category>(configAll, "project_categories", []);
   const { data: projects = [] } = useQuery<any[]>({
@@ -1295,7 +1298,7 @@ function AppLayout() {
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
               <QuickCreateMenu />
-              <TimeTracker />
+              {isTimeTrackingEnabled && <TimeTracker />}
               <Button variant="ghost" size="icon" data-testid="button-mail">
                 <Mail className="w-4 h-4 text-primary" />
               </Button>
