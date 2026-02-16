@@ -2,45 +2,37 @@
  * ProjectStageBadge - Design System V1 Product Component
  * 
  * Displays a project stage with proper styling
- * Uses BadgeIntent primitive with semantic intent mapping
+ * Uses dynamic colors from Strapi with hardcoded fallback
  */
 
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { type ProjectStageKey } from "@shared/config";
-import { getProjectStageIntent } from "@shared/design/semantics";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
-import { Badge, type Intent, type BadgeSize, type IntentVariant } from "@/components/ui/badge";
 
 export interface ProjectStageBadgeProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
   stageKey: ProjectStageKey | string | null;
-  size?: Exclude<BadgeSize, "dot">;
+  size?: "sm" | "md" | "lg";
   dotOnly?: boolean;
-  tone?: IntentVariant;
 }
 
-/**
- * ProjectStageBadge displays the current stage of a project
- * Uses Badge component with intent for consistent design system integration
- * 
- * @example
- * <ProjectStageBadge stageKey={project.stage} />
- * <ProjectStageBadge stageKey="en_cours" size="sm" />
- * <ProjectStageBadge stageKey="termine" dotOnly />
- */
 export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgeProps>(
-  ({ stageKey, size = "md", dotOnly = false, tone = "soft", className, ...props }, ref) => {
-    const { getLabel } = useProjectStagesUI();
+  ({ stageKey, size = "md", dotOnly = false, className, ...props }, ref) => {
+    const { getLabel, getColor } = useProjectStagesUI();
     const label = getLabel(stageKey);
-    const intent = getProjectStageIntent(stageKey) as Intent;
+    const colorClass = getColor(stageKey);
+
+    const sizeClasses = {
+      sm: "text-[10px] px-1.5 py-0.5",
+      md: "text-xs px-2 py-0.5",
+      lg: "text-sm px-2.5 py-1",
+    };
 
     if (dotOnly) {
       return (
-        <Badge
+        <div
           ref={ref}
-          intent={intent}
-          size="dot"
-          className={className}
+          className={cn("w-2.5 h-2.5 rounded-full border", colorClass, className)}
           title={label}
           data-testid={`dot-project-stage-${stageKey || "none"}`}
           {...props}
@@ -49,17 +41,19 @@ export const ProjectStageBadge = forwardRef<HTMLDivElement, ProjectStageBadgePro
     }
 
     return (
-      <Badge
+      <span
         ref={ref}
-        intent={intent}
-        tone={tone}
-        size={size}
-        className={className}
+        className={cn(
+          "inline-flex items-center rounded-md border font-medium whitespace-nowrap",
+          sizeClasses[size],
+          colorClass,
+          className
+        )}
         data-testid={`badge-project-stage-${stageKey || "none"}`}
         {...props}
       >
         {label}
-      </Badge>
+      </span>
     );
   }
 );

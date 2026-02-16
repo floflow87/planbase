@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useConfig } from "@/hooks/useConfig";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1697,15 +1697,15 @@ function ProjectKanbanView({
     })
   );
   
-  const stages = projectStages.map((s: any) => ({
+  const stages = allStages.map((s) => ({
     value: s.key,
     label: s.label,
-    color: `${s.colorClass} ${s.darkColorClass}`,
-    headerBg: `${s.colorClass} ${s.darkColorClass}`,
-    textColor: s.textColorClass,
+    color: s.colorClass,
+    headerBg: s.colorClass,
+    textColor: "",
   }));
   
-  const validStages = projectStages.map((s: any) => s.key);
+  const validStages = allStages.map((s) => s.key);
   
   const handleKanbanDragStart = (event: DragStartEvent) => {
     setActiveKanbanProjectId(event.active.id as string);
@@ -1922,7 +1922,6 @@ export default function Projects() {
   const userId = user?.id || null;
   const { toast } = useToast();
   const { canCreate, canUpdate, canDelete } = useReadOnlyMode("projects");
-  const { projectStages } = useConfig();
   const { allStages, visibleStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("list");
@@ -3146,7 +3145,7 @@ export default function Projects() {
                     <PopoverContent className="w-56 bg-card" align="end">
                       <div className="space-y-2">
                         <p className="text-sm font-medium mb-3">Colonnes visibles</p>
-                        {projectStages.map((stage: any) => (
+                        {allStages.map((stage) => (
                           <div key={stage.key} className="flex items-center gap-2">
                             <Checkbox 
                               id={`project-kanban-col-${stage.key}`}
@@ -4408,7 +4407,7 @@ export default function Projects() {
             <div>
               <Label className="text-sm font-medium mb-2 block">Étape du projet</Label>
               <div className="space-y-2">
-                {projectStages.map((stage: any) => (
+                {allStages.map((stage) => (
                   <div 
                     key={stage.key} 
                     className="flex items-center gap-2 px-2 py-1.5 rounded hover-elevate cursor-pointer"
@@ -4541,7 +4540,7 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-card">
-                    {projectStages.map((stage: any) => (
+                    {visibleStages.map((stage) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
                       </SelectItem>
@@ -4755,7 +4754,7 @@ export default function Projects() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-card">
-                    {projectStages.map((stage: any) => (
+                    {visibleStages.map((stage) => (
                       <SelectItem key={stage.key} value={stage.key} className="cursor-pointer">
                         {stage.label}
                       </SelectItem>
