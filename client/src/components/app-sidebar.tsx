@@ -3,6 +3,7 @@ import { Home, FolderKanban, CheckSquare, Rocket, Package, FileText, FolderOpen,
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useConfigAll } from "@/hooks/useConfigAll";
 import type { RbacModule } from "@shared/schema";
 import {
   Sidebar,
@@ -37,10 +38,24 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
   "/finance": "profitability",
 };
 
+const URL_TO_FEATURE_FLAG: Record<string, string> = {
+  "/crm": "crm",
+  "/projects": "projects",
+  "/product": "product",
+  "/roadmap": "roadmap",
+  "/tasks": "tasks",
+  "/mindmaps": "whiteboards",
+  "/notes": "notes",
+  "/documents": "documents",
+  "/finance": "profitability",
+};
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { userProfile, user } = useAuth();
   const { isAdmin, role, can } = usePermissions();
+  const { data: configData } = useConfigAll();
+  const featureFlags = configData?.featureFlagsMap ?? {};
   const { state, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -66,7 +81,15 @@ export function AppSidebar() {
     return isStarterPlan && starterRestrictedUrls.includes(url);
   };
 
+  const isModuleEnabled = (url: string): boolean => {
+    const flagKey = URL_TO_FEATURE_FLAG[url];
+    if (!flagKey) return true;
+    if (flagKey in featureFlags) return featureFlags[flagKey] !== false;
+    return true;
+  };
+
   const canAccessModule = (url: string): boolean => {
+    if (!isModuleEnabled(url)) return false;
     if (isAdmin) return true;
     const module = URL_TO_MODULE[url];
     if (module === null) return true;

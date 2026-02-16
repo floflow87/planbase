@@ -3405,9 +3405,9 @@ export default function Projects() {
                           </div>
 
                           <div className="flex flex-wrap gap-1.5 mt-3">
-                            <Badge variant="outline" className={`text-[10px] ${getStageColor(project.stage)}`}>
+                            <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-[10px] px-1.5 py-0.5 ${getStageColor(project.stage)}`}>
                               {getStageLabel(project.stage)}
-                            </Badge>
+                            </span>
                             {project.category && (
                               <div className="flex items-center gap-1">
                                 <Badge variant="secondary" className="text-[10px]">
@@ -3619,9 +3619,9 @@ export default function Projects() {
 
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge className={`${getStageColor(project.stage)} text-xs`} data-testid={`badge-stage-${project.id}`}>
+                              <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-xs px-2 py-0.5 ${getStageColor(project.stage)}`} data-testid={`badge-stage-${project.id}`}>
                                 {getStageLabel(project.stage)}
-                              </Badge>
+                              </span>
                               {project.category && (
                                 <>
                                   <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
@@ -3784,9 +3784,9 @@ export default function Projects() {
                                         className="hover-elevate active-elevate-2 rounded-md"
                                         data-testid={`button-edit-stage-${project.id}`}
                                       >
-                                        <Badge className={`${getStageColor(project.stage)} cursor-pointer text-[10px]`}>
+                                        <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap cursor-pointer text-[10px] px-1.5 py-0.5 ${getStageColor(project.stage)}`}>
                                           {getStageLabel(project.stage)}
-                                        </Badge>
+                                        </span>
                                       </button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-56 p-2 bg-white dark:bg-card" align="start">
@@ -3805,9 +3805,9 @@ export default function Projects() {
                                             className="w-full text-left px-3 py-2 rounded hover-elevate"
                                             data-testid={`item-stage-${stage.key}`}
                                           >
-                                            <Badge className={`${getStageColor(stage.key)} text-[10px]`}>
+                                            <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-[10px] px-1.5 py-0.5 ${getStageColor(stage.key)}`}>
                                               {stage.label}
-                                            </Badge>
+                                            </span>
                                           </button>
                                         ))}
                                       </div>
