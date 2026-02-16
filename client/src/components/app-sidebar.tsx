@@ -39,15 +39,15 @@ const URL_TO_MODULE: Record<string, RbacModule | null> = {
 };
 
 const URL_TO_FEATURE_FLAG: Record<string, string> = {
-  "/crm": "crm",
-  "/projects": "projects",
-  "/product": "product",
-  "/roadmap": "roadmap",
-  "/tasks": "tasks",
-  "/mindmaps": "whiteboards",
-  "/notes": "notes",
-  "/documents": "documents",
-  "/finance": "profitability",
+  "/crm": "crm_module",
+  "/projects": "projects_module",
+  "/product": "product_module",
+  "/roadmap": "roadmap_module",
+  "/tasks": "tasks_module",
+  "/mindmaps": "whiteboards_module",
+  "/notes": "notes_module",
+  "/documents": "documents_module",
+  "/finance": "profitability_module",
 };
 
 export function AppSidebar() {
