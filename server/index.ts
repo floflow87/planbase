@@ -30,7 +30,21 @@ app.get("/api/config/all", async (_req, res) => {
     const token = process.env.STRAPI_API_TOKEN;
 
     if (!baseUrl || !token) {
-      return res.status(500).json({ error: "Missing STRAPI_URL or STRAPI_API_TOKEN" });
+      return res.json({
+        plans: [],
+        featureFlags: [],
+        featureFlagsMap: {},
+        cdcTemplates: [],
+        roadmapTemplates: [],
+        okrTemplates: [],
+        resourceTemplates: [],
+        registry: [],
+        registryMap: {},
+        faq: [],
+        onboarding: [],
+        accountActions: [],
+        _strapiAvailable: false,
+      });
     }
 
     const headers = { Authorization: `Bearer ${token}` };

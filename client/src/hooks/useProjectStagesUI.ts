@@ -65,7 +65,7 @@ export function useProjectStagesUI() {
 
     const allKeys = new Set<string>();
     for (const s of PROJECT_STAGES) allKeys.add(s.key);
-    for (const k of overrideMap.keys()) allKeys.add(k);
+    overrideMap.forEach((_v, k) => allKeys.add(k));
     if (hasVisibleKeys) {
       for (const k of visibleKeysRaw!) allKeys.add(k);
     }
