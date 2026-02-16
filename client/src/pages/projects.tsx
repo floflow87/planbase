@@ -1688,6 +1688,7 @@ function ProjectKanbanView({
   canDelete = true,
 }: ProjectKanbanViewProps) {
   const [activeKanbanProjectId, setActiveKanbanProjectId] = useState<string | null>(null);
+  const { allStages: kanbanAllStages } = useProjectStagesUI();
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1697,7 +1698,7 @@ function ProjectKanbanView({
     })
   );
   
-  const stages = allStages.map((s) => ({
+  const stages = kanbanAllStages.map((s) => ({
     value: s.key,
     label: s.label,
     color: s.colorClass,
@@ -1705,7 +1706,7 @@ function ProjectKanbanView({
     textColor: "",
   }));
   
-  const validStages = allStages.map((s) => s.key);
+  const validStages = kanbanAllStages.map((s) => s.key);
   
   const handleKanbanDragStart = (event: DragStartEvent) => {
     setActiveKanbanProjectId(event.active.id as string);

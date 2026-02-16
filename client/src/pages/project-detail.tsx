@@ -36,7 +36,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { PostCreationSuggestions } from "@/components/PostCreationSuggestions";
 import { CdcWizard } from "@/components/cdc/CdcWizard";
 import { cn } from "@/lib/utils";
-import { useConfig } from "@/hooks/useConfig";
+
 import { getBillingStatusColorClass } from "@shared/config";
 import { useProjectStagesUI } from "@/hooks/useProjectStagesUI";
 
@@ -2763,8 +2763,7 @@ export default function ProjectDetail() {
   const [, setLocation] = useLocation();
   const navigate = (path: string) => setLocation(path);
   const { toast } = useToast();
-  const { projectStages } = useConfig();
-  const { getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
+  const { visibleStages: projectStages, getLabel: getStageLabel, getColor: getStageColor } = useProjectStagesUI();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBillingStatusPopoverOpen, setIsBillingStatusPopoverOpen] = useState(false);
