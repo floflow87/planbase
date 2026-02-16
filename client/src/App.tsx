@@ -302,9 +302,6 @@ function QuickCreateMenu() {
   const { data: configAll } = useConfigAll();
   const { visibleStages: dynamicProjectStages } = useProjectStagesUI();
 
-  const featureFlags = configAll?.featureFlagsMap ?? {};
-  const isTimeTrackingEnabled = featureFlags["time_tracking_module"] !== false;
-
   const projectTypes = getEnum<string>(configAll, "project_types", []);
   const projectCategories = getEnum<Category>(configAll, "project_categories", []);
   const { data: projects = [] } = useQuery<any[]>({
@@ -936,6 +933,11 @@ function AppLayout() {
     enabled: !isAuthPage,
   });
   
+  // Feature flags for conditional rendering
+  const { data: configAll } = useConfigAll();
+  const featureFlags = configAll?.featureFlagsMap ?? {};
+  const isTimeTrackingEnabled = featureFlags["time_tracking_module"] !== false;
+
   // Get account ID for multi-tenant tab storage
   const accountId = user?.user_metadata?.account_id;
   
