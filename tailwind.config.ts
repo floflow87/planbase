@@ -1,8 +1,48 @@
 import type { Config } from "tailwindcss";
+import { PROJECT_STAGES } from "./shared/config/projectStages";
+import { BILLING_STATUSES } from "./shared/config/billingStatuses";
+
+function extractClasses(...sources: readonly { colorClass: string; textColorClass: string; darkColorClass: string }[][]): string[] {
+  const classes = new Set<string>();
+  for (const arr of sources) {
+    for (const item of arr) {
+      for (const val of [item.colorClass, item.textColorClass, item.darkColorClass]) {
+        if (val) val.split(/\s+/).forEach(c => c && classes.add(c));
+      }
+    }
+  }
+  return Array.from(classes);
+}
+
+const dynamicSafelist = extractClasses(PROJECT_STAGES as any, BILLING_STATUSES as any);
+
+const extraColorSafelist = [
+  "bg-orange-100", "border-orange-200", "text-orange-700",
+  "dark:bg-orange-900/30", "dark:text-orange-300", "dark:border-orange-800",
+  "bg-pink-100", "border-pink-200", "text-pink-700",
+  "dark:bg-pink-900/30", "dark:text-pink-300", "dark:border-pink-800",
+  "bg-indigo-100", "border-indigo-200", "text-indigo-700",
+  "dark:bg-indigo-900/30", "dark:text-indigo-300", "dark:border-indigo-800",
+  "bg-emerald-100", "border-emerald-200", "text-emerald-700",
+  "dark:bg-emerald-900/30", "dark:text-emerald-300", "dark:border-emerald-800",
+  "bg-amber-100", "border-amber-200", "text-amber-700",
+  "dark:bg-amber-900/30", "dark:text-amber-300", "dark:border-amber-800",
+  "bg-lime-100", "border-lime-200", "text-lime-700",
+  "dark:bg-lime-900/30", "dark:text-lime-300", "dark:border-lime-800",
+  "bg-rose-100", "border-rose-200", "text-rose-700",
+  "dark:bg-rose-900/30", "dark:text-rose-300", "dark:border-rose-800",
+  "bg-sky-100", "border-sky-200", "text-sky-700",
+  "dark:bg-sky-900/30", "dark:text-sky-300", "dark:border-sky-800",
+  "bg-fuchsia-100", "border-fuchsia-200", "text-fuchsia-700",
+  "dark:bg-fuchsia-900/30", "dark:text-fuchsia-300", "dark:border-fuchsia-800",
+];
+
+const stageSafelist = [...new Set([...dynamicSafelist, ...extraColorSafelist])];
 
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}", "./shared/**/*.{js,ts}"],
+  safelist: stageSafelist,
   theme: {
     extend: {
       borderRadius: {
