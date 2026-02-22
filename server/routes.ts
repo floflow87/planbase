@@ -194,6 +194,7 @@ function getDefaultViewConfig(module: string): any {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
   
 app.get("/config/plans", async (_req, res) => {
   try {

@@ -1239,13 +1239,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocumentTemplates(accountId: string): Promise<DocumentTemplate[]> {
-    // Return system templates (isSystem = true) + account-specific templates
+    // Return system templates (isSystem = 'true') + account-specific templates
     return await db
       .select()
       .from(documentTemplates)
       .where(
         or(
-          eq(documentTemplates.isSystem, true),
+          eq(documentTemplates.isSystem, "true"),
           eq(documentTemplates.accountId, accountId)
         )
       )
