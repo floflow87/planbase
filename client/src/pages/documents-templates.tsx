@@ -148,23 +148,23 @@ export default function DocumentTemplates() {
           <div className="max-w-6xl space-y-8">
             {/* Bouton Page vierge toujours en premier */}
             <div>
-              <h2 className="text-lg font-semibold mb-4">Créer</h2>
+              <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">Créer</h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card
                   className="hover-elevate cursor-pointer"
                   onClick={() => createBlankDocumentMutation.mutate()}
                   data-testid="card-template-blank"
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-6 w-6 text-primary" />
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base mb-2" data-testid="text-template-name-blank">
+                        <h3 className="font-medium text-sm mb-1" data-testid="text-template-name-blank">
                           Page vierge
                         </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-3">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
                           Créer un document vierge sans modèle prédéfini
                         </p>
                       </div>
@@ -181,7 +181,7 @@ export default function DocumentTemplates() {
 
               return (
                 <div key={category}>
-                  <h2 className="text-lg font-semibold mb-4" data-testid={`heading-category-${category}`}>
+                  <h2 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide" data-testid={`heading-category-${category}`}>
                     {CATEGORY_LABELS[category] || category}
                   </h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -192,16 +192,16 @@ export default function DocumentTemplates() {
                         onClick={() => navigate(`/documents/templates/${template.id}`)}
                         data-testid={`card-template-${template.id}`}
                       >
-                        <CardContent className="p-6">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <FileText className="h-6 w-6 text-primary" />
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-base mb-2" data-testid={`text-template-name-${template.id}`}>
+                              <h3 className="font-medium text-sm mb-1" data-testid={`text-template-name-${template.id}`}>
                                 {template.name}
                               </h3>
-                              <p className="text-sm text-muted-foreground line-clamp-3">
+                              <p className="text-xs text-muted-foreground line-clamp-2">
                                 {template.description}
                               </p>
                             </div>
