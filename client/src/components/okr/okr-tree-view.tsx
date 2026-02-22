@@ -333,6 +333,23 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
     },
   });
 
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/tasks/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "okr"] });
+      toast({ title: "Tâche supprimée", variant: "success" });
+      setIsTaskDetailOpen(false);
+      setSelectedTask(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleTaskClick = (link: EnrichedOkrLink) => {
     if (link.entityType === "task" && link.entity) {
       setSelectedTask(link.entity as Task);
@@ -1163,6 +1180,11 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
               setSelectedTask(null);
             }}
             onSave={handleSaveTaskDetail}
+            onDelete={(task) => {
+              if (confirm("Supprimer cette tâche ?")) {
+                deleteTaskMutation.mutate(task.id);
+              }
+            }}
           />
         );
       })()}

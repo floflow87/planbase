@@ -2014,6 +2014,19 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmaps status column added");
 
+    // ============================================
+    // Roadmap items NNL (Now/Next/Later) columns
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE roadmap_items
+      ADD COLUMN IF NOT EXISTS lane TEXT,
+      ADD COLUMN IF NOT EXISTS vision TEXT,
+      ADD COLUMN IF NOT EXISTS objectif TEXT,
+      ADD COLUMN IF NOT EXISTS impact TEXT,
+      ADD COLUMN IF NOT EXISTS metrics TEXT;
+    `);
+    console.log("✅ Roadmap items NNL columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

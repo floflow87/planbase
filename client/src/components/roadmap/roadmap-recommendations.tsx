@@ -2,13 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   AlertTriangle, 
   AlertCircle, 
   Info, 
   Lightbulb,
   ChevronRight,
+  ChevronDown,
   X
 } from "lucide-react";
 import { useState } from "react";
@@ -75,6 +76,7 @@ const TYPE_CONFIG = {
 export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecommendationsProps) {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery<RecommendationsResponse>({
     queryKey: [`/api/projects/${projectId}/roadmap/recommendations`],
@@ -83,7 +85,7 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
   if (isLoading) {
     return (
       <Card className="bg-card/50">
-        <CardContent className="pt-4 pb-3 px-4">
+        <CardContent className="py-[10px] px-4">
           <div className="animate-pulse space-y-2">
             <div className="h-4 bg-muted rounded w-32" />
             <div className="h-12 bg-muted rounded" />
@@ -111,9 +113,21 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
     setDismissedIds(prev => new Set([...prev, id]));
   };
 
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   return (
     <Card className="bg-card/50">
-      <CardHeader className="py-3 px-4">
+      <CardHeader className="py-[10px] px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             Recommandations
@@ -140,33 +154,57 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
           )}
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-3 pt-0 space-y-2">
+      <CardContent className="px-4 pb-[10px] pt-0 space-y-2">
         {displayedRecommendations.map((rec) => {
           const config = TYPE_CONFIG[rec.type];
           const Icon = config.icon;
+          const isExpanded = expandedIds.has(rec.id);
           
           return (
-            <div 
+            <Collapsible 
               key={rec.id}
-              className="flex items-start gap-3 p-2 rounded-md bg-muted/30 group"
-              data-testid={`recommendation-${rec.id}`}
+              open={isExpanded}
+              onOpenChange={() => toggleExpanded(rec.id)}
             >
-              <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${config.iconClass}`} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm font-medium">{rec.title}</span>
-                  <Badge variant="outline" className={config.badgeClass}>
-                    {config.label}
-                  </Badge>
-                </div>
-                {rec.relatedItems && rec.relatedItems.length > 0 ? (
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <p className="text-xs text-muted-foreground cursor-help underline decoration-dotted">{rec.description}</p>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-64" side="bottom" align="start">
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">Éléments concernés :</p>
+              <div 
+                className="rounded-md bg-muted/30"
+                data-testid={`recommendation-${rec.id}`}
+              >
+                <CollapsibleTrigger className="w-full text-left">
+                  <div className="flex items-center gap-3 p-2 cursor-pointer">
+                    {isExpanded ? (
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
+                    <span className="text-sm font-medium flex-1 truncate">{rec.title}</span>
+                    <Badge variant="outline" className={`${config.badgeClass} shrink-0`}>
+                      {config.label}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={(e) => { e.stopPropagation(); handleDismiss(rec.id); }}
+                      data-testid={`button-dismiss-${rec.id}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-2 pb-2 pl-[3.25rem] space-y-1.5">
+                    <p className="text-xs text-muted-foreground">{rec.description}</p>
+                    {rec.action && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <ChevronRight className="h-3 w-3" />
+                        {rec.action}
+                      </p>
+                    )}
+                    {rec.relatedItems && rec.relatedItems.length > 0 && (
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Éléments concernés</p>
                         {rec.relatedItems.map(item => (
                           <div key={item.id} className="text-xs py-1 px-2 bg-muted/50 rounded truncate">
                             {item.title}
@@ -176,39 +214,22 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
                           <p className="text-[10px] text-muted-foreground italic">... et plus</p>
                         )}
                       </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{rec.description}</p>
-                )}
-                {rec.action && (
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <ChevronRight className="h-3 w-3" />
-                    {rec.action}
-                  </p>
-                )}
+                    )}
+                    {rec.relatedItemId && onItemClick && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs px-2"
+                        onClick={() => onItemClick(rec.relatedItemId!)}
+                        data-testid={`button-view-item-${rec.id}`}
+                      >
+                        Voir l'élément
+                      </Button>
+                    )}
+                  </div>
+                </CollapsibleContent>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {rec.relatedItemId && onItemClick && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => onItemClick(rec.relatedItemId!)}
-                    data-testid={`button-view-item-${rec.id}`}
-                  >
-                    Voir
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDismiss(rec.id)}
-                  data-testid={`button-dismiss-${rec.id}`}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            </Collapsible>
           );
         })}
       </CardContent>

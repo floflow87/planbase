@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +33,7 @@ import { RoadmapIndicators } from "@/components/roadmap/roadmap-indicators";
 import { MilestonesZone } from "@/components/roadmap/milestones-zone";
 import { RoadmapRecommendations } from "@/components/roadmap/roadmap-recommendations";
 import { RoadmapItemDetailPanel } from "@/components/roadmap/roadmap-item-detail-panel";
+import { NowNextLaterView } from "@/components/roadmap/now-next-later-view";
 import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory, BacklogTask } from "@shared/schema";
 
 const PHASE_LABELS: { [key: string]: string } = {
@@ -65,7 +66,7 @@ const TYPE_LABELS: { [key: string]: string } = {
   all: "Tous les types",
 };
 
-type ViewMode = "gantt" | "output";
+type ViewMode = "gantt" | "output" | "nnl";
 type LinkedType = "free" | "epic" | "ticket" | "cdc";
 
 export default function RoadmapPage() {
@@ -90,6 +91,7 @@ export default function RoadmapPage() {
     const saved = localStorage.getItem("roadmap-view-mode");
     return (saved as ViewMode) || "gantt";
   });
+  const [activeMainTab, setActiveMainTab] = useState("roadmap");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [newRoadmapName, setNewRoadmapName] = useState("");
@@ -380,23 +382,33 @@ export default function RoadmapPage() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       return apiRequest(`/api/roadmaps/${id}`, 'PATCH', { status });
     },
-    onSuccess: () => {
-      if (isUnlinkedMode) {
-        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+    onMutate: async ({ id, status }) => {
+      const qk = isUnlinkedMode ? ['/api/roadmaps', { unlinked: true }] : [`/api/projects/${selectedProjectId}/roadmaps`];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<Roadmap[]>(qk);
+      queryClient.setQueryData<Roadmap[]>(qk, (old) =>
+        old?.map(r => r.id === id ? { ...r, status } as Roadmap : r) || []
+      );
+      return { previous, qk };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.qk, context.previous);
+      }
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le statut.",
+        variant: "destructive",
+      });
+    },
+    onSettled: (_data, _err, _vars, context) => {
+      if (context?.qk) {
+        queryClient.invalidateQueries({ queryKey: context.qk });
       }
       toast({
         title: "Statut mis à jour",
         description: "Le statut de la roadmap a été modifié.",
         variant: "success",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut.",
-        variant: "destructive",
       });
     },
   });
@@ -956,7 +968,7 @@ export default function RoadmapPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="roadmap" className="w-full">
+        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="roadmap" className="gap-1.5" data-testid="tab-roadmap-main">
               <Map className="h-4 w-4" />
@@ -968,7 +980,7 @@ export default function RoadmapPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="roadmap" className="mt-0" forceMount>
+          <TabsContent value="roadmap" className="mt-0">
             {!selectedProjectId ? (
           <Card>
             <CardContent className="pt-6">
@@ -1120,6 +1132,16 @@ export default function RoadmapPage() {
                     >
                       <LayoutGrid className="h-4 w-4 mr-1" />
                       Étapes
+                    </Button>
+                    <Button
+                      variant={viewMode === "nnl" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("nnl")}
+                      className="h-7 px-3"
+                      data-testid="button-view-nnl"
+                    >
+                      <Columns className="h-4 w-4 mr-1" />
+                      Now/Next/Later
                     </Button>
                   </div>
                   <DropdownMenu>
@@ -1281,6 +1303,16 @@ export default function RoadmapPage() {
                       onCreateDependency={handleCreateDependency}
                       onBulkDelete={handleBulkDelete}
                       onBulkUpdate={handleBulkUpdate}
+                    />
+                  ) : viewMode === "nnl" ? (
+                    <NowNextLaterView
+                      items={filteredItems}
+                      roadmapId={activeRoadmapId || undefined}
+                      onItemClick={handleOpenDetailItem}
+                      onAddItem={handleOpenAddItem}
+                      onUpdateItem={handleItemMove}
+                      epics={epics}
+                      backlogId={backlogId}
                     />
                   ) : (
                     <OutputView 

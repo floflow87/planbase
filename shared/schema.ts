@@ -1063,6 +1063,13 @@ export const roadmapItems = pgTable("roadmap_items", {
   // Calculated milestone status: 'upcoming', 'achievable', 'at_risk', 'overdue', 'validated'
   milestoneStatus: text("milestone_status"),
   
+  // ========== Now/Next/Later Kanban fields ==========
+  lane: text("lane"), // 'now', 'next', 'later' - For NNL Kanban view
+  vision: text("vision"),
+  objectif: text("objectif"),
+  impact: text("impact"),
+  metrics: text("metrics"),
+  
   // ========== Future OKR integration (prepared, not active) ==========
   objectiveId: uuid("objective_id"), // Link to future Objective
   keyResultId: uuid("key_result_id"), // Link to future Key Result

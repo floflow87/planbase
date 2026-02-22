@@ -70,7 +70,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
   if (isLoading) {
     return (
       <Card className="animate-pulse">
-        <CardHeader className="py-3">
+        <CardHeader className="py-[10px]">
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 bg-muted rounded" />
             <div className="h-4 bg-muted rounded w-32" />
@@ -83,7 +83,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
   if (!milestonesData || milestonesData.totalCount === 0) {
     return (
       <Card>
-        <CardHeader className="py-3">
+        <CardHeader className="py-[10px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-primary" />
@@ -96,7 +96,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="pt-0 pb-3">
+        <CardContent className="pt-0 pb-[10px]">
           <p className="text-sm text-muted-foreground text-center py-2">
             Ajoutez des éléments de type "Milestone" pour suivre vos objectifs clés
           </p>
@@ -129,7 +129,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
   return (
     <Card>
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CardHeader className="py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <CardHeader className="py-[10px] cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
           </CollapsibleTrigger>
         </CardHeader>
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-3">
+          <CardContent className="pt-0 pb-[10px]">
             <div className="relative">
               <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
               
