@@ -1245,11 +1245,11 @@ export class DatabaseStorage implements IStorage {
       .from(documentTemplates)
       .where(
         or(
-          sql`${documentTemplates.isSystem} = true`,
+          eq(documentTemplates.isSystem, true),
           eq(documentTemplates.accountId, accountId)
         )
       )
-      .orderBy(sql`${documentTemplates.isSystem} DESC`, asc(documentTemplates.name));
+      .orderBy(desc(documentTemplates.isSystem), asc(documentTemplates.name));
   }
 
   async getDocumentTemplatesByAccountId(accountId: string): Promise<DocumentTemplate[]> {

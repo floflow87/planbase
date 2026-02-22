@@ -796,7 +796,7 @@ export const documentTemplates = pgTable("document_templates", {
   description: text("description"),
   category: text("category").notNull().default("legal"), // 'legal', 'contract', 'creative', 'business'
   icon: text("icon").default("FileText"), // lucide-react icon name
-  isSystem: text("is_system").notNull().default("false"), // 'false' = user template, 'true' = system template (stored as boolean in DB)
+  isSystem: boolean("is_system").notNull().default(false),
   formSchema: jsonb("form_schema").notNull().default([]), // Array of form field definitions
   contentTemplate: text("content_template").notNull(), // Template with {{placeholders}}
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }),
