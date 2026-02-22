@@ -796,7 +796,7 @@ function ListView({
                 Actions
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-popover">
+            <DropdownMenuContent align="start" className="bg-card">
               <DropdownMenuItem onClick={() => handleBulkAction('complete')}>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 Marquer comme terminé
@@ -811,7 +811,7 @@ function ListView({
                   <UserCheck className="h-4 w-4 mr-2" />
                   Changer l'assignation
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="bg-popover">
+                <DropdownMenuSubContent className="bg-card">
                   {users.map(user => (
                     <DropdownMenuItem 
                       key={user.id}
@@ -958,7 +958,7 @@ function ListView({
                                     {taskColumn?.name || '—'}
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-56 p-2 bg-popover">
+                                <PopoverContent className="w-56 p-2 bg-card">
                                   <div className="space-y-1">
                                     {(() => {
                                       // Only show columns from the task's project to prevent cross-project moves
@@ -1016,7 +1016,7 @@ function ListView({
                                     {getPriorityLabel(task.priority)}
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-40 p-2 bg-popover">
+                                <PopoverContent className="w-40 p-2 bg-card">
                                   <div className="space-y-1">
                                     {[
                                       { value: 'high', label: 'Urgent', color: 'bg-red-100 text-red-700' },
@@ -1084,7 +1084,7 @@ function ListView({
                                     }
                                   </Badge>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                                <PopoverContent className="w-auto p-0 bg-card" align="start">
                                   <Calendar
                                     mode="single"
                                     selected={task.dueDate ? new Date(task.dueDate) : undefined}
@@ -1232,10 +1232,10 @@ function ListView({
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="w-20 h-8 text-xs bg-popover" data-testid="select-page-size">
+              <SelectTrigger className="w-20 h-8 text-xs bg-card" data-testid="select-page-size">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-popover">
+              <SelectContent className="bg-card">
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
                 <SelectItem value="50">50</SelectItem>
@@ -1599,7 +1599,7 @@ function DraggableProjectCard({
                 <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover">
+            <DropdownMenuContent align="end" className="bg-card">
               {canUpdate && (
                 <DropdownMenuItem onClick={onEdit}>
                   <Edit className="h-3 w-3 mr-2" />
@@ -1779,7 +1779,7 @@ function ProjectKanbanView({
       </div>
       <DragOverlay>
         {activeKanbanProject ? (
-          <Card className="shadow-xl rotate-3 w-[200px] opacity-95 bg-popover">
+          <Card className="shadow-xl rotate-3 w-[200px] opacity-95 bg-card">
             <CardContent className="p-3">
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8 shrink-0">
@@ -3568,7 +3568,7 @@ export default function Projects() {
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-popover">
+                              <DropdownMenuContent align="end" className="bg-card">
                                 {canUpdate && (
                                   <DropdownMenuItem 
                                     data-testid={`button-edit-project-${project.id}`}
@@ -3714,7 +3714,7 @@ export default function Projects() {
                                   category: "max-w-[120px]",
                                   budget: "text-right",
                                   billingStatus: "max-w-[130px]",
-                                  actions: "w-[80px] bg-popover",
+                                  actions: "w-[80px] bg-card",
                                 };
                                 
                                 return (
@@ -3860,8 +3860,8 @@ export default function Projects() {
                                         )}
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-64 p-0 bg-popover" align="start">
-                                      <Command className="bg-popover">
+                                    <PopoverContent className="w-64 p-0 bg-card" align="start">
+                                      <Command className="bg-card">
                                         <CommandInput
                                           placeholder="Rechercher ou créer..."
                                           value={categorySearchQuery}
@@ -3993,7 +3993,7 @@ export default function Projects() {
                                         }
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                                    <PopoverContent className="w-auto p-0 bg-card" align="start">
                                       <Calendar
                                         mode="single"
                                         selected={project.startDate ? new Date(project.startDate) : undefined}
@@ -4098,7 +4098,7 @@ export default function Projects() {
                                         </Badge>
                                       </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-2 bg-popover" align="start">
+                                    <PopoverContent className="w-56 p-2 bg-card" align="start">
                                       <div className="space-y-1">
                                         {billingStatusOptions.map((status) => (
                                           <button
@@ -4137,7 +4137,7 @@ export default function Projects() {
                                         <MoreVertical className="h-4 w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-popover">
+                                    <DropdownMenuContent align="end" className="bg-card">
                                       {canUpdate && (
                                         <DropdownMenuItem 
                                           data-testid={`button-edit-project-${project.id}`}
@@ -4296,10 +4296,10 @@ export default function Projects() {
                         setProjectCurrentPage(1);
                       }}
                     >
-                      <SelectTrigger className="w-20 h-8 text-xs bg-popover" data-testid="select-project-page-size">
+                      <SelectTrigger className="w-20 h-8 text-xs bg-card" data-testid="select-project-page-size">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-popover">
+                      <SelectContent className="bg-card">
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="20">20</SelectItem>
                         <SelectItem value="50">50</SelectItem>
@@ -4521,7 +4521,7 @@ export default function Projects() {
                 <SelectTrigger id="project-client" data-testid="select-project-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover">
+                <SelectContent className="bg-card">
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                       {client.company || client.name}
@@ -4715,7 +4715,7 @@ export default function Projects() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 bg-popover" align="start">
+                <PopoverContent className="w-full p-0 bg-card" align="start">
                   <Command>
                     <CommandInput placeholder="Rechercher une société..." />
                     <CommandList>

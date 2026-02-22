@@ -3667,7 +3667,7 @@ export default function ProjectDetail() {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden bg-[#F8FAFC] dark:bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
+      <div className="container mx-auto p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-start gap-2 sm:gap-3 w-full sm:w-auto">
             <Link href="/projects">

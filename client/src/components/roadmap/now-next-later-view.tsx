@@ -82,27 +82,40 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     },
   });
 
+  const computeLane = (item: RoadmapItem): string => {
+    if (!item.endDate) return item.lane || "later";
+    const now = new Date();
+    const end = new Date(item.endDate);
+    const diffMs = end.getTime() - now.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays <= 30) return "now";
+    if (diffDays <= 90) return "next";
+    return "later";
+  };
+
   const laneItems = {
-    now: items.filter(i => (i as any).lane === "now"),
-    next: items.filter(i => (i as any).lane === "next"),
-    later: items.filter(i => (i as any).lane === "later" || !(i as any).lane),
+    now: items.filter(i => computeLane(i) === "now"),
+    next: items.filter(i => computeLane(i) === "next"),
+    later: items.filter(i => computeLane(i) === "later"),
   };
 
   const handleMoveLane = (itemId: string, newLane: string) => {
-    updateItemMutation.mutate({ id: itemId, data: { lane: newLane } as any });
+    const item = items.find(i => i.id === itemId);
+    if (item?.endDate) return;
+    updateItemMutation.mutate({ id: itemId, data: { lane: newLane } });
   };
 
   const openEditSheet = (item: RoadmapItem) => {
     setEditingItemId(item.id);
     setEditForm({
-      vision: (item as any).vision || "",
-      objectif: (item as any).objectif || "",
-      impact: (item as any).impact || "",
-      metrics: (item as any).metrics || "",
+      vision: item.vision || "",
+      objectif: item.objectif || "",
+      impact: item.impact || "",
+      metrics: item.metrics || "",
       phase: item.phase || "",
       releaseTag: item.releaseTag || "",
       status: item.status,
-      lane: (item as any).lane || "later",
+      lane: computeLane(item),
     });
   };
 
@@ -119,7 +132,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         releaseTag: editForm.releaseTag,
         status: editForm.status,
         lane: editForm.lane,
-      } as any,
+      },
     });
   };
 
@@ -150,17 +163,17 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             </Badge>
           </div>
 
-          {(item as any).vision && (
+          {item.vision && (
             <div className="flex items-start gap-1.5">
               <Eye className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
-              <p className="text-xs text-muted-foreground line-clamp-2">{(item as any).vision}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{item.vision}</p>
             </div>
           )}
 
-          {(item as any).objectif && (
+          {item.objectif && (
             <div className="flex items-start gap-1.5">
               <Target className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
-              <p className="text-xs text-muted-foreground line-clamp-2">{(item as any).objectif}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{item.objectif}</p>
             </div>
           )}
 
@@ -244,16 +257,25 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Colonne</Label>
-                <Select value={editForm.lane || "later"} onValueChange={(v) => setEditForm(prev => ({ ...prev, lane: v }))}>
-                  <SelectTrigger data-testid="select-nnl-lane">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="now">Now</SelectItem>
-                    <SelectItem value="next">Next</SelectItem>
-                    <SelectItem value="later">Later</SelectItem>
-                  </SelectContent>
-                </Select>
+                {editingItem?.endDate ? (
+                  <div className="flex items-center gap-2">
+                    <Badge className={`${LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.textColor || ""}`}>
+                      {LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.label || editForm.lane}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">Calculée automatiquement selon la date de fin</span>
+                  </div>
+                ) : (
+                  <Select value={editForm.lane || "later"} onValueChange={(v) => setEditForm(prev => ({ ...prev, lane: v }))}>
+                    <SelectTrigger data-testid="select-nnl-lane">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="now">Now</SelectItem>
+                      <SelectItem value="next">Next</SelectItem>
+                      <SelectItem value="later">Later</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <Separator />

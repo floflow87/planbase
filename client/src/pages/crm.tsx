@@ -681,8 +681,11 @@ export default function CRM() {
   // Filter and search clients
   let filteredClients = clients.filter((client) => {
     const matchesStatus = filterStatus === "all" || client.status === filterStatus;
+    const searchLower = searchQuery.toLowerCase();
     const matchesSearch = searchQuery === "" || 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase());
+      client.name.toLowerCase().includes(searchLower) ||
+      (client.company && client.company.toLowerCase().includes(searchLower)) ||
+      (client.email && client.email.toLowerCase().includes(searchLower));
     return matchesStatus && matchesSearch;
   });
 
