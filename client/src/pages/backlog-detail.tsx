@@ -10,7 +10,7 @@ import {
   CheckSquare, BarChart3, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle2,
   ArrowUp, ArrowDown, ArrowUpDown, Lock, FlaskConical, MessageSquare, X,
   Wrench, Bug, Sparkles, ExternalLink, Filter, HelpCircle, XCircle, AlertTriangle,
-  FileText, Eye
+  FileText, Eye, Ticket
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -2430,7 +2430,71 @@ export default function BacklogDetail() {
                         
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{storiesInEpic.length} User Stories</span>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 hover-elevate active-elevate-2 rounded-md px-1.5 py-0.5 -ml-1.5 transition-colors"
+                                  data-testid={`badge-ticket-count-${epic.id}`}
+                                >
+                                  <Ticket className="h-3 w-3" />
+                                  <span>{storiesInEpic.length} User Stories</span>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-72 p-0 bg-card"
+                                align="start"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="p-3 border-b">
+                                  <p className="text-sm font-medium">Tickets de {epic.title}</p>
+                                  <p className="text-xs text-muted-foreground">{storiesInEpic.length} user stories</p>
+                                </div>
+                                <div className="max-h-56 overflow-y-auto">
+                                  {storiesInEpic.length === 0 ? (
+                                    <p className="p-3 text-xs text-muted-foreground text-center">Aucun ticket</p>
+                                  ) : (
+                                    storiesInEpic.map((story) => (
+                                      <div
+                                        key={story.id}
+                                        className="flex items-center gap-2 px-3 py-2 hover-elevate cursor-pointer border-b last:border-b-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const flat: FlatTicket = {
+                                            id: story.id,
+                                            type: "user_story",
+                                            title: story.title,
+                                            description: story.description,
+                                            state: story.state,
+                                            priority: story.priority,
+                                            sprintId: story.sprintId,
+                                            epicId: story.epicId,
+                                            estimatePoints: story.estimatePoints,
+                                            assigneeId: story.assigneeId,
+                                            order: story.order ?? 0,
+                                          };
+                                          handleSelectTicket(flat);
+                                        }}
+                                        data-testid={`ticket-row-${story.id}`}
+                                      >
+                                        <div className={cn(
+                                          "h-2 w-2 rounded-full shrink-0",
+                                          story.state === "termine" ? "bg-green-500" :
+                                          story.state === "en_cours" ? "bg-blue-500" :
+                                          story.state === "testing" ? "bg-yellow-500" :
+                                          "bg-muted-foreground/40"
+                                        )} />
+                                        <span className="text-xs truncate flex-1">{story.title}</span>
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                                          {story.estimatePoints || 0}pt
+                                        </Badge>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                             <span>{totalPoints} points</span>
                           </div>
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">

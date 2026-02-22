@@ -1874,7 +1874,7 @@ function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }
             onValueChange={setSearchValue}
             data-testid="input-category-search"
           />
-          <CommandList>
+          <CommandList className="max-h-[200px] overflow-y-auto">
             <CommandEmpty>
               {searchValue.trim() && (
                 <button
@@ -4715,7 +4715,7 @@ export default function Projects() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 bg-card" align="start">
+                <PopoverContent className="w-full p-0 bg-white dark:bg-card" align="start">
                   <Command>
                     <CommandInput placeholder="Rechercher une société..." />
                     <CommandList>
