@@ -575,7 +575,7 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 data-testid="button-view-output"
               >
                 <LayoutGrid className="h-4 w-4 mr-1" />
-                Output
+                Étapes
               </Button>
             </div>
             <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">

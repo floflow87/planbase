@@ -1,0 +1,143 @@
+Tu travailles sur PlanBase, un SaaS de pilotage pour freelances.
+Objectif : implémenter une Roadmap par Outcomes interconnectée avec le CDC, les Epics, le Backlog, la Rentabilité et les OKR.
+
+🎯 OBJECTIF PRODUIT
+
+Créer une roadmap stratégique orientée impact, où :
+
+les Objectives représentent les objectifs macro du projet
+
+les Key Results (KR) mesurent l’atteinte de ces objectifs
+
+les tickets / epics / CDC alimentent automatiquement la progression
+
+toute modification impacte temps, marge, alertes et recommandations
+
+1️⃣ STRUCTURE OKR
+Modèle hiérarchique
+
+Objective
+└── Key Result
+  └── Epic (optionnel)
+    └── Tickets
+      └── Temps / Coût / Impact
+
+Règles
+
+Un Objective est de type : Business / Produit / Marketing
+
+Un KR est mesurable (valeur actuelle, cible, unité)
+
+Les tickets ne dépendent jamais directement d’un Objective, uniquement des KR
+
+2️⃣ GÉNÉRATION AUTOMATIQUE (SUGGESTION)
+
+À la fin du CDC, proposer (non obligatoire) :
+
+une liste d’Objectives suggérés
+
+pour chaque Objective : 5 KR templates
+
+mapping intelligent :
+
+CDC Produit → KR Produit
+
+CDC Business → KR Business
+
+CDC Marketing → KR Marketing
+
+L’utilisateur peut :
+
+accepter
+
+modifier
+
+supprimer
+
+tout ignorer (Skip)
+
+3️⃣ CALCULS & PROGRESSION
+Pour chaque KR
+
+Progression (%) calculée à partir :
+
+tickets liés (statut, temps passé)
+
+epics liées
+
+Valeurs :
+
+currentValue
+
+targetValue
+
+unit (% / € / users / jours)
+
+Pour chaque Objective
+
+Progression = moyenne pondérée des KR
+
+Afficher :
+
+état (OK / À risque / Critique)
+
+impact marge
+
+alertes
+
+4️⃣ LIENS POSSIBLES
+
+Un KR peut être lié à :
+
+une ou plusieurs rubriques CDC
+
+des Epics
+
+des blocs roadmap
+
+des tickets existants
+
+Tous les liens sont :
+
+bidirectionnels
+
+modifiables
+
+visibles depuis chaque module
+
+5️⃣ RECOMMANDATIONS INTELLIGENTES (OKR-AWARE)
+
+Exemples :
+
+“Objectif 💰 Revenus en retard : seulement 2/5 KR en progression”
+
+“KR ‘Atteindre 10k€ MRR’ bloqué — aucun ticket actif”
+
+“Accélérer l’Epic ‘Billing’ pourrait améliorer la marge de +8%”
+
+6️⃣ UX ATTENDUE
+
+Vue arbre visuelle (dépliable)
+
+Badges d’état clairs
+
+Hover pour voir :
+
+temps
+
+coût
+
+marge
+
+Boutons :
+
+“Générer depuis le CDC”
+
+“Lier des tickets”
+
+“Simuler impact”
+
+7️⃣ RÈGLE D’OR
+
+Aucun élément ne doit être isolé.
+S’il existe, il doit influencer le temps, le coût, la marge ou la décision.

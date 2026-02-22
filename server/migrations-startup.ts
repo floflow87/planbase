@@ -2005,6 +2005,15 @@ export async function runStartupMigrations() {
     }
     console.log("✅ Member permissions initialized");
 
+    // ============================================
+    // Roadmaps status column
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE roadmaps
+      ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned';
+    `);
+    console.log("✅ Roadmaps status column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

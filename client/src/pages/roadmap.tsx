@@ -32,6 +32,7 @@ import { OutputView } from "@/components/roadmap/output-view";
 import { RoadmapIndicators } from "@/components/roadmap/roadmap-indicators";
 import { MilestonesZone } from "@/components/roadmap/milestones-zone";
 import { RoadmapRecommendations } from "@/components/roadmap/roadmap-recommendations";
+import { RoadmapItemDetailPanel } from "@/components/roadmap/roadmap-item-detail-panel";
 import type { Roadmap, RoadmapItem, Project, RoadmapDependency, Epic, UserStory, BacklogTask } from "@shared/schema";
 
 const PHASE_LABELS: { [key: string]: string } = {
@@ -48,6 +49,12 @@ const STATUS_LABELS: { [key: string]: string } = {
   done: "Terminé",
   blocked: "Bloqué",
   all: "Tous les statuts",
+};
+
+const ROADMAP_STATUS_LABELS: { [key: string]: { label: string; color: string } } = {
+  planned: { label: "Planifiée", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+  in_progress: { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+  closed: { label: "Clôturée", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
 };
 
 const TYPE_LABELS: { [key: string]: string } = {
@@ -99,6 +106,8 @@ export default function RoadmapPage() {
   const [renameValue, setRenameValue] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roadmapToManage, setRoadmapToManage] = useState<Roadmap | null>(null);
+  const [detailItem, setDetailItem] = useState<RoadmapItem | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   // Filters state
   const [filterPhase, setFilterPhase] = useState<string>("all");
@@ -362,6 +371,31 @@ export default function RoadmapPage() {
       toast({
         title: "Erreur",
         description: "Impossible de renommer la roadmap.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateRoadmapStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest(`/api/roadmaps/${id}`, 'PATCH', { status });
+    },
+    onSuccess: () => {
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
+      toast({
+        title: "Statut mis à jour",
+        description: "Le statut de la roadmap a été modifié.",
+        variant: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le statut.",
         variant: "destructive",
       });
     },
@@ -685,6 +719,11 @@ export default function RoadmapPage() {
     setIsItemDialogOpen(true);
   };
 
+  const handleOpenDetailItem = (item: RoadmapItem) => {
+    setDetailItem(item);
+    setIsDetailOpen(true);
+  };
+
   const handleOpenEditItem = (item: RoadmapItem) => {
     setEditingItem(item);
     let linkedType: LinkedType = "free";
@@ -929,7 +968,7 @@ export default function RoadmapPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="roadmap" className="mt-0">
+          <TabsContent value="roadmap" className="mt-0" forceMount>
             {!selectedProjectId ? (
           <Card>
             <CardContent className="pt-6">
@@ -1037,6 +1076,27 @@ export default function RoadmapPage() {
                       {activeRoadmap.horizon}
                     </Badge>
                   )}
+                  {activeRoadmap && (
+                    <Select
+                      value={(activeRoadmap as any).status || "planned"}
+                      onValueChange={(v) => {
+                        if (canUpdate) {
+                          updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-auto h-7 text-xs gap-1 border-0 px-2" data-testid="select-roadmap-status">
+                        <Badge className={`text-xs ${ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.color || ""}`}>
+                          {ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.label || "Planifiée"}
+                        </Badge>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="planned">Planifiée</SelectItem>
+                        <SelectItem value="in_progress">En cours</SelectItem>
+                        <SelectItem value="closed">Clôturée</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1059,7 +1119,7 @@ export default function RoadmapPage() {
                       data-testid="button-view-output"
                     >
                       <LayoutGrid className="h-4 w-4 mr-1" />
-                      Output
+                      Étapes
                     </Button>
                   </div>
                   <DropdownMenu>
@@ -1214,7 +1274,7 @@ export default function RoadmapPage() {
                       items={filteredItems} 
                       dependencies={roadmapDependencies}
                       roadmapId={activeRoadmapId || undefined}
-                      onItemClick={handleOpenEditItem}
+                      onItemClick={handleOpenDetailItem}
                       onAddItem={handleOpenAddItem}
                       onCreateAtDate={handleCreateAtDate}
                       onUpdateItemDates={handleUpdateItemDates}
@@ -1226,7 +1286,7 @@ export default function RoadmapPage() {
                     <OutputView 
                       items={filteredItems}
                       roadmapId={activeRoadmapId || undefined}
-                      onItemClick={handleOpenEditItem}
+                      onItemClick={handleOpenDetailItem}
                       onAddItem={handleOpenAddItem}
                       onItemMove={handleItemMove}
                     />
@@ -1825,6 +1885,15 @@ export default function RoadmapPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RoadmapItemDetailPanel
+        item={detailItem}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        onEdit={handleOpenEditItem}
+        epics={epics}
+        backlogId={backlogId}
+      />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
