@@ -2027,6 +2027,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmap items NNL columns added");
 
+    // ============================================
+    // Roadmaps type column (feature_based, now_next_later)
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE roadmaps
+      ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'feature_based';
+    `);
+    console.log("✅ Roadmaps type column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

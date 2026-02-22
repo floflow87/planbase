@@ -1005,6 +1005,7 @@ export const roadmaps = pgTable("roadmaps", {
   accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  type: text("type").notNull().default("feature_based"), // 'feature_based', 'now_next_later'
   status: text("status").notNull().default("planned"), // 'planned', 'in_progress', 'closed'
   horizon: text("horizon"), // e.g., '2025-Q1'
   strategy: jsonb("strategy").notNull().default({}),

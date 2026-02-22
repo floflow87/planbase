@@ -67,6 +67,7 @@ const TYPE_LABELS: { [key: string]: string } = {
 };
 
 type ViewMode = "gantt" | "output" | "nnl";
+type RoadmapType = "feature_based" | "now_next_later";
 type LinkedType = "free" | "epic" | "ticket" | "cdc";
 
 export default function RoadmapPage() {
@@ -96,6 +97,7 @@ export default function RoadmapPage() {
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [newRoadmapName, setNewRoadmapName] = useState("");
   const [newRoadmapHorizon, setNewRoadmapHorizon] = useState("");
+  const [newRoadmapType, setNewRoadmapType] = useState<RoadmapType>("feature_based");
   const [importEpics, setImportEpics] = useState(false);
   const [importTickets, setImportTickets] = useState(false);
   
@@ -157,6 +159,16 @@ export default function RoadmapPage() {
   useEffect(() => {
     localStorage.setItem("roadmap-view-mode", viewMode);
   }, [viewMode]);
+
+  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
+
+  useEffect(() => {
+    if (activeRoadmap?.type === "now_next_later") {
+      setViewMode("nnl");
+    } else if (activeRoadmap && viewMode === "nnl") {
+      setViewMode("gantt");
+    }
+  }, [activeRoadmapId, activeRoadmap?.type]);
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -311,11 +323,12 @@ export default function RoadmapPage() {
   }, [selectedProjectId, roadmaps]);
 
   const createRoadmapMutation = useMutation({
-    mutationFn: async (data: { name: string; horizon?: string; importEpics?: boolean; importTickets?: boolean }) => {
+    mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean }) => {
       return apiRequest('/api/roadmaps', 'POST', {
         accountId,
         projectId: isUnlinkedMode ? null : selectedProjectId,
         name: data.name,
+        type: data.type || "feature_based",
         horizon: data.horizon || null,
         importEpics: data.importEpics || false,
         importTickets: data.importTickets || false,
@@ -325,6 +338,7 @@ export default function RoadmapPage() {
       setIsCreateDialogOpen(false);
       setNewRoadmapName("");
       setNewRoadmapHorizon("");
+      setNewRoadmapType("feature_based");
       setCreateStep(1);
       setImportEpics(false);
       setImportTickets(false);
@@ -447,9 +461,10 @@ export default function RoadmapPage() {
     if (!newRoadmapName.trim()) return;
     createRoadmapMutation.mutate({
       name: newRoadmapName.trim(),
+      type: newRoadmapType,
       horizon: newRoadmapHorizon.trim() || undefined,
-      importEpics,
-      importTickets,
+      importEpics: newRoadmapType === "feature_based" ? importEpics : false,
+      importTickets: newRoadmapType === "feature_based" ? importTickets : false,
     });
   };
 
@@ -865,7 +880,6 @@ export default function RoadmapPage() {
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
   const filteredProjects = useMemo(() => {
     if (!projectSearchValue.trim()) return projects;
@@ -1045,7 +1059,12 @@ export default function RoadmapPage() {
                     <SelectContent>
                       {roadmaps.map((roadmap) => (
                         <SelectItem key={roadmap.id} value={roadmap.id}>
-                          {roadmap.name}
+                          <span className="flex items-center gap-2">
+                            {roadmap.name}
+                            {(roadmap as any).type === "now_next_later" && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">NNL</Badge>
+                            )}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1112,38 +1131,30 @@ export default function RoadmapPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center border rounded-md p-1">
-                    <Button
-                      variant={viewMode === "gantt" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("gantt")}
-                      className="h-7 px-3"
-                      data-testid="button-view-gantt"
-                    >
-                      <CalendarIcon className="h-4 w-4 mr-1" />
-                      Gantt
-                    </Button>
-                    <Button
-                      variant={viewMode === "output" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("output")}
-                      className="h-7 px-3"
-                      data-testid="button-view-output"
-                    >
-                      <LayoutGrid className="h-4 w-4 mr-1" />
-                      Étapes
-                    </Button>
-                    <Button
-                      variant={viewMode === "nnl" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("nnl")}
-                      className="h-7 px-3"
-                      data-testid="button-view-nnl"
-                    >
-                      <Columns className="h-4 w-4 mr-1" />
-                      Now/Next/Later
-                    </Button>
-                  </div>
+                  {activeRoadmap?.type !== "now_next_later" && (
+                    <div className="flex items-center border rounded-md p-1">
+                      <Button
+                        variant={viewMode === "gantt" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("gantt")}
+                        className="h-7 px-3"
+                        data-testid="button-view-gantt"
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        Gantt
+                      </Button>
+                      <Button
+                        variant={viewMode === "output" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("output")}
+                        className="h-7 px-3"
+                        data-testid="button-view-output"
+                      >
+                        <LayoutGrid className="h-4 w-4 mr-1" />
+                        Étapes
+                      </Button>
+                    </div>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -1357,6 +1368,7 @@ export default function RoadmapPage() {
           setCreateStep(1);
           setNewRoadmapName("");
           setNewRoadmapHorizon("");
+          setNewRoadmapType("feature_based");
           setImportEpics(false);
           setImportTickets(false);
         }
@@ -1368,7 +1380,7 @@ export default function RoadmapPage() {
             </SheetTitle>
             <SheetDescription>
               {createStep === 1 
-                ? "Donnez un nom à votre roadmap et définissez optionnellement un horizon temporel."
+                ? "Choisissez le type de roadmap et donnez-lui un nom."
                 : "Importez automatiquement les Epics et Tickets depuis votre backlog."}
             </SheetDescription>
           </SheetHeader>
@@ -1377,12 +1389,41 @@ export default function RoadmapPage() {
             {createStep === 1 ? (
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <Label>Type de roadmap</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setNewRoadmapType("feature_based")}
+                      className={`rounded-lg border p-3 text-left hover-elevate active-elevate-2 transition-colors ${newRoadmapType === "feature_based" ? "border-primary bg-primary/5" : ""}`}
+                      data-testid="button-type-feature-based"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Feature-based</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Vue Gantt et étapes pour planifier les livrables</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewRoadmapType("now_next_later")}
+                      className={`rounded-lg border p-3 text-left hover-elevate active-elevate-2 transition-colors ${newRoadmapType === "now_next_later" ? "border-primary bg-primary/5" : ""}`}
+                      data-testid="button-type-nnl"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Columns className="h-4 w-4 text-emerald-600" />
+                        <span className="text-sm font-medium">Now / Next / Later</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Vue Kanban par priorité temporelle</p>
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="roadmap-name">Nom de la roadmap</Label>
                   <Input
                     id="roadmap-name"
                     value={newRoadmapName}
                     onChange={(e) => setNewRoadmapName(e.target.value)}
-                    placeholder="Ex: Roadmap Q1 2025"
+                    placeholder={newRoadmapType === "now_next_later" ? "Ex: Priorités produit 2025" : "Ex: Roadmap Q1 2025"}
                     data-testid="input-roadmap-name"
                   />
                 </div>
@@ -1448,13 +1489,23 @@ export default function RoadmapPage() {
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Annuler
                 </Button>
-                <Button 
-                  onClick={() => setCreateStep(2)} 
-                  disabled={!newRoadmapName.trim()}
-                  data-testid="button-next-step"
-                >
-                  Suivant
-                </Button>
+                {newRoadmapType === "feature_based" ? (
+                  <Button 
+                    onClick={() => setCreateStep(2)} 
+                    disabled={!newRoadmapName.trim()}
+                    data-testid="button-next-step"
+                  >
+                    Suivant
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleCreateRoadmap}
+                    disabled={!newRoadmapName.trim() || createRoadmapMutation.isPending}
+                    data-testid="button-confirm-create-roadmap"
+                  >
+                    {createRoadmapMutation.isPending ? "Création..." : "Créer la roadmap"}
+                  </Button>
+                )}
               </>
             ) : (
               <>

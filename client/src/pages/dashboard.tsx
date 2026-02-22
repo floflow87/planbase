@@ -628,6 +628,7 @@ export default function Dashboard() {
   const { data: notes = [], isLoading: notesLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
     enabled: !!accountId,
+    staleTime: 0,
   });
 
   const { data: backlogs = [], isLoading: backlogsLoading } = useQuery<Backlog[]>({
