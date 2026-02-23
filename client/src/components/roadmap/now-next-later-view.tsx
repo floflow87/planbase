@@ -12,6 +12,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  useDroppable,
+} from "@dnd-kit/core";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { 
   Plus, 
   Eye, 
@@ -52,16 +66,47 @@ interface NowNextLaterViewProps {
   items: RoadmapItem[];
   roadmapId?: string;
   onItemClick: (item: RoadmapItem) => void;
-  onAddItem: () => void;
+  onAddItem: (defaultLane?: string) => void;
   onUpdateItem: (itemId: string, newStatus: string, newOrderIndex: number) => void;
   epics: Epic[];
   backlogId: string | null;
+}
+
+function DroppableLane({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-2 min-h-[100px] rounded-md transition-colors ${isOver ? "bg-accent/20" : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DraggableCard({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
 }
 
 export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onUpdateItem, epics, backlogId }: NowNextLaterViewProps) {
   const { toast } = useToast();
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const { data: epicTasks = [] } = useQuery<BacklogTask[]>({
     queryKey: [`/api/backlogs/${backlogId}/tasks`],
@@ -99,10 +144,32 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     later: items.filter(i => computeLane(i) === "later"),
   };
 
-  const handleMoveLane = (itemId: string, newLane: string) => {
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const itemId = active.id as string;
     const item = items.find(i => i.id === itemId);
-    if (item?.endDate) return;
-    updateItemMutation.mutate({ id: itemId, data: { lane: newLane } });
+    if (!item) return;
+
+    if (item.endDate) {
+      toast({ title: "Info", description: "Cet élément a une date de fin, sa colonne est calculée automatiquement.", variant: "default" });
+      return;
+    }
+
+    const targetLane = over.id as string;
+    if (!["now", "next", "later"].includes(targetLane)) return;
+
+    const currentLane = computeLane(item);
+    if (currentLane === targetLane) return;
+
+    updateItemMutation.mutate({ id: itemId, data: { lane: targetLane } });
   };
 
   const openEditSheet = (item: RoadmapItem) => {
@@ -136,48 +203,45 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     });
   };
 
+  const handleLaneChangeFromSheet = (newLane: string) => {
+    setEditForm(prev => ({ ...prev, lane: newLane }));
+  };
+
   const editingItem = items.find(i => i.id === editingItemId);
   const linkedEpic = editingItem?.epicId ? epics.find(e => e.id === editingItem.epicId) : null;
   const linkedTasks = linkedEpic ? epicTasks.filter(t => t.epicId === linkedEpic.id) : [];
 
-  const renderCard = (item: RoadmapItem) => {
+  const activeItem = activeId ? items.find(i => i.id === activeId) : null;
+
+  const renderCard = (item: RoadmapItem, isDragOverlay = false) => {
     const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.planned;
     const StatusIcon = statusConfig.icon;
-    const itemEpic = item.epicId ? epics.find(e => e.id === item.epicId) : null;
-    const itemTasks = itemEpic ? epicTasks.filter(t => t.epicId === itemEpic.id) : [];
-    const doneTasks = itemTasks.filter(t => t.state === "done").length;
+    const isGroup = item.isGroup || item.type === "epic_group";
 
     return (
       <Card
         key={item.id}
-        className="cursor-pointer hover-elevate active-elevate-2 overflow-visible"
-        onClick={() => openEditSheet(item)}
+        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
+        onClick={() => { if (!isDragOverlay) openEditSheet(item); }}
         data-testid={`nnl-card-${item.id}`}
       >
-        <CardContent className="p-3 space-y-2">
+        <CardContent className="p-3 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
-            <h4 className="text-sm font-medium leading-tight flex-1">{item.title}</h4>
+            <div className="flex items-start gap-1.5 flex-1 min-w-0">
+              <GripVertical className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0 cursor-grab" />
+              <h4 className={`${isGroup ? "text-[11px]" : "text-xs"} font-medium leading-tight flex-1`}>{item.title}</h4>
+            </div>
             <Badge className={`text-[10px] shrink-0 ${statusConfig.color}`}>
               <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
               {statusConfig.label}
             </Badge>
           </div>
 
-          {item.vision && (
-            <div className="flex items-start gap-1.5">
-              <Eye className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
-              <p className="text-xs text-muted-foreground line-clamp-2">{item.vision}</p>
-            </div>
-          )}
-
           {item.objectif && (
-            <div className="flex items-start gap-1.5">
-              <Target className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
-              <p className="text-xs text-muted-foreground line-clamp-2">{item.objectif}</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground line-clamp-2 pl-5">{item.objectif}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 pl-5">
             {item.phase && (
               <Badge variant="outline" className="text-[10px]">
                 <Layers className="h-2.5 w-2.5 mr-0.5" />
@@ -188,18 +252,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
               <Badge variant="outline" className="text-[10px]">
                 <Tag className="h-2.5 w-2.5 mr-0.5" />
                 {item.releaseTag}
-              </Badge>
-            )}
-            {itemEpic && (
-              <Badge variant="secondary" className="text-[10px]">
-                <Package className="h-2.5 w-2.5 mr-0.5" />
-                {itemEpic.title}
-              </Badge>
-            )}
-            {itemTasks.length > 0 && (
-              <Badge variant="secondary" className="text-[10px]">
-                <Ticket className="h-2.5 w-2.5 mr-0.5" />
-                {doneTasks}/{itemTasks.length}
               </Badge>
             )}
           </div>
@@ -221,16 +273,29 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
               <h3 className={`text-sm font-semibold ${config.textColor}`}>{config.label}</h3>
               <Badge variant="secondary" className="text-[10px]">{laneItemsList.length}</Badge>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onAddItem(laneKey)}
+              data-testid={`button-add-nnl-${laneKey}`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mb-3">{config.description}</p>
-          <div className="space-y-2">
-            {laneItemsList.map(renderCard)}
+          <DroppableLane id={laneKey}>
+            {laneItemsList.map(item => (
+              <DraggableCard key={item.id} id={item.id}>
+                {renderCard(item)}
+              </DraggableCard>
+            ))}
             {laneItemsList.length === 0 && (
               <div className="border-2 border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">
                 Aucun élément
               </div>
             )}
-          </div>
+          </DroppableLane>
         </div>
       </div>
     );
@@ -238,35 +303,43 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
   return (
     <div>
-      <div className="flex gap-3 overflow-x-auto pb-4">
-        {renderLane("now")}
-        {renderLane("next")}
-        {renderLane("later")}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {renderLane("now")}
+          {renderLane("next")}
+          {renderLane("later")}
+        </div>
+        <DragOverlay>
+          {activeItem ? (
+            <div className="w-[280px]">
+              {renderCard(activeItem, true)}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <Sheet open={!!editingItemId} onOpenChange={(open) => { if (!open) setEditingItemId(null); }}>
         <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0">
           <div className="px-6 pt-6 pb-4">
             <SheetHeader>
-              <SheetTitle className="text-lg">{editingItem?.title}</SheetTitle>
-              <SheetDescription className="sr-only">Paramètres de l'élément</SheetDescription>
-            </SheetHeader>
-          </div>
-
-          <ScrollArea className="flex-1 px-6 pb-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Colonne</Label>
-                {editingItem?.endDate ? (
-                  <div className="flex items-center gap-2">
-                    <Badge className={`${LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.textColor || ""}`}>
-                      {LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.label || editForm.lane}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">Calculée automatiquement selon la date de fin</span>
-                  </div>
-                ) : (
-                  <Select value={editForm.lane || "later"} onValueChange={(v) => setEditForm(prev => ({ ...prev, lane: v }))}>
-                    <SelectTrigger data-testid="select-nnl-lane">
+              <div className="flex items-start justify-between gap-3">
+                <SheetTitle className="text-lg flex-1">{editingItem?.title}</SheetTitle>
+                {editingItem && !editingItem.endDate && (
+                  <Select
+                    value={editForm.lane || "later"}
+                    onValueChange={(v) => {
+                      handleLaneChangeFromSheet(v);
+                      if (editingItemId) {
+                        updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px] text-xs" data-testid="select-nnl-lane-header">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -276,10 +349,18 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </SelectContent>
                   </Select>
                 )}
+                {editingItem?.endDate && (
+                  <Badge className={`shrink-0 ${LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.textColor || ""}`}>
+                    {LANE_CONFIG[editForm.lane as keyof typeof LANE_CONFIG]?.label || editForm.lane}
+                  </Badge>
+                )}
               </div>
+              <SheetDescription className="sr-only">Paramètres de l'élément</SheetDescription>
+            </SheetHeader>
+          </div>
 
-              <Separator />
-
+          <ScrollArea className="flex-1 px-6 pb-6">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Eye className="h-3.5 w-3.5" />

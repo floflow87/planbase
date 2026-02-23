@@ -741,9 +741,12 @@ export default function RoadmapPage() {
     });
   };
 
-  const handleOpenAddItem = () => {
+  const handleOpenAddItem = (defaultLane?: string) => {
     resetItemForm();
     setEditingItem(null);
+    if (defaultLane) {
+      setItemForm(prev => ({ ...prev, linkedType: "free" as LinkedType }));
+    }
     setIsItemDialogOpen(true);
   };
 
@@ -1038,18 +1041,20 @@ export default function RoadmapPage() {
           <>
             {/* Roadmap Indicators */}
             {selectedProjectId && (
-              <RoadmapIndicators projectId={selectedProjectId} />
+              <div className="my-[10px]">
+                <RoadmapIndicators projectId={selectedProjectId} />
+              </div>
             )}
 
             {/* Milestones Zone + Recommendations side by side */}
             {selectedProjectId && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 my-[10px]">
                 <MilestonesZone projectId={selectedProjectId} />
                 <RoadmapRecommendations projectId={selectedProjectId} />
               </div>
             )}
 
-            <Card>
+            <Card className="mt-[10px]">
               <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-2">
