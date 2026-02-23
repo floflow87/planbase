@@ -124,23 +124,35 @@ export async function generateBacklogFromCdc(
   return backlog.id;
 }
 
+const PHASE_TO_LANE: Record<string, string> = {
+  'T1': 'now',
+  'T2': 'next',
+  'T3': 'later',
+  'T4': 'later',
+  'LT': 'later',
+};
+
 export async function generateRoadmapFromCdc(
   accountId: string,
   projectId: string,
   scopeItems: ProjectScopeItem[],
-  createdBy: string
+  createdBy: string,
+  roadmapType: string = 'feature_based'
 ): Promise<string> {
   const project = await storage.getProject(projectId);
   if (!project) {
     throw new Error("Project not found");
   }
 
+  const isNnl = roadmapType === 'now_next_later';
+
   const [roadmap] = await db.insert(roadmaps).values({
     accountId,
     projectId,
     name: `Roadmap - ${project.name}`,
     description: `Roadmap générée à partir du CDC de ${project.name}`,
-    viewMode: 'quarter',
+    viewMode: isNnl ? 'nnl' : 'quarter',
+    type: roadmapType,
     createdBy,
   }).returning();
 
@@ -166,7 +178,6 @@ export async function generateRoadmapFromCdc(
   for (const phase of sortedPhases) {
     const items = phaseGroups[phase];
     const phaseStart = calculatePhaseStartDate(baseDate, phase);
-    const phaseEnd = calculatePhaseEndDate(phaseStart, items);
 
     for (const item of items) {
       const durationDays = parseFloat(item.estimatedDays?.toString() || '1') || 1;
@@ -175,18 +186,25 @@ export async function generateRoadmapFromCdc(
 
       const color = SCOPE_TYPE_COLORS[item.scopeType] || '#6B7280';
       
-      const [roadmapItem] = await db.insert(roadmapItems).values({
+      const values: any = {
         roadmapId: roadmap.id,
         projectId,
         title: item.label,
         description: item.description || '',
-        startDate: formatDateString(phaseStart),
-        endDate: formatDateString(itemEnd),
         color,
         progress: 0,
         orderIndex: currentRow++,
-        phase: phase, // Store the phase from the scope item
-      }).returning();
+        phase: phase,
+      };
+
+      if (isNnl) {
+        values.lane = PHASE_TO_LANE[phase] || 'later';
+      } else {
+        values.startDate = formatDateString(phaseStart);
+        values.endDate = formatDateString(itemEnd);
+      }
+      
+      const [roadmapItem] = await db.insert(roadmapItems).values(values).returning();
 
       await db.update(projectScopeItems)
         .set({ generatedRoadmapItemId: roadmapItem.id })
@@ -203,18 +221,25 @@ export async function generateRoadmapFromCdc(
 
       const color = SCOPE_TYPE_COLORS[item.scopeType] || '#6B7280';
       
-      const [roadmapItem] = await db.insert(roadmapItems).values({
+      const values: any = {
         roadmapId: roadmap.id,
         projectId,
         title: item.label,
         description: item.description || '',
-        startDate: formatDateString(lastPhaseEnd),
-        endDate: formatDateString(itemEnd),
         color,
         progress: 0,
         orderIndex: currentRow++,
-        phase: 'LT', // Default to long term for items without phase
-      }).returning();
+        phase: 'LT',
+      };
+
+      if (isNnl) {
+        values.lane = 'later';
+      } else {
+        values.startDate = formatDateString(lastPhaseEnd);
+        values.endDate = formatDateString(itemEnd);
+      }
+      
+      const [roadmapItem] = await db.insert(roadmapItems).values(values).returning();
 
       await db.update(projectScopeItems)
         .set({ generatedRoadmapItemId: roadmapItem.id })

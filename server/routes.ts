@@ -2350,7 +2350,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       // Generate backlog, roadmap, OKRs, and resources from scope items
       const { generateBacklogFromCdc, generateRoadmapFromCdc, generateOkrFromCdc } = await import("./services/cdcGenerationService");
       
-      const { generateBacklog = true, generateRoadmap = true, generateOkr = false, generateResources = true } = req.body;
+      const { generateBacklog = true, generateRoadmap = true, roadmapType = 'feature_based', generateOkr = false, generateResources = true } = req.body;
       
       let generatedBacklogId: string | undefined;
       let generatedRoadmapId: string | undefined;
@@ -2372,7 +2372,8 @@ app.get("/config/feature-flags", async (_req, res) => {
           req.accountId!,
           session.projectId,
           scopeItems,
-          req.userId!
+          req.userId!,
+          roadmapType
         );
       }
 

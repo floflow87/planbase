@@ -138,6 +138,7 @@ export function CdcWizard({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [generateBacklog, setGenerateBacklog] = useState(true);
   const [generateRoadmap, setGenerateRoadmap] = useState(true);
+  const [roadmapType, setRoadmapType] = useState<'feature_based' | 'now_next_later'>('feature_based');
   const [generateOkr, setGenerateOkr] = useState(true);
   const [generateResources, setGenerateResources] = useState(true);
   const [generationResult, setGenerationResult] = useState<{
@@ -295,6 +296,7 @@ export function CdcWizard({
       return apiRequest(`/api/cdc-sessions/${sessionId}/complete`, 'POST', {
         generateBacklog,
         generateRoadmap,
+        roadmapType,
         generateOkr,
         generateResources,
       });
@@ -723,6 +725,36 @@ export function CdcWizard({
                         </p>
                       </div>
                     </div>
+                    {generateRoadmap && (
+                      <div className="mt-3 ml-11 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRoadmapType('feature_based')}
+                          className={`flex-1 rounded-md border px-3 py-2 text-left transition-all ${
+                            roadmapType === 'feature_based'
+                              ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
+                              : 'border-border'
+                          }`}
+                          data-testid="button-roadmap-type-feature"
+                        >
+                          <div className="text-xs font-medium">Feature Based</div>
+                          <div className="text-[10px] text-muted-foreground">Gantt avec phases et timeline</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRoadmapType('now_next_later')}
+                          className={`flex-1 rounded-md border px-3 py-2 text-left transition-all ${
+                            roadmapType === 'now_next_later'
+                              ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
+                              : 'border-border'
+                          }`}
+                          data-testid="button-roadmap-type-nnl"
+                        >
+                          <div className="text-xs font-medium">Now, Next, Later</div>
+                          <div className="text-[10px] text-muted-foreground">Kanban par priorité temporelle</div>
+                        </button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
