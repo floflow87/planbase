@@ -49,11 +49,11 @@ import {
 } from "lucide-react";
 import type { RoadmapItem, Epic, BacklogTask } from "@shared/schema";
 
-const LANE_CONFIG: Record<string, { label: string; description: string; color: string; headerColor: string; textColor: string }> = {
-  now: { label: "Now", description: "En cours de réalisation", color: "bg-emerald-500/10 border-emerald-500/30", headerColor: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400" },
-  next: { label: "Next", description: "Planifié prochainement", color: "bg-blue-500/10 border-blue-500/30", headerColor: "bg-blue-500", textColor: "text-blue-700 dark:text-blue-400" },
-  later: { label: "Later", description: "À envisager plus tard", color: "bg-purple-500/10 border-purple-500/30", headerColor: "bg-purple-500", textColor: "text-purple-700 dark:text-purple-400" },
-  unqualified: { label: "Non qualifié", description: "Éléments à qualifier", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", textColor: "text-gray-600 dark:text-gray-400" },
+const LANE_CONFIG: Record<string, { label: string; description: string; color: string; headerColor: string; textColor: string; badgeColor: string; borderColor: string }> = {
+  now: { label: "Now", description: "En cours de réalisation", color: "bg-emerald-500/10 border-emerald-500/30", headerColor: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400", badgeColor: "bg-emerald-500 text-white", borderColor: "border-l-emerald-500" },
+  next: { label: "Next", description: "Planifié prochainement", color: "bg-blue-500/10 border-blue-500/30", headerColor: "bg-blue-500", textColor: "text-blue-700 dark:text-blue-400", badgeColor: "bg-blue-500 text-white", borderColor: "border-l-blue-500" },
+  later: { label: "Later", description: "À envisager plus tard", color: "bg-purple-500/10 border-purple-500/30", headerColor: "bg-purple-500", textColor: "text-purple-700 dark:text-purple-400", badgeColor: "bg-purple-500 text-white", borderColor: "border-l-purple-500" },
+  unqualified: { label: "Non qualifié", description: "Éléments à qualifier", color: "bg-gray-500/10 border-gray-500/30", headerColor: "bg-gray-400", textColor: "text-gray-600 dark:text-gray-400", badgeColor: "bg-gray-400 text-white", borderColor: "border-l-gray-400" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Circle }> = {
@@ -152,7 +152,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       if (context?.previousItems) {
         queryClient.setQueryData([`/api/roadmaps/${roadmapId}/items`], context.previousItems);
       }
-      console.error("NNL update error:", error);
+      console.error("NNL update error:", error?.message || error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
@@ -161,44 +161,63 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest(`/api/roadmap-items/${id}`, 'DELETE');
+      const res = await apiRequest(`/api/roadmap-items/${id}`, 'DELETE');
+      return await res.json();
+    },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
+      const previousItems = queryClient.getQueryData<RoadmapItem[]>([`/api/roadmaps/${roadmapId}/items`]);
+      if (previousItems) {
+        queryClient.setQueryData<RoadmapItem[]>(
+          [`/api/roadmaps/${roadmapId}/items`],
+          previousItems.filter(item => item.id !== id)
+        );
+      }
+      setEditingItemId(null);
+      return { previousItems };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
       toast({ title: "Supprimé", description: "L'élément a été supprimé." });
-      setEditingItemId(null);
     },
-    onError: () => {
+    onError: (_error, _id, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData([`/api/roadmaps/${roadmapId}/items`], context.previousItems);
+      }
       toast({ title: "Erreur", description: "Impossible de supprimer l'élément.", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
     },
   });
 
   const createItemMutation = useMutation({
     mutationFn: async (data: typeof createForm & { lane: string }) => {
-      const res = await apiRequest('/api/roadmap-items', 'POST', {
+      const body: Record<string, unknown> = {
         roadmapId,
         title: data.title,
         type: 'deliverable',
         priority: 'normal',
-        status: data.status,
-        vision: data.vision || null,
-        objectif: data.objectif || null,
-        impact: data.impact || null,
-        metrics: data.metrics || null,
-        phase: data.phase || null,
-        releaseTag: data.releaseTag || null,
+        status: data.status || 'planned',
         lane: data.lane,
         orderIndex: items.length,
-      });
-      return res.json();
+      };
+      if (data.vision) body.vision = data.vision;
+      if (data.objectif) body.objectif = data.objectif;
+      if (data.impact) body.impact = data.impact;
+      if (data.metrics) body.metrics = data.metrics;
+      if (data.phase) body.phase = data.phase;
+      if (data.releaseTag) body.releaseTag = data.releaseTag;
+      const res = await apiRequest('/api/roadmap-items', 'POST', body);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
-      toast({ title: "Élément créé", description: "L'élément a été ajouté." });
+      toast({ title: "Élément créé", description: "L'élément a été ajouté à la roadmap." });
       setIsCreatingNnl(false);
       setCreateForm({ title: "", vision: "", objectif: "", impact: "", metrics: "", phase: "", releaseTag: "", status: "planned" });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("NNL create error:", error?.message || error);
       toast({ title: "Erreur", description: "Impossible de créer l'élément.", variant: "destructive" });
     },
   });
@@ -261,23 +280,30 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       releaseTag: item.releaseTag || "",
       status: item.status,
       lane: computeLane(item),
+      epicId: item.epicId || "",
     });
   };
 
   const handleSaveEdit = () => {
     if (!editingItemId) return;
+    const data: Record<string, unknown> = {
+      vision: editForm.vision,
+      objectif: editForm.objectif,
+      impact: editForm.impact,
+      metrics: editForm.metrics,
+      phase: editForm.phase,
+      releaseTag: editForm.releaseTag,
+      status: editForm.status,
+      lane: editForm.lane,
+    };
+    if (editForm.epicId) {
+      data.epicId = editForm.epicId;
+    } else {
+      data.epicId = null;
+    }
     updateItemMutation.mutate({
       id: editingItemId,
-      data: {
-        vision: editForm.vision,
-        objectif: editForm.objectif,
-        impact: editForm.impact,
-        metrics: editForm.metrics,
-        phase: editForm.phase,
-        releaseTag: editForm.releaseTag,
-        status: editForm.status,
-        lane: editForm.lane,
-      },
+      data: data as Partial<RoadmapItem>,
     });
     setEditingItemId(null);
   };
@@ -294,7 +320,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   };
 
   const editingItem = items.find(i => i.id === editingItemId);
-  const linkedEpic = editingItem?.epicId ? epics.find(e => e.id === editingItem.epicId) : null;
+  const currentEpicId = editForm.epicId || editingItem?.epicId;
+  const linkedEpic = currentEpicId ? epics.find(e => e.id === currentEpicId) : null;
   const linkedTasks = linkedEpic ? epicTasks.filter(t => t.epicId === linkedEpic.id) : [];
 
   const activeItem = activeId ? items.find(i => i.id === activeId) : null;
@@ -303,11 +330,14 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.planned;
     const StatusIcon = statusConfig.icon;
     const isGroup = item.isGroup || item.type === "epic_group";
+    const itemLane = computeLane(item);
+    const laneConfig = LANE_CONFIG[itemLane];
+    const cardEpic = item.epicId ? epics.find(e => e.id === item.epicId) : null;
 
     return (
       <Card
         key={item.id}
-        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
+        className={`cursor-pointer hover-elevate active-elevate-2 overflow-visible border-l-[3px] ${laneConfig?.borderColor || ""} ${isDragOverlay ? "shadow-lg ring-2 ring-primary/20" : ""}`}
         onClick={(e) => { 
           e.stopPropagation();
           if (!isDragOverlay) openEditSheet(item); 
@@ -331,6 +361,12 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
           )}
 
           <div className="flex flex-wrap items-center gap-1.5 pl-5">
+            {cardEpic && (
+              <Badge variant="outline" className="text-[10px]">
+                <Package className="h-2.5 w-2.5 mr-0.5" />
+                {cardEpic.title}
+              </Badge>
+            )}
             {item.phase && (
               <Badge variant="outline" className="text-[10px]">
                 <Layers className="h-2.5 w-2.5 mr-0.5" />
@@ -359,11 +395,12 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     return (
       <div className={`flex-1 ${laneKey === "unqualified" ? "min-w-[240px]" : "min-w-[280px]"}`} data-testid={`nnl-lane-${laneKey}`}>
         <div className={`rounded-lg border ${config.color} p-3`}>
-          <div className="flex items-center justify-between mb-3 gap-2">
+          <div className="flex items-center justify-between mb-1 gap-2">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${config.headerColor}`} />
               <h3 className={`text-sm font-semibold ${config.textColor}`}>{config.label}</h3>
-              <Badge variant="secondary" className="text-[10px]">{laneItemsList.length}</Badge>
+              <span className={`text-[10px] italic text-muted-foreground`}>{config.description}</span>
+              <Badge className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${config.badgeColor}`}>{laneItemsList.length}</Badge>
             </div>
             <div className="flex items-center gap-1">
               {laneKey === "unqualified" && (
@@ -386,7 +423,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
               </Button>
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mb-3">{config.description}</p>
           <DroppableLane id={laneKey}>
             {laneItemsList.map(item => (
               <DraggableCard key={item.id} id={item.id}>
@@ -640,20 +676,35 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             <div className="space-y-3">
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Package className="h-3.5 w-3.5" />
-                Éléments liés
+                Epic liée
               </h4>
 
-              {linkedEpic ? (
+              <Select
+                value={editForm.epicId || "none"}
+                onValueChange={(v) => {
+                  const newEpicId = v === "none" ? "" : v;
+                  setEditForm(prev => ({ ...prev, epicId: newEpicId }));
+                  if (editingItemId) {
+                    updateItemMutation.mutate({ id: editingItemId, data: { epicId: newEpicId || null } as Partial<RoadmapItem> });
+                  }
+                }}
+              >
+                <SelectTrigger className="text-sm" data-testid="select-nnl-epic">
+                  <SelectValue placeholder="Aucune epic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune epic</SelectItem>
+                  {epics.map(epic => (
+                    <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {linkedEpic && (
                 <div className="space-y-2">
-                  <div className="p-2.5 rounded-md border bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-[10px]">Epic</Badge>
-                      <span className="text-sm font-medium">{linkedEpic.title}</span>
-                    </div>
-                    {linkedEpic.description && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{linkedEpic.description}</p>
-                    )}
-                  </div>
+                  {linkedEpic.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{linkedEpic.description}</p>
+                  )}
 
                   {linkedTasks.length > 0 && (
                     <div className="space-y-1.5">
@@ -679,10 +730,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                       )}
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="text-center py-3 text-xs text-muted-foreground border rounded-md border-dashed">
-                  Aucune epic liée. Utilisez la vue Gantt pour lier une epic.
                 </div>
               )}
 
