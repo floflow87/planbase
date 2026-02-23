@@ -482,7 +482,9 @@ export default function RoadmapPage() {
 
   const importCdcMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/projects/${selectedProjectId}/roadmap/import-cdc`, 'POST', {});
+      const response = await apiRequest(`/api/projects/${selectedProjectId}/roadmap/import-cdc`, 'POST', {
+        roadmapId: activeRoadmapId,
+      });
       return response.json();
     },
     onSuccess: (result: { message: string; importedCount: number; skippedCount: number }) => {
@@ -988,11 +990,11 @@ export default function RoadmapPage() {
 
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
           <TabsList className="mb-4">
-            <TabsTrigger value="roadmap" className="gap-1.5" data-testid="tab-roadmap-main">
+            <TabsTrigger value="roadmap" className="gap-1.5 text-[12px]" data-testid="tab-roadmap-main">
               <Map className="h-4 w-4" />
               Roadmap
             </TabsTrigger>
-            <TabsTrigger value="okr" className="gap-1.5" data-testid="tab-okr-main">
+            <TabsTrigger value="okr" className="gap-1.5 text-[12px]" data-testid="tab-okr-main">
               <Target className="h-4 w-4" />
               OKR
             </TabsTrigger>

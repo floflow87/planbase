@@ -6001,9 +6001,10 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
 
       // Get or create roadmap for this project
+      const targetRoadmapId = req.body.roadmapId;
       let roadmaps = await storage.getRoadmapsByProjectId(req.accountId!, req.params.projectId);
-      console.log("📋 Found roadmaps:", roadmaps.length, roadmaps.map(r => ({ id: r.id, name: r.name })));
-      let roadmap = roadmaps[0];
+      console.log("📋 Found roadmaps:", roadmaps.length, roadmaps.map(r => ({ id: r.id, name: r.name, type: r.type })));
+      let roadmap = targetRoadmapId ? roadmaps.find(r => r.id === targetRoadmapId) : roadmaps[0];
       
       if (!roadmap) {
         roadmap = await storage.createRoadmap({
@@ -6014,12 +6015,22 @@ app.get("/config/feature-flags", async (_req, res) => {
         });
       }
 
-      // Calculate phase dates based on project start date
-      // All items in the same phase start at the same date:
-      // T1: project start date (J+0)
-      // T2: J+90 days
-      // T3: J+180 days
-      // T4/LT: J+270 days
+      const isNnl = roadmap.type === "now_next_later";
+      console.log("📋 Target roadmap type:", roadmap.type, "isNnl:", isNnl);
+
+      // For NNL roadmaps, map phases to lanes
+      const getPhaseToLane = (phase: string | null): string => {
+        switch (phase) {
+          case 'T1': return 'now';
+          case 'T2': return 'next';
+          case 'T3': return 'later';
+          case 'T4':
+          case 'LT': return 'later';
+          default: return 'unqualified';
+        }
+      };
+
+      // Calculate phase dates based on project start date (for feature-based)
       const projectStartDate = project.startDate ? new Date(project.startDate) : new Date();
       const DAY_MS = 24 * 60 * 60 * 1000;
       
@@ -6031,13 +6042,12 @@ app.get("/config/feature-flags", async (_req, res) => {
           case 'T3': return new Date(baseTime + 180 * DAY_MS);
           case 'T4': 
           case 'LT': return new Date(baseTime + 270 * DAY_MS);
-          default: return new Date(baseTime); // Default to project start
+          default: return new Date(baseTime);
         }
       };
 
       const getPhaseEndDate = (phase: string | null, estimatedDays: number | null): Date => {
         const start = getPhaseStartDate(phase);
-        // Use the estimated days from CDC, default to 7 days if not specified
         const days = estimatedDays && estimatedDays > 0 ? Math.ceil(estimatedDays) : 7;
         return new Date(start.getTime() + days * DAY_MS);
       };
@@ -6066,26 +6076,32 @@ app.get("/config/feature-flags", async (_req, res) => {
       };
 
       // Create roadmap items for each scope item
-      console.log("🔨 Creating roadmap items for roadmap:", roadmap.id);
+      console.log("🔨 Creating roadmap items for roadmap:", roadmap.id, "isNnl:", isNnl);
       const createdItems: any[] = [];
       for (const scopeItem of itemsToImport) {
-        const startDate = getPhaseStartDate(scopeItem.phase);
-        const endDate = getPhaseEndDate(scopeItem.phase, scopeItem.estimatedDays ? parseFloat(String(scopeItem.estimatedDays)) : null);
-        
-        const roadmapItem = await storage.createRoadmapItem({
+        let itemData: any = {
           roadmapId: roadmap.id,
           title: scopeItem.label,
           description: scopeItem.description || undefined,
           type: 'deliverable',
           status: 'planned',
           phase: scopeItem.phase || undefined,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
           progress: 0,
           color: SCOPE_TYPE_COLORS_MAP[scopeItem.scopeType] || '#6B7280',
           sourceType: 'cdc',
           sourceId: scopeItem.id,
-        });
+        };
+
+        if (isNnl) {
+          itemData.lane = getPhaseToLane(scopeItem.phase);
+        } else {
+          const startDate = getPhaseStartDate(scopeItem.phase);
+          const endDate = getPhaseEndDate(scopeItem.phase, scopeItem.estimatedDays ? parseFloat(String(scopeItem.estimatedDays)) : null);
+          itemData.startDate = startDate.toISOString().split('T')[0];
+          itemData.endDate = endDate.toISOString().split('T')[0];
+        }
+
+        const roadmapItem = await storage.createRoadmapItem(itemData);
         
         // Update scope item with generated roadmap item ID
         await storage.updateScopeItem(scopeItem.id, {
