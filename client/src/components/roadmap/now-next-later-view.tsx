@@ -871,8 +871,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                         };
                         const st = stateMap[task.state || ""] || { label: task.state || "—", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" };
                         return (
-                          <div key={task.id} className="flex items-center justify-between gap-2 p-1.5 rounded border text-[10px]">
-                            <span className="truncate flex-1 min-w-0">{task.title}</span>
+                          <div key={task.id} className="flex items-center justify-between gap-2 py-1.5 text-[10px]">
+                            <span className="flex-1 min-w-0 break-words">{task.title}</span>
                             <Badge className={`text-[9px] shrink-0 ${st.color}`}>
                               {st.label}
                             </Badge>
