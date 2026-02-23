@@ -856,7 +856,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="space-y-1 mt-1">
+                    <div className="divide-y mt-1">
                       {linkedTasks.map(task => {
                         const stateMap: Record<string, { label: string; color: string }> = {
                           "a_faire": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
