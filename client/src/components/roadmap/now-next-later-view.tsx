@@ -32,7 +32,6 @@ import {
   Target, 
   TrendingUp, 
   BarChart3, 
-  Flag, 
   Layers, 
   Tag, 
   CircleDot,
@@ -183,7 +182,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       return { previousItems };
     },
     onSuccess: () => {
-      toast({ title: "Supprimé", description: "L'élément a été supprimé." });
+      toast({ title: "Supprimé", description: "L'élément a été supprimé.", className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" });
     },
     onError: (_error, _id, context) => {
       if (context?.previousItems) {
@@ -219,7 +218,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
-      toast({ title: "Élément créé", description: "L'élément a été ajouté à la roadmap." });
+      toast({ title: "Élément créé", description: "L'élément a été ajouté à la roadmap.", className: "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800" });
       setDrawerOpen(false);
       setEditingItemId(null);
     },
@@ -238,6 +237,11 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     if (diffDays <= 30) return "now";
     if (diffDays <= 90) return "next";
     return "later";
+  };
+
+  const getEpicTickets = (epicId: string | null | undefined): BacklogTask[] => {
+    if (!epicId) return [];
+    return epicTasks.filter(t => t.epicId === epicId);
   };
 
   const laneItems: Record<string, RoadmapItem[]> = {
@@ -328,6 +332,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     } else {
       if (!editingItemId) return;
       const data: Record<string, unknown> = {
+        title: form.title,
         vision: form.vision,
         objectif: form.objectif,
         impact: form.impact,
@@ -352,8 +357,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   };
 
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) : null;
-  const currentEpicId = form.epicId;
-  const linkedEpic = currentEpicId ? epics.find(e => e.id === currentEpicId) : null;
+  const linkedEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
   const linkedTasks = linkedEpic ? epicTasks.filter(t => t.epicId === linkedEpic.id) : [];
 
   const activeItem = activeId ? items.find(i => i.id === activeId) : null;
@@ -365,6 +369,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     const itemLane = computeLane(item);
     const laneConfig = LANE_CONFIG[itemLane];
     const cardEpic = item.epicId ? epics.find(e => e.id === item.epicId) : null;
+    const cardEpicTickets = getEpicTickets(item.epicId);
 
     return (
       <Card
@@ -394,10 +399,38 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
           <div className="flex flex-wrap items-center gap-1.5 pl-5">
             {cardEpic && (
-              <Badge className="text-[10px] bg-violet-500 text-white">
-                <Package className="h-2.5 w-2.5 mr-0.5" />
-                {cardEpic.title}
-              </Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Badge className="text-[10px] bg-violet-500 text-white">
+                      <Package className="h-2.5 w-2.5 mr-0.5" />
+                      {cardEpic.title}
+                      {cardEpicTickets.length > 0 && (
+                        <span className="ml-1 opacity-80">({cardEpicTickets.length})</span>
+                      )}
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                {cardEpicTickets.length > 0 && (
+                  <TooltipContent side="bottom" className="max-w-[300px] p-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium mb-1">Tickets liés ({cardEpicTickets.length})</p>
+                      {cardEpicTickets.slice(0, 8).map(task => {
+                        const stColor = task.state === "done" ? "text-green-600" : task.state === "in_progress" ? "text-amber-600" : "text-muted-foreground";
+                        return (
+                          <div key={task.id} className="flex items-center gap-1.5 text-[10px]">
+                            <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
+                            <span className="truncate">{task.title}</span>
+                          </div>
+                        );
+                      })}
+                      {cardEpicTickets.length > 8 && (
+                        <p className="text-[10px] text-muted-foreground">... +{cardEpicTickets.length - 8}</p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             )}
             {item.phase && (
               <Badge variant="outline" className="text-[10px]">
@@ -474,6 +507,9 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     );
   };
 
+  const drawerLaneConfig = LANE_CONFIG[drawerLane];
+  const drawerEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
+
   return (
     <div>
       <DndContext
@@ -517,97 +553,135 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
       <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open) { setDrawerOpen(false); setEditingItemId(null); } }}>
         <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
-          <div className="px-6 pt-8 pb-4">
+          <div className="px-6 pt-6 pb-3">
             <SheetHeader className="space-y-0">
-              <div className="flex items-center justify-between gap-3 pr-2">
-                <SheetTitle className="text-lg flex-1 leading-tight">
-                  {drawerMode === "create" ? "Nouvel élément" : editingItem?.title}
-                </SheetTitle>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {drawerMode === "edit" && editingItem && !editingItem.endDate && (
-                    <Select
-                      value={drawerLane}
-                      onValueChange={(v) => {
-                        setDrawerLane(v);
-                        if (editingItemId) {
-                          updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-[100px] text-xs" data-testid="select-nnl-lane-header">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="now">Now</SelectItem>
-                        <SelectItem value="next">Next</SelectItem>
-                        <SelectItem value="later">Later</SelectItem>
-                        <SelectItem value="unqualified">Non qualifié</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {drawerMode === "edit" && editingItem?.endDate && (
-                    <Badge className={`${LANE_CONFIG[drawerLane]?.textColor || ""}`}>
-                      {LANE_CONFIG[drawerLane]?.label || drawerLane}
-                    </Badge>
-                  )}
-                  {drawerMode === "create" && (
-                    <Select value={drawerLane} onValueChange={setDrawerLane}>
-                      <SelectTrigger className="w-[100px] text-xs shrink-0" data-testid="select-nnl-create-lane">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="now">Now</SelectItem>
-                        <SelectItem value="next">Next</SelectItem>
-                        <SelectItem value="later">Later</SelectItem>
-                        <SelectItem value="unqualified">Non qualifié</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {drawerMode === "edit" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (editingItemId) {
-                          deleteItemMutation.mutate(editingItemId);
-                        }
-                      }}
-                      disabled={deleteItemMutation.isPending}
-                      data-testid="button-nnl-delete"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
+              <div className="flex items-center justify-between gap-2 pr-2">
+                {drawerMode === "create" ? (
+                  <SheetTitle className="text-base flex-1 leading-tight">Nouvel élément</SheetTitle>
+                ) : (
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="text-base font-semibold border-none shadow-none p-0 h-auto focus-visible:ring-0 flex-1"
+                    data-testid="input-nnl-edit-title"
+                  />
+                )}
               </div>
               <SheetDescription className="sr-only">
                 {drawerMode === "create" ? "Créer un nouvel élément" : "Paramètres de l'élément"}
               </SheetDescription>
+
+              <div className="flex items-center gap-2 pt-3 flex-wrap">
+                <Select
+                  value={form.epicId || "none"}
+                  onValueChange={(v) => {
+                    const newEpicId = v === "none" ? "" : v;
+                    setForm(prev => ({ ...prev, epicId: newEpicId }));
+                    if (drawerMode === "edit" && editingItemId) {
+                      updateItemMutation.mutate({ id: editingItemId, data: { epicId: newEpicId || null } as Partial<RoadmapItem> });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-epic">
+                    <Badge className="text-[10px] bg-violet-500 text-white cursor-pointer">
+                      <Package className="h-2.5 w-2.5 mr-0.5" />
+                      {drawerEpic ? drawerEpic.title : "Epic"}
+                    </Badge>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucune epic</SelectItem>
+                    {epics.map(epic => (
+                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {drawerMode === "edit" && editingItem && !editingItem.endDate && (
+                  <Select
+                    value={drawerLane}
+                    onValueChange={(v) => {
+                      setDrawerLane(v);
+                      if (editingItemId) {
+                        updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-lane-header">
+                      <Badge className={`text-[10px] cursor-pointer ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
+                        {drawerLaneConfig?.label || drawerLane}
+                      </Badge>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="now">Now</SelectItem>
+                      <SelectItem value="next">Next</SelectItem>
+                      <SelectItem value="later">Later</SelectItem>
+                      <SelectItem value="unqualified">Non qualifié</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {drawerMode === "edit" && editingItem?.endDate && (
+                  <Badge className={`text-[10px] ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
+                    {drawerLaneConfig?.label || drawerLane}
+                  </Badge>
+                )}
+                {drawerMode === "create" && (
+                  <Select value={drawerLane} onValueChange={setDrawerLane}>
+                    <SelectTrigger className="border-none shadow-none p-0 h-auto w-auto gap-0 focus:ring-0 [&>svg]:hidden" data-testid="select-nnl-create-lane">
+                      <Badge className={`text-[10px] cursor-pointer ${drawerLaneConfig?.badgeColor || "bg-gray-400 text-white"}`}>
+                        {drawerLaneConfig?.label || drawerLane}
+                      </Badge>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="now">Now</SelectItem>
+                      <SelectItem value="next">Next</SelectItem>
+                      <SelectItem value="later">Later</SelectItem>
+                      <SelectItem value="unqualified">Non qualifié</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {drawerMode === "edit" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (editingItemId) {
+                        deleteItemMutation.mutate(editingItemId);
+                      }
+                    }}
+                    disabled={deleteItemMutation.isPending}
+                    className="ml-auto"
+                    data-testid="button-nnl-delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
             </SheetHeader>
           </div>
 
           <ScrollArea className="flex-1 px-6 pb-6">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {drawerMode === "create" && (
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Titre</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Titre</Label>
                   <Input
                     value={form.title}
                     onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="Nom de l'élément"
-                    className="text-sm"
+                    className="text-[11px] placeholder:text-[11px]"
                     data-testid="input-nnl-create-title"
                   />
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <CircleDot className="h-3.5 w-3.5" />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <CircleDot className="h-3 w-3" />
                   Statut
                 </Label>
                 <Select value={form.status || "planned"} onValueChange={(v) => setForm(prev => ({ ...prev, status: v }))}>
-                  <SelectTrigger data-testid="select-nnl-status">
+                  <SelectTrigger className="text-[11px]" data-testid="select-nnl-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -621,61 +695,61 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
               <Separator />
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye className="h-3.5 w-3.5" />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Eye className="h-3 w-3" />
                   Vision
                 </Label>
                 <Textarea
                   value={form.vision || ""}
                   onChange={(e) => setForm(prev => ({ ...prev, vision: e.target.value }))}
                   placeholder="Quelle est la vision de cet élément ?"
-                  className="resize-none text-sm"
+                  className="resize-none text-[11px] placeholder:text-[11px]"
                   rows={2}
                   data-testid="input-nnl-vision"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Target className="h-3.5 w-3.5" />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Target className="h-3 w-3" />
                   Objectif
                 </Label>
                 <Textarea
                   value={form.objectif || ""}
                   onChange={(e) => setForm(prev => ({ ...prev, objectif: e.target.value }))}
                   placeholder="Quel est l'objectif à atteindre ?"
-                  className="resize-none text-sm"
+                  className="resize-none text-[11px] placeholder:text-[11px]"
                   rows={2}
                   data-testid="input-nnl-objectif"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5" />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="h-3 w-3" />
                   Impact
                 </Label>
                 <Textarea
                   value={form.impact || ""}
                   onChange={(e) => setForm(prev => ({ ...prev, impact: e.target.value }))}
                   placeholder="Quel impact attendu ?"
-                  className="resize-none text-sm"
+                  className="resize-none text-[11px] placeholder:text-[11px]"
                   rows={2}
                   data-testid="input-nnl-impact"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart3 className="h-3.5 w-3.5" />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart3 className="h-3 w-3" />
                   Métriques
                 </Label>
                 <Textarea
                   value={form.metrics || ""}
                   onChange={(e) => setForm(prev => ({ ...prev, metrics: e.target.value }))}
                   placeholder="Comment mesurer le succès ?"
-                  className="resize-none text-sm"
+                  className="resize-none text-[11px] placeholder:text-[11px]"
                   rows={2}
                   data-testid="input-nnl-metrics"
                 />
@@ -683,77 +757,40 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
               <Separator />
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5" />
-                  Epic liée
-                </h4>
-
-                <Select
-                  value={form.epicId || "none"}
-                  onValueChange={(v) => {
-                    const newEpicId = v === "none" ? "" : v;
-                    setForm(prev => ({ ...prev, epicId: newEpicId }));
-                    if (drawerMode === "edit" && editingItemId) {
-                      updateItemMutation.mutate({ id: editingItemId, data: { epicId: newEpicId || null } as Partial<RoadmapItem> });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="text-sm" data-testid="select-nnl-epic">
-                    <SelectValue placeholder="Aucune epic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune epic</SelectItem>
-                    {epics.map(epic => (
-                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {linkedEpic && (
-                  <div className="space-y-2">
-                    {linkedEpic.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{linkedEpic.description}</p>
-                    )}
-
-                    {linkedTasks.length > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-xs font-medium text-muted-foreground">Tickets ({linkedTasks.length})</span>
-                        </div>
-                        {linkedTasks.slice(0, 10).map(task => {
-                          const taskStatus = task.state === "done" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" 
-                            : task.state === "in_progress" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
-                          return (
-                            <div key={task.id} className="flex items-center justify-between gap-2 p-2 rounded border text-xs">
-                              <span className="truncate">{task.title}</span>
-                              <Badge className={`text-[10px] shrink-0 ${taskStatus}`}>
-                                {task.state === "done" ? "Terminé" : task.state === "in_progress" ? "En cours" : task.state}
-                              </Badge>
-                            </div>
-                          );
-                        })}
-                        {linkedTasks.length > 10 && (
-                          <p className="text-[10px] text-muted-foreground">... et {linkedTasks.length - 10} de plus</p>
-                        )}
-                      </div>
-                    )}
+              {linkedEpic && linkedTasks.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Tickets ({linkedTasks.length})</span>
                   </div>
-                )}
-              </div>
-
-              <Separator />
+                  {linkedTasks.slice(0, 10).map(task => {
+                    const taskStatus = task.state === "done" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" 
+                      : task.state === "in_progress" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+                    return (
+                      <div key={task.id} className="flex items-center justify-between gap-2 p-1.5 rounded border text-[10px]">
+                        <span className="truncate">{task.title}</span>
+                        <Badge className={`text-[9px] shrink-0 ${taskStatus}`}>
+                          {task.state === "done" ? "Terminé" : task.state === "in_progress" ? "En cours" : task.state}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                  {linkedTasks.length > 10 && (
+                    <p className="text-[9px] text-muted-foreground">... et {linkedTasks.length - 10} de plus</p>
+                  )}
+                  <Separator />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" />
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="h-3 w-3" />
                     Phase
                   </Label>
                   <Select value={form.phase || ""} onValueChange={(v) => setForm(prev => ({ ...prev, phase: v }))}>
-                    <SelectTrigger className="text-sm" data-testid="select-nnl-phase">
+                    <SelectTrigger className="text-[11px]" data-testid="select-nnl-phase">
                       <SelectValue placeholder="Sélectionner..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -765,45 +802,27 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag className="h-3.5 w-3.5" />
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" />
                     Version
                   </Label>
                   <Input
                     value={form.releaseTag || ""}
                     onChange={(e) => setForm(prev => ({ ...prev, releaseTag: e.target.value }))}
                     placeholder="Ex: MVP, V1..."
-                    className="text-sm"
+                    className="text-[11px] placeholder:text-[11px]"
                     data-testid="input-nnl-version"
                   />
                 </div>
               </div>
 
-              {drawerMode === "edit" && editingItem && (
-                <div className="space-y-2 mt-4">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Flag className="h-3.5 w-3.5" />
-                    Jalons
-                  </Label>
-                  {editingItem.startDate || editingItem.endDate ? (
-                    <div className="text-sm text-muted-foreground">
-                      {editingItem.startDate && <span>Début : {editingItem.startDate}</span>}
-                      {editingItem.startDate && editingItem.endDate && <span> — </span>}
-                      {editingItem.endDate && <span>Fin : {editingItem.endDate}</span>}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Aucun jalon défini</p>
-                  )}
-                </div>
-              )}
-
               {drawerMode === "edit" && editingItem?.sourceType === "cdc" && (
-                <div className="p-2.5 rounded-md border bg-muted/30 mt-2">
+                <div className="p-2 rounded-md border bg-muted/30 mt-2">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Badge variant="secondary" className="text-[10px]">CDC</Badge>
-                    <span className="text-xs text-muted-foreground">Source : Cahier des charges</span>
+                    <FileText className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="secondary" className="text-[9px]">CDC</Badge>
+                    <span className="text-[10px] text-muted-foreground">Source : Cahier des charges</span>
                   </div>
                 </div>
               )}
