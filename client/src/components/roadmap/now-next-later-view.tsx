@@ -715,8 +715,8 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             </SheetHeader>
           </div>
 
-          <ScrollArea className="flex-1 px-4 pb-6">
-            <div className="space-y-3">
+          <ScrollArea className="flex-1 pb-6">
+            <div className="space-y-3 px-4 pr-5">
               {drawerMode === "create" && (
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Titre</Label>
@@ -858,14 +858,23 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                   <CollapsibleContent>
                     <div className="space-y-1 mt-1">
                       {linkedTasks.map(task => {
-                        const taskStatus = (task.state === "done" || task.state === "termine") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" 
-                          : (task.state === "in_progress" || task.state === "en_cours") ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+                        const stateMap: Record<string, { label: string; color: string }> = {
+                          "a_faire": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+                          "todo": { label: "À faire", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+                          "in_progress": { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+                          "en_cours": { label: "En cours", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+                          "testing": { label: "En test", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
+                          "to_fix": { label: "À corriger", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+                          "done": { label: "Terminé", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+                          "termine": { label: "Terminé", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+                          "blocked": { label: "Bloqué", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+                        };
+                        const st = stateMap[task.state || ""] || { label: task.state || "—", color: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" };
                         return (
                           <div key={task.id} className="flex items-center justify-between gap-2 p-1.5 rounded border text-[10px]">
-                            <span className="truncate">{task.title}</span>
-                            <Badge className={`text-[9px] shrink-0 ${taskStatus}`}>
-                              {(task.state === "done" || task.state === "termine") ? "Terminé" : (task.state === "in_progress" || task.state === "en_cours") ? "En cours" : task.state}
+                            <span className="truncate flex-1 min-w-0">{task.title}</span>
+                            <Badge className={`text-[9px] shrink-0 ${st.color}`}>
+                              {st.label}
                             </Badge>
                           </div>
                         );
