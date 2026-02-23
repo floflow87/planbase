@@ -160,16 +160,6 @@ export default function RoadmapPage() {
     localStorage.setItem("roadmap-view-mode", viewMode);
   }, [viewMode]);
 
-  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
-
-  useEffect(() => {
-    if (activeRoadmap?.type === "now_next_later") {
-      setViewMode("nnl");
-    } else if (activeRoadmap && viewMode === "nnl") {
-      setViewMode("gantt");
-    }
-  }, [activeRoadmapId, activeRoadmap?.type]);
-
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
@@ -185,6 +175,16 @@ export default function RoadmapPage() {
   });
 
   const activeRoadmapId = selectedRoadmapId || (roadmaps.length > 0 ? roadmaps[0].id : null);
+
+  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
+
+  useEffect(() => {
+    if (activeRoadmap?.type === "now_next_later") {
+      setViewMode("nnl");
+    } else if (activeRoadmap && viewMode === "nnl") {
+      setViewMode("gantt");
+    }
+  }, [activeRoadmapId, activeRoadmap?.type]);
 
   const { data: roadmapItems = [], isLoading: isLoadingItems } = useQuery<RoadmapItem[]>({
     queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],

@@ -1235,7 +1235,7 @@ function ListView({
               <SelectTrigger className="w-20 h-8 text-xs bg-card" data-testid="select-page-size">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-card">
+              <SelectContent className="bg-white dark:bg-gray-900">
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
                 <SelectItem value="50">50</SelectItem>
@@ -1874,7 +1874,13 @@ function CategoryCombobox({ value, onChange, categories, coreProjectTypes = [] }
             onValueChange={setSearchValue}
             data-testid="input-category-search"
           />
-          <CommandList className="max-h-[200px] overflow-y-auto">
+          <CommandList className="max-h-[200px] overflow-y-auto overscroll-contain"
+            onWheel={(e) => {
+              e.stopPropagation();
+              const target = e.currentTarget;
+              target.scrollTop += e.deltaY;
+            }}
+          >
             <CommandEmpty>
               {searchValue.trim() && (
                 <button
@@ -3861,14 +3867,20 @@ export default function Projects() {
                                       </button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-64 p-0 bg-card" align="start">
-                                      <Command className="bg-card">
+                                      <Command>
                                         <CommandInput
                                           placeholder="Rechercher ou créer..."
                                           value={categorySearchQuery}
                                           onValueChange={setCategorySearchQuery}
                                           data-testid="input-category-search"
                                         />
-                                        <CommandList>
+                                        <CommandList className="max-h-[200px] overscroll-contain"
+                                          onWheel={(e) => {
+                                            e.stopPropagation();
+                                            const target = e.currentTarget;
+                                            target.scrollTop += e.deltaY;
+                                          }}
+                                        >
                                           <CommandEmpty>
                                             <button
                                               className="w-full text-left px-2 py-1.5 text-sm hover-elevate active-elevate-2 rounded-md"
@@ -4299,7 +4311,7 @@ export default function Projects() {
                       <SelectTrigger className="w-20 h-8 text-xs bg-card" data-testid="select-project-page-size">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-card">
+                      <SelectContent className="bg-white dark:bg-gray-900">
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="20">20</SelectItem>
                         <SelectItem value="50">50</SelectItem>
@@ -4521,7 +4533,7 @@ export default function Projects() {
                 <SelectTrigger id="project-client" data-testid="select-project-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
-                <SelectContent className="bg-card">
+                <SelectContent className="bg-white dark:bg-gray-900">
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id} className="cursor-pointer">
                       {client.company || client.name}
@@ -4715,7 +4727,7 @@ export default function Projects() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 bg-white dark:bg-card" align="start">
+                <PopoverContent className="w-full p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Rechercher une société..." />
                     <CommandList>

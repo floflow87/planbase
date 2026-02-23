@@ -629,6 +629,9 @@ export default function Dashboard() {
     queryKey: ["/api/notes"],
     enabled: !!accountId,
     staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: backlogs = [], isLoading: backlogsLoading } = useQuery<Backlog[]>({
@@ -2216,11 +2219,11 @@ export default function Dashboard() {
                     onClick={() => setLocation(`/notes/${note.id}`)}
                     data-testid={`note-item-${note.id}`}
                   >
-                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{note.title || "Sans titre"}</p>
+                      <p className="text-xs font-medium truncate">{note.title || "Sans titre"}</p>
                       {note.updatedAt && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground">
                           {formatDate(new Date(note.updatedAt), "d MMM", { locale: fr })}
                         </p>
                       )}

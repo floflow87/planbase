@@ -1107,7 +1107,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNotesByAccountId(accountId: string): Promise<Note[]> {
-    return await db.select().from(notes).where(eq(notes.accountId, accountId));
+    return await db.select().from(notes).where(eq(notes.accountId, accountId)).orderBy(desc(notes.updatedAt));
   }
 
   async createNote(insertNote: InsertNote): Promise<Note> {
