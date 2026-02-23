@@ -15,11 +15,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { GanttView } from "./gantt-view";
 import { OutputView } from "./output-view";
+import { NowNextLaterView } from "./now-next-later-view";
 import { RoadmapIndicators } from "./roadmap-indicators";
 import { RoadmapRecommendations } from "./roadmap-recommendations";
 import { MilestonesZone } from "./milestones-zone";
 import { RoadmapItemLinks } from "./roadmap-item-links";
-import type { Roadmap, RoadmapItem } from "@shared/schema";
+import type { Roadmap, RoadmapItem, Epic, UserStory } from "@shared/schema";
 
 // Milestone types
 const MILESTONE_TYPES = [
@@ -100,7 +101,7 @@ interface RoadmapTabProps {
   accountId: string;
 }
 
-type ViewMode = "gantt" | "output";
+type ViewMode = "gantt" | "output" | "nnl";
 
 export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
   const { toast } = useToast();
@@ -147,6 +148,25 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     enabled: !!activeRoadmapId,
   });
   
+  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
+  const isNNL = activeRoadmap?.type === "now_next_later";
+
+  const { data: backlogs = [] } = useQuery<any[]>({
+    queryKey: [`/api/projects/${projectId}/backlogs`],
+    enabled: isNNL,
+  });
+  const backlogId = backlogs.length > 0 ? backlogs[0].id : null;
+
+  const { data: epicsData = [] } = useQuery<Epic[]>({
+    queryKey: [`/api/backlogs/${backlogId}/epics`],
+    enabled: isNNL && !!backlogId,
+  });
+
+  const { data: userStoriesData = [] } = useQuery<UserStory[]>({
+    queryKey: [`/api/backlogs/${backlogId}/user-stories`],
+    enabled: isNNL && !!backlogId,
+  });
+
   // Query for phases data
   const { data: phasesData } = useQuery<PhaseInfo>({
     queryKey: [`/api/projects/${projectId}/roadmap/phases`],
@@ -511,8 +531,6 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
     );
   }
 
-  const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
-
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -556,28 +574,30 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 </Badge>
               )}
             </Button>
-            <div className="flex items-center border rounded-md p-1">
-              <Button
-                variant={viewMode === "gantt" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("gantt")}
-                className="h-7 px-3"
-                data-testid="button-view-gantt"
-              >
-                <Calendar className="h-4 w-4 mr-1" />
-                Gantt
-              </Button>
-              <Button
-                variant={viewMode === "output" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("output")}
-                className="h-7 px-3"
-                data-testid="button-view-output"
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" />
-                Étapes
-              </Button>
-            </div>
+            {!isNNL && (
+              <div className="flex items-center border rounded-md p-1">
+                <Button
+                  variant={viewMode === "gantt" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("gantt")}
+                  className="h-7 px-3"
+                  data-testid="button-view-gantt"
+                >
+                  <Calendar className="h-4 w-4 mr-1" />
+                  Gantt
+                </Button>
+                <Button
+                  variant={viewMode === "output" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("output")}
+                  className="h-7 px-3"
+                  data-testid="button-view-output"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  Étapes
+                </Button>
+              </div>
+            )}
             <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
               <Plus className="h-4 w-4 mr-1" />
               Nouvelle
@@ -704,7 +724,20 @@ export function RoadmapTab({ projectId, accountId }: RoadmapTabProps) {
                 {filteredItems.length} sur {roadmapItems.length} éléments affichés
               </div>
             )}
-            {viewMode === "gantt" ? (
+            {isNNL ? (
+              <NowNextLaterView
+                items={filteredItems}
+                roadmapId={activeRoadmapId || undefined}
+                onItemClick={handleOpenEditItem}
+                onAddItem={handleOpenAddItem}
+                onUpdateItem={(itemId, newLane, newOrderIndex) => {
+                  updateItemMutation.mutate({ id: itemId, data: { lane: newLane, orderIndex: newOrderIndex } });
+                }}
+                epics={epicsData}
+                backlogId={backlogId}
+                userStories={userStoriesData}
+              />
+            ) : viewMode === "gantt" ? (
               <GanttView 
                 items={filteredItems} 
                 roadmapId={activeRoadmapId || undefined}

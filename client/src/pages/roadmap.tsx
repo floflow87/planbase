@@ -432,24 +432,31 @@ export default function RoadmapPage() {
     mutationFn: async (id: string) => {
       return apiRequest(`/api/roadmaps/${id}`, 'DELETE');
     },
-    onSuccess: () => {
-      if (isUnlinkedMode) {
-        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
-      }
+    onMutate: async (id: string) => {
       setIsDeleteDialogOpen(false);
-      setRoadmapToManage(null);
-      if (selectedRoadmapId === roadmapToManage?.id) {
+      if (selectedRoadmapId === id) {
         setSelectedRoadmapId(null);
       }
+      setRoadmapToManage(null);
       toast({
         title: "Roadmap supprimée",
         description: "La roadmap a été supprimée.",
         variant: "success",
       });
     },
+    onSuccess: () => {
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
+    },
     onError: () => {
+      if (isUnlinkedMode) {
+        queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/roadmaps`] });
+      }
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la roadmap.",

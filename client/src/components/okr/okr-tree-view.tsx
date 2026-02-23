@@ -77,8 +77,12 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showDeleteObjectiveDialog, setShowDeleteObjectiveDialog] = useState(false);
+  const [showDeleteKRDialog, setShowDeleteKRDialog] = useState(false);
+  const [showDeleteTaskDialog, setShowDeleteTaskDialog] = useState(false);
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [objectiveToDelete, setObjectiveToDelete] = useState<string | null>(null);
+  const [krToDelete, setKrToDelete] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [editingObjective, setEditingObjective] = useState<OkrObjective | null>(null);
   const [editingKR, setEditingKR] = useState<OkrKeyResult | null>(null);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
@@ -589,9 +593,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm("Supprimer cet objectif et ses Key Results ?")) {
-                                  deleteObjectiveMutation.mutate(objective.id);
-                                }
+                                setObjectiveToDelete(objective.id);
+                                setShowDeleteObjectiveDialog(true);
                               }}
                               data-testid={`button-delete-objective-${objective.id}`}
                             >
@@ -716,9 +719,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
                                       size="icon"
                                       variant="ghost"
                                       onClick={() => {
-                                        if (confirm("Supprimer ce Key Result ?")) {
-                                          deleteKRMutation.mutate(kr.id);
-                                        }
+                                        setKrToDelete(kr.id);
+                                        setShowDeleteKRDialog(true);
                                       }}
                                       data-testid={`button-delete-kr-${kr.id}`}
                                     >
@@ -1002,6 +1004,62 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={showDeleteKRDialog} onOpenChange={setShowDeleteKRDialog}>
+        <AlertDialogContent data-testid="dialog-delete-kr-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le Key Result</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce Key Result ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-kr">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (krToDelete) {
+                  deleteKRMutation.mutate(krToDelete);
+                  setShowDeleteKRDialog(false);
+                  setKrToDelete(null);
+                }
+              }}
+              disabled={deleteKRMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-kr"
+            >
+              {deleteKRMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteTaskDialog} onOpenChange={setShowDeleteTaskDialog}>
+        <AlertDialogContent data-testid="dialog-delete-task-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la tâche</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette tâche ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-task">Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (taskToDelete) {
+                  deleteTaskMutation.mutate(taskToDelete);
+                  setShowDeleteTaskDialog(false);
+                  setTaskToDelete(null);
+                }
+              }}
+              disabled={deleteTaskMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-task"
+            >
+              {deleteTaskMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
         <AlertDialogContent data-testid="dialog-regenerate-okr-confirm">
           <AlertDialogHeader>
@@ -1181,9 +1239,8 @@ export function OkrTreeView({ projectId }: OkrTreeViewProps) {
             }}
             onSave={handleSaveTaskDetail}
             onDelete={(task) => {
-              if (confirm("Supprimer cette tâche ?")) {
-                deleteTaskMutation.mutate(task.id);
-              }
+              setTaskToDelete(task.id);
+              setShowDeleteTaskDialog(true);
             }}
           />
         );

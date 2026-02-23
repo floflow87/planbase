@@ -1,6 +1,6 @@
 // Projects page with task management
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2 } from "lucide-react";
+import { Plus, Filter, LayoutGrid, List, GripVertical, Edit, Trash2, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle2, AlertCircle, UserCheck, MoreVertical, Eye, CheckCircle, FolderInput, Star, Columns3, FileText, Banknote, Settings2, Copy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2521,6 +2521,24 @@ export default function Projects() {
     },
   });
 
+  const duplicateProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest(`/api/projects/${id}/duplicate`, "POST");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Projet dupliqué avec succès", variant: "success" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erreur lors de la duplication",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       // Auto-set progress to 100% when stage is "termine"
@@ -3606,6 +3624,15 @@ export default function Projects() {
                                     Marquer comme terminé
                                   </DropdownMenuItem>
                                 )}
+                                {canUpdate && (
+                                  <DropdownMenuItem
+                                    data-testid={`button-duplicate-project-grid-${project.id}`}
+                                    onClick={() => duplicateProjectMutation.mutate(project.id)}
+                                  >
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Dupliquer
+                                  </DropdownMenuItem>
+                                )}
                                 {(canUpdate || canDelete) && <DropdownMenuSeparator />}
                                 {canDelete && (
                                   <DropdownMenuItem
@@ -4179,6 +4206,15 @@ export default function Projects() {
                                         >
                                           <CheckCircle className="h-4 w-4 mr-2" />
                                           Marquer comme terminé
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canUpdate && (
+                                        <DropdownMenuItem
+                                          data-testid={`button-duplicate-project-${project.id}`}
+                                          onClick={() => duplicateProjectMutation.mutate(project.id)}
+                                        >
+                                          <Copy className="h-4 w-4 mr-2" />
+                                          Dupliquer
                                         </DropdownMenuItem>
                                       )}
                                       {canUpdate && <DropdownMenuSeparator />}

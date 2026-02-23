@@ -1575,6 +1575,80 @@ app.get("/config/feature-flags", async (_req, res) => {
     }
   });
 
+  app.post("/api/projects/:id/duplicate", requireAuth, requireOrgMember, requirePermission("projects", "create"), async (req, res) => {
+    try {
+      const source = await storage.getProject(req.params.id);
+      if (!source) return res.status(404).json({ error: "Project not found" });
+      if (source.accountId !== req.accountId) return res.status(403).json({ error: "Access denied" });
+
+      const newName = `${source.name}_copie`;
+      const data = insertProjectSchema.parse({
+        name: newName,
+        description: source.description || "",
+        accountId: req.accountId!,
+        createdBy: req.userId || null,
+        clientId: source.clientId || null,
+        stage: "prospection",
+        category: source.category || null,
+        startDate: source.startDate || null,
+        endDate: source.endDate || null,
+        budget: source.budget || null,
+        priority: (source as any).priority || null,
+        businessType: (source as any).businessType || null,
+      });
+
+      const project = await storage.createProject(data);
+
+      const defaultColumns = [
+        { name: "À faire", color: "rgba(240, 240, 242, 0.9)", order: 0, isLocked: 1 },
+        { name: "En cours", color: "rgba(240, 248, 255, 0.9)", order: 1, isLocked: 0 },
+        { name: "Terminé", color: "rgba(240, 255, 245, 0.9)", order: 2, isLocked: 1 },
+      ];
+      for (const column of defaultColumns) {
+        await storage.createTaskColumn({
+          accountId: req.accountId!,
+          projectId: project.id,
+          name: column.name,
+          color: column.color,
+          order: column.order,
+          isLocked: column.isLocked,
+        });
+      }
+
+      // Copy project resources
+      try {
+        const resources = await storage.getProjectResources(req.params.id);
+        for (const resource of resources) {
+          const { id, projectId, createdAt, ...resourceData } = resource as any;
+          await storage.createProjectResource({ ...resourceData, projectId: project.id });
+        }
+      } catch (e) {}
+
+      // Copy scope items
+      try {
+        const scopeItems = await storage.getProjectScopeItems(req.params.id);
+        for (const item of scopeItems) {
+          const { id, projectId, createdAt, completedAt, ...itemData } = item as any;
+          await storage.createProjectScopeItem({ ...itemData, projectId: project.id });
+        }
+      } catch (e) {}
+
+      await storage.createActivity({
+        accountId: req.accountId!,
+        subjectType: "project",
+        subjectId: project.id,
+        kind: "created",
+        payload: { description: `Projet dupliqué depuis : ${source.name}` },
+        createdBy: req.userId || null,
+      });
+
+      res.json(project);
+    } catch (error: any) {
+      console.error("[ERROR] Failed to duplicate project:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.get("/api/projects/:id", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);

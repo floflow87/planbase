@@ -757,7 +757,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 text-[13px]">
               {humanResources.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -898,7 +898,7 @@ export function ResourcesTab({ projectId, accountId }: ResourcesTabProps) {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 text-[13px]">
               {nonHumanResources.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
