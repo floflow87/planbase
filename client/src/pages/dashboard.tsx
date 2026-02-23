@@ -2275,11 +2275,11 @@ export default function Dashboard() {
                       onClick={() => setLocation(`/product/backlog/${backlog.id}`)}
                       data-testid={`backlog-item-${backlog.id}`}
                     >
-                      <FolderKanban className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <FolderKanban className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{backlog.name}</p>
+                        <p className="text-xs font-medium truncate">{backlog.name}</p>
                         {project && (
-                          <p className="text-xs text-muted-foreground truncate">{project.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{project.name}</p>
                         )}
                       </div>
                       <Badge variant="outline" className="shrink-0 text-xs capitalize">

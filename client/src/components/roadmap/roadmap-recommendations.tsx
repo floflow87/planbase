@@ -129,7 +129,7 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
     <Card className="bg-card/50">
       <CardHeader className="py-[10px] px-4">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardTitle className="text-xs font-medium flex items-center gap-2">
             Recommandations
             {data.summary.criticalCount > 0 && (
               <Badge variant="outline" className={TYPE_CONFIG.critical.badgeClass}>
@@ -178,7 +178,7 @@ export function RoadmapRecommendations({ projectId, onItemClick }: RoadmapRecomm
                       <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     )}
                     <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
-                    <span className="text-sm font-medium flex-1 truncate">{rec.title}</span>
+                    <span className="text-xs font-medium flex-1 truncate">{rec.title}</span>
                     <Badge variant="outline" className={`${config.badgeClass} shrink-0`}>
                       {config.label}
                     </Badge>

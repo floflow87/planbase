@@ -324,7 +324,7 @@ export default function RoadmapPage() {
 
   const createRoadmapMutation = useMutation({
     mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean }) => {
-      return apiRequest('/api/roadmaps', 'POST', {
+      const res = await apiRequest('/api/roadmaps', 'POST', {
         accountId,
         projectId: isUnlinkedMode ? null : selectedProjectId,
         name: data.name,
@@ -333,6 +333,7 @@ export default function RoadmapPage() {
         importEpics: data.importEpics || false,
         importTickets: data.importTickets || false,
       });
+      return await res.json();
     },
     onMutate: async () => {
       setIsCreateDialogOpen(false);
@@ -900,7 +901,7 @@ export default function RoadmapPage() {
   return (
     <PermissionGuard module="roadmap" fallbackPath="/">
     <div className="h-full overflow-auto p-6 bg-[#F8FAFC] dark:bg-background" data-testid="roadmap-view">
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <ReadOnlyBanner module="roadmap" />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1020,8 +1021,8 @@ export default function RoadmapPage() {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Map className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Aucune roadmap pour ce projet</h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                <h3 className="text-base font-semibold mb-2">Aucune roadmap pour ce projet</h3>
+                <p className="text-xs text-muted-foreground mb-6 max-w-md">
                   Créez une roadmap pour planifier et suivre les livrables, milestones et initiatives de "{selectedProject?.name}".
                 </p>
                 {canCreate && (
@@ -1053,7 +1054,7 @@ export default function RoadmapPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
-                    <SelectTrigger className="w-[200px]" data-testid="select-roadmap">
+                    <SelectTrigger className="w-[200px] text-xs" data-testid="select-roadmap">
                       <SelectValue placeholder="Sélectionner une roadmap" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1239,7 +1240,7 @@ export default function RoadmapPage() {
                 {showFilters && (
                   <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t mt-2">
                     <Select value={filterPhase} onValueChange={setFilterPhase}>
-                      <SelectTrigger className="w-[160px]" data-testid="select-filter-phase">
+                      <SelectTrigger className="w-[160px] text-xs" data-testid="select-filter-phase">
                         <SelectValue placeholder="Phase" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1250,7 +1251,7 @@ export default function RoadmapPage() {
                     </Select>
                     
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-[160px]" data-testid="select-filter-status">
+                      <SelectTrigger className="w-[160px] text-xs" data-testid="select-filter-status">
                         <SelectValue placeholder="Statut" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1261,7 +1262,7 @@ export default function RoadmapPage() {
                     </Select>
                     
                     <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-[160px]" data-testid="select-filter-type">
+                      <SelectTrigger className="w-[160px] text-xs" data-testid="select-filter-type">
                         <SelectValue placeholder="Type" />
                       </SelectTrigger>
                       <SelectContent>

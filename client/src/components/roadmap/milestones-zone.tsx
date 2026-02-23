@@ -87,7 +87,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flag className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs font-medium">
                 Milestones
               </CardTitle>
             </div>
@@ -97,7 +97,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
           </div>
         </CardHeader>
         <CardContent className="pt-0 pb-[10px]">
-          <p className="text-sm text-muted-foreground text-center py-2">
+          <p className="text-xs text-muted-foreground text-center py-2">
             Ajoutez des éléments de type "Milestone" pour suivre vos objectifs clés
           </p>
         </CardContent>
@@ -139,7 +139,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 )}
                 <Flag className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-xs font-medium">
                   Milestones ({milestonesData.upcomingCount} à venir)
                 </CardTitle>
               </div>
@@ -185,7 +185,7 @@ export function MilestonesZone({ projectId, onMilestoneClick }: MilestonesZonePr
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <StatusIcon className={`h-4 w-4 shrink-0 ${STATUS_COLORS[milestone.status]}`} />
-                          <span className={`text-sm font-medium truncate ${milestone.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+                          <span className={`text-xs font-medium truncate ${milestone.status === "done" ? "line-through text-muted-foreground" : ""}`}>
                             {milestone.title}
                           </span>
                           {isNext && (
