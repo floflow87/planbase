@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -46,7 +47,9 @@ import {
   AlertCircle,
   EyeOff,
   Trash2,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import type { RoadmapItem, Epic, BacklogTask, UserStory } from "@shared/schema";
 
@@ -422,27 +425,26 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </Badge>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[300px] p-2 bg-white dark:bg-slate-900 text-foreground border shadow-md">
+                <TooltipContent side="bottom" className="w-[340px] p-[5px] bg-white dark:bg-slate-900 text-foreground border shadow-md z-[9999]">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-medium mb-1">{cardEpic.title}</p>
+                    <p className="text-[11px] font-medium mb-1">{cardEpic.title}</p>
                     {cardEpicTickets.length > 0 ? (
                       <>
-                        <p className="text-[10px] text-muted-foreground mb-1">Tickets liés ({cardEpicTickets.length})</p>
-                        {cardEpicTickets.slice(0, 8).map(task => {
-                          const stColor = task.state === "done" ? "text-green-600" : task.state === "in_progress" ? "text-amber-600" : "text-muted-foreground";
-                          return (
-                            <div key={task.id} className="flex items-center gap-1.5 text-[10px]">
-                              <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
-                              <span className="truncate">{task.title}</span>
-                            </div>
-                          );
-                        })}
-                        {cardEpicTickets.length > 8 && (
-                          <p className="text-[10px] text-muted-foreground">... +{cardEpicTickets.length - 8}</p>
-                        )}
+                        <p className="text-[11px] text-muted-foreground mb-1">Tickets liés ({cardEpicTickets.length})</p>
+                        <div className="max-h-[200px] overflow-y-auto space-y-0.5 pr-1">
+                          {cardEpicTickets.map(task => {
+                            const stColor = task.state === "done" || task.state === "termine" ? "text-green-600" : (task.state === "in_progress" || task.state === "en_cours") ? "text-amber-600" : "text-muted-foreground";
+                            return (
+                              <div key={task.id} className="flex items-center gap-1.5 text-[11px]">
+                                <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
+                                <span className="truncate">{task.title}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </>
                     ) : (
-                      <p className="text-[10px] text-muted-foreground">Aucun ticket lié</p>
+                      <p className="text-[11px] text-muted-foreground">Aucun ticket lié</p>
                     )}
                   </div>
                 </TooltipContent>
@@ -569,7 +571,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
       <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open) { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); } }}>
         <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900 [&>button:last-child]:hidden">
-          <div className="px-6 pt-4 pb-3">
+          <div className="px-4 pt-4 pb-3">
             <SheetHeader className="space-y-0">
               <SheetDescription className="sr-only">
                 {drawerMode === "create" ? "Créer un nouvel élément" : "Paramètres de l'élément"}
@@ -713,7 +715,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             </SheetHeader>
           </div>
 
-          <ScrollArea className="flex-1 px-6 pb-6">
+          <ScrollArea className="flex-1 px-4 pb-6">
             <div className="space-y-3">
               {drawerMode === "create" && (
                 <div className="space-y-1.5">
@@ -810,32 +812,6 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
               <Separator />
 
-              {linkedEpic && linkedTasks.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <Ticket className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Tickets ({linkedTasks.length})</span>
-                  </div>
-                  {linkedTasks.slice(0, 10).map(task => {
-                    const taskStatus = task.state === "done" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" 
-                      : task.state === "in_progress" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                      : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
-                    return (
-                      <div key={task.id} className="flex items-center justify-between gap-2 p-1.5 rounded border text-[10px]">
-                        <span className="truncate">{task.title}</span>
-                        <Badge className={`text-[9px] shrink-0 ${taskStatus}`}>
-                          {task.state === "done" ? "Terminé" : task.state === "in_progress" ? "En cours" : task.state}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                  {linkedTasks.length > 10 && (
-                    <p className="text-[9px] text-muted-foreground">... et {linkedTasks.length - 10} de plus</p>
-                  )}
-                  <Separator />
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -870,6 +846,35 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                 </div>
               </div>
 
+              {linkedEpic && linkedTasks.length > 0 && (
+                <Collapsible defaultOpen={false} className="mt-1">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center w-full gap-2 px-0 py-1 text-[10px] font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors" data-testid="button-nnl-tickets-toggle">
+                      <Ticket className="h-3 w-3" />
+                      <span>Tickets ({linkedTasks.length})</span>
+                      <ChevronRight className="h-3 w-3 ml-auto transition-transform [[data-state=open]_&]:rotate-90" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-1 mt-1">
+                      {linkedTasks.map(task => {
+                        const taskStatus = (task.state === "done" || task.state === "termine") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" 
+                          : (task.state === "in_progress" || task.state === "en_cours") ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+                        return (
+                          <div key={task.id} className="flex items-center justify-between gap-2 p-1.5 rounded border text-[10px]">
+                            <span className="truncate">{task.title}</span>
+                            <Badge className={`text-[9px] shrink-0 ${taskStatus}`}>
+                              {(task.state === "done" || task.state === "termine") ? "Terminé" : (task.state === "in_progress" || task.state === "en_cours") ? "En cours" : task.state}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
               {drawerMode === "edit" && editingItem?.sourceType === "cdc" && (
                 <div className="p-2 rounded-md border bg-muted/30 mt-2">
                   <div className="flex items-center gap-2">
@@ -882,7 +887,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             </div>
           </ScrollArea>
 
-          <div className="border-t px-6 py-3 flex items-center justify-end gap-2">
+          <div className="border-t px-4 py-3 flex items-center justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => { setDrawerOpen(false); setEditingItemId(null); }} data-testid="button-nnl-cancel">
               Annuler
             </Button>

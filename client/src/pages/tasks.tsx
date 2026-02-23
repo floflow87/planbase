@@ -1,6 +1,6 @@
 // Tasks page - Complete duplicate of tasks tab from projects page
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Plus, LayoutGrid, List, GripVertical, CalendarIcon, Calendar as CalendarLucide, Check, ChevronsUpDown, Star, Columns3, ChevronLeft, ChevronRight, Eye, EyeOff, Search, X } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -701,6 +701,7 @@ export default function Tasks() {
     return saved ? JSON.parse(saved) : ["all"];
   });
   const [projectSelectorOpen, setProjectSelectorOpen] = useState(false);
+  const [taskSearchQuery, setTaskSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"kanban" | "list" | "calendar">(() => {
     const saved = localStorage.getItem("tasks_view_mode");
     return (saved === "kanban" || saved === "list" || saved === "calendar") ? saved : "list";
@@ -875,9 +876,18 @@ export default function Tasks() {
         return !inCompletedColumn && !hasCompletedStatus;
       });
     }
+
+    if (taskSearchQuery.trim()) {
+      const q = taskSearchQuery.trim().toLowerCase();
+      result = result.filter(t => 
+        (t.title || "").toLowerCase().includes(q) ||
+        (t.description || "").toLowerCase().includes(q) ||
+        (t.taskKey || "").toLowerCase().includes(q)
+      );
+    }
     
     return result;
-  }, [tasks, selectedProjectIds, hideCompletedTasks, completedColumnIds]);
+  }, [tasks, selectedProjectIds, hideCompletedTasks, completedColumnIds, taskSearchQuery]);
 
   // Filter columns based on selected projects (multi-select)
   // Multi-selection or "all" shows everything; single project shows ONLY that project's columns
@@ -1645,6 +1655,25 @@ export default function Tasks() {
                 </PopoverContent>
               </Popover>
             )}
+            <div className="relative flex-1 min-w-[160px] max-w-[280px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={taskSearchQuery}
+                onChange={(e) => setTaskSearchQuery(e.target.value)}
+                placeholder="Rechercher une tâche..."
+                className="pl-8 pr-8 text-[12px] bg-white dark:bg-white"
+                data-testid="input-task-search"
+              />
+              {taskSearchQuery && (
+                <button
+                  onClick={() => setTaskSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  data-testid="button-clear-task-search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {viewMode !== "kanban" && (
