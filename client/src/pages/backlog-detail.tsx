@@ -1202,7 +1202,7 @@ export default function BacklogDetail() {
         userStories: type === "user_story"
           ? previousBacklog.userStories.map(us => us.id === ticketId ? { ...us, ...data } : us)
           : previousBacklog.userStories,
-        backlogTasks: type === "task"
+        backlogTasks: (type === "task" || type === "bug")
           ? previousBacklog.backlogTasks.map(t => t.id === ticketId ? { ...t, ...data } : t)
           : previousBacklog.backlogTasks,
       });
@@ -1244,7 +1244,7 @@ export default function BacklogDetail() {
           : type === "epic"
             ? previousBacklog.userStories.filter(us => us.epicId !== ticketId)
             : previousBacklog.userStories,
-        backlogTasks: type === "task"
+        backlogTasks: (type === "task" || type === "bug")
           ? previousBacklog.backlogTasks.filter(t => t.id !== ticketId)
           : previousBacklog.backlogTasks,
       });

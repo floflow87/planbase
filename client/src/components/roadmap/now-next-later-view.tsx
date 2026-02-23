@@ -48,7 +48,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import type { RoadmapItem, Epic, BacklogTask } from "@shared/schema";
+import type { RoadmapItem, Epic, BacklogTask, UserStory } from "@shared/schema";
 
 const LANE_CONFIG: Record<string, { label: string; description: string; color: string; headerColor: string; textColor: string; badgeColor: string; borderColor: string }> = {
   now: { label: "Now", description: "En cours de réalisation", color: "bg-emerald-500/10 border-emerald-500/30", headerColor: "bg-emerald-500", textColor: "text-emerald-700 dark:text-emerald-400", badgeColor: "bg-emerald-500 text-white", borderColor: "border-l-emerald-500" },
@@ -72,6 +72,7 @@ interface NowNextLaterViewProps {
   onUpdateItem: (itemId: string, newStatus: string, newOrderIndex: number) => void;
   epics: Epic[];
   backlogId: string | null;
+  userStories?: UserStory[];
 }
 
 function DroppableLane({ id, children, isOver }: { id: string; children: React.ReactNode; isOver?: boolean }) {
@@ -102,7 +103,7 @@ function DraggableCard({ id, children }: { id: string; children: React.ReactNode
   );
 }
 
-export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onUpdateItem, epics, backlogId }: NowNextLaterViewProps) {
+export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onUpdateItem, epics, backlogId, userStories: externalUserStories }: NowNextLaterViewProps) {
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overLaneId, setOverLaneId] = useState<string | null>(null);
@@ -137,6 +138,12 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     },
     enabled: !!backlogId,
   });
+
+  const { data: fetchedUserStories = [] } = useQuery<UserStory[]>({
+    queryKey: [`/api/backlogs/${backlogId}/user-stories`],
+    enabled: !!backlogId && !externalUserStories,
+  });
+  const allUserStories = externalUserStories || fetchedUserStories;
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<RoadmapItem> }) => {
@@ -241,9 +248,11 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
     return "later";
   };
 
-  const getEpicTickets = (epicId: string | null | undefined): BacklogTask[] => {
+  const getEpicTickets = (epicId: string | null | undefined): { id: string; title: string; state: string; type: string }[] => {
     if (!epicId) return [];
-    return epicTasks.filter(t => t.epicId === epicId);
+    const us = allUserStories.filter(s => s.epicId === epicId).map(s => ({ id: s.id, title: s.title, state: s.state, type: "user_story" as string }));
+    const tasks = epicTasks.filter(t => t.epicId === epicId).map(t => ({ id: t.id, title: t.title, state: t.state, type: "task" as string }));
+    return [...us, ...tasks];
   };
 
   const laneItems: Record<string, RoadmapItem[]> = {
@@ -360,7 +369,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
   const editingItem = editingItemId ? items.find(i => i.id === editingItemId) : null;
   const linkedEpic = form.epicId ? epics.find(e => e.id === form.epicId) : null;
-  const linkedTasks = linkedEpic ? epicTasks.filter(t => t.epicId === linkedEpic.id) : [];
+  const linkedTasks = linkedEpic ? getEpicTickets(linkedEpic.id) : [];
 
   const activeItem = activeId ? items.find(i => i.id === activeId) : null;
 
@@ -413,7 +422,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </Badge>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[300px] p-2">
+                <TooltipContent side="bottom" className="max-w-[300px] p-2 bg-white dark:bg-slate-900 text-foreground border shadow-md">
                   <div className="space-y-1">
                     <p className="text-[10px] font-medium mb-1">{cardEpic.title}</p>
                     {cardEpicTickets.length > 0 ? (

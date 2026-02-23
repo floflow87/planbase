@@ -1332,6 +1332,7 @@ export default function RoadmapPage() {
                       onUpdateItem={handleItemMove}
                       epics={epics}
                       backlogId={backlogId}
+                      userStories={userStories}
                     />
                   ) : (
                     <OutputView 
