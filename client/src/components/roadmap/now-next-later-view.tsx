@@ -45,7 +45,8 @@ import {
   Circle,
   AlertCircle,
   EyeOff,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import type { RoadmapItem, Epic, BacklogTask } from "@shared/schema";
 
@@ -111,6 +112,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [drawerLane, setDrawerLane] = useState<string>("now");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({
     title: "",
     vision: "",
@@ -399,9 +401,9 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
 
           <div className="flex flex-wrap items-center gap-1.5 pl-5">
             {cardEpic && (
-              <Tooltip>
+              <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
-                  <div>
+                  <div onPointerDown={(e) => e.stopPropagation()}>
                     <Badge className="text-[10px] bg-violet-500 text-white">
                       <Package className="h-2.5 w-2.5 mr-0.5" />
                       {cardEpic.title}
@@ -411,25 +413,30 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                     </Badge>
                   </div>
                 </TooltipTrigger>
-                {cardEpicTickets.length > 0 && (
-                  <TooltipContent side="bottom" className="max-w-[300px] p-2">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-medium mb-1">Tickets liés ({cardEpicTickets.length})</p>
-                      {cardEpicTickets.slice(0, 8).map(task => {
-                        const stColor = task.state === "done" ? "text-green-600" : task.state === "in_progress" ? "text-amber-600" : "text-muted-foreground";
-                        return (
-                          <div key={task.id} className="flex items-center gap-1.5 text-[10px]">
-                            <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
-                            <span className="truncate">{task.title}</span>
-                          </div>
-                        );
-                      })}
-                      {cardEpicTickets.length > 8 && (
-                        <p className="text-[10px] text-muted-foreground">... +{cardEpicTickets.length - 8}</p>
-                      )}
-                    </div>
-                  </TooltipContent>
-                )}
+                <TooltipContent side="bottom" className="max-w-[300px] p-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-medium mb-1">{cardEpic.title}</p>
+                    {cardEpicTickets.length > 0 ? (
+                      <>
+                        <p className="text-[10px] text-muted-foreground mb-1">Tickets liés ({cardEpicTickets.length})</p>
+                        {cardEpicTickets.slice(0, 8).map(task => {
+                          const stColor = task.state === "done" ? "text-green-600" : task.state === "in_progress" ? "text-amber-600" : "text-muted-foreground";
+                          return (
+                            <div key={task.id} className="flex items-center gap-1.5 text-[10px]">
+                              <Ticket className={`h-2.5 w-2.5 shrink-0 ${stColor}`} />
+                              <span className="truncate">{task.title}</span>
+                            </div>
+                          );
+                        })}
+                        {cardEpicTickets.length > 8 && (
+                          <p className="text-[10px] text-muted-foreground">... +{cardEpicTickets.length - 8}</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">Aucun ticket lié</p>
+                    )}
+                  </div>
+                </TooltipContent>
               </Tooltip>
             )}
             {item.phase && (
@@ -551,27 +558,15 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
         </DragOverlay>
       </DndContext>
 
-      <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open) { setDrawerOpen(false); setEditingItemId(null); } }}>
-        <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
-          <div className="px-6 pt-6 pb-3">
+      <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open) { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); } }}>
+        <SheetContent className="w-[500px] sm:max-w-[500px] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900 [&>button:last-child]:hidden">
+          <div className="px-6 pt-4 pb-3">
             <SheetHeader className="space-y-0">
-              <div className="flex items-center justify-between gap-2 pr-2">
-                {drawerMode === "create" ? (
-                  <SheetTitle className="text-base flex-1 leading-tight">Nouvel élément</SheetTitle>
-                ) : (
-                  <Input
-                    value={form.title}
-                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="text-base font-semibold border-none shadow-none p-0 h-auto focus-visible:ring-0 flex-1"
-                    data-testid="input-nnl-edit-title"
-                  />
-                )}
-              </div>
               <SheetDescription className="sr-only">
                 {drawerMode === "create" ? "Créer un nouvel élément" : "Paramètres de l'élément"}
               </SheetDescription>
 
-              <div className="flex items-center gap-2 pt-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Select
                   value={form.epicId || "none"}
                   onValueChange={(v) => {
@@ -650,11 +645,60 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
                       }
                     }}
                     disabled={deleteItemMutation.isPending}
-                    className="ml-auto"
                     data-testid="button-nnl-delete"
                   >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto"
+                  onClick={() => { setDrawerOpen(false); setEditingItemId(null); setIsEditingTitle(false); }}
+                  data-testid="button-nnl-close"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="pt-3">
+                {drawerMode === "create" ? (
+                  <SheetTitle className="text-base leading-tight">Nouvel élément</SheetTitle>
+                ) : isEditingTitle ? (
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                    onBlur={() => {
+                      setIsEditingTitle(false);
+                      if (editingItemId && form.title.trim()) {
+                        updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setIsEditingTitle(false);
+                        if (editingItemId && form.title.trim()) {
+                          updateItemMutation.mutate({ id: editingItemId, data: { title: form.title.trim() } as Partial<RoadmapItem> });
+                        }
+                      }
+                      if (e.key === "Escape") {
+                        setIsEditingTitle(false);
+                        if (editingItem) setForm(prev => ({ ...prev, title: editingItem.title }));
+                      }
+                    }}
+                    className="text-base font-semibold"
+                    autoFocus
+                    data-testid="input-nnl-edit-title"
+                  />
+                ) : (
+                  <SheetTitle
+                    className="text-base leading-tight cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setIsEditingTitle(true)}
+                    data-testid="text-nnl-title"
+                  >
+                    {form.title || "Sans titre"}
+                  </SheetTitle>
                 )}
               </div>
             </SheetHeader>
