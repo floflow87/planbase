@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import {
   DndContext,
@@ -535,16 +536,21 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
           {renderLane("later")}
           {laneItems.unqualified.length > 0 && renderLane("unqualified")}
           {hideUnqualified && laneItems.unqualified.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHideUnqualified(false)}
-              className="self-start mt-8 shrink-0"
-              data-testid="button-show-unqualified"
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              Non qualifié ({laneItems.unqualified.length})
-            </Button>
+            <div className="self-start shrink-0 pt-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setHideUnqualified(false)}
+                    data-testid="button-show-unqualified"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Afficher la colonne Non qualifié(s)</TooltipContent>
+              </Tooltip>
+            </div>
           )}
         </div>
         <DragOverlay dropAnimation={null}>
