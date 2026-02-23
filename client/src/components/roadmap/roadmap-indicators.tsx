@@ -193,7 +193,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
                   )}
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground italic">
+                <div className="text-[12px] text-muted-foreground italic">
                   Aucun milestone planifié
                 </div>
               )}

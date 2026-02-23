@@ -1932,22 +1932,22 @@ export default function BacklogDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
         <div className="px-4 md:px-6 border-b">
           <TabsList className="h-10">
-            <TabsTrigger value="backlog" className="text-sm" data-testid="tab-backlog">
+            <TabsTrigger value="backlog" className="text-[12px]" data-testid="tab-backlog">
               Backlog
             </TabsTrigger>
-            <TabsTrigger value="epics" className="text-sm" data-testid="tab-epics">
+            <TabsTrigger value="epics" className="text-[12px]" data-testid="tab-epics">
               Epics
             </TabsTrigger>
-            <TabsTrigger value="done" className="text-sm" data-testid="tab-done">
+            <TabsTrigger value="done" className="text-[12px]" data-testid="tab-done">
               Tickets terminés
             </TabsTrigger>
-            <TabsTrigger value="recette" className="text-sm" data-testid="tab-recette">
+            <TabsTrigger value="recette" className="text-[12px]" data-testid="tab-recette">
               Recette
             </TabsTrigger>
-            <TabsTrigger value="retrospective" className="text-sm" data-testid="tab-retrospective">
+            <TabsTrigger value="retrospective" className="text-[12px]" data-testid="tab-retrospective">
               Rétrospective
             </TabsTrigger>
-            <TabsTrigger value="statistiques" className="text-sm" data-testid="tab-statistiques">
+            <TabsTrigger value="statistiques" className="text-[12px]" data-testid="tab-statistiques">
               Statistiques
             </TabsTrigger>
           </TabsList>

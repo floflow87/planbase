@@ -43,7 +43,8 @@ import {
   Clock,
   Circle,
   AlertCircle,
-  EyeOff
+  EyeOff,
+  Trash2
 } from "lucide-react";
 import type { RoadmapItem, Epic, BacklogTask } from "@shared/schema";
 
@@ -133,7 +134,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<RoadmapItem> }) => {
       const res = await apiRequest(`/api/roadmap-items/${id}`, 'PATCH', data);
-      return res.json();
+      return await res.json();
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
@@ -146,14 +147,28 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
       }
       return { previousItems };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previousItems) {
         queryClient.setQueryData([`/api/roadmaps/${roadmapId}/items`], context.previousItems);
       }
-      toast({ title: "Erreur", description: "Impossible de mettre à jour.", variant: "destructive" });
+      console.error("NNL update error:", error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest(`/api/roadmap-items/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roadmaps/${roadmapId}/items`] });
+      toast({ title: "Supprimé", description: "L'élément a été supprimé." });
+      setEditingItemId(null);
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible de supprimer l'élément.", variant: "destructive" });
     },
   });
 
@@ -458,13 +473,17 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             <Layers className="h-3.5 w-3.5" />
             Phase
           </Label>
-          <Input
-            value={form.phase || ""}
-            onChange={(e) => setForm(prev => ({ ...prev, phase: e.target.value }))}
-            placeholder="Ex: T1, T2..."
-            className="text-sm"
-            data-testid="input-nnl-phase"
-          />
+          <Select value={form.phase || ""} onValueChange={(v) => setForm(prev => ({ ...prev, phase: v }))}>
+            <SelectTrigger className="text-sm" data-testid="select-nnl-phase">
+              <SelectValue placeholder="Sélectionner..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="T1">T1</SelectItem>
+              <SelectItem value="T2">T2</SelectItem>
+              <SelectItem value="T3">T3</SelectItem>
+              <SelectItem value="LT">Long terme</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
@@ -543,32 +562,47 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
             <SheetHeader className="space-y-0">
               <div className="flex items-center justify-between gap-3 pr-2">
                 <SheetTitle className="text-lg flex-1 leading-tight">{editingItem?.title}</SheetTitle>
-                {editingItem && !editingItem.endDate && (
-                  <Select
-                    value={editForm.lane || "later"}
-                    onValueChange={(v) => {
-                      setEditForm(prev => ({ ...prev, lane: v }));
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {editingItem && !editingItem.endDate && (
+                    <Select
+                      value={editForm.lane || "later"}
+                      onValueChange={(v) => {
+                        setEditForm(prev => ({ ...prev, lane: v }));
+                        if (editingItemId) {
+                          updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[100px] text-xs" data-testid="select-nnl-lane-header">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="now">Now</SelectItem>
+                        <SelectItem value="next">Next</SelectItem>
+                        <SelectItem value="later">Later</SelectItem>
+                        <SelectItem value="unqualified">Non qualifié</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {editingItem?.endDate && (
+                    <Badge className={`${LANE_CONFIG[editForm.lane]?.textColor || ""}`}>
+                      {LANE_CONFIG[editForm.lane]?.label || editForm.lane}
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
                       if (editingItemId) {
-                        updateItemMutation.mutate({ id: editingItemId, data: { lane: v } });
+                        deleteItemMutation.mutate(editingItemId);
                       }
                     }}
+                    disabled={deleteItemMutation.isPending}
+                    data-testid="button-nnl-delete"
                   >
-                    <SelectTrigger className="w-[100px] text-xs shrink-0" data-testid="select-nnl-lane-header">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="now">Now</SelectItem>
-                      <SelectItem value="next">Next</SelectItem>
-                      <SelectItem value="later">Later</SelectItem>
-                      <SelectItem value="unqualified">Non qualifié</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-                {editingItem?.endDate && (
-                  <Badge className={`shrink-0 ${LANE_CONFIG[editForm.lane]?.textColor || ""}`}>
-                    {LANE_CONFIG[editForm.lane]?.label || editForm.lane}
-                  </Badge>
-                )}
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
               <SheetDescription className="sr-only">Paramètres de l'élément</SheetDescription>
             </SheetHeader>
