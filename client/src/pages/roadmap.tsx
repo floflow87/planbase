@@ -978,8 +978,13 @@ export default function RoadmapPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name}</span>
-            {selectedProject && <Badge className="bg-primary text-primary-foreground text-[10px] px-2 py-0 shrink-0 font-normal">{selectedProject.name}</Badge>}
+            <span className="text-sm font-semibold truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
+            {selectedProject && (
+              <>
+                <span className="text-muted-foreground/40 text-sm">·</span>
+                <Badge className="bg-primary text-primary-foreground text-[10px] px-2 py-0 shrink-0 font-normal">{selectedProject.name}</Badge>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-3">
@@ -1239,71 +1244,10 @@ export default function RoadmapPage() {
               </div>
             )}
 
-            <Card className="mt-[10px]">
+            <Card className="mt-2">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                  {activeRoadmap && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-roadmap-menu">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        {canUpdate && (
-                          <DropdownMenuItem onClick={() => handleOpenRename(activeRoadmap)} data-testid="button-rename-roadmap">
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Renommer
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => {
-                          navigator.clipboard.writeText(activeRoadmap.id);
-                          toast({ title: "ID copié", variant: "success" });
-                        }}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Copier l'ID
-                        </DropdownMenuItem>
-                        {canDelete && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleOpenDelete(activeRoadmap)} className="text-destructive" data-testid="button-delete-roadmap">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Supprimer
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  {activeRoadmap?.horizon && (
-                    <Badge variant="outline" className="text-xs">
-                      {activeRoadmap.horizon}
-                    </Badge>
-                  )}
-                  {activeRoadmap && (
-                    <Select
-                      value={(activeRoadmap as any).status || "planned"}
-                      onValueChange={(v) => {
-                        if (canUpdate) {
-                          updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-auto h-7 text-xs gap-1 border-0 px-2" data-testid="select-roadmap-status">
-                        <Badge className={`text-xs ${ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.color || ""}`}>
-                          {ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.label || "Planifiée"}
-                        </Badge>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="planned">Planifiée</SelectItem>
-                        <SelectItem value="in_progress">En cours</SelectItem>
-                        <SelectItem value="closed">Clôturée</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  </div>
-
+                  {/* LEFT — search + filters */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1335,6 +1279,36 @@ export default function RoadmapPage() {
                         Effacer
                       </Button>
                     )}
+                  </div>
+
+                  {/* RIGHT — status + view mode + CDC + menu */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                  {activeRoadmap && (
+                    <Select
+                      value={(activeRoadmap as any).status || "planned"}
+                      onValueChange={(v) => {
+                        if (canUpdate) {
+                          updateRoadmapStatusMutation.mutate({ id: activeRoadmap.id, status: v });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-auto h-7 text-xs gap-1 border-0 px-2" data-testid="select-roadmap-status">
+                        <Badge className={`text-xs ${ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.color || ""}`}>
+                          {ROADMAP_STATUS_LABELS[(activeRoadmap as any).status || "planned"]?.label || "Planifiée"}
+                        </Badge>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="planned">Planifiée</SelectItem>
+                        <SelectItem value="in_progress">En cours</SelectItem>
+                        <SelectItem value="closed">Clôturée</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {activeRoadmap?.horizon && (
+                    <Badge variant="outline" className="text-xs">
+                      {activeRoadmap.horizon}
+                    </Badge>
+                  )}
                     {activeRoadmap?.type !== "now_next_later" && (
                       <div className="flex items-center border rounded-md p-1">
                         <Button
