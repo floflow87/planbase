@@ -1500,8 +1500,36 @@ app.get("/config/feature-flags", async (_req, res) => {
 
   app.get("/api/projects", requireAuth, requireOrgMember, requirePermission("projects", "read"), async (req, res) => {
     try {
-      const projects = await storage.getProjectsByAccountId(req.accountId!);
-      res.json(projects);
+      const [projects, allScopeItems, allTimeEntries] = await Promise.all([
+        storage.getProjectsByAccountId(req.accountId!),
+        storage.getScopeItemsByAccountId(req.accountId!),
+        storage.getTimeEntriesByAccountId(req.accountId!),
+      ]);
+
+      const enriched = projects.map((project) => {
+        const scopeItems = allScopeItems.filter(s => s.projectId === project.id);
+        const timeEntries = allTimeEntries.filter(t => t.projectId === project.id);
+
+        const totalEstimatedDays = scopeItems.reduce((sum, s) => sum + parseFloat(s.estimatedDays?.toString() || "0"), 0);
+        const completedEstimatedDays = scopeItems.filter(s => s.completedAt).reduce((sum, s) => sum + parseFloat(s.estimatedDays?.toString() || "0"), 0);
+        const scopeProgress = totalEstimatedDays > 0 ? Math.min(100, Math.round((completedEstimatedDays / totalEstimatedDays) * 100)) : null;
+
+        const actualDaysWorked = timeEntries.reduce((sum, t) => sum + (t.duration || 0), 0) / 3600 / 8;
+        const timeConsumedPct = totalEstimatedDays > 0 ? Math.min(150, Math.round((actualDaysWorked / totalEstimatedDays) * 100)) : null;
+
+        return {
+          ...project,
+          _stats: {
+            scopeProgress,
+            timeConsumedPct,
+            actualDaysWorked: Math.round(actualDaysWorked * 10) / 10,
+            totalEstimatedDays: Math.round(totalEstimatedDays * 10) / 10,
+            hasScopeData: scopeItems.length > 0,
+          },
+        };
+      });
+
+      res.json(enriched);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

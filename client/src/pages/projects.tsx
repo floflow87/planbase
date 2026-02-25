@@ -3549,16 +3549,9 @@ export default function Projects() {
                       !completedColumn || t.columnId !== completedColumn.id
                     ).length;
 
-                    const cdcProgress = (() => {
-                      if (project.stage === "termine") return 100;
-                      if (!project.startDate || !project.endDate) return 0;
-                      const start = new Date(project.startDate).getTime();
-                      const end = new Date(project.endDate).getTime();
-                      const now = Date.now();
-                      const total = end - start;
-                      if (total <= 0) return 0;
-                      return Math.min(100, Math.max(0, Math.round((now - start) / total * 100)));
-                    })();
+                    const stats = (project as any)._stats;
+                    const cdcProgress = project.stage === "termine" ? 100 : (stats?.scopeProgress ?? null);
+                    const timeConsumedPct = project.stage === "termine" ? 100 : (stats?.timeConsumedPct ?? null);
                     const taskPct = calculateProjectProgress(project.id);
 
                     return (
@@ -3701,24 +3694,31 @@ export default function Projects() {
                                   <TooltipTrigger asChild>
                                     <div className="flex-1 cursor-default">
                                       <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[10px] text-muted-foreground">Tâches</span>
-                                        <span className="text-[10px] font-medium text-foreground">{taskPct}%</span>
+                                        <span className="text-[10px] text-muted-foreground">Rubriques CDC</span>
+                                        <span className="text-[10px] font-medium text-foreground">
+                                          {cdcProgress !== null ? `${cdcProgress}%` : "—"}
+                                        </span>
                                       </div>
                                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                        <div className="h-full rounded-full transition-all" style={{ width: `${taskPct}%`, background: 'linear-gradient(to right, #22d3ee, #8b5cf6)' }} />
+                                        <div className="h-full rounded-full transition-all" style={{ width: `${cdcProgress ?? 0}%`, background: 'linear-gradient(to right, #22d3ee, #8b5cf6)' }} />
                                       </div>
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
-                                    Tâches terminées par rapport au total
+                                    {cdcProgress !== null
+                                      ? `Rubriques CDC terminées · ${stats?.actualDaysWorked ?? 0}j / ${stats?.totalEstimatedDays ?? 0}j estimés`
+                                      : "Aucune rubrique CDC définie"}
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                               {(() => {
                                 const r = 13;
                                 const circ = 2 * Math.PI * r;
-                                const dash = (cdcProgress / 100) * circ;
+                                const pct = timeConsumedPct ?? 0;
+                                const capped = Math.min(100, pct);
+                                const dash = (capped / 100) * circ;
                                 const gid = `pp-${project.id}`;
+                                const isOverrun = pct > 100;
                                 return (
                                   <TooltipProvider>
                                     <Tooltip>
@@ -3726,12 +3726,12 @@ export default function Projects() {
                                         <svg width="38" height="38" viewBox="0 0 38 38" className="shrink-0 cursor-default" data-testid={`task-progress-ring-${project.id}`}>
                                           <defs>
                                             <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
-                                              <stop offset="0%" stopColor="#22d3ee" />
-                                              <stop offset="100%" stopColor="#8b5cf6" />
+                                              <stop offset="0%" stopColor={isOverrun ? "#f97316" : "#22d3ee"} />
+                                              <stop offset="100%" stopColor={isOverrun ? "#ef4444" : "#8b5cf6"} />
                                             </linearGradient>
                                           </defs>
                                           <circle cx="19" cy="19" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3.5" />
-                                          {cdcProgress > 0 && (
+                                          {pct > 0 && (
                                             <circle cx="19" cy="19" r={r} fill="none"
                                               stroke={`url(#${gid})`} strokeWidth="3.5"
                                               strokeDasharray={`${dash} ${circ}`}
@@ -3739,14 +3739,16 @@ export default function Projects() {
                                               transform="rotate(-90 19 19)"
                                             />
                                           )}
-                                          <text x="19" y="22.5" textAnchor="middle" fontSize="7.5" fontWeight="600"
-                                            style={{ fill: 'hsl(var(--foreground))' }}>
-                                            {cdcProgress}%
+                                          <text x="19" y="22.5" textAnchor="middle" fontSize="7" fontWeight="600"
+                                            style={{ fill: isOverrun ? '#ef4444' : 'hsl(var(--foreground))' }}>
+                                            {timeConsumedPct !== null ? `${pct}%` : "—"}
                                           </text>
                                         </svg>
                                       </TooltipTrigger>
                                       <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
-                                        Temps consommé / durée totale estimée
+                                        {timeConsumedPct !== null
+                                          ? `Temps consommé : ${stats?.actualDaysWorked ?? 0}j / ${stats?.totalEstimatedDays ?? 0}j prévus`
+                                          : "Aucune donnée de temps enregistrée"}
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>

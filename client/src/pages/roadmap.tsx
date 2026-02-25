@@ -1,6 +1,9 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft } from "lucide-react";
@@ -70,6 +73,17 @@ type ViewMode = "gantt" | "output" | "nnl";
 type RoadmapType = "feature_based" | "now_next_later";
 type LinkedType = "free" | "epic" | "ticket" | "cdc";
 
+function SortableHomeColHeader({ id, label, className }: { id: string; label: string; className?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, cursor: label ? "grab" : "default" };
+  return (
+    <th ref={setNodeRef} style={style} {...(label ? { ...attributes, ...listeners } : {})}
+      className={`px-4 py-3 select-none ${className || ""} ${label ? "hover:text-foreground" : ""}`}>
+      {label && <span className="flex items-center gap-1">{label}<span className="text-[9px] text-muted-foreground/50">⠿</span></span>}
+    </th>
+  );
+}
+
 export default function RoadmapPage() {
   const { toast } = useToast();
   const { accountId } = useAuth();
@@ -125,6 +139,25 @@ export default function RoadmapPage() {
   const [homeCreateProjectOpen, setHomeCreateProjectOpen] = useState(false);
   const [showMilestonesZone, setShowMilestonesZone] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<"roadmap" | "okr">("roadmap");
+  const HOME_COLUMNS_KEY = "roadmap-home-column-order";
+  const DEFAULT_HOME_COLUMNS = ["name", "project", "type", "status", "created", "actions"];
+  const [homeColumnOrder, setHomeColumnOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HOME_COLUMNS_KEY) || "null") || DEFAULT_HOME_COLUMNS; } catch { return DEFAULT_HOME_COLUMNS; }
+  });
+
+  const colSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleHomeColumnDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIdx = homeColumnOrder.indexOf(String(active.id));
+      const newIdx = homeColumnOrder.indexOf(String(over.id));
+      const next = arrayMove(homeColumnOrder, oldIdx, newIdx);
+      setHomeColumnOrder(next);
+      localStorage.setItem(HOME_COLUMNS_KEY, JSON.stringify(next));
+    }
+  }
   
   const [itemForm, setItemForm] = useState({
     title: "",
@@ -1029,40 +1062,45 @@ export default function RoadmapPage() {
                     <div className="border rounded-lg overflow-hidden">
                       <table className="w-full">
                         <thead className="bg-muted/50">
-                          <tr className="text-left text-xs font-medium text-muted-foreground border-b">
-                            <th className="px-4 py-3">Nom</th>
-                            <th className="px-4 py-3 hidden sm:table-cell">Projet</th>
-                            <th className="px-4 py-3 hidden md:table-cell">Type</th>
-                            <th className="px-4 py-3 hidden md:table-cell">Statut</th>
-                            <th className="px-4 py-3 hidden lg:table-cell">Créé le</th>
-                            <th className="px-4 py-3 w-[60px]"></th>
-                          </tr>
+                          <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleHomeColumnDragEnd}>
+                            <SortableContext items={homeColumnOrder} strategy={horizontalListSortingStrategy}>
+                              <tr className="text-left text-xs font-medium text-muted-foreground border-b">
+                                {homeColumnOrder.map((col) => {
+                                  const colLabels: Record<string, { label: string; cls?: string }> = {
+                                    name: { label: "Nom" },
+                                    project: { label: "Projet", cls: "hidden sm:table-cell" },
+                                    type: { label: "Type", cls: "hidden md:table-cell" },
+                                    status: { label: "Statut", cls: "hidden md:table-cell" },
+                                    created: { label: "Créé le", cls: "hidden lg:table-cell" },
+                                    actions: { label: "", cls: "w-[60px]" },
+                                  };
+                                  const def = colLabels[col];
+                                  if (!def) return null;
+                                  return <SortableHomeColHeader key={col} id={col} label={def.label} className={def.cls} />;
+                                })}
+                              </tr>
+                            </SortableContext>
+                          </DndContext>
                         </thead>
                         <tbody className="divide-y">
                           {filteredHomeRoadmaps.map((roadmap) => {
                             const proj = projects.find(p => p.id === roadmap.projectId);
                             const statusInfo = ROADMAP_STATUS_LABELS[(roadmap as any).status || "planned"] || ROADMAP_STATUS_LABELS.planned;
                             const typeLabel = (roadmap as any).type === "now_next_later" ? "Now/Next/Later" : "Feature-based";
-                            return (
-                              <tr
-                                key={roadmap.id}
-                                className="hover:bg-muted/30 cursor-pointer group"
-                                onClick={() => {
-                                  if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
-                                  setSelectedRoadmapId(roadmap.id);
-                                }}
-                                data-testid={`row-roadmap-${roadmap.id}`}
-                              >
-                                <td className="px-4 py-3">
+                            const rowCells: Record<string, React.ReactNode> = {
+                              name: (
+                                <td key="name" className="px-4 py-3">
                                   <div className="flex items-center gap-2">
-                                    <Map className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <span className="text-sm font-medium truncate max-w-[200px]">{roadmap.name}</span>
+                                    <Map className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    <span className="text-xs font-medium truncate max-w-[200px]">{roadmap.name}</span>
                                     {(roadmap as any).type === "now_next_later" && (
                                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">NNL</Badge>
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 hidden sm:table-cell">
+                              ),
+                              project: (
+                                <td key="project" className="px-4 py-3 hidden sm:table-cell">
                                   {proj ? (
                                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                                       <FolderKanban className="h-3 w-3" />
@@ -1072,20 +1110,28 @@ export default function RoadmapPage() {
                                     <span className="text-xs text-muted-foreground italic">Sans projet</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 hidden md:table-cell">
+                              ),
+                              type: (
+                                <td key="type" className="px-4 py-3 hidden md:table-cell">
                                   <span className="text-xs text-muted-foreground">{typeLabel}</span>
                                 </td>
-                                <td className="px-4 py-3 hidden md:table-cell">
+                              ),
+                              status: (
+                                <td key="status" className="px-4 py-3 hidden md:table-cell">
                                   <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusInfo.color}`}>
                                     {statusInfo.label}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 hidden lg:table-cell">
+                              ),
+                              created: (
+                                <td key="created" className="px-4 py-3 hidden lg:table-cell">
                                   <span className="text-xs text-muted-foreground">
                                     {format(new Date(roadmap.createdAt), "d MMM yyyy", { locale: fr })}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              ),
+                              actions: (
+                                <td key="actions" className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100" data-testid={`button-home-roadmap-menu-${roadmap.id}`}>
@@ -1118,6 +1164,19 @@ export default function RoadmapPage() {
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </td>
+                              ),
+                            };
+                            return (
+                              <tr
+                                key={roadmap.id}
+                                className="hover:bg-muted/30 cursor-pointer group"
+                                onClick={() => {
+                                  if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                  setSelectedRoadmapId(roadmap.id);
+                                }}
+                                data-testid={`row-roadmap-${roadmap.id}`}
+                              >
+                                {homeColumnOrder.map((col) => rowCells[col] || null)}
                               </tr>
                             );
                           })}

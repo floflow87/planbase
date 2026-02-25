@@ -148,6 +148,7 @@ export interface IStorage {
 
   // Project Scope Items (CDC/Statement of Work)
   getScopeItemsByProjectId(projectId: string): Promise<ProjectScopeItem[]>;
+  getScopeItemsByAccountId(accountId: string): Promise<ProjectScopeItem[]>;
   getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]>;
   getScopeItem(id: string): Promise<ProjectScopeItem | undefined>;
   createScopeItem(scopeItem: InsertProjectScopeItem): Promise<ProjectScopeItem>;
@@ -842,6 +843,13 @@ export class DatabaseStorage implements IStorage {
       .from(projectScopeItems)
       .where(eq(projectScopeItems.projectId, projectId))
       .orderBy(projectScopeItems.order);
+  }
+
+  async getScopeItemsByAccountId(accountId: string): Promise<ProjectScopeItem[]> {
+    return await db
+      .select()
+      .from(projectScopeItems)
+      .where(eq(projectScopeItems.accountId, accountId));
   }
 
   async getScopeItemsByCdcSessionId(cdcSessionId: string): Promise<ProjectScopeItem[]> {
