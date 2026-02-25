@@ -6,7 +6,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable 
 import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft, Lightbulb } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1008,8 +1008,9 @@ export default function RoadmapPage() {
               <Button
                 onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
                 data-testid="button-create-roadmap-home-header"
+                className="text-xs"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Nouvelle roadmap
               </Button>
             )}
@@ -1038,7 +1039,11 @@ export default function RoadmapPage() {
                 )}
               </div>
 
-              {filteredHomeRoadmaps.length === 0 ? (
+              {isLoadingRoadmaps ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader />
+                </div>
+              ) : filteredHomeRoadmaps.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg">
                   <Map className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-base font-semibold mb-2">
@@ -1057,30 +1062,29 @@ export default function RoadmapPage() {
                   )}
                 </div>
               ) : (
+                <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleHomeColumnDragEnd}>
                 <Card>
                   <CardContent className="p-0">
                     <div className="border rounded-lg overflow-hidden">
                       <table className="w-full">
                         <thead className="bg-muted/50">
-                          <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleHomeColumnDragEnd}>
-                            <SortableContext items={homeColumnOrder} strategy={horizontalListSortingStrategy}>
-                              <tr className="text-left text-xs font-medium text-muted-foreground border-b">
-                                {homeColumnOrder.map((col) => {
-                                  const colLabels: Record<string, { label: string; cls?: string }> = {
-                                    name: { label: "Nom" },
-                                    project: { label: "Projet", cls: "hidden sm:table-cell" },
-                                    type: { label: "Type", cls: "hidden md:table-cell" },
-                                    status: { label: "Statut", cls: "hidden md:table-cell" },
-                                    created: { label: "Créé le", cls: "hidden lg:table-cell" },
-                                    actions: { label: "", cls: "w-[60px]" },
-                                  };
-                                  const def = colLabels[col];
-                                  if (!def) return null;
-                                  return <SortableHomeColHeader key={col} id={col} label={def.label} className={def.cls} />;
-                                })}
-                              </tr>
-                            </SortableContext>
-                          </DndContext>
+                          <SortableContext items={homeColumnOrder} strategy={horizontalListSortingStrategy}>
+                            <tr className="text-left text-xs font-medium text-muted-foreground border-b">
+                              {homeColumnOrder.map((col) => {
+                                const colLabels: Record<string, { label: string; cls?: string }> = {
+                                  name: { label: "Nom" },
+                                  project: { label: "Projet", cls: "hidden sm:table-cell" },
+                                  type: { label: "Type", cls: "hidden md:table-cell" },
+                                  status: { label: "Statut", cls: "hidden md:table-cell" },
+                                  created: { label: "Créé le", cls: "hidden lg:table-cell" },
+                                  actions: { label: "", cls: "w-[60px]" },
+                                };
+                                const def = colLabels[col];
+                                if (!def) return null;
+                                return <SortableHomeColHeader key={col} id={col} label={def.label} className={def.cls} />;
+                              })}
+                            </tr>
+                          </SortableContext>
                         </thead>
                         <tbody className="divide-y">
                           {filteredHomeRoadmaps.map((roadmap) => {
@@ -1093,9 +1097,6 @@ export default function RoadmapPage() {
                                   <div className="flex items-center gap-2">
                                     <Map className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                     <span className="text-xs font-medium truncate max-w-[200px]">{roadmap.name}</span>
-                                    {(roadmap as any).type === "now_next_later" && (
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">NNL</Badge>
-                                    )}
                                   </div>
                                 </td>
                               ),
@@ -1113,7 +1114,11 @@ export default function RoadmapPage() {
                               ),
                               type: (
                                 <td key="type" className="px-4 py-3 hidden md:table-cell">
-                                  <span className="text-xs text-muted-foreground">{typeLabel}</span>
+                                  {(roadmap as any).type === "now_next_later" ? (
+                                    <Badge className="text-[10px] px-1.5 py-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800">NNL</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Feature</Badge>
+                                  )}
                                 </td>
                               ),
                               status: (
@@ -1185,11 +1190,46 @@ export default function RoadmapPage() {
                     </div>
                   </CardContent>
                 </Card>
+                </DndContext>
               )}
             </div>
           )}
 
           {selectedRoadmapId && (
+            <>
+            {/* Tab bar: Roadmap | OKR + Recos button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 border rounded-md p-0.5 bg-muted/40">
+                <button
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeDetailTab === "roadmap" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setActiveDetailTab("roadmap")}
+                  data-testid="tab-roadmap"
+                >
+                  Roadmap
+                </button>
+                <button
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeDetailTab === "okr" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setActiveDetailTab("okr")}
+                  data-testid="tab-okr"
+                >
+                  OKR
+                </button>
+              </div>
+              {selectedProjectId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRecommendations(v => !v)}
+                  className="h-7 px-2 text-[11px] gap-1.5 text-muted-foreground"
+                  data-testid="button-show-recommendations"
+                >
+                  <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                  Recos
+                </Button>
+              )}
+            </div>
+
+            {activeDetailTab === "roadmap" && (
             <>
             {/* Roadmap Indicators */}
             {selectedProjectId && (
@@ -1507,12 +1547,11 @@ export default function RoadmapPage() {
               )}
             </CardContent>
           </Card>
-            {selectedProjectId && (
-              <div className="mt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">OKR</h3>
-                </div>
+            </>
+            )}
+
+            {activeDetailTab === "okr" && selectedProjectId && (
+              <div className="mt-[10px]">
                 <OkrTreeView projectId={selectedProjectId} />
               </div>
             )}

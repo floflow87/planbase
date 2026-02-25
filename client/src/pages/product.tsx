@@ -544,8 +544,8 @@ export default function Product() {
             </Button>
           </div>
           {canCreate && (
-            <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button onClick={() => navigate("/product/backlog/new")} data-testid="button-create-backlog" className="text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
               Nouveau Backlog
             </Button>
           )}
@@ -698,7 +698,7 @@ export default function Product() {
                               </svg>
                             </TooltipTrigger>
                             <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
-                              {done} / {total} tickets terminés
+                              {done} terminés / {total} tickets engagés
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

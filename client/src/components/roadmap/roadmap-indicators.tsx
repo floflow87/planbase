@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
   Clock, 
@@ -9,7 +8,6 @@ import {
   Target, 
   TrendingUp,
   Flag,
-  Lightbulb,
   ChevronRight
 } from "lucide-react";
 
@@ -144,9 +142,9 @@ export function RoadmapIndicators({ projectId, onShowMilestones, onShowRecommend
   const nextMilestoneDate = nextMilestone?.targetDate || nextMilestone?.endDate;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-stretch">
       {/* Phase actuelle */}
-      <Card className="bg-card/50">
+      <Card className="bg-card/50 h-full">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -180,7 +178,7 @@ export function RoadmapIndicators({ projectId, onShowMilestones, onShowRecommend
       </Card>
 
       {/* Milestone KPI card — with "voir plus" toggle */}
-      <Card className={`bg-card/50 ${milestonesData?.criticalAtRiskCount && milestonesData.criticalAtRiskCount > 0 ? "border-orange-500/30" : ""}`}>
+      <Card className={`bg-card/50 h-full ${milestonesData?.criticalAtRiskCount && milestonesData.criticalAtRiskCount > 0 ? "border-orange-500/30" : ""}`}>
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -246,7 +244,7 @@ export function RoadmapIndicators({ projectId, onShowMilestones, onShowRecommend
       </Card>
 
       {/* Éléments en retard */}
-      <Card className={`bg-card/50 ${phasesData.indicators.lateItemsCount > 0 ? "border-destructive/30" : ""}`}>
+      <Card className={`bg-card/50 h-full ${phasesData.indicators.lateItemsCount > 0 ? "border-destructive/30" : ""}`}>
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -267,50 +265,34 @@ export function RoadmapIndicators({ projectId, onShowMilestones, onShowRecommend
         </CardContent>
       </Card>
 
-      {/* Répartition par phase — with "recos" button above */}
-      <div className="flex flex-col gap-1.5">
-        {onShowRecommendations && (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onShowRecommendations}
-              className="h-7 px-2 text-[11px] gap-1.5 text-muted-foreground"
-              data-testid="button-show-recommendations"
-            >
-              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-              Recos
-            </Button>
-          </div>
-        )}
-        <Card className="bg-card/50 flex-1">
-          <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  Répartition par phase
-                </div>
-                <div className="flex gap-1 mt-1">
-                  {Object.entries(phasesData.phases).map(([phase, info]) => (
-                    <div key={phase} className="flex-1 text-center">
-                      <div className={`text-xs font-medium rounded-sm py-0.5 ${info.isCurrent ? PHASE_COLORS[phase] : "bg-muted/50 text-muted-foreground"}`}>
-                        {phase}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {info.itemCount}
-                      </div>
+      {/* Répartition par phase */}
+      <Card className="bg-card/50 h-full">
+        <CardContent className="pt-4 pb-3 px-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                Répartition par phase
+              </div>
+              <div className="flex gap-1 mt-1">
+                {Object.entries(phasesData.phases).map(([phase, info]) => (
+                  <div key={phase} className="flex-1 text-center">
+                    <div className={`text-xs font-medium rounded-sm py-0.5 ${info.isCurrent ? PHASE_COLORS[phase] : "bg-muted/50 text-muted-foreground"}`}>
+                      {phase}
                     </div>
-                  ))}
-                </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {info.itemCount}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              Total: {phasesData.indicators.totalItems} éléments
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Total: {phasesData.indicators.totalItems} éléments
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
