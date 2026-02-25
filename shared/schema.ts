@@ -499,7 +499,8 @@ export const projectPayments = pgTable("project_payments", {
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
   paymentDate: date("payment_date").notNull(),
-  description: text("description"), // Optional note about the payment
+  description: text("description"),
+  isPaid: boolean("is_paid").notNull().default(false),
   createdBy: uuid("created_by").notNull().references(() => appUsers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

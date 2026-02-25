@@ -5209,12 +5209,20 @@ export default function ProjectDetail() {
                           data-testid={`payment-item-${payment.id}`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                              <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${payment.isPaid ? "bg-green-100 dark:bg-green-900/30" : "bg-amber-100 dark:bg-amber-900/30"}`}>
+                              {payment.isPaid
+                                ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                : <CalendarIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                              }
                             </div>
                             <div>
-                              <div className="text-[13px] font-semibold">
-                                {parseFloat(payment.amount).toFixed(2)} €
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-semibold">
+                                  {parseFloat(payment.amount).toFixed(2)} €
+                                </span>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${payment.isPaid ? "text-green-600 border-green-300" : "text-amber-600 border-amber-300"}`}>
+                                  {payment.isPaid ? "Réglé" : "Prévu"}
+                                </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {format(new Date(payment.paymentDate), "dd MMM yyyy", { locale: fr })}
@@ -5225,6 +5233,23 @@ export default function ProjectDetail() {
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
+                              size="sm"
+                              className={`text-xs h-7 px-2 ${payment.isPaid ? "text-amber-600" : "text-green-600"}`}
+                              onClick={async () => {
+                                try {
+                                  await apiRequest(`/api/payments/${payment.id}`, "PATCH", { isPaid: !payment.isPaid });
+                                  queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                                  queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
+                                } catch (e: any) {
+                                  toast({ title: "Erreur", description: e.message, variant: "destructive" });
+                                }
+                              }}
+                              data-testid={`button-toggle-paid-${payment.id}`}
+                            >
+                              {payment.isPaid ? "Annuler" : "Régler"}
+                            </Button>
+                            <Button
+                              variant="ghost"
                               size="icon"
                               onClick={() => {
                                 setEditingPayment(payment);
@@ -5233,7 +5258,7 @@ export default function ProjectDetail() {
                                 setEditPaymentDescription(payment.description || "");
                               }}
                               data-testid={`button-edit-payment-${payment.id}`}
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              className="h-8 w-8 text-muted-foreground"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -5242,7 +5267,7 @@ export default function ProjectDetail() {
                               size="icon"
                               onClick={() => setDeletePaymentId(payment.id)}
                               data-testid={`button-delete-payment-${payment.id}`}
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              className="h-8 w-8 text-muted-foreground"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

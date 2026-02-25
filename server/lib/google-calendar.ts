@@ -243,3 +243,47 @@ export async function createCalendarEvent(
 
   return response.data;
 }
+
+export async function deleteCalendarEvent(
+  accountId: string,
+  userId: string,
+  googleEventId: string
+) {
+  let token = await storage.getGoogleTokenByUserId(accountId, userId);
+  if (!token) return;
+
+  if (new Date(token.expiresAt) < new Date()) {
+    await refreshAccessToken(accountId, userId);
+    token = await storage.getGoogleTokenByUserId(accountId, userId);
+    if (!token) return;
+  }
+
+  const clientId = getGoogleClientId();
+  const clientSecret = getGoogleClientSecret();
+  if (!clientId || !clientSecret) return;
+
+  const domain = process.env.GOOGLE_REDIRECT_DOMAIN?.replace(/\/$/, '')
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+    || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+  const oauth2Client = createOAuth2Client({
+    clientId,
+    clientSecret,
+    redirectUri: `${domain}/api/google/auth/callback`,
+  });
+
+  oauth2Client.setCredentials({
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+  });
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  try {
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: googleEventId,
+    });
+  } catch (err: any) {
+    if (err?.code !== 410 && err?.code !== 404) throw err;
+  }
+}

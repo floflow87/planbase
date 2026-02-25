@@ -447,10 +447,16 @@ export default function Dashboard() {
     return "full_year";
   });
   const [activityFilter, setActivityFilter] = useState<"all" | "crm" | "projets" | "product" | "taches" | "whiteboards" | "notes" | "documents">("all");
+  const [showForecast, setShowForecast] = useState(() => {
+    return localStorage.getItem("dashboard_show_forecast") === "true";
+  });
   
   useEffect(() => {
     localStorage.setItem("dashboard_revenue_period", revenuePeriod);
   }, [revenuePeriod]);
+  useEffect(() => {
+    localStorage.setItem("dashboard_show_forecast", String(showForecast));
+  }, [showForecast]);
   useEffect(() => {
     localStorage.setItem("dashboard_my_day_filter", myDayFilter);
   }, [myDayFilter]);
@@ -1187,46 +1193,57 @@ export default function Dashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     
-    // Group payments by projectId for quick lookup
-    const paymentsByProject: Record<string, ProjectPayment[]> = {};
-    payments.forEach(p => {
-      if (!paymentsByProject[p.projectId]) paymentsByProject[p.projectId] = [];
-      paymentsByProject[p.projectId].push(p);
-    });
+    if (showForecast) {
+      // Forecast mode: distribute revenue across payment dates (all payments, including planned)
+      const paymentsByProject: Record<string, ProjectPayment[]> = {};
+      payments.forEach(p => {
+        if (!paymentsByProject[p.projectId]) paymentsByProject[p.projectId] = [];
+        paymentsByProject[p.projectId].push(p);
+      });
 
-    projects.forEach(project => {
-      if (project.stage === "prospection") return;
-      const projectPaymentList = paymentsByProject[project.id] || [];
+      projects.forEach(project => {
+        if (project.stage === "prospection") return;
+        const projectPaymentList = paymentsByProject[project.id] || [];
 
-      if (projectPaymentList.length > 0) {
-        // Distribute revenue across payment dates
-        let counted = false;
-        projectPaymentList.forEach(payment => {
-          const payDate = new Date(payment.paymentDate);
-          const payMonth = payDate.getMonth();
-          const payYear = payDate.getFullYear();
-
-          // En mode projection, filtrer les paiements avant demain
-          if (revenuePeriod === "projection" && payDate < tomorrow) return;
-
-          const matchingMonth = months.find(m => m.monthIndex === payMonth && m.year === payYear);
-          if (matchingMonth) {
-            monthlyBudgets[matchingMonth.key] += Number(payment.amount) || 0;
-            if (!counted) {
+        if (projectPaymentList.length > 0) {
+          let counted = false;
+          projectPaymentList.forEach(payment => {
+            const payDate = new Date(payment.paymentDate);
+            const payMonth = payDate.getMonth();
+            const payYear = payDate.getFullYear();
+            if (revenuePeriod === "projection" && payDate < tomorrow) return;
+            const matchingMonth = months.find(m => m.monthIndex === payMonth && m.year === payYear);
+            if (matchingMonth) {
+              monthlyBudgets[matchingMonth.key] += Number(payment.amount) || 0;
+              if (!counted) { monthlyProjectCounts[matchingMonth.key] += 1; counted = true; }
+            }
+          });
+        } else {
+          // No payments: use budget at start date
+          const effectiveBudget = project.totalBilled || project.budget;
+          if (project.startDate && effectiveBudget) {
+            const startDate = new Date(project.startDate);
+            if (revenuePeriod === "projection" && startDate < tomorrow) return;
+            const matchingMonth = months.find(m => m.monthIndex === startDate.getMonth() && m.year === startDate.getFullYear());
+            if (matchingMonth) {
+              monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
               monthlyProjectCounts[matchingMonth.key] += 1;
-              counted = true;
             }
           }
-        });
-      } else {
-        // Fallback: use project budget at start date
+        }
+      });
+    } else {
+      // Default mode: use project budget at start date
+      projects.forEach(project => {
         const effectiveBudget = project.totalBilled || project.budget;
-        if (project.startDate && effectiveBudget) {
+        if (project.startDate && effectiveBudget && project.stage !== "prospection") {
           const startDate = new Date(project.startDate);
           const projectMonth = startDate.getMonth();
           const projectYear = startDate.getFullYear();
 
-          if (revenuePeriod === "projection" && startDate < tomorrow) return;
+          if (revenuePeriod === "projection") {
+            if (startDate < tomorrow) return;
+          }
 
           const matchingMonth = months.find(
             m => m.monthIndex === projectMonth && m.year === projectYear
@@ -1237,8 +1254,8 @@ export default function Dashboard() {
             monthlyProjectCounts[matchingMonth.key] += 1;
           }
         }
-      }
-    });
+      });
+    }
     
     return months.map(({ month, key, year }) => {
       const revenue = monthlyBudgets[key];
@@ -1263,7 +1280,7 @@ export default function Dashboard() {
         fill
       };
     });
-  }, [projects, payments, revenuePeriod]);
+  }, [projects, payments, revenuePeriod, showForecast]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
   // Il doit être la somme des revenus mensuels affichés dans le graphique
@@ -1340,8 +1357,8 @@ export default function Dashboard() {
       return sum + projectBudget;
     }
     
-    // Sinon, on additionne les paiements individuels pour ce projet
-    const projectPayments = payments.filter(p => p.projectId === project.id);
+    // Sinon, on additionne uniquement les paiements réglés (isPaid: true)
+    const projectPayments = payments.filter(p => p.projectId === project.id && p.isPaid);
     const paidAmount = projectPayments.reduce((s, p) => s + parseFloat(p.amount || "0"), 0);
     return sum + paidAmount;
   }, 0);
@@ -1922,19 +1939,29 @@ export default function Dashboard() {
               <CardTitle className="text-base font-heading font-semibold">
                 Revenus Mensuels
               </CardTitle>
-              <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
-                <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full_year">Année 2026</SelectItem>
-                  <SelectItem value="last_year">Année dernière (2025)</SelectItem>
-                  <SelectItem value="until_this_month">Jusqu'à ce mois</SelectItem>
-                  <SelectItem value="projection">Projection</SelectItem>
-                  <SelectItem value="6months">6 derniers mois</SelectItem>
-                  <SelectItem value="quarter">Trimestre actuel</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none" data-testid="toggle-forecast">
+                  <Switch
+                    checked={showForecast}
+                    onCheckedChange={setShowForecast}
+                    id="toggle-forecast"
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">Prévisionnels</span>
+                </label>
+                <Select value={revenuePeriod} onValueChange={(value: "full_year" | "last_year" | "until_this_month" | "projection" | "6months" | "quarter") => setRevenuePeriod(value)}>
+                  <SelectTrigger className="w-[180px] bg-card" data-testid="select-revenue-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full_year">Année 2026</SelectItem>
+                    <SelectItem value="last_year">Année dernière (2025)</SelectItem>
+                    <SelectItem value="until_this_month">Jusqu'à ce mois</SelectItem>
+                    <SelectItem value="projection">Projection</SelectItem>
+                    <SelectItem value="6months">6 derniers mois</SelectItem>
+                    <SelectItem value="quarter">Trimestre actuel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="min-w-0 text-[12px] flex-1 flex flex-col justify-end pt-2">
               <div className="w-full overflow-hidden">
@@ -2089,7 +2116,7 @@ export default function Dashboard() {
                         <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{project.description || "Aucune description"}</p>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto flex-wrap">
-                        <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0`}>
+                        <Badge className={`${getStageColor(project.stage || "prospection")} shrink-0 text-[10px]`}>
                           {getStageLabel(project.stage || "prospection")}
                         </Badge>
                         <p className="text-[10px] text-muted-foreground">
@@ -2435,7 +2462,7 @@ export default function Dashboard() {
                     onClick={() => setLocation(`/notes/${note.id}`)}
                     data-testid={`note-item-${note.id}`}
                   >
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <div className="w-1 h-8 rounded bg-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{note.title || "Sans titre"}</p>
                       {note.updatedAt && (
@@ -2491,7 +2518,7 @@ export default function Dashboard() {
                       onClick={() => setLocation(`/product/backlog/${backlog.id}`)}
                       data-testid={`backlog-item-${backlog.id}`}
                     >
-                      <FolderKanban className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <div className="w-1 h-8 rounded bg-primary shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate">{backlog.name}</p>
                         {project && (

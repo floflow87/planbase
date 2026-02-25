@@ -2056,6 +2056,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Appointments recurrence_days column added");
 
+    // ============================================
+    // Project payments is_paid column
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE project_payments
+      ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT FALSE;
+    `);
+    console.log("✅ Project payments is_paid column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

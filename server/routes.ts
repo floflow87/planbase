@@ -1905,8 +1905,8 @@ app.get("/config/feature-flags", async (_req, res) => {
       }
       const payments = await storage.getPaymentsByProjectId(req.params.projectId);
       
-      // Calculate totals for convenience
-      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      // Only count isPaid:true payments for the progress bar
+      const totalPaid = payments.filter(p => p.isPaid).reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
       const budget = parseFloat(project.budget || "0");
       const remainingAmount = Math.max(0, budget - totalPaid);
       
@@ -1940,12 +1940,12 @@ app.get("/config/feature-flags", async (_req, res) => {
         createdBy: req.userId!,
       });
 
-      // Get all payments for this project to calculate total paid
+      // Get all payments for this project to calculate total paid (only isPaid:true)
       const payments = await storage.getPaymentsByProjectId(req.params.projectId);
-      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const totalPaid = payments.filter(p => p.isPaid).reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
       const budget = parseFloat(project.budget || "0");
 
-      // Auto-update billing status based on payment progress
+      // Auto-update billing status based on actually paid payments
       let newBillingStatus = project.billingStatus;
       if (budget > 0) {
         if (totalPaid >= budget) {
@@ -1979,9 +1979,9 @@ app.get("/config/feature-flags", async (_req, res) => {
 
       const updatedPayment = await storage.updatePayment(req.params.paymentId, req.body);
 
-      // Recalculate billing status
+      // Recalculate billing status using only isPaid:true payments
       const payments = await storage.getPaymentsByProjectId(payment.projectId);
-      const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
+      const totalPaid = payments.filter(p => p.isPaid).reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
       const project = await storage.getProject(payment.projectId);
       const budget = parseFloat(project?.budget || "0");
 
@@ -1991,6 +1991,8 @@ app.get("/config/feature-flags", async (_req, res) => {
           newBillingStatus = "paye";
         } else if (totalPaid > 0) {
           newBillingStatus = "partiel";
+        } else {
+          newBillingStatus = "a_facturer";
         }
       }
 
@@ -7425,6 +7427,16 @@ app.get("/config/feature-flags", async (_req, res) => {
       const existing = await storage.getAppointment(req.accountId!, req.params.id);
       if (!existing) {
         return res.status(404).json({ error: "Appointment not found" });
+      }
+
+      // If synced to Google Calendar, delete the Google event first
+      if (existing.googleEventId && req.userId) {
+        try {
+          const { deleteCalendarEvent } = await import("./lib/google-calendar");
+          await deleteCalendarEvent(req.accountId!, req.userId, existing.googleEventId);
+        } catch (gErr: any) {
+          console.warn("Could not delete Google Calendar event:", gErr.message);
+        }
       }
       
       const success = await storage.deleteAppointment(req.accountId!, req.params.id);
