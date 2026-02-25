@@ -706,38 +706,39 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  // Fetch today's appointments
-  const todayAppointments = useMemo(() => {
+  // Fetch upcoming appointments (next 7 days)
+  const calendarFetchStart = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     return start;
   }, []);
-  const tomorrowAppointments = useMemo(() => {
+  const calendarFetchEnd = useMemo(() => {
     const end = new Date();
+    end.setDate(end.getDate() + 7);
     end.setHours(23, 59, 59, 999);
     return end;
   }, []);
   const appointmentsUrl = useMemo(() => {
     const params = new URLSearchParams({
-      startDate: todayAppointments.toISOString(),
-      endDate: tomorrowAppointments.toISOString(),
+      startDate: calendarFetchStart.toISOString(),
+      endDate: calendarFetchEnd.toISOString(),
     });
     return `/api/appointments?${params}`;
-  }, [todayAppointments, tomorrowAppointments]);
+  }, [calendarFetchStart, calendarFetchEnd]);
 
   const { data: appointments = [] } = useQuery<Appointment[]>({
     queryKey: [appointmentsUrl],
     enabled: !!accountId,
   });
 
-  // Fetch today's Google Calendar events
+  // Fetch upcoming Google Calendar events (next 7 days)
   const googleEventsUrl = useMemo(() => {
     const params = new URLSearchParams({
-      startDate: todayAppointments.toISOString(),
-      endDate: tomorrowAppointments.toISOString(),
+      startDate: calendarFetchStart.toISOString(),
+      endDate: calendarFetchEnd.toISOString(),
     });
     return `/api/google/events?${params}`;
-  }, [todayAppointments, tomorrowAppointments]);
+  }, [calendarFetchStart, calendarFetchEnd]);
 
   const { data: todayGoogleEvents = [] } = useQuery<GoogleEvent[]>({
     queryKey: [googleEventsUrl],
@@ -2087,11 +2088,19 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                         <CalendarIcon className="w-3 h-3" />
-                        À venir aujourd'hui
+                        À venir
                       </p>
                       {upcomingCalendarItems.map((item) => {
+                        const todayDate = new Date();
+                        todayDate.setHours(0, 0, 0, 0);
+                        const itemDate = new Date(item.start);
+                        itemDate.setHours(0, 0, 0, 0);
+                        const isToday = itemDate.getTime() === todayDate.getTime();
                         const fmt = (d: Date) =>
                           `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                        const dateLabel = !isToday
+                          ? item.start.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+                          : null;
                         const timeLabel = `${fmt(item.start)}${item.end ? ` – ${fmt(item.end)}` : ''}`;
                         const isGoogle = item.kind === "google";
                         const borderColor = isGoogle ? '#06B6D4' : ((item as any).color || '#7C3AED');
@@ -2114,6 +2123,12 @@ export default function Dashboard() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                                {dateLabel && (
+                                  <span className="flex items-center gap-0.5 font-medium text-foreground/70">
+                                    <CalendarIcon className="w-3 h-3" />
+                                    {dateLabel}
+                                  </span>
+                                )}
                                 <span className="flex items-center gap-0.5">
                                   <Clock className="w-3 h-3" />
                                   {timeLabel}
