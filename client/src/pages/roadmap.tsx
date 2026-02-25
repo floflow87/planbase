@@ -977,9 +977,7 @@ export default function RoadmapPage() {
               data-testid="button-back-to-home"
             >
               <ChevronLeft className="h-4 w-4" />
-              Toutes les roadmaps
             </button>
-            <span className="text-muted-foreground">/</span>
             <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
           </div>
         ) : (
@@ -1182,9 +1180,9 @@ export default function RoadmapPage() {
             <>
             {/* Tab bar: Roadmap | OKR + Recos button */}
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 rounded-lg p-1 bg-muted/50 border">
+              <div className="flex items-center bg-white dark:bg-card border rounded-lg overflow-hidden">
                 <button
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeDetailTab === "roadmap" ? "bg-white dark:bg-background shadow-sm text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all border-l-2 ${activeDetailTab === "roadmap" ? "bg-primary/10 text-primary border-l-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l-transparent"}`}
                   onClick={() => setActiveDetailTab("roadmap")}
                   data-testid="tab-roadmap"
                 >
@@ -1192,7 +1190,7 @@ export default function RoadmapPage() {
                   Roadmap
                 </button>
                 <button
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeDetailTab === "okr" ? "bg-white dark:bg-background shadow-sm text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-all border-l-2 ${activeDetailTab === "okr" ? "bg-primary/10 text-primary border-l-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l-transparent"}`}
                   onClick={() => setActiveDetailTab("okr")}
                   data-testid="tab-okr"
                 >
