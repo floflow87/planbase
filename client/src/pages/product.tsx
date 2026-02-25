@@ -585,28 +585,20 @@ export default function Product() {
                 onClick={() => navigate(`/product/backlog/${backlog.id}`)}
                 data-testid={`card-backlog-${backlog.id}`}
               >
-                <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-[14px] font-bold text-primary truncate">{backlog.name}</CardTitle>
-                    {backlog.description && (
-                      <CardDescription className="line-clamp-1 mt-0.5 text-xs">
-                        {backlog.description}
-                      </CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {backlog.project && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-[10px]" onClick={(e) => e.stopPropagation()}>
-                        <Folder className="h-2.5 w-2.5" />
-                        {backlog.project.name}
-                      </Badge>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-menu-backlog-${backlog.id}`}>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
+                <CardHeader className="flex flex-row items-center gap-2 p-3 pb-1">
+                  <CardTitle className="text-[14px] font-bold text-primary truncate flex-1 min-w-0">{backlog.name}</CardTitle>
+                  {backlog.project && (
+                    <Badge variant="outline" className="flex items-center gap-1 text-[10px] shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Folder className="h-2.5 w-2.5" />
+                      {backlog.project.name}
+                    </Badge>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0" data-testid={`button-menu-backlog-${backlog.id}`}>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-white border shadow-md">
                         <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`menu-open-backlog-${backlog.id}`}>
                           <ArrowRight className="h-4 w-4 mr-2" />
@@ -627,7 +619,6 @@ export default function Product() {
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
                 </CardHeader>
                 <CardContent className="p-3 pt-1">
                   <div className="flex items-center gap-1.5 flex-wrap">

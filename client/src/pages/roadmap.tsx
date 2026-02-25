@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useSearch } from "wouter";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, MouseSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format } from "date-fns";
@@ -146,7 +146,7 @@ export default function RoadmapPage() {
     try { return JSON.parse(localStorage.getItem(HOME_COLUMNS_KEY) || "null") || DEFAULT_HOME_COLUMNS; } catch { return DEFAULT_HOME_COLUMNS; }
   });
 
-  const colSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const colSensors = useSensors(useSensor(MouseSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
 
   function handleHomeColumnDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -1040,7 +1040,7 @@ export default function RoadmapPage() {
               </div>
 
               {isLoadingRoadmaps ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
                   <Loader />
                 </div>
               ) : filteredHomeRoadmaps.length === 0 ? (
@@ -1117,7 +1117,7 @@ export default function RoadmapPage() {
                                   {(roadmap as any).type === "now_next_later" ? (
                                     <Badge className="text-[10px] px-1.5 py-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800">NNL</Badge>
                                   ) : (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Feature</Badge>
+                                    <Badge className="text-[10px] px-1.5 py-0 bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">Features</Badge>
                                   )}
                                 </td>
                               ),
