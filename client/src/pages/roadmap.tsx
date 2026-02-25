@@ -98,10 +98,7 @@ export default function RoadmapPage() {
     const saved = localStorage.getItem("roadmap-selected-project");
     return saved || null;
   });
-  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(() => {
-    const saved = localStorage.getItem("roadmap-selected-roadmap");
-    return saved || null;
-  });
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("roadmap-view-mode");
     return (saved as ViewMode) || "gantt";
@@ -189,11 +186,6 @@ export default function RoadmapPage() {
     }
   }, [selectedProjectId]);
 
-  useEffect(() => {
-    if (selectedRoadmapId) {
-      localStorage.setItem("roadmap-selected-roadmap", selectedRoadmapId);
-    }
-  }, [selectedRoadmapId]);
 
   useEffect(() => {
     localStorage.setItem("roadmap-view-mode", viewMode);
@@ -1190,19 +1182,21 @@ export default function RoadmapPage() {
             <>
             {/* Tab bar: Roadmap | OKR + Recos button */}
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 border rounded-md p-0.5 bg-muted/40">
+              <div className="flex items-center gap-1 rounded-lg p-1 bg-muted/50 border">
                 <button
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeDetailTab === "roadmap" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeDetailTab === "roadmap" ? "bg-white dark:bg-background shadow-sm text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={() => setActiveDetailTab("roadmap")}
                   data-testid="tab-roadmap"
                 >
+                  <Map className="h-3.5 w-3.5" />
                   Roadmap
                 </button>
                 <button
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${activeDetailTab === "okr" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeDetailTab === "okr" ? "bg-white dark:bg-background shadow-sm text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={() => setActiveDetailTab("okr")}
                   data-testid="tab-okr"
                 >
+                  <Target className="h-3.5 w-3.5" />
                   OKR
                 </button>
               </div>
