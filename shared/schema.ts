@@ -1200,6 +1200,9 @@ export const appointments = pgTable("appointments", {
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
   notes: text("notes"), // Remarques
+  color: text("color").default("#F3E8FF"), // Pastel color for the event card
+  recurrence: text("recurrence").default("none"), // none | daily | weekly | monthly | yearly
+  recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }), // Optional end date for recurrence
   googleEventId: text("google_event_id"), // ID de l'événement Google Calendar (pour sync bidirectionnel)
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }), // Nullable for FK compatibility
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

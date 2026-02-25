@@ -1005,7 +1005,7 @@ export default function RoadmapPage() {
         <>
           {!selectedRoadmapId && (
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="relative w-56">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -1028,6 +1028,7 @@ export default function RoadmapPage() {
                   <Button
                     onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
                     data-testid="button-create-roadmap-home-header"
+                    className="text-[13px]"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Nouvelle roadmap

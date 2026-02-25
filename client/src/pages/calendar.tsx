@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +38,9 @@ interface Appointment {
   htmlLink?: string | null;
   attendees?: Array<{ email: string; displayName?: string; responseStatus?: string }> | null;
   organizer?: { email: string; displayName?: string } | null;
+  color?: string | null;
+  recurrence?: string | null;
+  recurrenceEndDate?: string | null;
 }
 
 interface GoogleEvent {
@@ -85,6 +88,13 @@ export default function Calendar() {
   const [selectedTask, setSelectedTask] = useState<FullTask | null>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const { toast } = useToast();
+
+  // Current time for the now-indicator (updated every minute)
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch appointments for the current month
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -357,11 +367,48 @@ export default function Calendar() {
     return days;
   };
 
-  const getAppointmentsForDay = (date: Date) => {
-    return appointments.filter(apt => {
-      const aptDate = new Date(apt.startDateTime);
-      return aptDate.toDateString() === date.toDateString();
-    });
+  const getAppointmentsForDay = (date: Date): Appointment[] => {
+    const results: Appointment[] = [];
+    for (const apt of appointments) {
+      const aptStart = new Date(apt.startDateTime);
+      const recurrence = apt.recurrence || "none";
+      const recEnd = apt.recurrenceEndDate ? new Date(apt.recurrenceEndDate) : null;
+
+      if (aptStart.toDateString() === date.toDateString()) {
+        results.push(apt);
+      } else if (recurrence !== "none" && date >= aptStart) {
+        if (recEnd && date > recEnd) continue;
+        let matches = false;
+        if (recurrence === "daily") {
+          matches = true;
+        } else if (recurrence === "weekly") {
+          matches = aptStart.getDay() === date.getDay();
+        } else if (recurrence === "monthly") {
+          matches = aptStart.getDate() === date.getDate();
+        } else if (recurrence === "yearly") {
+          matches = aptStart.getMonth() === date.getMonth() && aptStart.getDate() === date.getDate();
+        }
+        if (matches) {
+          const diff = date.getTime() - aptStart.getTime();
+          const virtualStart = new Date(apt.startDateTime);
+          virtualStart.setTime(virtualStart.getTime() + diff - (date.getDay() - aptStart.getDay()) * 0);
+          // Build virtual copy with correct date
+          const daysDiff = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+            new Date(aptStart.getFullYear(), aptStart.getMonth(), aptStart.getDate()).getTime()) / (1000 * 60 * 60 * 24));
+          const newStart = new Date(aptStart);
+          newStart.setDate(newStart.getDate() + daysDiff);
+          const newEnd = apt.endDateTime ? new Date(new Date(apt.endDateTime).getTime() +
+            (newStart.getTime() - aptStart.getTime())) : null;
+          results.push({
+            ...apt,
+            id: `${apt.id}_recur_${date.toISOString().split("T")[0]}`,
+            startDateTime: newStart.toISOString(),
+            endDateTime: newEnd ? newEnd.toISOString() : null,
+          });
+        }
+      }
+    }
+    return results;
   };
 
   const getGoogleEventsForDay = (date: Date) => {
@@ -865,6 +912,18 @@ export default function Calendar() {
                 </div>
 
                 {/* Time grid rows */}
+                <div className="relative">
+                {/* Now indicator (week view) */}
+                {now.getHours() >= START_HOUR && now.getHours() < END_HOUR && (() => {
+                  const topPx = (now.getHours() - START_HOUR + now.getMinutes() / 60) * SLOT_HEIGHT;
+                  return (
+                    <div className="absolute left-0 right-0 z-30 pointer-events-none flex items-center" style={{ top: topPx }}>
+                      <div style={{ width: 'calc(100% / 8 - 4px)' }} className="flex-shrink-0" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 -mt-[1px]" />
+                      <div className="flex-1 h-[2px] bg-red-500" />
+                    </div>
+                  );
+                })()}
                 {generateTimeSlots().map((time, timeIndex) => {
                   const slotHour = parseInt(time.split(':')[0]);
                   
@@ -966,8 +1025,8 @@ export default function Calendar() {
                                 <Tooltip key={apt.id}>
                                   <TooltipTrigger asChild>
                                     <div
-                                      className="absolute left-0.5 right-0.5 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-2 border-violet-500 text-xs overflow-hidden group"
-                                      style={{ top: offsetPx, height: heightPx }}
+                                      className="absolute left-0.5 right-0.5 z-20 rounded cursor-pointer border-l-2 text-xs overflow-hidden group"
+                                      style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: 'rgba(0,0,0,0.25)', color: 'rgba(0,0,0,0.75)' }}
                                       draggable
                                       onDragStart={(e) => {
                                         e.dataTransfer.setData("appointmentId", apt.id);
@@ -1123,6 +1182,7 @@ export default function Calendar() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           );
@@ -1147,7 +1207,18 @@ export default function Calendar() {
               </div>
 
               {/* Time grid rows */}
-              <div>
+              <div className="relative">
+                {/* Now indicator (day view) */}
+                {now.getHours() >= START_HOUR && now.getHours() < END_HOUR && (() => {
+                  const topPx = (now.getHours() - START_HOUR + now.getMinutes() / 60) * SLOT_HEIGHT;
+                  return (
+                    <div className="absolute left-0 right-0 z-30 pointer-events-none flex items-center" style={{ top: topPx }}>
+                      <div className="w-16 flex-shrink-0" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 -ml-1 -mt-[1px]" />
+                      <div className="flex-1 h-[2px] bg-red-500" />
+                    </div>
+                  );
+                })()}
                 {generateTimeSlots().map((time, timeIndex) => {
                   const slotHour = parseInt(time.split(':')[0]);
                   const slotDateTime = new Date(currentDate);
@@ -1266,8 +1337,8 @@ export default function Calendar() {
                             <Tooltip key={apt.id}>
                               <TooltipTrigger asChild>
                                 <div
-                                  className="absolute left-1 right-1 z-20 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 cursor-pointer border-l-4 border-violet-500 overflow-hidden group"
-                                  style={{ top: offsetPx, height: heightPx }}
+                                  className="absolute left-1 right-1 z-20 rounded cursor-pointer border-l-4 overflow-hidden group"
+                                  style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: 'rgba(0,0,0,0.25)', color: 'rgba(0,0,0,0.75)' }}
                                   draggable
                                   onDragStart={(e) => {
                                     e.dataTransfer.setData("appointmentId", apt.id);

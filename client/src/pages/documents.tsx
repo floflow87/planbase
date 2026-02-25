@@ -554,7 +554,7 @@ export default function Documents() {
 
   return (
     <PermissionGuard module="documents" fallbackPath="/">
-      <div className="flex-1 overflow-hidden bg-[#F8FAFC] dark:bg-background flex" data-testid="page-documents">
+      <div className="h-full overflow-hidden bg-[#F8FAFC] dark:bg-background flex" data-testid="page-documents">
       {/* Left Sidebar - Folder Explorer (Collapsible) */}
       <div 
         className={`border-r border-border flex flex-col transition-all duration-300 ease-in-out ${

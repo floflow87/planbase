@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, ChevronsUpDown, Check, X, Trash2, Edit, Eye } from "lucide-react";
+import { Loader2, ChevronsUpDown, Check, X, Trash2, Edit, Eye, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Client, AppointmentType } from "@shared/schema";
 import { appointmentTypes } from "@shared/schema";
@@ -41,6 +41,29 @@ interface AppointmentPanelProps {
   isReadOnly?: boolean;
   source?: "planbase" | "google";
 }
+
+const PASTEL_COLORS = [
+  { hex: "#F3E8FF", label: "Violet" },
+  { hex: "#DBEAFE", label: "Bleu" },
+  { hex: "#D1FAE5", label: "Vert" },
+  { hex: "#FEF9C3", label: "Jaune" },
+  { hex: "#FFE4E6", label: "Rose" },
+  { hex: "#FFEDD5", label: "Orange" },
+  { hex: "#E0F2FE", label: "Cyan" },
+  { hex: "#FCE7F3", label: "Fuchsia" },
+  { hex: "#F0FDF4", label: "Menthe" },
+  { hex: "#FDF2F8", label: "Lavande" },
+  { hex: "#ECFDF5", label: "Émeraude" },
+  { hex: "#F1F5F9", label: "Gris" },
+];
+
+const RECURRENCE_LABELS: Record<string, string> = {
+  none: "Aucune",
+  daily: "Quotidien",
+  weekly: "Hebdomadaire",
+  monthly: "Mensuel",
+  yearly: "Annuel",
+};
 
 const appointmentTypeLabels: Record<AppointmentType, string> = {
   KICKOFF: "Kickoff",
@@ -79,6 +102,9 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientSearchOpen, setClientSearchOpen] = useState(false);
   const [clientSearchValue, setClientSearchValue] = useState("");
+  const [color, setColor] = useState("#F3E8FF");
+  const [recurrence, setRecurrence] = useState("none");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -112,6 +138,9 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
         setContactEmail(appointment.contactEmail || "");
         setContactPhone(appointment.contactPhone || "");
         setNotes(appointment.notes || "");
+        setColor((appointment as any).color || "#F3E8FF");
+        setRecurrence((appointment as any).recurrence || "none");
+        setRecurrenceEndDate((appointment as any).recurrenceEndDate ? formatDateTimeLocal(new Date((appointment as any).recurrenceEndDate)).split("T")[0] : "");
         setMode(initialMode);
       } else {
         setMode("create");
@@ -224,6 +253,9 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       contactEmail: contactEmail.trim() || null,
       contactPhone: contactPhone.trim() || null,
       notes: notes.trim() || null,
+      color: color || "#F3E8FF",
+      recurrence: recurrence || "none",
+      recurrenceEndDate: recurrence !== "none" && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
     };
 
     if (mode === "edit" && appointment) {
@@ -243,6 +275,9 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
     setContactEmail("");
     setContactPhone("");
     setNotes("");
+    setColor("#F3E8FF");
+    setRecurrence("none");
+    setRecurrenceEndDate("");
     setMode("create");
     onClose();
   };
@@ -414,6 +449,28 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
             )}
           </div>
 
+          <div className="space-y-2">
+            <Label>Couleur</Label>
+            <div className="flex flex-wrap gap-2">
+              {PASTEL_COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  disabled={isViewMode}
+                  title={c.label}
+                  onClick={() => setColor(c.hex)}
+                  data-testid={`color-option-${c.hex.replace("#", "")}`}
+                  className="w-7 h-7 rounded-full border-2 transition-all"
+                  style={{
+                    backgroundColor: c.hex,
+                    borderColor: color === c.hex ? "#7C3AED" : "transparent",
+                    boxShadow: color === c.hex ? "0 0 0 2px #7C3AED40" : "none",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDateTime">Début *</Label>
@@ -438,6 +495,38 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                 data-testid="input-appointment-end"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="recurrence">Récurrence</Label>
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Select value={recurrence} onValueChange={setRecurrence} disabled={isViewMode}>
+                <SelectTrigger data-testid="select-appointment-recurrence" className="flex-1">
+                  <SelectValue placeholder="Aucune récurrence" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(RECURRENCE_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {recurrence !== "none" && (
+              <div className="space-y-1 mt-2">
+                <Label htmlFor="recurrenceEndDate" className="text-xs text-muted-foreground">
+                  Date de fin de récurrence (optionnel)
+                </Label>
+                <Input
+                  id="recurrenceEndDate"
+                  type="date"
+                  value={recurrenceEndDate}
+                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                  disabled={isViewMode}
+                  data-testid="input-recurrence-end"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -2036,6 +2036,17 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Roadmaps type column added");
 
+    // ============================================
+    // Appointments color and recurrence columns
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE appointments
+      ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#F3E8FF',
+      ADD COLUMN IF NOT EXISTS recurrence TEXT DEFAULT 'none',
+      ADD COLUMN IF NOT EXISTS recurrence_end_date TIMESTAMPTZ;
+    `);
+    console.log("✅ Appointments color and recurrence columns added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);
