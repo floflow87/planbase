@@ -372,13 +372,10 @@ export default function RoadmapPage() {
   useEffect(() => {
     if (!selectedProjectId) return;
     if (isLoadingRoadmaps) return;
-    const savedRoadmapId = localStorage.getItem("roadmap-selected-roadmap");
-    if (savedRoadmapId && roadmaps.some(r => r.id === savedRoadmapId)) {
-      setSelectedRoadmapId(savedRoadmapId);
-    } else {
+    if (selectedRoadmapId && !roadmaps.some(r => r.id === selectedRoadmapId)) {
       setSelectedRoadmapId(null);
     }
-  }, [selectedProjectId, roadmaps, isLoadingRoadmaps]);
+  }, [selectedProjectId, roadmaps, isLoadingRoadmaps, selectedRoadmapId]);
 
   const createRoadmapMutation = useMutation({
     mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean; fromHome?: boolean; fromProjectId?: string | null }) => {
