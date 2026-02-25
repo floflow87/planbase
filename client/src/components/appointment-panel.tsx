@@ -394,7 +394,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                         onValueChange={setClientSearchValue}
                         data-testid="input-search-client"
                       />
-                      <CommandList className="max-h-[220px] overflow-y-auto">
+                      <CommandList className="max-h-[220px] overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                         <CommandEmpty>Aucun client trouvé.</CommandEmpty>
                         <CommandGroup>
                           {filteredClients.map((client) => (

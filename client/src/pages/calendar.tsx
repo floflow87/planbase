@@ -1096,6 +1096,9 @@ export default function Calendar() {
                                           </span>
                                           {" "}{apt.title}
                                         </div>
+                                        {clientName && (
+                                          <div className="truncate text-[10px] opacity-60 leading-tight">{clientName}</div>
+                                        )}
                                       </div>
                                       {/* Resize handle */}
                                   <div
@@ -1411,6 +1414,9 @@ export default function Calendar() {
                                       </span>
                                       {" "}{apt.title}
                                     </div>
+                                    {clientName && (
+                                      <div className="truncate text-xs opacity-60 leading-tight mt-0.5">{clientName}</div>
+                                    )}
                                   </div>
                                   {/* Resize handle */}
                               <div

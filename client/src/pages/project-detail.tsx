@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
 import { Loader } from "@/components/Loader";
@@ -2813,6 +2814,11 @@ export default function ProjectDetail() {
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [paymentDescription, setPaymentDescription] = useState<string>("");
   const [isPaymentDatePickerOpen, setIsPaymentDatePickerOpen] = useState(false);
+  // Partial payments state
+  const [isPartialPayments, setIsPartialPayments] = useState(false);
+  const [installments, setInstallments] = useState<{ amount: string; date: Date | undefined; pickerOpen: boolean }[]>([
+    { amount: "", date: new Date(), pickerOpen: false }
+  ]);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
   // Payment editing state
   const [editingPayment, setEditingPayment] = useState<ProjectPayment | null>(null);
@@ -4902,6 +4908,8 @@ export default function ProjectDetail() {
                       setPaymentAmount(remainingAmount > 0 ? remainingAmount.toFixed(2) : "");
                       setPaymentDate(new Date());
                       setPaymentDescription("");
+                      setIsPartialPayments(false);
+                      setInstallments([{ amount: "", date: new Date(), pickerOpen: false }]);
                     }}
                     data-testid="button-add-payment"
                   >
@@ -4938,71 +4946,180 @@ export default function ProjectDetail() {
                 {/* Payment form */}
                 {showPaymentForm && (
                   <div className="border rounded-lg p-4 space-y-4 bg-muted/30" data-testid="form-payment">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="payment-amount" className="text-xs">Montant (€)</Label>
-                        <Input
-                          id="payment-amount"
-                          type="number"
-                          step="0.01"
-                          placeholder={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          data-testid="input-payment-amount"
-                        />
-                        {remainingAmount > 0 && paymentAmount !== remainingAmount.toFixed(2) && (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="px-0 h-auto text-xs"
-                            onClick={() => setPaymentAmount(remainingAmount.toFixed(2))}
-                            data-testid="button-autofill-amount"
-                          >
-                            Compléter avec le solde ({remainingAmount.toFixed(2)} €)
-                          </Button>
+                    {/* Partial payments toggle */}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="partial-payments"
+                        checked={isPartialPayments}
+                        onCheckedChange={(checked) => {
+                          setIsPartialPayments(!!checked);
+                          if (checked) {
+                            setInstallments([{ amount: "", date: new Date(), pickerOpen: false }]);
+                          }
+                        }}
+                        data-testid="checkbox-partial-payments"
+                      />
+                      <Label htmlFor="partial-payments" className="text-sm cursor-pointer">Plusieurs paiements partiels</Label>
+                    </div>
+
+                    {!isPartialPayments ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="payment-amount" className="text-xs">Montant (€)</Label>
+                            <Input
+                              id="payment-amount"
+                              type="number"
+                              step="0.01"
+                              placeholder={remainingAmount > 0 ? remainingAmount.toFixed(2) : "0.00"}
+                              value={paymentAmount}
+                              onChange={(e) => setPaymentAmount(e.target.value)}
+                              data-testid="input-payment-amount"
+                            />
+                            {remainingAmount > 0 && paymentAmount !== remainingAmount.toFixed(2) && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="px-0 h-auto text-xs"
+                                onClick={() => setPaymentAmount(remainingAmount.toFixed(2))}
+                                data-testid="button-autofill-amount"
+                              >
+                                Compléter avec le solde ({remainingAmount.toFixed(2)} €)
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-xs">Date du paiement</Label>
+                            <Popover open={isPaymentDatePickerOpen} onOpenChange={setIsPaymentDatePickerOpen}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal bg-popover",
+                                    !paymentDate && "text-muted-foreground"
+                                  )}
+                                  data-testid="button-payment-date"
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {paymentDate ? format(paymentDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={paymentDate}
+                                  onSelect={(date) => {
+                                    setPaymentDate(date);
+                                    setIsPaymentDatePickerOpen(false);
+                                  }}
+                                  initialFocus
+                                  locale={fr}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="payment-description" className="text-xs">Description (optionnelle)</Label>
+                          <Input
+                            id="payment-description"
+                            placeholder="Note ou référence du paiement"
+                            value={paymentDescription}
+                            onChange={(e) => setPaymentDescription(e.target.value)}
+                            data-testid="input-payment-description"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-3">
+                        <Label className="text-xs text-muted-foreground">Définissez chaque échéance de paiement</Label>
+                        {installments.map((inst, idx) => (
+                          <div key={idx} className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Montant (€)"
+                                value={inst.amount}
+                                onChange={(e) => {
+                                  const updated = [...installments];
+                                  updated[idx] = { ...updated[idx], amount: e.target.value };
+                                  setInstallments(updated);
+                                }}
+                                data-testid={`input-installment-amount-${idx}`}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <Popover
+                                open={inst.pickerOpen}
+                                onOpenChange={(open) => {
+                                  const updated = [...installments];
+                                  updated[idx] = { ...updated[idx], pickerOpen: open };
+                                  setInstallments(updated);
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal bg-popover",
+                                      !inst.date && "text-muted-foreground"
+                                    )}
+                                    data-testid={`button-installment-date-${idx}`}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {inst.date ? format(inst.date, "dd MMM yyyy", { locale: fr }) : "Date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={inst.date}
+                                    onSelect={(date) => {
+                                      const updated = [...installments];
+                                      updated[idx] = { ...updated[idx], date, pickerOpen: false };
+                                      setInstallments(updated);
+                                    }}
+                                    initialFocus
+                                    locale={fr}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive mt-0 shrink-0"
+                              onClick={() => setInstallments(installments.filter((_, i) => i !== idx))}
+                              disabled={installments.length === 1}
+                              data-testid={`button-remove-installment-${idx}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setInstallments([...installments, { amount: "", date: new Date(), pickerOpen: false }])}
+                          data-testid="button-add-installment"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Ajouter une échéance
+                        </Button>
+                        {remainingAmount > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Solde restant : <span className="font-medium text-foreground">{remainingAmount.toFixed(2)} €</span>
+                            {installments.length > 0 && (() => {
+                              const total = installments.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+                              return total > 0 ? ` · Total saisi : ${total.toFixed(2)} €` : null;
+                            })()}
+                          </p>
                         )}
                       </div>
-                      <div>
-                        <Label className="text-xs">Date du paiement</Label>
-                        <Popover open={isPaymentDatePickerOpen} onOpenChange={setIsPaymentDatePickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal bg-popover",
-                                !paymentDate && "text-muted-foreground"
-                              )}
-                              data-testid="button-payment-date"
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {paymentDate ? format(paymentDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={paymentDate}
-                              onSelect={(date) => {
-                                setPaymentDate(date);
-                                setIsPaymentDatePickerOpen(false);
-                              }}
-                              initialFocus
-                              locale={fr}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="payment-description" className="text-xs">Description (optionnelle)</Label>
-                      <Input
-                        id="payment-description"
-                        placeholder="Note ou référence du paiement"
-                        value={paymentDescription}
-                        onChange={(e) => setPaymentDescription(e.target.value)}
-                        data-testid="input-payment-description"
-                      />
-                    </div>
+                    )}
+
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
@@ -5013,30 +5130,53 @@ export default function ProjectDetail() {
                       </Button>
                       <Button
                         onClick={async () => {
-                          if (!paymentAmount || !paymentDate) {
-                            toast({
-                              title: "Erreur",
-                              description: "Veuillez remplir le montant et la date",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
                           try {
-                            await apiRequest(`/api/projects/${id}/payments`, "POST", {
-                              amount: paymentAmount,
-                              paymentDate: formatDateForStorage(paymentDate),
-                              description: paymentDescription || null,
-                            });
-                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
-                            queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
-                            setShowPaymentForm(false);
-                            setPaymentAmount("");
-                            setPaymentDescription("");
-                            toast({
-                              title: "Paiement enregistré",
-                              description: `Paiement de ${parseFloat(paymentAmount).toFixed(2)} € enregistré`,
-                              variant: "success",
-                            });
+                            if (isPartialPayments) {
+                              const invalid = installments.some(i => !i.amount || !i.date);
+                              if (invalid) {
+                                toast({ title: "Erreur", description: "Veuillez remplir le montant et la date de chaque échéance", variant: "destructive" });
+                                return;
+                              }
+                              await Promise.all(
+                                installments.map((inst) =>
+                                  apiRequest(`/api/projects/${id}/payments`, "POST", {
+                                    amount: inst.amount,
+                                    paymentDate: formatDateForStorage(inst.date!),
+                                    description: null,
+                                  })
+                                )
+                              );
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
+                              setShowPaymentForm(false);
+                              toast({
+                                title: "Paiements enregistrés",
+                                description: `${installments.length} échéance(s) enregistrée(s)`,
+                                variant: "success",
+                              });
+                            } else {
+                              if (!paymentAmount || !paymentDate) {
+                                toast({ title: "Erreur", description: "Veuillez remplir le montant et la date", variant: "destructive" });
+                                return;
+                              }
+                              await apiRequest(`/api/projects/${id}/payments`, "POST", {
+                                amount: paymentAmount,
+                                paymentDate: formatDateForStorage(paymentDate),
+                                description: paymentDescription || null,
+                              });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id, 'payments'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/projects', id] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
+                              setShowPaymentForm(false);
+                              setPaymentAmount("");
+                              setPaymentDescription("");
+                              toast({
+                                title: "Paiement enregistré",
+                                description: `Paiement de ${parseFloat(paymentAmount).toFixed(2)} € enregistré`,
+                                variant: "success",
+                              });
+                            }
                           } catch (error: any) {
                             toast({
                               title: "Erreur",

@@ -1187,29 +1187,55 @@ export default function Dashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     
+    // Group payments by projectId for quick lookup
+    const paymentsByProject: Record<string, ProjectPayment[]> = {};
+    payments.forEach(p => {
+      if (!paymentsByProject[p.projectId]) paymentsByProject[p.projectId] = [];
+      paymentsByProject[p.projectId].push(p);
+    });
+
     projects.forEach(project => {
-      // totalBilled has priority over budget
-      const effectiveBudget = project.totalBilled || project.budget;
-      if (project.startDate && effectiveBudget && project.stage !== "prospection") {
-        const startDate = new Date(project.startDate);
-        const projectMonth = startDate.getMonth();
-        const projectYear = startDate.getFullYear();
-        
-        // En mode projection, on filtre les projets à partir de demain
-        if (revenuePeriod === "projection") {
-          if (startDate < tomorrow) {
-            return; // Ignorer les projets avant demain
+      if (project.stage === "prospection") return;
+      const projectPaymentList = paymentsByProject[project.id] || [];
+
+      if (projectPaymentList.length > 0) {
+        // Distribute revenue across payment dates
+        let counted = false;
+        projectPaymentList.forEach(payment => {
+          const payDate = new Date(payment.paymentDate);
+          const payMonth = payDate.getMonth();
+          const payYear = payDate.getFullYear();
+
+          // En mode projection, filtrer les paiements avant demain
+          if (revenuePeriod === "projection" && payDate < tomorrow) return;
+
+          const matchingMonth = months.find(m => m.monthIndex === payMonth && m.year === payYear);
+          if (matchingMonth) {
+            monthlyBudgets[matchingMonth.key] += Number(payment.amount) || 0;
+            if (!counted) {
+              monthlyProjectCounts[matchingMonth.key] += 1;
+              counted = true;
+            }
           }
-        }
-        
-        // Check if this project's start date is in the selected period
-        const matchingMonth = months.find(
-          m => m.monthIndex === projectMonth && m.year === projectYear
-        );
-        
-        if (matchingMonth) {
-          monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
-          monthlyProjectCounts[matchingMonth.key] += 1;
+        });
+      } else {
+        // Fallback: use project budget at start date
+        const effectiveBudget = project.totalBilled || project.budget;
+        if (project.startDate && effectiveBudget) {
+          const startDate = new Date(project.startDate);
+          const projectMonth = startDate.getMonth();
+          const projectYear = startDate.getFullYear();
+
+          if (revenuePeriod === "projection" && startDate < tomorrow) return;
+
+          const matchingMonth = months.find(
+            m => m.monthIndex === projectMonth && m.year === projectYear
+          );
+
+          if (matchingMonth) {
+            monthlyBudgets[matchingMonth.key] += Number(effectiveBudget) || 0;
+            monthlyProjectCounts[matchingMonth.key] += 1;
+          }
         }
       }
     });
@@ -1237,7 +1263,7 @@ export default function Dashboard() {
         fill
       };
     });
-  }, [projects, revenuePeriod]);
+  }, [projects, payments, revenuePeriod]);
 
   // Chiffre d'affaires dynamique basé sur la période sélectionnée
   // Il doit être la somme des revenus mensuels affichés dans le graphique
