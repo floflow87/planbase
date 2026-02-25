@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns } from "lucide-react";
+import { Plus, Map, LayoutGrid, Calendar as CalendarIcon, Rocket, FolderKanban, X, Link2, ArrowRight, ChevronsUpDown, Check, MoreHorizontal, Pencil, Trash2, Copy, Package, FileText, ListTodo, RefreshCw, Tag, Ticket, Search, Filter, FileUp, Target, Columns, ChevronLeft } from "lucide-react";
 import { PermissionGuard, ReadOnlyBanner, useReadOnlyMode } from "@/components/guards/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,6 +123,8 @@ export default function RoadmapPage() {
   const [createFromHome, setCreateFromHome] = useState(false);
   const [newCreateProjectId, setNewCreateProjectId] = useState<string | null>(null);
   const [homeCreateProjectOpen, setHomeCreateProjectOpen] = useState(false);
+  const [showMilestonesZone, setShowMilestonesZone] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   
   const [itemForm, setItemForm] = useState({
     title: "",
@@ -374,7 +376,6 @@ export default function RoadmapPage() {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${newRoadmap.projectId}/roadmaps`] });
         setSelectedProjectId(newRoadmap.projectId);
         setSelectedRoadmapId(newRoadmap.id);
-        setActiveMainTab("roadmap");
       } else if (isUnlinkedMode) {
         queryClient.invalidateQueries({ queryKey: ['/api/roadmaps', { unlinked: true }] });
         setSelectedRoadmapId(newRoadmap.id);
@@ -951,135 +952,56 @@ export default function RoadmapPage() {
     <div className="h-full overflow-auto p-6 bg-[#F8FAFC] dark:bg-background" data-testid="roadmap-view">
       <div className="flex flex-col gap-4">
         <ReadOnlyBanner module="roadmap" />
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Rocket className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Roadmap</h1>
+        {selectedRoadmapId ? (
+          <div className="flex items-center gap-2" data-testid="detail-breadcrumb">
+            <button
+              onClick={() => setSelectedRoadmapId(null)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="button-back-to-home"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Toutes les roadmaps
+            </button>
+            <span className="text-muted-foreground">/</span>
+            <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <FolderKanban className="h-4 w-4 text-muted-foreground" />
-              <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={projectSearchOpen}
-                    className="w-[280px] justify-between"
-                    data-testid="select-project"
-                  >
-                    {isUnlinkedMode ? "Sans projet" : selectedProject ? selectedProject.name : "Sélectionner un projet..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[280px] p-0">
-                  <Command shouldFilter={false}>
-                    <CommandInput 
-                      placeholder="Rechercher un projet..." 
-                      value={projectSearchValue}
-                      onValueChange={setProjectSearchValue}
-                      data-testid="input-project-search"
-                    />
-                    <CommandList>
-                      <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          key="__unlinked__"
-                          value="__unlinked__"
-                          onSelect={() => {
-                            setSelectedProjectId("__unlinked__");
-                            setSelectedRoadmapId(null);
-                            setProjectSearchOpen(false);
-                            setProjectSearchValue("");
-                          }}
-                          data-testid="select-project-unlinked"
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              isUnlinkedMode ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          Sans projet
-                        </CommandItem>
-                        {filteredProjects.map((project) => (
-                          <CommandItem
-                            key={project.id}
-                            value={project.id}
-                            onSelect={() => {
-                              setSelectedProjectId(project.id);
-                              setSelectedRoadmapId(null);
-                              setProjectSearchOpen(false);
-                              setProjectSearchValue("");
-                            }}
-                            data-testid={`select-project-${project.id}`}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                selectedProjectId === project.id ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            {project.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+        ) : (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Rocket className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-bold">Roadmap</h1>
             </div>
+            {canCreate && (
+              <Button
+                onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
+                data-testid="button-create-roadmap-home-header"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nouvelle roadmap
+              </Button>
+            )}
           </div>
-        </div>
+        )}
 
-        <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="accueil" className="gap-1.5 text-[12px]" data-testid="tab-accueil-main">
-              <LayoutGrid className="h-4 w-4" />
-              Accueil
-            </TabsTrigger>
-            <TabsTrigger value="roadmap" className="gap-1.5 text-[12px]" data-testid="tab-roadmap-main">
-              <Map className="h-4 w-4" />
-              Roadmap
-            </TabsTrigger>
-            <TabsTrigger value="okr" className="gap-1.5 text-[12px]" data-testid="tab-okr-main">
-              <Target className="h-4 w-4" />
-              OKR
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="accueil" className="mt-0">
+        <>
+          {!selectedRoadmapId && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher une roadmap ou un projet..."
-                    value={homeSearchQuery}
-                    onChange={(e) => setHomeSearchQuery(e.target.value)}
-                    className="pl-9 h-9"
-                    data-testid="input-search-home-roadmaps"
-                  />
-                  {homeSearchQuery && (
-                    <button
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setHomeSearchQuery("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                {canCreate && (
-                  <Button
-                    onClick={() => {
-                      setCreateFromHome(true);
-                      setNewCreateProjectId(null);
-                      setIsCreateDialogOpen(true);
-                    }}
-                    data-testid="button-create-roadmap-home"
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une roadmap ou un projet..."
+                  value={homeSearchQuery}
+                  onChange={(e) => setHomeSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                  data-testid="input-search-home-roadmaps"
+                />
+                {homeSearchQuery && (
+                  <button
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setHomeSearchQuery("")}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouvelle roadmap
-                  </Button>
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
               </div>
 
@@ -1128,7 +1050,6 @@ export default function RoadmapPage() {
                                 onClick={() => {
                                   if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
                                   setSelectedRoadmapId(roadmap.id);
-                                  setActiveMainTab("roadmap");
                                 }}
                                 data-testid={`row-roadmap-${roadmap.id}`}
                               >
@@ -1175,7 +1096,6 @@ export default function RoadmapPage() {
                                       <DropdownMenuItem onClick={() => {
                                         if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
                                         setSelectedRoadmapId(roadmap.id);
-                                        setActiveMainTab("roadmap");
                                       }} data-testid={`button-home-open-roadmap-${roadmap.id}`}>
                                         <ArrowRight className="h-4 w-4 mr-2" />
                                         Ouvrir
@@ -1208,60 +1128,31 @@ export default function RoadmapPage() {
                 </Card>
               )}
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="roadmap" className="mt-0">
-            {!selectedProjectId ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FolderKanban className="h-16 w-16 text-muted-foreground mb-6" />
-                <h3 className="text-xl font-semibold mb-2">Sélectionnez un projet</h3>
-                <p className="text-muted-foreground max-w-md">
-                  Choisissez un projet dans le menu déroulant ci-dessus pour afficher et gérer ses roadmaps.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : isLoadingRoadmaps ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-center py-12">
-                <Loader />
-              </div>
-            </CardContent>
-          </Card>
-        ) : roadmaps.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Map className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-base font-semibold mb-2">Aucune roadmap pour ce projet</h3>
-                <p className="text-xs text-muted-foreground mb-6 max-w-md">
-                  Créez une roadmap pour planifier et suivre les livrables, milestones et initiatives de "{selectedProject?.name}".
-                </p>
-                {canCreate && (
-                  <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="button-create-roadmap">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Créer une roadmap
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
+          {selectedRoadmapId && (
+            <>
             {/* Roadmap Indicators */}
             {selectedProjectId && (
               <div className="my-[10px]">
-                <RoadmapIndicators projectId={selectedProjectId} />
+                <RoadmapIndicators
+                  projectId={selectedProjectId}
+                  onShowMilestones={() => setShowMilestonesZone(v => !v)}
+                  onShowRecommendations={() => setShowRecommendations(v => !v)}
+                />
               </div>
             )}
 
-            {/* Milestones Zone + Recommendations side by side */}
-            {selectedProjectId && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 my-[10px]">
+            {/* Milestones Zone - toggled */}
+            {selectedProjectId && showMilestonesZone && (
+              <div className="my-[10px]">
                 <MilestonesZone projectId={selectedProjectId} />
+              </div>
+            )}
+
+            {/* Recommendations - toggled */}
+            {selectedProjectId && showRecommendations && (
+              <div className="my-[10px]">
                 <RoadmapRecommendations projectId={selectedProjectId} />
               </div>
             )}
@@ -1557,28 +1448,18 @@ export default function RoadmapPage() {
               )}
             </CardContent>
           </Card>
+            {selectedProjectId && (
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">OKR</h3>
+                </div>
+                <OkrTreeView projectId={selectedProjectId} />
+              </div>
+            )}
           </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="okr" className="mt-0">
-            {selectedProjectId ? (
-              <OkrTreeView projectId={selectedProjectId} />
-            ) : (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <Target className="h-16 w-16 text-muted-foreground mb-6" />
-                    <h3 className="text-xl font-semibold mb-2">Sélectionnez un projet</h3>
-                    <p className="text-muted-foreground max-w-md">
-                      Choisissez un projet dans le menu déroulant ci-dessus pour afficher et gérer ses OKR.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+          )}
+        </>
       </div>
 
       <Sheet open={isCreateDialogOpen} onOpenChange={(open) => {
@@ -1610,46 +1491,6 @@ export default function RoadmapPage() {
           <div className="py-4">
             {createStep === 1 ? (
               <div className="space-y-4">
-                {createFromHome && (
-                  <div className="space-y-2">
-                    <Label>Projet associé</Label>
-                    <Popover open={homeCreateProjectOpen} onOpenChange={setHomeCreateProjectOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-full justify-between text-sm"
-                          data-testid="select-create-project-home"
-                        >
-                          {newCreateProjectId
-                            ? projects.find(p => p.id === newCreateProjectId)?.name || "Projet sélectionné"
-                            : "Sélectionner un projet (optionnel)"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command shouldFilter={false}>
-                          <CommandInput placeholder="Rechercher un projet..." data-testid="input-create-project-search" />
-                          <CommandList>
-                            <CommandEmpty>Aucun projet trouvé.</CommandEmpty>
-                            <CommandGroup>
-                              <CommandItem value="__none__" onSelect={() => { setNewCreateProjectId(null); setHomeCreateProjectOpen(false); }}>
-                                <Check className={`mr-2 h-4 w-4 ${!newCreateProjectId ? "opacity-100" : "opacity-0"}`} />
-                                Sans projet
-                              </CommandItem>
-                              {projects.map((p) => (
-                                <CommandItem key={p.id} value={p.id} onSelect={() => { setNewCreateProjectId(p.id); setHomeCreateProjectOpen(false); }}>
-                                  <Check className={`mr-2 h-4 w-4 ${newCreateProjectId === p.id ? "opacity-100" : "opacity-0"}`} />
-                                  {p.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
                 <div className="space-y-2">
                   <Label>Type de roadmap</Label>
                   <div className="grid grid-cols-2 gap-3">

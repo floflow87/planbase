@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader } from "@/components/Loader";
 import { useToast } from "@/hooks/use-toast";
@@ -586,54 +587,56 @@ export default function Product() {
               >
                 <CardHeader className="flex flex-row items-start justify-between gap-2 p-3 pb-1">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-xs font-bold text-primary truncate">{backlog.name}</CardTitle>
+                    <CardTitle className="text-[14px] font-bold text-primary truncate">{backlog.name}</CardTitle>
                     {backlog.description && (
                       <CardDescription className="line-clamp-1 mt-0.5 text-xs">
                         {backlog.description}
                       </CardDescription>
                     )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-menu-backlog-${backlog.id}`}>
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-white border shadow-md">
-                      <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`menu-open-backlog-${backlog.id}`}>
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Ouvrir
-                      </DropdownMenuItem>
-                      {canDelete && (
-                        <DropdownMenuItem 
-                          className="text-destructive cursor-pointer"
-                          onClick={() => {
-                            setSelectedBacklog(backlog);
-                            setShowDeleteDialog(true);
-                          }}
-                          data-testid={`menu-delete-backlog-${backlog.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardHeader>
-                <CardContent className="p-3 pt-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                      {getModeIcon(backlog.mode)}
-                      {getModeLabel(backlog.mode)}
-                    </Badge>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {backlog.project && (
-                      <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                        <Folder className="h-3 w-3" />
+                      <Badge variant="outline" className="flex items-center gap-1 text-[10px]" onClick={(e) => e.stopPropagation()}>
+                        <Folder className="h-2.5 w-2.5" />
                         {backlog.project.name}
                       </Badge>
                     )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" data-testid={`button-menu-backlog-${backlog.id}`}>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-white border shadow-md">
+                        <DropdownMenuItem onClick={() => navigate(`/product/backlog/${backlog.id}`)} className="cursor-pointer text-gray-900" data-testid={`menu-open-backlog-${backlog.id}`}>
+                          <ArrowRight className="h-4 w-4 mr-2" />
+                          Ouvrir
+                        </DropdownMenuItem>
+                        {canDelete && (
+                          <DropdownMenuItem 
+                            className="text-destructive cursor-pointer"
+                            onClick={() => {
+                              setSelectedBacklog(backlog);
+                              setShowDeleteDialog(true);
+                            }}
+                            data-testid={`menu-delete-backlog-${backlog.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 pt-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="secondary" className="flex items-center gap-1 text-[10px]">
+                      {getModeIcon(backlog.mode)}
+                      {getModeLabel(backlog.mode)}
+                    </Badge>
                     {backlog.activeSprint && (
-                      <Badge className="bg-violet-500 text-white flex items-center gap-1 text-xs" data-testid={`badge-active-sprint-${backlog.id}`}>
+                      <Badge className="bg-violet-500 text-white flex items-center gap-1 text-[10px]" data-testid={`badge-active-sprint-${backlog.id}`}>
                         <Play className="h-3 w-3" />
                         {backlog.activeSprint.name}
                       </Badge>
@@ -664,32 +667,41 @@ export default function Product() {
                       const total = backlog.ticketCounts?.total || 0;
                       const done = backlog.ticketCounts?.done || 0;
                       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                      const r = 12;
+                      const r = 13;
                       const circ = 2 * Math.PI * r;
                       const dash = (pct / 100) * circ;
                       const gid = `bp-${backlog.id}`;
                       return (
-                        <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0" data-testid={`progress-ring-${backlog.id}`}>
-                          <defs>
-                            <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#22d3ee" />
-                              <stop offset="100%" stopColor="#8b5cf6" />
-                            </linearGradient>
-                          </defs>
-                          <circle cx="16" cy="16" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                          {pct > 0 && (
-                            <circle cx="16" cy="16" r={r} fill="none"
-                              stroke={`url(#${gid})`} strokeWidth="3"
-                              strokeDasharray={`${dash} ${circ}`}
-                              strokeLinecap="round"
-                              transform="rotate(-90 16 16)"
-                            />
-                          )}
-                          <text x="16" y="19.5" textAnchor="middle" fontSize="7" fontWeight="600"
-                            style={{ fill: 'hsl(var(--foreground))' }}>
-                            {pct}%
-                          </text>
-                        </svg>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <svg width="38" height="38" viewBox="0 0 38 38" className="shrink-0 cursor-default" data-testid={`progress-ring-${backlog.id}`}>
+                                <defs>
+                                  <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#22d3ee" />
+                                    <stop offset="100%" stopColor="#8b5cf6" />
+                                  </linearGradient>
+                                </defs>
+                                <circle cx="19" cy="19" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3.5" />
+                                {pct > 0 && (
+                                  <circle cx="19" cy="19" r={r} fill="none"
+                                    stroke={`url(#${gid})`} strokeWidth="3.5"
+                                    strokeDasharray={`${dash} ${circ}`}
+                                    strokeLinecap="round"
+                                    transform="rotate(-90 19 19)"
+                                  />
+                                )}
+                                <text x="19" y="22.5" textAnchor="middle" fontSize="7.5" fontWeight="600"
+                                  style={{ fill: 'hsl(var(--foreground))' }}>
+                                  {pct}%
+                                </text>
+                              </svg>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                              {done} / {total} tickets terminés
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       );
                     })()}
                   </div>

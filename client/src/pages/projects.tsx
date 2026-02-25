@@ -3665,28 +3665,28 @@ export default function Projects() {
 
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-xs px-2 py-0.5 ${getStageColor(project.stage)}`} data-testid={`badge-stage-${project.id}`}>
+                              <span className={`inline-flex items-center rounded-md border font-medium whitespace-nowrap text-[11px] px-2 py-0.5 ${getStageColor(project.stage)}`} data-testid={`badge-stage-${project.id}`}>
                                 {getStageLabel(project.stage)}
                               </span>
-                              {project.category && (
-                                <>
-                                  <Badge variant="outline" className="text-xs" data-testid={`badge-category-${project.id}`}>
-                                    {project.category}
-                                  </Badge>
-                                  {isCoreCategory(project.category) && (
-                                    <Badge variant="outline" className="text-xs px-1.5 py-0 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
-                                      Core
-                                    </Badge>
-                                  )}
-                                </>
-                              )}
                               <Badge 
-                                className={`${getBillingStatusColorClass(project.billingStatus)} text-xs`}
+                                className={`${getBillingStatusColorClass(project.billingStatus)} text-[11px]`}
                                 data-testid={`badge-billing-status-${project.id}`}
                               >
                                 {billingStatusOptions.find(o => o.value === (project.billingStatus || "brouillon"))?.label}
                                 {project.billingStatus === "retard" && getBillingDaysOverdueForCard(project.billingDueDate)}
                               </Badge>
+                              {project.category && (
+                                <>
+                                  <Badge variant="outline" className="text-[11px]" data-testid={`badge-category-${project.id}`}>
+                                    {project.category}
+                                  </Badge>
+                                  {isCoreCategory(project.category) && (
+                                    <Badge variant="outline" className="text-[11px] px-1.5 py-0 bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700">
+                                      Core
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
                             </div>
 
                             {project.description && (
@@ -3696,42 +3696,60 @@ export default function Projects() {
                             )}
 
                             <div className="flex items-center gap-2 mt-2" data-testid={`progress-section-${project.id}`}>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[10px] text-muted-foreground">Avancement</span>
-                                  <span className="text-[10px] font-medium text-foreground">{cdcProgress}%</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                  <div className="h-full rounded-full transition-all" style={{ width: `${cdcProgress}%`, background: 'linear-gradient(to right, #22d3ee, #8b5cf6)' }} />
-                                </div>
-                              </div>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex-1 cursor-default">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] text-muted-foreground">Tâches</span>
+                                        <span className="text-[10px] font-medium text-foreground">{taskPct}%</span>
+                                      </div>
+                                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-full rounded-full transition-all" style={{ width: `${taskPct}%`, background: 'linear-gradient(to right, #22d3ee, #8b5cf6)' }} />
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                                    Tâches terminées par rapport au total
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                               {(() => {
-                                const r = 12;
+                                const r = 13;
                                 const circ = 2 * Math.PI * r;
-                                const dash = (taskPct / 100) * circ;
+                                const dash = (cdcProgress / 100) * circ;
                                 const gid = `pp-${project.id}`;
                                 return (
-                                  <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0" data-testid={`task-progress-ring-${project.id}`}>
-                                    <defs>
-                                      <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="#22d3ee" />
-                                        <stop offset="100%" stopColor="#8b5cf6" />
-                                      </linearGradient>
-                                    </defs>
-                                    <circle cx="16" cy="16" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                                    {taskPct > 0 && (
-                                      <circle cx="16" cy="16" r={r} fill="none"
-                                        stroke={`url(#${gid})`} strokeWidth="3"
-                                        strokeDasharray={`${dash} ${circ}`}
-                                        strokeLinecap="round"
-                                        transform="rotate(-90 16 16)"
-                                      />
-                                    )}
-                                    <text x="16" y="19.5" textAnchor="middle" fontSize="7" fontWeight="600"
-                                      style={{ fill: 'hsl(var(--foreground))' }}>
-                                      {taskPct}%
-                                    </text>
-                                  </svg>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <svg width="38" height="38" viewBox="0 0 38 38" className="shrink-0 cursor-default" data-testid={`task-progress-ring-${project.id}`}>
+                                          <defs>
+                                            <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+                                              <stop offset="0%" stopColor="#22d3ee" />
+                                              <stop offset="100%" stopColor="#8b5cf6" />
+                                            </linearGradient>
+                                          </defs>
+                                          <circle cx="19" cy="19" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="3.5" />
+                                          {cdcProgress > 0 && (
+                                            <circle cx="19" cy="19" r={r} fill="none"
+                                              stroke={`url(#${gid})`} strokeWidth="3.5"
+                                              strokeDasharray={`${dash} ${circ}`}
+                                              strokeLinecap="round"
+                                              transform="rotate(-90 19 19)"
+                                            />
+                                          )}
+                                          <text x="19" y="22.5" textAnchor="middle" fontSize="7.5" fontWeight="600"
+                                            style={{ fill: 'hsl(var(--foreground))' }}>
+                                            {cdcProgress}%
+                                          </text>
+                                        </svg>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="bg-white text-foreground border shadow-md text-xs">
+                                        Temps consommé / durée totale estimée
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 );
                               })()}
                             </div>
@@ -3744,7 +3762,7 @@ export default function Projects() {
                                   : "Pas de date"}
                               </div>
                               {project.totalBilled && (
-                                <div className="font-medium text-foreground">
+                                <div className="font-bold text-primary">
                                   {parseFloat(project.totalBilled).toLocaleString("fr-FR", {
                                     style: "currency",
                                     currency: "EUR",

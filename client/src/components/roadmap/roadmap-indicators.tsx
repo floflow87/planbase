@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   Calendar, 
   Clock, 
   AlertTriangle, 
   Target, 
   TrendingUp,
-  Flag
+  Flag,
+  Lightbulb,
+  ChevronRight
 } from "lucide-react";
 
 interface PhaseInfo {
@@ -75,6 +78,8 @@ interface MilestonesInfo {
 
 interface RoadmapIndicatorsProps {
   projectId: string;
+  onShowMilestones?: () => void;
+  onShowRecommendations?: () => void;
 }
 
 const PHASE_LABELS: { [key: string]: string } = {
@@ -91,7 +96,7 @@ const PHASE_COLORS: { [key: string]: string } = {
   LT: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
 };
 
-export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
+export function RoadmapIndicators({ projectId, onShowMilestones, onShowRecommendations }: RoadmapIndicatorsProps) {
   const { data: phasesData, isLoading: isLoadingPhases } = useQuery<PhaseInfo>({
     queryKey: [`/api/projects/${projectId}/roadmap/phases`],
   });
@@ -140,6 +145,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Phase actuelle */}
       <Card className="bg-card/50">
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
@@ -173,6 +179,7 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
         </CardContent>
       </Card>
 
+      {/* Milestone KPI card — with "voir plus" toggle */}
       <Card className={`bg-card/50 ${milestonesData?.criticalAtRiskCount && milestonesData.criticalAtRiskCount > 0 ? "border-orange-500/30" : ""}`}>
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
@@ -225,9 +232,20 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
               )}
             </div>
           )}
+          {onShowMilestones && (
+            <button
+              onClick={onShowMilestones}
+              className="mt-2 flex items-center gap-0.5 text-[11px] text-primary hover:underline"
+              data-testid="button-show-milestones"
+            >
+              Voir plus
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </CardContent>
       </Card>
 
+      {/* Éléments en retard */}
       <Card className={`bg-card/50 ${phasesData.indicators.lateItemsCount > 0 ? "border-destructive/30" : ""}`}>
         <CardContent className="pt-4 pb-3 px-4">
           <div className="flex items-start justify-between">
@@ -249,33 +267,50 @@ export function RoadmapIndicators({ projectId }: RoadmapIndicatorsProps) {
         </CardContent>
       </Card>
 
-      <Card className="bg-card/50">
-        <CardContent className="pt-4 pb-3 px-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                Répartition par phase
-              </div>
-              <div className="flex gap-1 mt-1">
-                {Object.entries(phasesData.phases).map(([phase, info]) => (
-                  <div key={phase} className="flex-1 text-center">
-                    <div className={`text-xs font-medium rounded-sm py-0.5 ${info.isCurrent ? PHASE_COLORS[phase] : "bg-muted/50 text-muted-foreground"}`}>
-                      {phase}
+      {/* Répartition par phase — with "recos" button above */}
+      <div className="flex flex-col gap-1.5">
+        {onShowRecommendations && (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onShowRecommendations}
+              className="h-7 px-2 text-[11px] gap-1.5 text-muted-foreground"
+              data-testid="button-show-recommendations"
+            >
+              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+              Recos
+            </Button>
+          </div>
+        )}
+        <Card className="bg-card/50 flex-1">
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Répartition par phase
+                </div>
+                <div className="flex gap-1 mt-1">
+                  {Object.entries(phasesData.phases).map(([phase, info]) => (
+                    <div key={phase} className="flex-1 text-center">
+                      <div className={`text-xs font-medium rounded-sm py-0.5 ${info.isCurrent ? PHASE_COLORS[phase] : "bg-muted/50 text-muted-foreground"}`}>
+                        {phase}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {info.itemCount}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {info.itemCount}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            Total: {phasesData.indicators.totalItems} éléments
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Total: {phasesData.indicators.totalItems} éléments
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
