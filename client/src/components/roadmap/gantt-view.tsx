@@ -1231,7 +1231,7 @@ export function GanttView({ items, dependencies = [], roadmapId, onItemClick, on
                   
                   <div className="flex-1 min-w-0">
                     <p className={cn(
-                      "text-sm truncate",
+                      "text-xs truncate",
                       item.hasChildren || item.isGroup ? "font-semibold" : "font-medium"
                     )}>
                       {item.title}

@@ -483,7 +483,7 @@ export function NowNextLaterView({ items, roadmapId, onItemClick, onAddItem, onU
           <div className="flex items-center justify-between mb-1 gap-2">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${config.headerColor}`} />
-              <h3 className={`text-sm font-semibold ${config.textColor}`}>{config.label}</h3>
+              <h3 className={`text-xs font-semibold ${config.textColor}`}>{config.label}</h3>
               <Badge className={`text-[10px] no-default-hover-elevate no-default-active-elevate ${config.badgeColor}`}>{laneItemsList.length}</Badge>
               <span className={`text-[10px] italic text-muted-foreground`}>{config.description}</span>
             </div>

@@ -211,12 +211,13 @@ export default function RoadmapPage() {
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
   useEffect(() => {
-    if (activeRoadmap?.type === "now_next_later") {
+    const roadmapType = activeRoadmap?.type || (selectedRoadmapRef as any)?.type;
+    if (roadmapType === "now_next_later") {
       setViewMode("nnl");
-    } else if (activeRoadmap && viewMode === "nnl") {
+    } else if ((activeRoadmap || selectedRoadmapRef) && viewMode === "nnl") {
       setViewMode("gantt");
     }
-  }, [activeRoadmapId, activeRoadmap?.type]);
+  }, [activeRoadmapId, activeRoadmap?.type, selectedRoadmapRef]);
 
   const { data: roadmapItems = [], isLoading: isLoadingItems } = useQuery<RoadmapItem[]>({
     queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],

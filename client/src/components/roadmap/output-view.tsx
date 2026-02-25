@@ -102,7 +102,7 @@ function SortableItem({ item, onClick }: SortableItemProps) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h4 className="text-sm font-medium leading-tight line-clamp-2">{item.title}</h4>
+            <h4 className="text-xs font-medium leading-tight line-clamp-2">{item.title}</h4>
             {item.priority === "strategic" || item.priority === "high" ? (
               <Badge variant="secondary" className={cn("flex-shrink-0 text-[10px] px-1.5 py-0", priorityInfo.color)}>
                 <Flag className="h-2.5 w-2.5 mr-0.5" />
@@ -166,7 +166,7 @@ function ItemOverlay({ item }: { item: RoadmapItem }) {
       <div className="flex items-start gap-2">
         <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium leading-tight line-clamp-2 mb-1">{item.title}</h4>
+          <h4 className="text-xs font-medium leading-tight line-clamp-2 mb-1">{item.title}</h4>
           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", typeInfo.color)}>
             {typeInfo.label}
           </Badge>
@@ -200,7 +200,7 @@ function DroppableColumn({ column, items, onItemClick }: DroppableColumnProps) {
       <div className="p-3 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StatusIcon className={cn("h-4 w-4", column.color)} />
-          <h3 className={cn("text-sm font-semibold", column.color)}>{column.title}</h3>
+          <h3 className={cn("text-xs font-semibold", column.color)}>{column.title}</h3>
         </div>
         <Badge variant="secondary" className="text-xs">
           {items.length}
