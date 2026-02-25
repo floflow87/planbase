@@ -978,48 +978,48 @@ export default function RoadmapPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
+            <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name}</span>
+            {selectedProject && <Badge className="bg-primary text-primary-foreground text-[10px] px-2 py-0 shrink-0 font-normal">{selectedProject.name}</Badge>}
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 shrink-0">
-              <Rocket className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold">Roadmap</h1>
-            </div>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher une roadmap ou un projet..."
-                value={homeSearchQuery}
-                onChange={(e) => setHomeSearchQuery(e.target.value)}
-                className="pl-9 h-9 bg-white dark:bg-background"
-                data-testid="input-search-home-roadmaps"
-              />
-              {homeSearchQuery && (
-                <button
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setHomeSearchQuery("")}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {canCreate && (
-              <Button
-                onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
-                data-testid="button-create-roadmap-home-header"
-                className="text-xs shrink-0"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Nouvelle roadmap
-              </Button>
-            )}
+            <Rocket className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">Roadmap</h1>
           </div>
         )}
 
         <>
           {!selectedRoadmapId && (
             <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher une roadmap ou un projet..."
+                    value={homeSearchQuery}
+                    onChange={(e) => setHomeSearchQuery(e.target.value)}
+                    className="pl-9 h-9 bg-white dark:bg-background"
+                    data-testid="input-search-home-roadmaps"
+                  />
+                  {homeSearchQuery && (
+                    <button
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setHomeSearchQuery("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {canCreate && (
+                  <Button
+                    onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
+                    data-testid="button-create-roadmap-home-header"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle roadmap
+                  </Button>
+                )}
+              </div>
               {isLoadingRoadmaps ? (
                 <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
                   <Loader />
@@ -1241,25 +1241,8 @@ export default function RoadmapPage() {
 
             <Card className="mt-[10px]">
               <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <Select value={activeRoadmapId || ""} onValueChange={setSelectedRoadmapId}>
-                    <SelectTrigger className="w-[200px] text-xs" data-testid="select-roadmap">
-                      <SelectValue placeholder="Sélectionner une roadmap" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roadmaps.map((roadmap) => (
-                        <SelectItem key={roadmap.id} value={roadmap.id}>
-                          <span className="flex items-center gap-2">
-                            {roadmap.name}
-                            {(roadmap as any).type === "now_next_later" && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">NNL</Badge>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
                   {activeRoadmap && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1319,113 +1302,97 @@ export default function RoadmapPage() {
                       </SelectContent>
                     </Select>
                   )}
-                </div>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  {activeRoadmap?.type !== "now_next_later" && (
-                    <div className="flex items-center border rounded-md p-1">
-                      <Button
-                        variant={viewMode === "gantt" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("gantt")}
-                        className="h-7 px-3"
-                        data-testid="button-view-gantt"
-                      >
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        Gantt
-                      </Button>
-                      <Button
-                        variant={viewMode === "output" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("output")}
-                        className="h-7 px-3"
-                        data-testid="button-view-output"
-                      >
-                        <LayoutGrid className="h-4 w-4 mr-1" />
-                        Étapes
-                      </Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 h-9 w-[200px]"
+                        data-testid="input-search-roadmap"
+                      />
                     </div>
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={(importCdcMutation.isPending || resetCdcMutation.isPending) || !selectedProjectId}
-                        data-testid="button-import-cdc"
-                      >
-                        <FileUp className="h-4 w-4 mr-1" />
-                        {importCdcMutation.isPending ? "Import..." : resetCdcMutation.isPending ? "Reset..." : "CDC"}
-                        <ChevronsUpDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => importCdcMutation.mutate()}
-                        disabled={importCdcMutation.isPending}
-                      >
-                        <FileUp className="h-4 w-4 mr-2" />
-                        Importer CDC
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => resetCdcMutation.mutate()}
-                        disabled={resetCdcMutation.isPending}
-                        className="text-orange-600"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Réinitialiser import CDC
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {canCreate && (
-                    <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} data-testid="button-add-roadmap">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Nouvelle
+                    <Button
+                      variant={showFilters ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      data-testid="button-toggle-filters"
+                    >
+                      <Filter className="h-4 w-4 mr-1" />
+                      Filtres
+                      {hasActiveFilters && (
+                        <Badge variant="secondary" className="ml-1.5">
+                          {[filterPhase !== "all", filterStatus !== "all", filterType !== "all"].filter(Boolean).length}
+                        </Badge>
+                      )}
                     </Button>
-                  )}
+                    {hasActiveFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters">
+                        <X className="h-4 w-4 mr-1" />
+                        Effacer
+                      </Button>
+                    )}
+                    {activeRoadmap?.type !== "now_next_later" && (
+                      <div className="flex items-center border rounded-md p-1">
+                        <Button
+                          variant={viewMode === "gantt" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("gantt")}
+                          className="h-7 px-3"
+                          data-testid="button-view-gantt"
+                        >
+                          <CalendarIcon className="h-4 w-4 mr-1" />
+                          Gantt
+                        </Button>
+                        <Button
+                          variant={viewMode === "output" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("output")}
+                          className="h-7 px-3"
+                          data-testid="button-view-output"
+                        >
+                          <LayoutGrid className="h-4 w-4 mr-1" />
+                          Étapes
+                        </Button>
+                      </div>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={(importCdcMutation.isPending || resetCdcMutation.isPending) || !selectedProjectId}
+                          data-testid="button-import-cdc"
+                        >
+                          <FileUp className="h-4 w-4 mr-1" />
+                          {importCdcMutation.isPending ? "Import..." : resetCdcMutation.isPending ? "Reset..." : "CDC"}
+                          <ChevronsUpDown className="h-3 w-3 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => importCdcMutation.mutate()}
+                          disabled={importCdcMutation.isPending}
+                        >
+                          <FileUp className="h-4 w-4 mr-2" />
+                          Importer CDC
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => resetCdcMutation.mutate()}
+                          disabled={resetCdcMutation.isPending}
+                          className="text-orange-600"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Réinitialiser import CDC
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-              </div>
-
-              {/* Filters Bar - inside card */}
-              <div className="flex flex-wrap items-center gap-3 pt-4 border-t mt-4">
-                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                    data-testid="input-search-roadmap"
-                  />
-                </div>
-                
-                <Button
-                  variant={showFilters ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  data-testid="button-toggle-filters"
-                >
-                  <Filter className="h-4 w-4 mr-1" />
-                  Filtres
-                  {hasActiveFilters && (
-                    <Badge variant="secondary" className="ml-1.5">
-                      {[filterPhase !== "all", filterStatus !== "all", filterType !== "all"].filter(Boolean).length}
-                    </Badge>
-                  )}
-                </Button>
-
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    data-testid="button-clear-filters"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Effacer
-                  </Button>
-                )}
 
                 {showFilters && (
                   <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t mt-2">
@@ -1463,7 +1430,6 @@ export default function RoadmapPage() {
                     </Select>
                   </div>
                 )}
-              </div>
             </CardHeader>
 
             <CardContent>
