@@ -210,14 +210,21 @@ export default function RoadmapPage() {
 
   const activeRoadmap = roadmaps.find(r => r.id === activeRoadmapId);
 
+  // Derive roadmap type immediately — works even before query finishes loading
+  const activeRoadmapType = activeRoadmap?.type || (selectedRoadmapRef as any)?.type;
+
+  // Derive effective view mode without waiting for useEffect — avoids timing issues
+  const effectiveViewMode: ViewMode = activeRoadmapType === "now_next_later"
+    ? "nnl"
+    : viewMode === "nnl" ? "gantt" : viewMode;
+
   useEffect(() => {
-    const roadmapType = activeRoadmap?.type || (selectedRoadmapRef as any)?.type;
-    if (roadmapType === "now_next_later") {
+    if (activeRoadmapType === "now_next_later") {
       setViewMode("nnl");
     } else if ((activeRoadmap || selectedRoadmapRef) && viewMode === "nnl") {
       setViewMode("gantt");
     }
-  }, [activeRoadmapId, activeRoadmap?.type, selectedRoadmapRef]);
+  }, [activeRoadmapId, activeRoadmapType, selectedRoadmapRef]);
 
   const { data: roadmapItems = [], isLoading: isLoadingItems } = useQuery<RoadmapItem[]>({
     queryKey: [`/api/roadmaps/${activeRoadmapId}/items`],
@@ -1313,10 +1320,10 @@ export default function RoadmapPage() {
                       {activeRoadmap.horizon}
                     </Badge>
                   )}
-                    {activeRoadmap?.type !== "now_next_later" && (
+                    {activeRoadmapType !== "now_next_later" && (
                       <div className="flex items-center border rounded-md p-1">
                         <Button
-                          variant={viewMode === "gantt" ? "default" : "ghost"}
+                          variant={effectiveViewMode === "gantt" ? "default" : "ghost"}
                           size="sm"
                           onClick={() => setViewMode("gantt")}
                           className="h-7 px-3"
@@ -1326,7 +1333,7 @@ export default function RoadmapPage() {
                           Gantt
                         </Button>
                         <Button
-                          variant={viewMode === "output" ? "default" : "ghost"}
+                          variant={effectiveViewMode === "output" ? "default" : "ghost"}
                           size="sm"
                           onClick={() => setViewMode("output")}
                           className="h-7 px-3"
@@ -1437,7 +1444,7 @@ export default function RoadmapPage() {
                 </div>
               ) : (
                 <div className="min-h-[400px]">
-                  {viewMode === "gantt" ? (
+                  {effectiveViewMode === "gantt" ? (
                     <GanttView 
                       items={filteredItems} 
                       dependencies={roadmapDependencies}
@@ -1450,7 +1457,7 @@ export default function RoadmapPage() {
                       onBulkDelete={handleBulkDelete}
                       onBulkUpdate={handleBulkUpdate}
                     />
-                  ) : viewMode === "nnl" ? (
+                  ) : effectiveViewMode === "nnl" ? (
                     <NowNextLaterView
                       items={filteredItems}
                       roadmapId={activeRoadmapId || undefined}
