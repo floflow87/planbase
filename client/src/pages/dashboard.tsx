@@ -415,6 +415,15 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  start: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+  description?: string;
+  location?: string;
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -722,11 +731,56 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  const todayApts = useMemo(() => {
-    return [...appointments]
-      .filter(a => a.startDateTime)
-      .sort((a, b) => new Date(a.startDateTime!).getTime() - new Date(b.startDateTime!).getTime());
-  }, [appointments]);
+  // Fetch today's Google Calendar events
+  const { data: todayGoogleEvents = [] } = useQuery<GoogleEvent[]>({
+    queryKey: ["/api/google/events/today", todayAppointments.toISOString(), tomorrowAppointments.toISOString()],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        start: todayAppointments.toISOString(),
+        end: tomorrowAppointments.toISOString(),
+      });
+      const response = await fetch(`/api/google/events?${params}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!accountId,
+  });
+
+  // Combine planbase appointments + Google events, filtered to upcoming (>= now), sorted by time
+  const upcomingCalendarItems = useMemo(() => {
+    const now = new Date();
+    type CalendarItem =
+      | { kind: "apt"; id: string; title: string; start: Date; end: Date | null; color?: string | null; clientId?: string | null; location?: string | null }
+      | { kind: "google"; id: string; title: string; start: Date; end: Date | null };
+
+    const aptItems: CalendarItem[] = appointments
+      .filter(a => a.startDateTime && new Date(a.startDateTime) >= now)
+      .map(a => ({
+        kind: "apt" as const,
+        id: a.id,
+        title: a.title,
+        start: new Date(a.startDateTime!),
+        end: a.endDateTime ? new Date(a.endDateTime) : null,
+        color: (a as any).color,
+        clientId: a.clientId,
+        location: (a as any).location,
+      }));
+
+    const googleItems: CalendarItem[] = todayGoogleEvents
+      .filter(e => {
+        const start = e.start.dateTime || e.start.date;
+        return start && new Date(start) >= now;
+      })
+      .map(e => ({
+        kind: "google" as const,
+        id: e.id,
+        title: e.summary || "Sans titre",
+        start: new Date(e.start.dateTime || e.start.date!),
+        end: e.end?.dateTime ? new Date(e.end.dateTime) : null,
+      }));
+
+    return [...aptItems, ...googleItems].sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [appointments, todayGoogleEvents]);
 
   // Create client mutation
   const createClientMutation = useMutation({
@@ -2029,39 +2083,45 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {/* Today's appointments */}
-                {todayApts.length > 0 && (
+                {/* Upcoming calendar events (planbase + google) */}
+                {upcomingCalendarItems.length > 0 && (
                   <>
                     <div className="space-y-1.5">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                         <CalendarIcon className="w-3 h-3" />
-                        Rendez-vous
+                        À venir aujourd'hui
                       </p>
-                      {todayApts.map((apt) => {
-                        const startTime = apt.startDateTime ? new Date(apt.startDateTime) : null;
-                        const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
-                        const timeLabel = startTime
-                          ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}${endTime ? ` – ${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}` : ''}`
+                      {upcomingCalendarItems.map((item) => {
+                        const fmt = (d: Date) =>
+                          `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                        const timeLabel = `${fmt(item.start)}${item.end ? ` – ${fmt(item.end)}` : ''}`;
+                        const isGoogle = item.kind === "google";
+                        const borderColor = isGoogle ? '#06B6D4' : ((item as any).color || '#7C3AED');
+                        const bgColor = isGoogle ? '#E0F2FE44' : (((item as any).color || '') + '22');
+                        const aptClient = !isGoogle && (item as any).clientId
+                          ? clients.find(c => c.id === (item as any).clientId)
                           : null;
-                        const aptClient = apt.clientId ? clients.find(c => c.id === apt.clientId) : null;
                         return (
                           <div
-                            key={apt.id}
+                            key={item.id}
                             className="flex items-center gap-2 p-2 rounded-md border text-xs"
-                            style={{ borderLeftWidth: 3, borderLeftColor: apt.color || '#7C3AED', backgroundColor: apt.color ? apt.color + '22' : 'transparent' }}
-                            data-testid={`apt-myDay-${apt.id}`}
+                            style={{ borderLeftWidth: 3, borderLeftColor: borderColor, backgroundColor: bgColor }}
+                            data-testid={`calitem-myDay-${item.id}`}
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground truncate">{apt.title}</p>
-                              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
-                                {timeLabel && (
-                                  <span className="flex items-center gap-0.5">
-                                    <Clock className="w-3 h-3" />
-                                    {timeLabel}
-                                  </span>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-foreground truncate">{item.title}</p>
+                                {isGoogle && (
+                                  <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">Google</span>
                                 )}
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                                <span className="flex items-center gap-0.5">
+                                  <Clock className="w-3 h-3" />
+                                  {timeLabel}
+                                </span>
                                 {aptClient && <span className="truncate">{aptClient.name}</span>}
-                                {apt.location && <span className="truncate">{apt.location}</span>}
+                                {(item as any).location && <span className="truncate">{(item as any).location}</span>}
                               </div>
                             </div>
                           </div>
@@ -2078,8 +2138,8 @@ export default function Dashboard() {
                     )}
                   </>
                 )}
-                {filteredMyDayTasks.length === 0 && todayApts.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche pour ce filtre</p>
+                {filteredMyDayTasks.length === 0 && upcomingCalendarItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucun événement à venir aujourd'hui</p>
                 ) : filteredMyDayTasks.length === 0 ? null : (
                   filteredMyDayTasks.map((task) => {
                     const client = clients.find(c => c.id === task.clientId);
