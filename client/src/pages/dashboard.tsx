@@ -22,7 +22,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, formatDateForStorage } from "@/lib/queryClient";
-import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment, Note, Backlog } from "@shared/schema";
+import type { Project, Client, Activity, AppUser, InsertClient, InsertProject, Task, TaskColumn, ProjectPayment, Note, Backlog, Appointment } from "@shared/schema";
 import { insertClientSchema, insertProjectSchema } from "@shared/schema";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
@@ -696,6 +696,37 @@ export default function Dashboard() {
     queryKey: ["/api/payments"],
     enabled: !!accountId,
   });
+
+  // Fetch today's appointments
+  const todayAppointments = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }, []);
+  const tomorrowAppointments = useMemo(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }, []);
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ["/api/appointments", todayAppointments.toISOString(), tomorrowAppointments.toISOString()],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        start: todayAppointments.toISOString(),
+        end: tomorrowAppointments.toISOString(),
+      });
+      const response = await fetch(`/api/appointments?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch appointments");
+      return response.json();
+    },
+    enabled: !!accountId,
+  });
+
+  const todayApts = useMemo(() => {
+    return [...appointments]
+      .filter(a => a.startDateTime)
+      .sort((a, b) => new Date(a.startDateTime!).getTime() - new Date(b.startDateTime!).getTime());
+  }, [appointments]);
 
   // Create client mutation
   const createClientMutation = useMutation({
@@ -1998,9 +2029,58 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredMyDayTasks.length === 0 ? (
+                {/* Today's appointments */}
+                {todayApts.length > 0 && (
+                  <>
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                        <CalendarIcon className="w-3 h-3" />
+                        Rendez-vous
+                      </p>
+                      {todayApts.map((apt) => {
+                        const startTime = apt.startDateTime ? new Date(apt.startDateTime) : null;
+                        const endTime = apt.endDateTime ? new Date(apt.endDateTime) : null;
+                        const timeLabel = startTime
+                          ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}${endTime ? ` – ${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}` : ''}`
+                          : null;
+                        const aptClient = apt.clientId ? clients.find(c => c.id === apt.clientId) : null;
+                        return (
+                          <div
+                            key={apt.id}
+                            className="flex items-center gap-2 p-2 rounded-md border text-xs"
+                            style={{ borderLeftWidth: 3, borderLeftColor: apt.color || '#7C3AED', backgroundColor: apt.color ? apt.color + '22' : 'transparent' }}
+                            data-testid={`apt-myDay-${apt.id}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground truncate">{apt.title}</p>
+                              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                                {timeLabel && (
+                                  <span className="flex items-center gap-0.5">
+                                    <Clock className="w-3 h-3" />
+                                    {timeLabel}
+                                  </span>
+                                )}
+                                {aptClient && <span className="truncate">{aptClient.name}</span>}
+                                {apt.location && <span className="truncate">{apt.location}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {myDayFilter === "today" && filteredMyDayTasks.length > 0 && (
+                      <div className="border-t border-border pt-1">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                          <CheckSquare className="w-3 h-3" />
+                          Tâches
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+                {filteredMyDayTasks.length === 0 && todayApts.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">Aucune tâche pour ce filtre</p>
-                ) : (
+                ) : filteredMyDayTasks.length === 0 ? null : (
                   filteredMyDayTasks.map((task) => {
                     const client = clients.find(c => c.id === task.clientId);
                     const project = projects.find(p => p.id === task.projectId);
