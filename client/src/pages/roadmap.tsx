@@ -369,13 +369,6 @@ export default function RoadmapPage() {
     setSearchQuery("");
   };
 
-  useEffect(() => {
-    if (!selectedProjectId) return;
-    if (isLoadingRoadmaps) return;
-    if (selectedRoadmapId && !roadmaps.some(r => r.id === selectedRoadmapId)) {
-      setSelectedRoadmapId(null);
-    }
-  }, [selectedProjectId, roadmaps, isLoadingRoadmaps, selectedRoadmapId]);
 
   const createRoadmapMutation = useMutation({
     mutationFn: async (data: { name: string; horizon?: string; type?: string; importEpics?: boolean; importTickets?: boolean; fromHome?: boolean; fromProjectId?: string | null }) => {
@@ -998,16 +991,34 @@ export default function RoadmapPage() {
             <span className="text-sm font-medium truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <Rocket className="h-6 w-6 text-primary" />
               <h1 className="text-2xl font-bold">Roadmap</h1>
+            </div>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher une roadmap ou un projet..."
+                value={homeSearchQuery}
+                onChange={(e) => setHomeSearchQuery(e.target.value)}
+                className="pl-9 h-9 bg-white dark:bg-background"
+                data-testid="input-search-home-roadmaps"
+              />
+              {homeSearchQuery && (
+                <button
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setHomeSearchQuery("")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             {canCreate && (
               <Button
                 onClick={() => { setCreateFromHome(true); setIsCreateDialogOpen(true); }}
                 data-testid="button-create-roadmap-home-header"
-                className="text-xs"
+                className="text-xs shrink-0"
               >
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Nouvelle roadmap
@@ -1019,25 +1030,6 @@ export default function RoadmapPage() {
         <>
           {!selectedRoadmapId && (
             <div className="space-y-4">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher une roadmap ou un projet..."
-                  value={homeSearchQuery}
-                  onChange={(e) => setHomeSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
-                  data-testid="input-search-home-roadmaps"
-                />
-                {homeSearchQuery && (
-                  <button
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setHomeSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
               {isLoadingRoadmaps ? (
                 <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 200px)" }}>
                   <Loader />

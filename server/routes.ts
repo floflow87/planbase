@@ -8741,7 +8741,7 @@ app.get("/config/feature-flags", async (_req, res) => {
       
       const tasks = await db.select().from(backlogTasks)
         .where(eq(backlogTasks.backlogId, backlogId))
-        .orderBy(backlogTasks.order);
+        .orderBy(asc(backlogTasks.order));
       
       res.json(tasks);
     } catch (error: any) {
