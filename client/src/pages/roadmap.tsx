@@ -99,6 +99,7 @@ export default function RoadmapPage() {
     return saved || null;
   });
   const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
+  const [selectedRoadmapRef, setSelectedRoadmapRef] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem("roadmap-view-mode");
     return (saved as ViewMode) || "gantt";
@@ -972,13 +973,13 @@ export default function RoadmapPage() {
         {selectedRoadmapId ? (
           <div className="flex items-center gap-2" data-testid="detail-breadcrumb">
             <button
-              onClick={() => setSelectedRoadmapId(null)}
+              onClick={() => { setSelectedRoadmapId(null); setSelectedRoadmapRef(null); }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               data-testid="button-back-to-home"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm font-semibold truncate max-w-[300px]">{activeRoadmap?.name || "Roadmap"}</span>
+            <span className="text-sm font-semibold truncate max-w-[300px]">{(selectedRoadmapRef || activeRoadmap)?.name || "..."}</span>
             {selectedProject && (
               <>
                 <span className="text-muted-foreground/40 text-sm">·</span>
@@ -997,10 +998,10 @@ export default function RoadmapPage() {
           {!selectedRoadmapId && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="relative flex-1">
+                <div className="relative w-56">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher une roadmap ou un projet..."
+                    placeholder="Rechercher une roadmap..."
                     value={homeSearchQuery}
                     onChange={(e) => setHomeSearchQuery(e.target.value)}
                     className="pl-9 h-9 bg-white dark:bg-background"
@@ -1132,6 +1133,7 @@ export default function RoadmapPage() {
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem onClick={() => {
                                         if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                        setSelectedRoadmapRef(roadmap);
                                         setSelectedRoadmapId(roadmap.id);
                                       }} data-testid={`button-home-open-roadmap-${roadmap.id}`}>
                                         <ArrowRight className="h-4 w-4 mr-2" />
@@ -1163,6 +1165,7 @@ export default function RoadmapPage() {
                                 className="hover:bg-muted/30 cursor-pointer group"
                                 onClick={() => {
                                   if (roadmap.projectId) setSelectedProjectId(roadmap.projectId);
+                                  setSelectedRoadmapRef(roadmap);
                                   setSelectedRoadmapId(roadmap.id);
                                 }}
                                 data-testid={`row-roadmap-${roadmap.id}`}
@@ -1221,7 +1224,7 @@ export default function RoadmapPage() {
             <>
             {/* Roadmap Indicators */}
             {selectedProjectId && (
-              <div className="my-[10px]">
+              <div className="mt-[10px]">
                 <RoadmapIndicators
                   projectId={selectedProjectId}
                   onShowMilestones={() => setShowMilestonesZone(v => !v)}
@@ -1244,7 +1247,7 @@ export default function RoadmapPage() {
               </div>
             )}
 
-            <Card className="mt-2">
+            <Card className="mt-[10px]">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   {/* LEFT — search + filters */}
