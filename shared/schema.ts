@@ -1203,6 +1203,7 @@ export const appointments = pgTable("appointments", {
   color: text("color").default("#F3E8FF"), // Pastel color for the event card
   recurrence: text("recurrence").default("none"), // none | daily | weekly | monthly | yearly
   recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }), // Optional end date for recurrence
+  recurrenceDays: text("recurrence_days"), // Comma-separated RFC 5545 day codes (MO,TU,WE,TH,FR,SA,SU) for daily recurrence
   googleEventId: text("google_event_id"), // ID de l'événement Google Calendar (pour sync bidirectionnel)
   createdBy: uuid("created_by").references(() => appUsers.id, { onDelete: "set null" }), // Nullable for FK compatibility
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

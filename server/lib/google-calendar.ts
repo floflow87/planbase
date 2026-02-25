@@ -126,6 +126,38 @@ export async function getCalendarEvents(accountId: string, userId: string, start
   return response.data.items || [];
 }
 
+function buildRRule(recurrence: string, recurrenceDays?: string, recurrenceEndDate?: string): string[] {
+  if (!recurrence || recurrence === "none") return [];
+
+  const FREQ_MAP: Record<string, string> = {
+    daily: "DAILY",
+    weekly: "WEEKLY",
+    monthly: "MONTHLY",
+    yearly: "YEARLY",
+  };
+
+  const freq = FREQ_MAP[recurrence];
+  if (!freq) return [];
+
+  let rule = `RRULE:FREQ=${freq}`;
+
+  // For daily recurrence with specific days, use BYDAY
+  if (recurrence === "daily" && recurrenceDays) {
+    const days = recurrenceDays.split(",").filter(Boolean);
+    if (days.length > 0 && days.length < 7) {
+      rule = `RRULE:FREQ=WEEKLY;BYDAY=${days.join(",")}`;
+    }
+  }
+
+  if (recurrenceEndDate) {
+    const endDate = new Date(recurrenceEndDate);
+    const until = endDate.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    rule += `;UNTIL=${until}`;
+  }
+
+  return [rule];
+}
+
 export async function createCalendarEvent(
   accountId: string, 
   userId: string, 
@@ -134,6 +166,9 @@ export async function createCalendarEvent(
     startDateTime: string;
     endDateTime?: string;
     description?: string;
+    recurrence?: string;
+    recurrenceDays?: string;
+    recurrenceEndDate?: string;
   }
 ) {
   let token = await storage.getGoogleTokenByUserId(accountId, userId);
@@ -178,7 +213,13 @@ export async function createCalendarEvent(
     ? new Date(eventData.endDateTime)
     : new Date(new Date(eventData.startDateTime).getTime() + 60 * 60 * 1000); // 1 hour default
 
-  const event = {
+  const rrule = buildRRule(
+    eventData.recurrence || "none",
+    eventData.recurrenceDays,
+    eventData.recurrenceEndDate
+  );
+
+  const event: any = {
     summary: eventData.title,
     description: eventData.description || "",
     start: {
@@ -190,6 +231,10 @@ export async function createCalendarEvent(
       timeZone: "Europe/Paris",
     },
   };
+
+  if (rrule.length > 0) {
+    event.recurrence = rrule;
+  }
 
   const response = await calendar.events.insert({
     calendarId: "primary",

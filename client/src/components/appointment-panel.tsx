@@ -105,6 +105,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
   const [color, setColor] = useState("#F3E8FF");
   const [recurrence, setRecurrence] = useState("none");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+  const [recurrenceDays, setRecurrenceDays] = useState<string[]>(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -141,6 +142,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
         setColor((appointment as any).color || "#F3E8FF");
         setRecurrence((appointment as any).recurrence || "none");
         setRecurrenceEndDate((appointment as any).recurrenceEndDate ? formatDateTimeLocal(new Date((appointment as any).recurrenceEndDate)).split("T")[0] : "");
+        setRecurrenceDays((appointment as any).recurrenceDays ? (appointment as any).recurrenceDays.split(",") : ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
         setMode(initialMode);
       } else {
         setMode("create");
@@ -256,6 +258,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
       color: color || "#F3E8FF",
       recurrence: recurrence || "none",
       recurrenceEndDate: recurrence !== "none" && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
+      recurrenceDays: recurrence === "daily" && recurrenceDays.length < 7 ? recurrenceDays.join(",") : null,
     };
 
     if (mode === "edit" && appointment) {
@@ -278,6 +281,7 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
     setColor("#F3E8FF");
     setRecurrence("none");
     setRecurrenceEndDate("");
+    setRecurrenceDays(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]);
     setMode("create");
     onClose();
   };
@@ -390,10 +394,10 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                         onValueChange={setClientSearchValue}
                         data-testid="input-search-client"
                       />
-                      <CommandList>
+                      <CommandList className="max-h-[220px] overflow-y-auto">
                         <CommandEmpty>Aucun client trouvé.</CommandEmpty>
                         <CommandGroup>
-                          {filteredClients.slice(0, 10).map((client) => (
+                          {filteredClients.map((client) => (
                             <CommandItem
                               key={client.id}
                               value={client.id}
@@ -512,6 +516,57 @@ export function AppointmentPanel({ open, onClose, selectedDate, appointment, mod
                 </SelectContent>
               </Select>
             </div>
+            {recurrence === "daily" && !isViewMode && (
+              <div className="space-y-1 mt-2">
+                <Label className="text-xs text-muted-foreground">Jours de répétition</Label>
+                <div className="flex gap-1 flex-wrap">
+                  {[
+                    { code: "MO", label: "Lun" },
+                    { code: "TU", label: "Mar" },
+                    { code: "WE", label: "Mer" },
+                    { code: "TH", label: "Jeu" },
+                    { code: "FR", label: "Ven" },
+                    { code: "SA", label: "Sam" },
+                    { code: "SU", label: "Dim" },
+                  ].map(({ code, label }) => {
+                    const active = recurrenceDays.includes(code);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setRecurrenceDays(prev =>
+                          prev.includes(code) ? prev.filter(d => d !== code) : [...prev, code]
+                        )}
+                        className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                          active
+                            ? "bg-violet-600 text-white border-violet-600"
+                            : "bg-card text-muted-foreground border-border hover:border-violet-400"
+                        }`}
+                        data-testid={`toggle-recurrence-day-${code}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {recurrence === "daily" && isViewMode && (appointment as any)?.recurrenceDays && (
+              <div className="space-y-1 mt-1">
+                <Label className="text-xs text-muted-foreground">Jours de répétition</Label>
+                <div className="flex gap-1 flex-wrap">
+                  {["MO","TU","WE","TH","FR","SA","SU"].map((code) => {
+                    const dayLabels: Record<string, string> = { MO:"Lun", TU:"Mar", WE:"Mer", TH:"Jeu", FR:"Ven", SA:"Sam", SU:"Dim" };
+                    const active = ((appointment as any).recurrenceDays || "").split(",").includes(code);
+                    return active ? (
+                      <span key={code} className="px-2 py-1 text-xs rounded-md border bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300">
+                        {dayLabels[code]}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
             {recurrence !== "none" && (
               <div className="space-y-1 mt-2">
                 <Label htmlFor="recurrenceEndDate" className="text-xs text-muted-foreground">

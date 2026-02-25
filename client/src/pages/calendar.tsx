@@ -59,6 +59,41 @@ interface Task {
   status: string | null;
 }
 
+// Derive a dark text color from a pastel background color (for event cards)
+function darkTextFromPastel(hex: string): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16) / 255;
+  const g = parseInt(h.substring(2, 4), 16) / 255;
+  const b = parseInt(h.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let hue = 0;
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+  if (max !== min) {
+    switch (max) {
+      case r: hue = ((g - b) / (max - min) + (g < b ? 6 : 0)) / 6; break;
+      case g: hue = ((b - r) / (max - min) + 2) / 6; break;
+      case b: hue = ((r - g) / (max - min) + 4) / 6; break;
+    }
+  }
+  // Return HSL with hue preserved, saturated and darkened for text
+  const sat = Math.max(s, 0.55);
+  const lit = 0.26;
+  const q = lit < 0.5 ? lit * (1 + sat) : lit + sat - lit * sat;
+  const p = 2 * lit - q;
+  const toRgb = (t: number) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+  const rr = Math.round(toRgb(hue + 1/3) * 255);
+  const gg = Math.round(toRgb(hue) * 255);
+  const bb = Math.round(toRgb(hue - 1/3) * 255);
+  return `#${((1 << 24) + (rr << 16) + (gg << 8) + bb).toString(16).slice(1)}`;
+}
+
 // Helper to get auth headers from Supabase session
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -789,7 +824,8 @@ export default function Calendar() {
                         return (
                           <div
                             key={apt.id}
-                            className="text-xs p-1 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 truncate cursor-grab hover-elevate"
+                            className="text-xs p-1 rounded truncate cursor-grab hover-elevate border-l-2"
+                            style={{ backgroundColor: apt.color || '#F3E8FF', color: darkTextFromPastel(apt.color || '#F3E8FF'), borderLeftColor: darkTextFromPastel(apt.color || '#F3E8FF') + '66' }}
                             title={`${startTime} - ${apt.title}`}
                             data-testid={`appointment-${apt.id}`}
                             draggable
@@ -1026,7 +1062,7 @@ export default function Calendar() {
                                   <TooltipTrigger asChild>
                                     <div
                                       className="absolute left-0.5 right-0.5 z-20 rounded cursor-pointer border-l-2 text-xs overflow-hidden group"
-                                      style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: 'rgba(0,0,0,0.25)', color: 'rgba(0,0,0,0.75)' }}
+                                      style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: darkTextFromPastel(apt.color || '#F3E8FF') + '99', color: darkTextFromPastel(apt.color || '#F3E8FF') }}
                                       draggable
                                       onDragStart={(e) => {
                                         e.dataTransfer.setData("appointmentId", apt.id);
@@ -1338,7 +1374,7 @@ export default function Calendar() {
                               <TooltipTrigger asChild>
                                 <div
                                   className="absolute left-1 right-1 z-20 rounded cursor-pointer border-l-4 overflow-hidden group"
-                                  style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: 'rgba(0,0,0,0.25)', color: 'rgba(0,0,0,0.75)' }}
+                                  style={{ top: offsetPx, height: heightPx, backgroundColor: apt.color || '#F3E8FF', borderLeftColor: darkTextFromPastel(apt.color || '#F3E8FF') + '99', color: darkTextFromPastel(apt.color || '#F3E8FF') }}
                                   draggable
                                   onDragStart={(e) => {
                                     e.dataTransfer.setData("appointmentId", apt.id);

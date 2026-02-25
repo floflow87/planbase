@@ -2047,6 +2047,15 @@ export async function runStartupMigrations() {
     `);
     console.log("✅ Appointments color and recurrence columns added");
 
+    // ============================================
+    // Appointments recurrence_days column
+    // ============================================
+    await db.execute(sql`
+      ALTER TABLE appointments
+      ADD COLUMN IF NOT EXISTS recurrence_days TEXT;
+    `);
+    console.log("✅ Appointments recurrence_days column added");
+
     console.log("✅ Startup migrations completed successfully");
   } catch (error) {
     console.error("❌ Error running startup migrations:", error);

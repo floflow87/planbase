@@ -7377,6 +7377,9 @@ app.get("/config/feature-flags", async (_req, res) => {
             startDateTime: data.startDateTime,
             endDateTime: data.endDateTime || undefined,
             description: data.notes || undefined,
+            recurrence: (data as any).recurrence || undefined,
+            recurrenceDays: (data as any).recurrenceDays || undefined,
+            recurrenceEndDate: (data as any).recurrenceEndDate || undefined,
           });
           
           // Update appointment with Google Event ID for future sync
