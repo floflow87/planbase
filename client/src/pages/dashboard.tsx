@@ -717,32 +717,30 @@ export default function Dashboard() {
     end.setHours(23, 59, 59, 999);
     return end;
   }, []);
+  const appointmentsUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      startDate: todayAppointments.toISOString(),
+      endDate: tomorrowAppointments.toISOString(),
+    });
+    return `/api/appointments?${params}`;
+  }, [todayAppointments, tomorrowAppointments]);
+
   const { data: appointments = [] } = useQuery<Appointment[]>({
-    queryKey: ["/api/appointments", todayAppointments.toISOString(), tomorrowAppointments.toISOString()],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        start: todayAppointments.toISOString(),
-        end: tomorrowAppointments.toISOString(),
-      });
-      const response = await fetch(`/api/appointments?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch appointments");
-      return response.json();
-    },
+    queryKey: [appointmentsUrl],
     enabled: !!accountId,
   });
 
   // Fetch today's Google Calendar events
+  const googleEventsUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      startDate: todayAppointments.toISOString(),
+      endDate: tomorrowAppointments.toISOString(),
+    });
+    return `/api/google/events?${params}`;
+  }, [todayAppointments, tomorrowAppointments]);
+
   const { data: todayGoogleEvents = [] } = useQuery<GoogleEvent[]>({
-    queryKey: ["/api/google/events/today", todayAppointments.toISOString(), tomorrowAppointments.toISOString()],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        start: todayAppointments.toISOString(),
-        end: tomorrowAppointments.toISOString(),
-      });
-      const response = await fetch(`/api/google/events?${params}`);
-      if (!response.ok) return [];
-      return response.json();
-    },
+    queryKey: [googleEventsUrl],
     enabled: !!accountId,
   });
 
@@ -766,7 +764,7 @@ export default function Dashboard() {
         location: (a as any).location,
       }));
 
-    const googleItems: CalendarItem[] = todayGoogleEvents
+    const googleItems: CalendarItem[] = (todayGoogleEvents ?? [])
       .filter(e => {
         const start = e.start.dateTime || e.start.date;
         return start && new Date(start) >= now;
