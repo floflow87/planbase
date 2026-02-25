@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -446,8 +446,16 @@ export default function Calendar() {
     return results;
   };
 
+  // Build a set of Google event IDs already tracked as Planbase appointments (synced events)
+  // so they are not shown twice in the calendar
+  const syncedGoogleEventIds = useMemo(
+    () => new Set(appointments.map(a => a.googleEventId).filter(Boolean)),
+    [appointments]
+  );
+
   const getGoogleEventsForDay = (date: Date) => {
     return googleEvents.filter(event => {
+      if (syncedGoogleEventIds.has(event.id)) return false; // Already shown as a Planbase appointment
       const eventDate = new Date(event.start.dateTime || event.start.date || "");
       return eventDate.toDateString() === date.toDateString();
     });

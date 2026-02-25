@@ -745,15 +745,34 @@ export default function Dashboard() {
     enabled: !!accountId,
   });
 
-  // Combine planbase appointments + Google events, filtered to upcoming (>= now), sorted by time
+  // Combine planbase appointments + Google events, filtered based on myDayFilter, sorted by time
   const upcomingCalendarItems = useMemo(() => {
     const now = new Date();
+
+    // Calculate the cutoff end based on the active filter
+    const cutoffEnd = (() => {
+      if (myDayFilter === "next3days") {
+        const end = new Date();
+        end.setDate(end.getDate() + 3);
+        end.setHours(23, 59, 59, 999);
+        return end;
+      }
+      // "today" or "overdue": only events remaining today
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return end;
+    })();
+
     type CalendarItem =
       | { kind: "apt"; id: string; title: string; start: Date; end: Date | null; color?: string | null; clientId?: string | null; location?: string | null }
       | { kind: "google"; id: string; title: string; start: Date; end: Date | null };
 
     const aptItems: CalendarItem[] = appointments
-      .filter(a => a.startDateTime && new Date(a.startDateTime) >= now)
+      .filter(a => {
+        if (!a.startDateTime) return false;
+        const start = new Date(a.startDateTime);
+        return start >= now && start <= cutoffEnd;
+      })
       .map(a => ({
         kind: "apt" as const,
         id: a.id,
@@ -765,10 +784,19 @@ export default function Dashboard() {
         location: (a as any).location,
       }));
 
+    // Build a set of google event IDs that are already tracked as Planbase appointments
+    // to avoid showing the same event twice after Google sync
+    const syncedGoogleIds = new Set(
+      appointments.map(a => a.googleEventId).filter(Boolean)
+    );
+
     const googleItems: CalendarItem[] = (todayGoogleEvents ?? [])
       .filter(e => {
-        const start = e.start.dateTime || e.start.date;
-        return start && new Date(start) >= now;
+        if (syncedGoogleIds.has(e.id)) return false; // Already shown as a Planbase appointment
+        const startStr = e.start.dateTime || e.start.date;
+        if (!startStr) return false;
+        const start = new Date(startStr);
+        return start >= now && start <= cutoffEnd;
       })
       .map(e => ({
         kind: "google" as const,
@@ -779,7 +807,7 @@ export default function Dashboard() {
       }));
 
     return [...aptItems, ...googleItems].sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [appointments, todayGoogleEvents]);
+  }, [appointments, todayGoogleEvents, myDayFilter]);
 
   // Create client mutation
   const createClientMutation = useMutation({
